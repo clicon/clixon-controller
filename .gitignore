@@ -1,3 +1,15 @@
+Makefile
+*/Makefile
+util/controller_get_config
+mk.sh
+*~
+autom4te.cache/
+config.log
+config.status
+TAGS
+/controller/docker/src
+/controller/docker/yang
+
 # Prerequisites
 *.d
 

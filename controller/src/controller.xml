@@ -1,0 +1,28 @@
+<clixon-config xmlns="http://clicon.org/config">
+  <CLICON_CONFIGFILE>/usr/local/etc/controller.xml</CLICON_CONFIGFILE>
+  <CLICON_FEATURE>ietf-netconf:startup</CLICON_FEATURE>
+  <CLICON_FEATURE>clixon-restconf:allow-auth-none</CLICON_FEATURE>
+  <CLICON_YANG_DIR>/usr/local/share/clixon</CLICON_YANG_DIR>
+  <CLICON_YANG_MODULE_MAIN>clixon-controller</CLICON_YANG_MODULE_MAIN>
+  <CLICON_CLI_MODE>controller</CLICON_CLI_MODE>
+  <CLICON_CLISPEC_DIR>/usr/local/lib/controller/clispec</CLICON_CLISPEC_DIR>
+  <CLICON_BACKEND_DIR>/usr/local/lib/controller/backend</CLICON_BACKEND_DIR>
+  <CLICON_SOCK>/usr/local/var/controller.sock</CLICON_SOCK>
+  <CLICON_BACKEND_PIDFILE>/usr/local/var/controller.pidfile</CLICON_BACKEND_PIDFILE>
+  <CLICON_XMLDB_DIR>/usr/local/var/controller</CLICON_XMLDB_DIR>
+  <CLICON_STARTUP_MODE>init</CLICON_STARTUP_MODE>
+  <CLICON_SOCK_GROUP>clicon</CLICON_SOCK_GROUP>
+  <CLICON_RESTCONF_USER>www-data</CLICON_RESTCONF_USER>
+  <CLICON_RESTCONF_PRIVILEGES>drop_perm</CLICON_RESTCONF_PRIVILEGES>
+  <CLICON_RESTCONF_INSTALLDIR>/usr/local/sbin</CLICON_RESTCONF_INSTALLDIR>
+  <autocli>
+     <module-default>false</module-default>
+     <list-keyword-default>kw-nokey</list-keyword-default>
+     <treeref-state-default>true</treeref-state-default>
+     <rule>
+       <name>include controller</name>
+       <module-name>clixon-controller</module-name>
+       <operation>enable</operation>
+     </rule>
+  </autocli>
+</clixon-config>

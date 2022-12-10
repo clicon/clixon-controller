@@ -1,0 +1,23 @@
+module clixon-controller {
+    yang-version 1.1;
+    namespace "urn:example:clixon-controller";
+    prefix clco;
+    description
+        "Clixon controller";
+    revision 2023-01-01 {
+        description "Initial version";
+    }
+    /* Generic config data */
+    container nodes{
+        list node{
+            key name;
+            leaf name{
+                type string;
+            }
+            leaf destination{
+                type string;
+            }
+            
+        }
+    }
+}
