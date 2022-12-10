@@ -1,0 +1,88 @@
+#
+# ***** BEGIN LICENSE BLOCK *****
+# 
+# Copyright (C) 2023 Olof Hagsand
+#
+# This file is part of CLIXON
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+# ***** END LICENSE BLOCK *****
+#
+
+prefix		= @prefix@
+exec_prefix 	= @exec_prefix@
+# abs_top_builddir is by default the absolute path of the builddir.
+includedir	= @includedir@
+datadir 	= @datarootdir@
+localstatedir	= @localstatedir@
+sysconfdir	= @sysconfdir@
+
+VPATH       	= @srcdir@
+srcdir  	= @srcdir@
+libdir		= @libdir@
+top_srcdir  	= @top_srcdir@
+CC		= @CC@
+CFLAGS  	= @CFLAGS@ 
+LDFLAGS 	= @LDFLAGS@
+LIBS    	= @LIBS@
+INSTALL		= @INSTALL@
+
+INCLUDES 	= -I. -I@srcdir@ @INCLUDES@
+SHELL		= /bin/sh
+
+SUBDIRS = controller util
+
+.PHONY:	all clean $(SUBDIRS) install uninstall docker push TAGS .config.status
+
+all:	$(SUBDIRS)
+
+$(SUBDIRS): 
+	(cd $@ && $(MAKE) $(MFLAGS) all)
+
+install:  
+	for i in $(SUBDIRS) ; \
+	do (cd $$i; $(MAKE) $(MFLAGS) $@)||exit 1; done; 
+
+uninstall:
+	for i in $(SUBDIRS) ; \
+	do (cd $$i && $(MAKE) $(MFLAGS) $@)||exit 1; done;
+
+docker:
+	for i in $(SUBDIRS) ; \
+	do (cd $$i && $(MAKE) $(MFLAGS) $@)||exit 1; done;
+
+push:
+	for i in $(SUBDIRS) ; \
+	do (cd $$i && $(MAKE) $(MFLAGS) $@)||exit 1; done; 
+
+config.status:	configure
+	$(SHELL) config.status --recheck
+
+configure:	configure.ac
+	cd $(srcdir) && autoconf
+
+clean:
+	for i in $(SUBDIRS) ; \
+	do (cd $$i && $(MAKE) $(MFLAGS) $@); done; 
+
+distclean:
+	rm -f Makefile TAGS config.status config.log *~
+	rm -rf autom4te.cache
+	for i in $(SUBDIRS) ; \
+	do (cd $$i && $(MAKE) $(MFLAGS) $@); done
+
+TAGS:
+	find $(srcdir) -name '*.[chyl]' -type f | grep -v \.tab\.[ch] | grep -v lex.*.c | grep -v .yy.c | etags -
+
+

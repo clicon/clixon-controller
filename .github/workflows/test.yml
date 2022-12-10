@@ -1,0 +1,28 @@
+name: Clixon Controller CI
+
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+    branches: [ master ]
+
+jobs:
+  build:
+
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v2
+# 1) checkout and compile natively
+    - name: install cligen native
+      run: (git clone https://github.com/clicon/cligen.git && cd cligen && ./configure && make && sudo make install)
+    - name: install ssl and nghttp2
+      run: sudo apt install -y libssl-dev libnghttp2-dev
+    - name: install clixon native
+      run: (git clone https://github.com/clicon/clixon.git && cd clixon && ./configure && make && sudo make install)
+    - name: configure
+      run: ./configure
+# 2) Use docker for tests
+    - name: make test # this is docker test
+      run: (cd controller/docker; make docker)
+#      run: make test
