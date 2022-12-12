@@ -7,6 +7,17 @@ module clixon-controller {
     revision 2023-01-01 {
         description "Initial version";
     }
+    typedef connection-type{
+        description
+            "Which connection method to connect frm the controller to a device.
+            ";
+        type enumeration{
+            enum NETCONF_SSH{
+                description
+                  "NETCONF over SSH subsystem according to RFC 6242";
+            }
+        }
+    }
     /* Generic config data */
     container nodes{
         list node{
@@ -14,10 +25,59 @@ module clixon-controller {
             leaf name{
                 type string;
             }
-            leaf destination{
+            leaf type{
+                mandatory true;
+                type connection-type;
+            }
+            leaf user{
                 type string;
             }
-            
+            leaf addr{
+                description "DNS name or ip address";
+                type string;
+            }
+            anydata config{
+                description
+                    "Mount-point for node config";
+            }
+        }
+    }
+    rpc connect {
+        description "Connect to one or several devices.";
+        input {
+            leaf name { // XXX possibly leaf-list?
+                description
+                   "Name of device to connect to, can use wildchars for several.
+                    This is an asynchronous operation which means the result is not
+                    immediately available, the client needs to poll the state.";
+                type string;
+            }
+        }
+        output {
+            leaf-list name {
+                description
+                    "Names of devices where connections have been initiated.
+                     Note the connection establishement is asynchronous and continues in background";
+                type string;
+            }
+        }
+    }
+    rpc sync {
+        description "Read the config of one or several devices.";
+        input {
+            leaf name {
+                description
+                    "Name of device to connect to, can use wildchars for several.";
+                type string;
+            }
+        }
+        output {
+            leaf-list name {
+                description
+                    "Names of devices where connections have been initiated.
+                     Note the connection establishement is asynchronous and continues in background";
+                type string;
+            }
         }
     }
 }
