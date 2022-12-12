@@ -40,12 +40,26 @@ INSTALLFLAGS  	= @INSTALLFLAGS@
 INCLUDES 	= @INCLUDES@ 
 CPPFLAGS  	= @CPPFLAGS@ -fPIC
 
-# Example backend plugin
+# Backend plugin
 # There may also be restconf/cli/netconf plugins which are not covered here, see
 # eg clixon main example
-PLUGIN       = $(APPNAME)_backend_plugin.so
-PLUGIN_SRC   = $(APPNAME)_backend_plugin.c
-PLUGIN_OBJ   = $(PLUGIN_SRC:%.c=%.o)
+BE_PLUGIN       = $(APPNAME)_backend.so
+BE_SRC          = $(APPNAME)_backend.c
+BE_OBJ          = $(BE_SRC:%.c=%.o)
+
+$(BE_PLUGIN): $(BE_OBJ)
+	$(CC) -Wall -shared $(LDFLAGS) -o $@ -lc $< -lclixon -lclixon_backend
+
+# CLI frontend plugin
+CLI_PLUGIN      = $(APPNAME)_cli.so
+CLI_SRC         = $(APPNAME)_cli.c
+CLI_OBJ         = $(CLI_SRC:%.c=%.o)
+
+$(CLI_PLUGIN): $(CLI_OBJ)
+	$(CC) -Wall -shared $(LDFLAGS) -o $@ -lc $^ -lclixon -lclixon_cli
+
+OBJS    = $(BE_OBJ) $(CLI_OBJ)
+PLUGINS = $(BE_PLUGIN) $(CLI_PLUGIN)
 
 .SUFFIXES: .c .o
 
@@ -54,20 +68,18 @@ PLUGIN_OBJ   = $(PLUGIN_SRC:%.c=%.o)
 	$(CC) $(INCLUDES) $(CPPFLAGS) $(CFLAGS) -c $<
 
 .PHONY: all clean depend install 
-all: $(PLUGIN)
 
-$(PLUGIN): $(PLUGIN_OBJ)
-	$(CC) -Wall -shared $(LDFLAGS) -o $@ -lc $< -lclixon -lclixon_backend
+all: $(PLUGINS)
 
 CLISPECS = $(APPNAME)_cli.cli
 
 clean:
-	rm -f $(PLUGIN) $(PLUGIN_OBJ)
+	rm -f $(PLUGINS) $(OBJS)
 
 distclean: clean
 	rm -f Makefile *~ .depend
 
-install: $(CLISPECS) $(APPNAME).xml $(PLUGIN)
+install: $(CLISPECS) $(PLUGINS) $(APPNAME).xml
 	install -d -m 0755 $(DESTDIR)$(sysconfdir)
 	install -m 0644 $(APPNAME).xml $(DESTDIR)$(sysconfdir)
 	install -d -m 0755 $(DESTDIR)$(libdir)/$(APPNAME)
@@ -76,7 +88,10 @@ install: $(CLISPECS) $(APPNAME).xml $(PLUGIN)
 	install -m 0644 $(CLISPECS) $(DESTDIR)$(libdir)/$(APPNAME)/clispec
 	install -d -m 0755 $(DESTDIR)$(localstatedir)
 	install -d -m 0755 $(DESTDIR)$(localstatedir)/$(APPNAME)
-	install -m 0644 $(INSTALLFLAGS) $(PLUGIN) $(DESTDIR)$(libdir)/$(APPNAME)/backend
+	install -d -m 0755 $(DESTDIR)$(libdir)/$(APPNAME)/cli
+	install -m 0644 $(INSTALLFLAGS) $(CLI_PLUGIN) $(DESTDIR)$(libdir)/$(APPNAME)/cli
+	install -d -m 0755 $(DESTDIR)$(libdir)/$(APPNAME)/backend
+	install -m 0644 $(INSTALLFLAGS) $(BE_PLUGIN) $(DESTDIR)$(libdir)/$(APPNAME)/backend
 
 uninstall: 
 	rm -rf $(DESTDIR)$(sysconfdir)/$(APPNAME).xml

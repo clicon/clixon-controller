@@ -571,7 +571,6 @@ main(int    argc,
     s = clixon_client_socket_get(ch);
     clicon_option_int_set(h, "netconf-framing", NETCONF_SSH_EOM); /* Always start with EOM */
     clicon_option_int_set(h, "controller-state", CS_INIT);
-
     if (clixon_event_reg_fd(s, netconf_input_cb, h, "netconf socket") < 0)
         goto done;
     if (clixon_event_loop(h) < 0)

@@ -1,6 +1,7 @@
 CLICON_MODE="controller";
 #CLICON_PROMPT="%U@%H %W> ";
 CLICON_PROMPT="cli %W> ";
+CLICON_PLUGIN="controller_cli";
 
 # Al11: Auto edit mode
 # Autocli syntax tree operations
@@ -132,3 +133,12 @@ load("Load configuration from XML file") <filename:string>("Filename (local file
 	text("Merge candidate with file containing TEXT"), load_config_file("filename", "merge", "text");
     }
 }
+
+connect("Connect to one or several devices.") [
+                 (<name:string>("device pattern")|
+                  <name:string expand_dbvar("running","/clixon-controller:nodes/node/name")>("device pattern"))
+                 ], cli_connect_rpc("");
+sync("Read the config of one or several devices.") [
+                 (<name:string>("device pattern")|
+                  <name:string expand_dbvar("running","/clixon-controller:nodes/node/name")>("device pattern"))
+                 ], cli_connect_rpc("");
