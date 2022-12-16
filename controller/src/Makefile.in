@@ -38,17 +38,18 @@ CFLAGS  	= @CFLAGS@ -fPIC
 INSTALLFLAGS  	= @INSTALLFLAGS@ 
 
 INCLUDES 	= @INCLUDES@ 
-CPPFLAGS  	= @CPPFLAGS@ -fPIC
+CPPFLAGS  	= @CPPFLAGS@ -fPIC -DSSH_BIN=\"@SSH_BIN@\"
 
 # Backend plugin
 # There may also be restconf/cli/netconf plugins which are not covered here, see
 # eg clixon main example
 BE_PLUGIN       = $(APPNAME)_backend.so
 BE_SRC          = $(APPNAME)_backend.c
+BE_SRC         += clixon_client2.c # XXX move back to clixon?
 BE_OBJ          = $(BE_SRC:%.c=%.o)
 
 $(BE_PLUGIN): $(BE_OBJ)
-	$(CC) -Wall -shared $(LDFLAGS) -o $@ -lc $< -lclixon -lclixon_backend
+	$(CC) -Wall -shared $(LDFLAGS) -o $@ -lc $^ -lclixon -lclixon_backend
 
 # CLI frontend plugin
 CLI_PLUGIN      = $(APPNAME)_cli.so

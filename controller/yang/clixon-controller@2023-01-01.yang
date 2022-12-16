@@ -18,6 +18,28 @@ module clixon-controller {
             }
         }
     }
+    typedef connection-state{
+        description
+            "Connection state";
+        type enumeration{
+            enum CLOSED {
+                description
+                "No connect";
+            }
+            enum CONNECTED {
+                description
+                "Connection established";
+            }
+            enum OPEN{
+                description
+                "Connection is open";
+            }
+            enum WRESP{
+                description
+                "Netconf reuest is sent, wiating for response";
+            }
+        }
+    }
     /* Generic config data */
     container nodes{
         list node{
@@ -36,16 +58,29 @@ module clixon-controller {
                 description "DNS name or ip address";
                 type string;
             }
-            anydata config{
+            anydata data{
                 description
                     "Mount-point for node config";
+            }
+            leaf conn-state {
+                description
+                    "State of connection";
+                config false;
+                type connection-type;
+                default CLOSED;
             }
         }
     }
     rpc connect {
         description "Connect to one or several devices.";
         input {
-            leaf name { // XXX possibly leaf-list?
+            leaf state {
+                description
+                    "if true: open connection, if false: close connection";
+                type boolean;
+                default true;
+            }
+            leaf name {
                 description
                    "Name of device to connect to, can use wildchars for several.
                     This is an asynchronous operation which means the result is not
