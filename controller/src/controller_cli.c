@@ -39,39 +39,46 @@
 #include <clixon/clixon_cli.h>
 #include <clixon/cli_generate.h>
 
-/*! Example "downcall", ie initiate an RPC to the backend */
+#define CONTROLLER_NAMESPACE "urn:example:clixon-controller"
+
+/*! Initiate connect rpc
+ * @param[in] h
+ * @param[in] cvv  : name
+ * @param[in] argv : status
+ */
 int
 cli_connect_rpc(clicon_handle h, 
                 cvec         *cvv, 
                 cvec         *argv)
 {
     int        retval = -1;
+    cbuf      *cb = NULL;
     cg_var    *cv;
     cxobj     *xtop = NULL;
     cxobj     *xrpc;
     cxobj     *xret = NULL;
     cxobj     *xerr;
+    char      *state = "true";
 
-    /* User supplied variable in CLI command */
-    if ((cv = cvec_find(cvv, "name")) != NULL){
-        if (clixon_xml_parse_va(YB_NONE, NULL, &xtop, NULL,
-                                "<rpc xmlns=\"%s\" username=\"%s\" %s>"
-                                "<connect xmlns=\"urn:example:clixon-controller\"><name>%s</name></connect></rpc>",
-                                NETCONF_BASE_NAMESPACE,
-                                clicon_username_get(h),
-                                NETCONF_MESSAGE_ID_ATTR,
-                                cv_string_get(cv)) < 0)
-            goto done;
+    if (cvec_len(argv) > 0){
+        cv = cvec_i(argv, 0);
+        state = cv_string_get(cv);
     }
-    else
-        if (clixon_xml_parse_va(YB_NONE, NULL, &xtop, NULL,
-                                "<rpc xmlns=\"%s\" username=\"%s\" %s>"
-                                "<connect xmlns=\"urn:example:clixon-controller\"></connect></rpc>",
-                                NETCONF_BASE_NAMESPACE,
-                                clicon_username_get(h),
-                                NETCONF_MESSAGE_ID_ATTR) < 0)
-            goto done;
-            
+    if ((cb = cbuf_new()) == NULL){
+        clicon_err(OE_UNIX, errno, "cbuf_new");
+        goto done;
+    }
+    cprintf(cb, "<rpc xmlns=\"%s\" username=\"%s\" %s>",
+            NETCONF_BASE_NAMESPACE,
+            clicon_username_get(h),
+            NETCONF_MESSAGE_ID_ATTR);
+    cprintf(cb, "<connect xmlns=\"%s\">", CONTROLLER_NAMESPACE);
+    if ((cv = cvec_find(cvv, "name")) != NULL)
+        cprintf(cb, "<name>%s</name>", cv_string_get(cv));
+    cprintf(cb, "<state>%s</state>", state);
+    cprintf(cb, "</connect></rpc>");
+    if (clixon_xml_parse_string(cbuf_get(cb), YB_NONE, NULL, &xtop, NULL) < 0)
+        goto done;
     /* Skip top-level */
     xrpc = xml_child_i(xtop, 0);
     /* Send to backend */
@@ -82,15 +89,12 @@ cli_connect_rpc(clicon_handle h,
         goto done;
     }
     /* Print result */
-    if (clixon_xml2file(stdout, xml_child_i(xret, 0), 0, 0, cligen_output, 0, 1) < 0)
+    if (clixon_xml2file(stdout, xml_child_i(xret, 0), 0, 1, cligen_output, 0, 1) < 0)
         goto done;
-    fprintf(stdout,"\n");
-
-    /* pretty-print:
-       clixon_txt2file(stdout, xml_child_i(xret, 0), 0, cligen_output, 0);
-    */
     retval = 0;
  done:
+    if (cb)
+        cbuf_free(cb);
     if (xret)
         xml_free(xret);
     if (xtop)
@@ -98,15 +102,118 @@ cli_connect_rpc(clicon_handle h,
     return retval;
 }
 
-/*! XXX 
- * copy from cli_connect_rpc
+/*! Read the config of one or several devices
+ * @param[in] h
+ * @param[in] cvv  : name
+ * @param[in] argv
  */
 int
 cli_sync_rpc(clicon_handle h, 
              cvec         *cvv, 
              cvec         *argv)
 {
-    return 0;
+    int        retval = -1;
+    cbuf      *cb = NULL;
+    cg_var    *cv;
+    cxobj     *xtop = NULL;
+    cxobj     *xrpc;
+    cxobj     *xret = NULL;
+    cxobj     *xerr;
+
+    if ((cb = cbuf_new()) == NULL){
+        clicon_err(OE_UNIX, errno, "cbuf_new");
+        goto done;
+    }
+    cprintf(cb, "<rpc xmlns=\"%s\" username=\"%s\" %s>",
+            NETCONF_BASE_NAMESPACE,
+            clicon_username_get(h),
+            NETCONF_MESSAGE_ID_ATTR);
+    cprintf(cb, "<sync xmlns=\"%s\">", CONTROLLER_NAMESPACE);
+    if ((cv = cvec_find(cvv, "name")) != NULL)
+        cprintf(cb, "<name>%s</name>", cv_string_get(cv));
+    cprintf(cb, "</sync></rpc>");
+    if (clixon_xml_parse_string(cbuf_get(cb), YB_NONE, NULL, &xtop, NULL) < 0)
+        goto done;
+    /* Skip top-level */
+    xrpc = xml_child_i(xtop, 0);
+    /* Send to backend */
+    if (clicon_rpc_netconf_xml(h, xrpc, &xret, NULL) < 0)
+        goto done;
+    if ((xerr = xpath_first(xret, NULL, "//rpc-error")) != NULL){
+        clixon_netconf_error(xerr, "Get configuration", NULL);
+        goto done;
+    }
+    /* Print result */
+    if (clixon_xml2file(stdout, xml_child_i(xret, 0), 0, 1, cligen_output, 0, 1) < 0)
+        goto done;
+    retval = 0;
+ done:
+    if (cb)
+        cbuf_free(cb);
+    if (xret)
+        xml_free(xret);
+    if (xtop)
+        xml_free(xtop);
+    return retval;
+}
+
+/*! Show controller node states
+ * @param[in] h
+ * @param[in] cvv
+ * @param[in] argv
+ */
+int
+cli_show_nodes(clicon_handle h,
+               cvec         *cvv,
+               cvec         *argv)
+{
+    int                retval = -1;
+    struct clicon_msg *msg = NULL;
+    cvec              *nsc = NULL;
+    cxobj             *xc;
+    cbuf              *cb = NULL;
+    cxobj             *xn = NULL; /* XML of senders */
+    char              *name;
+    char              *state;
+
+    if ((cb = cbuf_new()) == NULL){
+        clicon_err(OE_PLUGIN, errno, "cbuf_new");
+        goto done;
+    }
+    /* Get config */
+    if ((nsc = xml_nsctx_init("co", CONTROLLER_NAMESPACE)) == NULL)
+        goto done;
+    if (clicon_rpc_get(h, "co:nodes", nsc, CONTENT_ALL, -1, "report-all", &xn) < 0)
+        goto done;
+    if (xpath_first(xn, NULL, "/rpc-error") != NULL)
+        goto done;
+    /* Change top frm "data" to "nodes" */
+    if ((xc = xml_find_type(xn, NULL, "nodes", CX_ELMNT)) != NULL){
+        if (xml_rootchild_node(xn, xc) < 0)
+            goto done;
+        xn = xc;
+        fprintf(stdout, "%-17s %-10s\n", "name", "state");
+        fprintf(stdout, "==========================\n");
+        xc = NULL;
+        while ((xc = xml_child_each(xn, xc, CX_ELMNT)) != NULL) {
+            name = xml_find_body(xc, "name");
+            fprintf(stdout, "%-18s",  name);
+            state = xml_find_body(xc, "conn-state");
+            fprintf(stdout, "%-11s",  state);
+            fprintf(stdout, "\n");
+        }
+    }
+    retval = 0;
+ done:
+    if (nsc)
+        cvec_free(nsc);
+    if (xn)
+        xml_free(xn);
+    if (cb)
+        cbuf_free(cb);
+    if (msg)
+        free(msg);
+    return retval;
 }
 
 static clixon_plugin_api api = {

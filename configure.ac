@@ -68,8 +68,6 @@ AC_SUBST(SH_SUFFIX)
 AC_PROG_CC()
 AC_PROG_CPP
 
-CPPFLAGS="-DHAVE_CONFIG_H ${CPPFLAGS}"
-
 AC_MSG_RESULT(compiler is $CC)	
 # Debug flag
 AC_ARG_ENABLE(debug, AS_HELP_STRING([--enable-debug],[Build with debug symbols, default: no]),[
@@ -90,6 +88,9 @@ fi
 AC_MSG_RESULT(CPPFLAGS is $CPPFLAGS)	
 AC_MSG_RESULT(CFLAGS is $CFLAGS)
 AC_MSG_RESULT(INSTALLFLAGS is $INSTALLFLAGS)	
+
+# SSH binary path (see controller/src/Makefile and clixon_client.c
+AC_PATH_PROG(SSH_BIN, ssh)
 
 if test "$prefix" = "NONE"; then
      prefix=${ac_default_prefix}
