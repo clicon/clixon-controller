@@ -72,28 +72,31 @@ show("Show a particular state of the system"){
     		     xml("Show comparison in xml"), compare_dbs((int32)0);
 		     text("Show comparison in text"), compare_dbs((int32)1);
     }
-    nodes("Show state of nodes"), cli_show_nodes();
+    devices("Show state of devices")[
+                 (<name:string>("device pattern")|
+                  <name:string expand_dbvar("running","/clixon-controller:devices/device/name")>("device pattern"))
+                 ], cli_show_devices();
     pagination("Show list pagination") xpath("Show configuration") <xpath:string>("XPATH expression"){
     	xml, cli_pagination("use xpath var", "es", "http://example.com/ns/example-social", "xml", "10");
 	cli, cli_pagination("use xpath var", "es", "http://example.com/ns/example-social", "cli", "10");
 	text, cli_pagination("use xpath var", "es", "http://example.com/ns/example-social", "text", "10");
 	json, cli_pagination("use xpath var", "es", "http://example.com/ns/example-social", "json", "10");
     }
-    configuration("Show configuration"), cli_show_auto_mode("candidate", "text", true, false);{
-	    xml("Show configuration as XML"), cli_show_auto_mode("candidate", "xml", true, false);{
+    configuration("Show configuration"), cli_show_auto_mode("running", "text", true, false);{
+	    xml("Show configuration as XML"), cli_show_auto_mode("running", "xml", true, false);{
 	       default("With-default mode"){
-	          report-all, cli_show_auto_mode("candidate", "xml", true, false, "report-all");
-		  trim, cli_show_auto_mode("candidate", "xml", true, false, "trim");
-		  explicit, cli_show_auto_mode("candidate", "xml", true, false, "explicit");
-		  report-all-tagged, cli_show_auto_mode("candidate", "xml", true, false, "report-all-tagged");
-		  report-all-tagged-default, cli_show_auto_mode("candidate", "xml", true, false, "report-all-tagged-default");
-		  report-all-tagged-strip, cli_show_auto_mode("candidate", "xml", true, false, "report-all-tagged-strip");
+	          report-all, cli_show_auto_mode("running", "xml", true, false, "report-all");
+		  trim, cli_show_auto_mode("running", "xml", true, false, "trim");
+		  explicit, cli_show_auto_mode("running", "xml", true, false, "explicit");
+		  report-all-tagged, cli_show_auto_mode("running", "xml", true, false, "report-all-tagged");
+		  report-all-tagged-default, cli_show_auto_mode("running", "xml", true, false, "report-all-tagged-default");
+		  report-all-tagged-strip, cli_show_auto_mode("running", "xml", true, false, "report-all-tagged-strip");
 	       }
 	    }
-	    cli("Show configuration as CLI commands"), cli_show_auto_mode("candidate", "cli", true, false, "explicit", "set ");
-	    netconf("Show configuration as netconf edit-config operation"), cli_show_auto_mode("candidate", "netconf", true, false);
-	    text("Show configuration as text"), cli_show_auto_mode("candidate", "text", true, false);
-	    json("Show configuration as JSON"), cli_show_auto_mode("candidate", "json", true, false);
+	    cli("Show configuration as CLI commands"), cli_show_auto_mode("running", "cli", true, false, "explicit", "set ");
+	    netconf("Show configuration as netconf edit-config operation"), cli_show_auto_mode("running", "netconf", true, false);
+	    text("Show configuration as text"), cli_show_auto_mode("running", "text", true, false);
+	    json("Show configuration as JSON"), cli_show_auto_mode("running", "json", true, false);
  
     }
     state("Show configuration and state"), cli_show_auto_mode("running", "text", true, true); {
@@ -135,16 +138,16 @@ load("Load configuration from XML file") <filename:string>("Filename (local file
     }
 }
 
-connect("Connect to one or several devices.") [
+connect("Connect to device.") [
                  (<name:string>("device pattern")|
-                  <name:string expand_dbvar("running","/clixon-controller:nodes/node/name")>("device pattern"))
-                 ], cli_connect_rpc("true");
-close("Connect to one or several devices.") [
+                  <name:string expand_dbvar("running","/clixon-controller:devices/device/name")>("device pattern"))
+                 ], cli_connect_device("true");
+disconnect("Disconnect device.") [
                  (<name:string>("device pattern")|
-                  <name:string expand_dbvar("running","/clixon-controller:nodes/node/name")>("device pattern"))
-                 ], cli_connect_rpc("false");
+                  <name:string expand_dbvar("running","/clixon-controller:devices/device/name")>("device pattern"))
+                 ], cli_connect_device("false");
 
 sync("Read the config of one or several devices.") [
                  (<name:string>("device pattern")|
-                  <name:string expand_dbvar("running","/clixon-controller:nodes/node/name")>("device pattern"))
+                  <name:string expand_dbvar("running","/clixon-controller:devices/device/name")>("device pattern"))
                  ], cli_sync_rpc();

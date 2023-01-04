@@ -27,11 +27,12 @@
 #include <errno.h>
 #include <syslog.h>
 #include <unistd.h>
+#include <fnmatch.h>
+#include <signal.h> /* matching strings */
 #include <sys/stat.h>
 #include <sys/time.h>
 #include <sys/param.h>
 #include <netinet/in.h>
-#include <signal.h> /* matching strings */
 
 /* clicon */
 #include <cligen/cligen.h>
@@ -41,21 +42,21 @@
 
 #define CONTROLLER_NAMESPACE "urn:example:clixon-controller"
 
-/*! Initiate connect rpc
+/*! Explicit connect/disconnect rpc of devices
  * @param[in] h
- * @param[in] cvv  : name
- * @param[in] argv : status
+ * @param[in] cvv  : name pattern
+ * @param[in] argv : state ("true" / "false")
+ * Note devices connect due to commit but may have a failure state
  */
 int
-cli_connect_rpc(clicon_handle h, 
-                cvec         *cvv, 
-                cvec         *argv)
+cli_connect_device(clicon_handle h, 
+                   cvec         *cvv, 
+                   cvec         *argv)
 {
     int        retval = -1;
     cbuf      *cb = NULL;
     cg_var    *cv;
     cxobj     *xtop = NULL;
-    cxobj     *xrpc;
     cxobj     *xret = NULL;
     cxobj     *xerr;
     char      *state = "true";
@@ -68,29 +69,27 @@ cli_connect_rpc(clicon_handle h,
         clicon_err(OE_UNIX, errno, "cbuf_new");
         goto done;
     }
-    cprintf(cb, "<rpc xmlns=\"%s\" username=\"%s\" %s>",
-            NETCONF_BASE_NAMESPACE,
-            clicon_username_get(h),
-            NETCONF_MESSAGE_ID_ATTR);
-    cprintf(cb, "<connect xmlns=\"%s\">", CONTROLLER_NAMESPACE);
+    cprintf(cb, "<config><devices xmlns=\"%s\">",
+            CONTROLLER_NAMESPACE);
+    cprintf(cb, "<device>");
     if ((cv = cvec_find(cvv, "name")) != NULL)
         cprintf(cb, "<name>%s</name>", cv_string_get(cv));
-    cprintf(cb, "<state>%s</state>", state);
-    cprintf(cb, "</connect></rpc>");
-    if (clixon_xml_parse_string(cbuf_get(cb), YB_NONE, NULL, &xtop, NULL) < 0)
+    cprintf(cb, "<enable %s:operation=\"replace\">%s</enable>",
+            NETCONF_BASE_PREFIX, state);
+    cprintf(cb, "</device></devices></config>");
+    if (clicon_rpc_edit_config(h, "candidate", OP_NONE, cbuf_get(cb)) < 0)
         goto done;
-    /* Skip top-level */
-    xrpc = xml_child_i(xtop, 0);
-    /* Send to backend */
-    if (clicon_rpc_netconf_xml(h, xrpc, &xret, NULL) < 0)
+    if (clicon_rpc_commit(h, 0, 0, 0, NULL, NULL) < 0)
         goto done;
     if ((xerr = xpath_first(xret, NULL, "//rpc-error")) != NULL){
         clixon_netconf_error(xerr, "Get configuration", NULL);
         goto done;
     }
+#if 0
     /* Print result */
     if (clixon_xml2file(stdout, xml_child_i(xret, 0), 0, 1, cligen_output, 0, 1) < 0)
         goto done;
+#endif
     retval = 0;
  done:
     if (cb)
@@ -104,7 +103,7 @@ cli_connect_rpc(clicon_handle h,
 
 /*! Read the config of one or several devices
  * @param[in] h
- * @param[in] cvv  : name
+ * @param[in] cvv  : name pattern
  * @param[in] argv
  */
 int
@@ -143,9 +142,11 @@ cli_sync_rpc(clicon_handle h,
         clixon_netconf_error(xerr, "Get configuration", NULL);
         goto done;
     }
+#if 0
     /* Print result */
     if (clixon_xml2file(stdout, xml_child_i(xret, 0), 0, 1, cligen_output, 0, 1) < 0)
         goto done;
+#endif
     retval = 0;
  done:
     if (cb)
@@ -157,15 +158,15 @@ cli_sync_rpc(clicon_handle h,
     return retval;
 }
 
-/*! Show controller node states
+/*! Show controller device states
  * @param[in] h
- * @param[in] cvv
+ * @param[in] cvv  : name pattern
  * @param[in] argv
  */
 int
-cli_show_nodes(clicon_handle h,
-               cvec         *cvv,
-               cvec         *argv)
+cli_show_devices(clicon_handle h,
+                 cvec         *cvv,
+                 cvec         *argv)
 {
     int                retval = -1;
     struct clicon_msg *msg = NULL;
@@ -175,7 +176,13 @@ cli_show_nodes(clicon_handle h,
     cxobj             *xn = NULL; /* XML of senders */
     char              *name;
     char              *state;
-
+    char              *timestamp;
+    char              *logmsg;
+    char              *pattern = NULL;
+    cg_var            *cv;
+    
+    if ((cv = cvec_find(cvv, "name")) != NULL)
+        pattern = cv_string_get(cv);
     if ((cb = cbuf_new()) == NULL){
         clicon_err(OE_PLUGIN, errno, "cbuf_new");
         goto done;
@@ -183,24 +190,35 @@ cli_show_nodes(clicon_handle h,
     /* Get config */
     if ((nsc = xml_nsctx_init("co", CONTROLLER_NAMESPACE)) == NULL)
         goto done;
-    if (clicon_rpc_get(h, "co:nodes", nsc, CONTENT_ALL, -1, "report-all", &xn) < 0)
+    if (clicon_rpc_get(h, "co:devices", nsc, CONTENT_ALL, -1, "report-all", &xn) < 0)
         goto done;
     if (xpath_first(xn, NULL, "/rpc-error") != NULL)
         goto done;
-    /* Change top frm "data" to "nodes" */
-    if ((xc = xml_find_type(xn, NULL, "nodes", CX_ELMNT)) != NULL){
+    /* Change top frm "data" to "devices" */
+    if ((xc = xml_find_type(xn, NULL, "devices", CX_ELMNT)) != NULL){
         if (xml_rootchild_node(xn, xc) < 0)
             goto done;
         xn = xc;
-        fprintf(stdout, "%-17s %-10s\n", "name", "state");
-        fprintf(stdout, "==========================\n");
+        cligen_output(stdout, "%-23s %-10s %-22s %-30s\n", "Name", "State", "Time", "Logmsg");
+        cligen_output(stdout, "========================================================================\n");
         xc = NULL;
         while ((xc = xml_child_each(xn, xc, CX_ELMNT)) != NULL) {
+            char *p;
             name = xml_find_body(xc, "name");
-            fprintf(stdout, "%-18s",  name);
+            if (pattern != NULL && fnmatch(pattern, name, 0) != 0)
+                continue;
+            cligen_output(stdout, "%-24s",  name);
             state = xml_find_body(xc, "conn-state");
-            fprintf(stdout, "%-11s",  state);
-            fprintf(stdout, "\n");
+            cligen_output(stdout, "%-11s",  state?state:"");
+            if ((timestamp = xml_find_body(xc, "conn-state-timestamp")) != NULL){
+                /* Remove 6 us digits */
+                if ((p = rindex(timestamp, '.')) != NULL)
+                    *p = '\0';
+            }
+            cligen_output(stdout, "%-23s", timestamp?timestamp:"");
+            logmsg = xml_find_body(xc, "logmsg");
+            cligen_output(stdout, "%-31s",  logmsg?logmsg:"");
+            cligen_output(stdout, "\n");
         }
     }
     retval = 0;

@@ -43,12 +43,18 @@ typedef void *clixon_handle;
 typedef void *clixon_client_handle;
 
 /*! State of connection
+ * Only closed and open are "stable", the others are transient and timeout to closed
+ * @see clixon-controller@2023-01-01.yang for mirror enum and descriptions
+ * @see csmap translation table
  */
 enum conn_state{
-    CS_CLOSED = 0,  /* Closed */
-    CS_CONNECTED,   /* Connect() called */
+    CS_CLOSED = 0,  /* Closed, also "closed" if handle non-existent but then no state */
+    CS_CONNECTING,  /* Connect() called, 
+                       May fail due to (1) connect fails or (2) hello not receivd */
+    CS_DEVICE_SYNC, /* get all config and state */
+    CS_SCHEMA,      /* Connection established and Hello sent to device. */
     CS_OPEN,        /* Connection established and Hello sent to device. */
-    CS_WRESP,         /* Request sent, waiting for reply */
+    CS_WRESP,       /* Request sent, waiting for reply */
 };
 typedef enum conn_state conn_state_t;
 
@@ -62,6 +68,7 @@ extern "C" {
     
 clixon_client_handle clixon_client2_new(clicon_handle h, const char *name);
 int    clixon_client2_free(clixon_client_handle ch);
+int    clixon_client2_free_all(clixon_handle h);
 clixon_client_handle clixon_client2_find(clicon_handle h, const char *name);
 char  *controller_state_int2str(conn_state_t state);
 conn_state_t controller_state_str2int(char *str);
@@ -74,6 +81,8 @@ int    clixon_client2_socket_get(clixon_client_handle ch);
 clicon_handle clixon_client2_handle_get(clixon_client_handle ch);
 conn_state_t clixon_client2_conn_state_get(clixon_client_handle ch);
 int    clixon_client2_conn_state_set(clixon_client_handle ch, conn_state_t state);    
+int    clixon_client2_conn_time_get(clixon_client_handle ch, struct timeval *t);
+int    clixon_client2_conn_time_set(clixon_client_handle ch, struct timeval *t);
 int    clixon_client2_frame_state_get(clixon_client_handle ch);
 int    clixon_client2_frame_state_set(clixon_client_handle ch, int state);
 size_t clixon_client2_frame_size_get(clixon_client_handle ch);
@@ -81,6 +90,14 @@ int    clixon_client2_frame_size_set(clixon_client_handle ch, size_t size);
 cbuf  *clixon_client2_frame_buf_get(clixon_client_handle ch);
 int    clixon_client2_capabilities_set(clixon_client_handle ch, cxobj *xcaps);
 int    clixon_client2_capabilities_find(clicon_handle ch, const char *name);
+int    clixon_client2_sync_time_get(clixon_client_handle ch, struct timeval *t);
+int    clixon_client2_sync_time_set(clixon_client_handle ch, struct timeval *t);
+yang_stmt *clixon_client2_yspec_get(clixon_client_handle ch);
+int    clixon_client2_yspec_set(clixon_client_handle ch, yang_stmt *yspec);
+int    clixon_client2_nr_schemas_get(clixon_client_handle ch);
+int    clixon_client2_nr_schemas_set(clixon_client_handle ch, int nr);
+char  *clixon_client2_logmsg_get(clixon_client_handle ch);
+int    clixon_client2_logmsg_set(clixon_client_handle ch, char *logmsg);
 
 #ifdef __cplusplus
 }
