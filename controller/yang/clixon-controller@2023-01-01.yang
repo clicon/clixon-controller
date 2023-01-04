@@ -2,6 +2,9 @@ module clixon-controller {
     yang-version 1.1;
     namespace "urn:example:clixon-controller";
     prefix clco;
+    import ietf-yang-types {
+        prefix "yang";
+    }
     description
         "Clixon controller";
     revision 2023-01-01 {
@@ -24,11 +27,23 @@ module clixon-controller {
         type enumeration{
             enum CLOSED {
                 description
-                "No connect";
+                "Not connected";
             }
-            enum CONNECTED {
+            enum CONNECTING {
                 description
-                "Connection established";
+                "Connection initiated: connect called
+                 Transient state that timeout to CLOSED.
+                 Connect failures include (1) connect fails or (2) hello not received";
+            }
+            enum DEVICE-SYNC {
+                description
+                   "Hello sent to device,
+                    If device announces monitoring a get-state on ietf-netconf-monitoring
+                    is sent";
+            }
+            enum SCHEMA {
+                description
+                "get-schema sent to device for each yang the device announces";
             }
             enum OPEN{
                 description
@@ -36,31 +51,51 @@ module clixon-controller {
             }
             enum WRESP{
                 description
-                "Netconf reuest is sent, wiating for response";
+                   "Netconf reuest is sent, wiating for response.
+                    Transient state that timeout to CLOSED.";
             }
         }
     }
+    container generic{
+        leaf device-timeout{
+            description
+                "Device transient state timeout in seconds";
+            type uint32;
+            default 60;
+            units s;
+        }
+    }
     /* Generic config data */
-    container nodes{
-        list node{
+    container devices{
+        list device{
             key name;
             leaf name{
                 type string;
             }
+            leaf enable{
+                type boolean;
+                default true;
+            }
+            leaf description{
+                description
+                    "Description of node";
+                type string;
+            }
             leaf type{
+                description
+                    "Connection type, eg how to connect to (or from) the device";
                 mandatory true;
                 type connection-type;
             }
             leaf user{
+                description
+                    "Which use to connect as to the device, if applicable";
                 type string;
             }
             leaf addr{
-                description "DNS name or ip address";
-                type string;
-            }
-            anydata data{
                 description
-                    "Mount-point for node config";
+                    "DNS name or ip address of device for connection setup (see also user)";
+                type string;
             }
             leaf conn-state {
                 description
@@ -69,31 +104,23 @@ module clixon-controller {
                 type connection-type;
                 default CLOSED;
             }
-        }
-    }
-    rpc connect {
-        description "Connect to one or several devices.";
-        input {
-            leaf state {
-                description
-                    "if true: open connection, if false: close connection";
-                type boolean;
-                default true;
+            leaf conn-state-timestamp {
+                description "Timestamp of when entering current state";
+                config false;
+                type yang:date-and-time;
             }
-            leaf name {
-                description
-                   "Name of device to connect to, can use wildchars for several.
-                    This is an asynchronous operation which means the result is not
-                    immediately available, the client needs to poll the state.";
+            leaf sync-timestamp {
+                description "Timestamp of last device synchronization";
+                config false;
+                type yang:date-and-time;
+            }
+            leaf logmsg {
+                config false;
                 type string;
             }
-        }
-        output {
-            leaf-list name {
+            anydata data{
                 description
-                    "Names of devices where connections have been initiated.
-                     Note the connection establishement is asynchronous and continues in background";
-                type string;
+                    "Mount-point for node config, for the time being without schema";
             }
         }
     }

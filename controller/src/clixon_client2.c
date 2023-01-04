@@ -65,23 +65,27 @@
 
 #define chandle(ch) (assert(clixon_client_handle_check(ch)==0),(struct clixon_client2_handle *)(ch))
 
-/*! Internal structure of clixon client handle. 
+/*! Internal structure of clixon controller device handle. 
  */
 struct clixon_client2_handle{
     qelem_t            ch_qelem;  /* List header */
     uint32_t           ch_magic;  /* Magic number */
     char              *ch_name;   /* Connection name */
     conn_state_t       ch_conn_state;  /* Connection state */
+    struct timeval     ch_conn_time;  /* Time when entering last connection state */
     clicon_handle      ch_h;      /* Clixon handle */ 
     clixon_client_type ch_type;   /* Clixon socket type */
     int                ch_socket; /* Input/output socket */
     int                ch_pid;    /* Sub-process-id Only applies for NETCONF/SSH */
     cbuf              *ch_frame_buf; /* Remaining expecting chunk bytes */
     int                ch_frame_state; /* Framing state for detecting EOM */
-    size_t             ch_frame_size;  /* Remaining expecting chunk bytes */
-    cxobj             *ch_xcaps;  /* Capabilities as XML tree */
+    size_t             ch_frame_size; /* Remaining expecting chunk bytes */
+    cxobj             *ch_xcaps;      /* Capabilities as XML tree */
+    struct timeval     ch_sync_time;  /* Time when last sync (0 if unsynched) */
+    yang_stmt         *ch_yspec;      /* Top-level yang spec of device */
+    int                ch_nr_schemas; /* How many schemas frm this device */
+    char              *ch_logmsg;     /* Error log message / reason of failed open */
 };
-
 
 /*! Check struct magic number for sanity checks
  * @param[in]  h   Clicon client handle
@@ -98,11 +102,14 @@ clixon_client_handle_check(clixon_client_handle ch)
 }
 
 /*! Mapping between enum conn_state and yang connection-state
- * @see clixon-controller@2023-01-01.yang
+ * @see clixon-controller@2023-01-01.yang for mirror enum and descriptions
+ * @see enum conn_state for basic type
  */
 static const map_str2int csmap[] = {
     {"CLOSED",       CS_CLOSED},
-    {"CONNECTED",    CS_CONNECTED},
+    {"CONNECTING",   CS_CONNECTING},
+    {"DEVICE-SYNC",  CS_DEVICE_SYNC},
+    {"SCHEMA",       CS_SCHEMA},
     {"OPEN",         CS_OPEN},
     {"WRESP",        CS_WRESP},
     {NULL,           -1}
@@ -143,6 +150,25 @@ clixon_client2_new(clicon_handle h,
     return cch;
 }
 
+/*! Free handle itself
+ */
+static int
+clixon_client2_handle_free(struct clixon_client2_handle *ch)
+{
+    if (ch->ch_name)
+        free(ch->ch_name);
+    if (ch->ch_logmsg)
+        free(ch->ch_logmsg);
+    if (ch->ch_frame_buf)
+        cbuf_free(ch->ch_frame_buf);
+    if (ch->ch_xcaps)
+        xml_free(ch->ch_xcaps);
+    if (ch->ch_yspec)
+        ys_free(ch->ch_yspec);
+    free(ch);
+    return 0;
+}
+
 /*! Free clixon client handle
  * @param[in]  ch   Client handle
  * @retval     0    OK
@@ -153,24 +179,37 @@ clixon_client2_free(clixon_client_handle ch)
     struct clixon_client2_handle *cch = chandle(ch);
     struct clixon_client2_handle *ch_list = NULL;
     struct clixon_client2_handle *c;
-    clicon_handle                h = (clicon_handle)cch->ch_h;
-    
+    clicon_handle                 h;
+
+    h = (clicon_handle)cch->ch_h;
     clicon_ptr_get(h, "client-list", (void**)&ch_list);
     if ((c = ch_list) != NULL) {
         do {
             if (cch == c) {
                 DELQ(c, ch_list, struct clixon_client2_handle *);
-                if (c->ch_name)
-                    free(c->ch_name);
-                if (c->ch_frame_buf)
-                    cbuf_free(c->ch_frame_buf);
-                if (c->ch_xcaps)
-                    xml_free(c->ch_xcaps);
-                free(c);
+                clixon_client2_handle_free(c);
                 break;
             }
             c = NEXTQ(struct clixon_client2_handle *, c);
         } while (c && c != ch_list);
+    }
+    clicon_ptr_set(h, "client-list", (void*)ch_list);
+    return 0;
+}
+
+/*! Free all clixon client handles
+ * @param[in]  h   Clixon handle
+ */
+int
+clixon_client2_free_all(clixon_handle h)
+{
+    struct clixon_client2_handle *ch_list = NULL;
+    struct clixon_client2_handle *c;
+    
+    clicon_ptr_get(h, "client-list", (void**)&ch_list);
+    while ((c = ch_list) != NULL) {
+        DELQ(c, ch_list, struct clixon_client2_handle *);
+        clixon_client2_handle_free(c);
     }
     clicon_ptr_set(h, "client-list", (void*)ch_list);
     return 0;
@@ -399,6 +438,8 @@ clixon_client2_disconnect(clixon_client_handle ch)
 }
 /* Accessor functions ------------------------------
  */
+/*! Get name of connection, allocated at creation time
+ */
 char*
 clixon_client2_name_get(clixon_client_handle ch)
 {
@@ -440,7 +481,7 @@ clixon_client2_conn_state_get(clixon_client_handle ch)
     return cch->ch_conn_state;
 }
 
-/*! Set connection state
+/*! Set connection state also timestamp
  * @param[in]  ch     Clixon client handle
  * @retval     state  State
  * @retval     0      OK
@@ -455,7 +496,43 @@ clixon_client2_conn_state_set(clixon_client_handle ch,
                  __FUNCTION__, cch->ch_name,
                  controller_state_int2str(cch->ch_conn_state),
                  controller_state_int2str(state));
+    fprintf(stderr, "%s: %s -> %s\n",
+            cch->ch_name,
+            controller_state_int2str(cch->ch_conn_state),
+            controller_state_int2str(state));
+
     cch->ch_conn_state = state;
+    clixon_client2_conn_time_set(ch, NULL);
+    return 0;
+}
+
+/*! Get connection timestamp
+ * @param[in]  ch     Clixon client handle
+ * @param[out] t      Connection timestamp
+ */
+int
+clixon_client2_conn_time_get(clixon_client_handle ch,
+                             struct timeval      *t)
+{
+    struct clixon_client2_handle *cch = chandle(ch);
+
+    *t = cch->ch_conn_time;
+    return 0;
+}
+
+/*! Set connection timestamp
+ * @param[in]  ch     Clixon client handle
+ * @param[in]  t      Timestamp, if NULL set w gettimeofday
+ */
+int
+clixon_client2_conn_time_set(clixon_client_handle ch,
+                             struct timeval      *t)
+{
+    struct clixon_client2_handle *cch = chandle(ch);
+    if (t == NULL)
+        gettimeofday(&cch->ch_conn_time, NULL);
+    else
+        cch->ch_conn_time = *t;
     return 0;
 }
 
@@ -486,6 +563,9 @@ clixon_client2_frame_state_set(clixon_client_handle ch,
     return 0;
 }
 
+/*!
+ * @param[in]  ch     Clixon client handle
+ */
 size_t
 clixon_client2_frame_size_get(clixon_client_handle ch)
 {
@@ -494,6 +574,9 @@ clixon_client2_frame_size_get(clixon_client_handle ch)
     return cch->ch_frame_size;
 }
 
+/*!
+ * @param[in]  ch     Clixon client handle
+ */
 int
 clixon_client2_frame_size_set(clixon_client_handle ch,
                               size_t               size)
@@ -504,6 +587,9 @@ clixon_client2_frame_size_set(clixon_client_handle ch,
     return 0;
 }
 
+/*!
+ * @param[in]  ch     Clixon client handle
+ */
 cbuf *
 clixon_client2_frame_buf_get(clixon_client_handle ch)
 {
@@ -523,11 +609,19 @@ clixon_client2_capabilities_set(clixon_client_handle ch,
 {
     struct clixon_client2_handle *cch = chandle(ch);
 
-    assert(cch->ch_xcaps == NULL);
+    if (cch->ch_xcaps != NULL)
+        xml_free(cch->ch_xcaps);
     cch->ch_xcaps = xcaps;
     return 0;
 }
 
+/*! Query if capabaility exists on device
+ *
+ * @param[in]  ch    Clixon client handle
+ * @param[in]  name  Capability name
+ * @retval     1     Yes, capability exists
+ * @retval     0     No, capabilty does not exist
+ */
 int
 clixon_client2_capabilities_find(clicon_handle ch,
                                  const char   *name)
@@ -543,3 +637,120 @@ clixon_client2_capabilities_find(clicon_handle ch,
     }
     return x?1:0;
 }
+
+/*! Get sync timestamp
+ * @param[in]  ch     Clixon client handle
+ * @param[out] t      Sync timestamp (=0 if uninitialized)
+ */
+int
+clixon_client2_sync_time_get(clixon_client_handle ch,
+                             struct timeval      *t)
+{
+    struct clixon_client2_handle *cch = chandle(ch);
+
+    *t = cch->ch_sync_time;
+    return 0;
+}
+
+/*! Set sync timestamp
+ * @param[in]  ch     Clixon client handle
+ * @param[in]  t      Timestamp, if NULL set w gettimeofday
+ */
+int
+clixon_client2_sync_time_set(clixon_client_handle ch,
+                             struct timeval      *t)
+{
+    struct clixon_client2_handle *cch = chandle(ch);
+    
+    if (t == NULL)
+        gettimeofday(&cch->ch_sync_time, NULL);
+    else
+        cch->ch_sync_time = *t;
+    return 0;
+}
+
+/*! Get device-specific top-level yang spec
+ * @param[in]  ch     Clixon client handle
+ * @retval     yspec
+ * @retval     NULL
+ */
+yang_stmt *
+clixon_client2_yspec_get(clixon_client_handle ch)
+{
+    struct clixon_client2_handle *cch = chandle(ch);
+
+    return cch->ch_yspec;
+}
+
+/*! Set device-specific top-level yang spec
+ * @param[in]  ch     Clixon client handle
+ * @param[in]  yspec
+ */
+int
+clixon_client2_yspec_set(clixon_client_handle ch,
+                          yang_stmt           *yspec)
+{
+    struct clixon_client2_handle *cch = chandle(ch);
+
+    if (cch->ch_yspec)
+        ys_free(cch->ch_yspec);
+    cch->ch_yspec = yspec;
+    return 0;
+}
+
+/*! Get nr of schemas
+ * @param[in]  ch     Clixon client handle
+ * @retval     nr
+ */
+int
+clixon_client2_nr_schemas_get(clixon_client_handle ch)
+{
+    struct clixon_client2_handle *cch = chandle(ch);
+
+    return cch->ch_nr_schemas;
+}
+
+/*! Set nr of schemas
+ * @param[in]  ch   Clixon client handle
+ * @param[in]  nr   Number of schemas  
+ */
+int
+clixon_client2_nr_schemas_set(clixon_client_handle ch,
+                              int                  nr)
+{
+    struct clixon_client2_handle *cch = chandle(ch);
+
+    cch->ch_nr_schemas = nr;
+    return 0;
+}
+
+/*! Get logmsg, direct pointer into struct
+ * @param[in]  ch     Clixon client handle
+ * @retval     logmsg
+ * @retval     NULL
+ */
+char*
+clixon_client2_logmsg_get(clixon_client_handle ch)
+{
+    struct clixon_client2_handle *cch = chandle(ch);
+
+    return cch->ch_logmsg;
+}
+
+/*! Set logmsg, consume string
+ * @param[in]  ch     Clixon client handle
+ * @param[in]  logmsg Logmsg (is consumed)
+ */
+int
+clixon_client2_logmsg_set(clixon_client_handle ch,
+                          char                *logmsg)
+{
+    struct clixon_client2_handle *cch = chandle(ch);
+
+    if (cch->ch_logmsg)
+        free(cch->ch_logmsg);
+    cch->ch_logmsg = logmsg;
+    return 0;
+}
+
+
