@@ -79,6 +79,18 @@ COPY src/controller.xml /clixon/build/etc/clixon.xml
 COPY src/controller_cli.cli /clixon/build/lib/controller/clispec/
 COPY yang/clixon-*.yang /clixon/build/share/clixon/
 
+# XXX BUILD CONTROLLER, NEED TO CONFIGURE IN ALPINE?
+RUN mkdir /clixon/controller
+COPY src/*.c /clixon/controller/
+COPY src/*.h /clixon/controller/
+COPY src/Makefile /clixon/controller/
+
+# XXX Build and install the controller application
+WORKDIR /clixon/clixon/example/main
+RUN make
+RUN make install
+RUN install example.xml /clixon/build/etc/clixon.xml
+
 # Copy startscript for starting backend and restconf
 COPY startsystem.sh /clixon/build/bin/
 

@@ -5,6 +5,12 @@ module clixon-controller {
     import ietf-yang-types {
         prefix "yang";
     }
+    import ietf-inet-types {
+        prefix inet;
+    }
+    import ietf-yang-schema-mount {
+        prefix yangmnt;
+    }
     description
         "Clixon controller";
     revision 2023-01-01 {
@@ -17,7 +23,7 @@ module clixon-controller {
         type enumeration{
             enum NETCONF_SSH{
                 description
-                  "NETCONF over SSH subsystem according to RFC 6242";
+                "NETCONF over SSH subsystem according to RFC 6242";
             }
         }
     }
@@ -32,16 +38,21 @@ module clixon-controller {
             enum CONNECTING {
                 description
                 "Connection initiated: connect called
-                 Transient state that timeout to CLOSED.
-                 Connect failures include (1) connect fails or (2) hello not received";
+                Expect to receive netconf hello from device
+                Transient state that timeout to CLOSED.
+                Connect failures include (1) connect fails or (2) hello not received";
             }
             enum DEVICE-SYNC {
                 description
-                   "Hello sent to device,
+                    "Hello received and hello sent to device,
                     If device announces monitoring a get-state on ietf-netconf-monitoring
                     is sent";
             }
-            enum SCHEMA {
+            enum SCHEMA_LIST {
+                description
+                  "get ietf-netconf-monitoring schema for all YANG schemas";
+            }
+            enum SCHEMA_ONE {
                 description
                 "get-schema sent to device for each yang the device announces";
             }
@@ -51,8 +62,8 @@ module clixon-controller {
             }
             enum WRESP{
                 description
-                   "Netconf reuest is sent, wiating for response.
-                    Transient state that timeout to CLOSED.";
+                "Netconf reuest is sent, waiting for response.
+                Transient state that timeout to CLOSED.";
             }
         }
     }
@@ -104,6 +115,16 @@ module clixon-controller {
                 type connection-type;
                 default CLOSED;
             }
+            container capabilities {
+                description
+                    "May be duplicate if netconf-monitoring is implemented?";
+                config false;
+                leaf-list capability {
+                    type string;
+                    description
+                        "List of NETCONF capabilities supported by the server.";
+                }
+            }
             leaf conn-state-timestamp {
                 description "Timestamp of when entering current state";
                 config false;
@@ -118,7 +139,8 @@ module clixon-controller {
                 config false;
                 type string;
             }
-            anydata data{
+            anydata root{
+                yangmnt:mount-point "root";
                 description
                     "Mount-point for node config, for the time being without schema";
             }
@@ -137,7 +159,7 @@ module clixon-controller {
             leaf-list name {
                 description
                     "Names of devices where connections have been initiated.
-                     Note the connection establishement is asynchronous and continues in background";
+                    Note the connection establishement is asynchronous and continues in background";
                 type string;
             }
         }

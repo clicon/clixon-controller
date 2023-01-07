@@ -40,7 +40,9 @@
 #include <clixon/clixon_cli.h>
 #include <clixon/cli_generate.h>
 
-#define CONTROLLER_NAMESPACE "urn:example:clixon-controller"
+/* Controller includes */
+#include "controller_custom.h"
+#include "controller.h"
 
 /*! Explicit connect/disconnect rpc of devices
  * @param[in] h
@@ -172,6 +174,7 @@ cli_show_devices(clicon_handle h,
     struct clicon_msg *msg = NULL;
     cvec              *nsc = NULL;
     cxobj             *xc;
+    cxobj             *xerr;
     cbuf              *cb = NULL;
     cxobj             *xn = NULL; /* XML of senders */
     char              *name;
@@ -192,8 +195,10 @@ cli_show_devices(clicon_handle h,
         goto done;
     if (clicon_rpc_get(h, "co:devices", nsc, CONTENT_ALL, -1, "report-all", &xn) < 0)
         goto done;
-    if (xpath_first(xn, NULL, "/rpc-error") != NULL)
+    if ((xerr = xpath_first(xn, NULL, "/rpc-error")) != NULL){
+        clixon_netconf_error(xerr, "Get devices", NULL);
         goto done;
+    }
     /* Change top frm "data" to "devices" */
     if ((xc = xml_find_type(xn, NULL, "devices", CX_ELMNT)) != NULL){
         if (xml_rootchild_node(xn, xc) < 0)

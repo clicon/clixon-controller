@@ -51,7 +51,7 @@ endif
 
 # Utilities, unit testings.
 # Add more with APPSRC  += 
-APPSRC  = controller_get_config.c
+#APPSRC  = controller_get_config.c
 
 APPS	  = $(APPSRC:.c=)
 
@@ -64,15 +64,15 @@ distclean: clean
 	rm -f Makefile *~ .depend
 
 # APPS
-controller_get_config: controller_get_config.c
-	$(CC) $(INCLUDES) $(CPPFLAGS) -D__PROGRAM__=\"$@\" $(CFLAGS) $(LDFLAGS) $^ $(LIBS) -o $@
+#controller_get_config: controller_get_config.c
+#	$(CC) $(INCLUDES) $(CPPFLAGS) -D__PROGRAM__=\"$@\" $(CFLAGS) $(LDFLAGS) $^ $(LIBS) -o $@
 
 install: $(APPS)
-	install -d -m 0755 $(DESTDIR)$(bindir)
-	install -m 0755 $(INSTALLFLAGS) $(APPS) $(DESTDIR)$(bindir)
+#	install -d -m 0755 $(DESTDIR)$(bindir)
+#	install -m 0755 $(INSTALLFLAGS) $(APPS) $(DESTDIR)$(bindir)
 
 uninstall: 
-	rm -f $(DESTDIR)$(bindir)/$(APPS)
+#	rm -f $(DESTDIR)$(bindir)/$(APPS)
 
 TAGS:
 	find $(srcdir) -name '*.[ch]' -type f | etags -
