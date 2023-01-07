@@ -51,16 +51,15 @@
 /* clixon */
 #include <clixon/clixon.h>
 
+/* Controller includes */
+#include "controller_custom.h"
+#include "controller_netconf.h"
+#include "controller_device_state.h"
 #include "clixon_client2.h"
 
 /*
  * Constants
  */
-/* Netconf binary default, override with environment variable: CLIXON_NETCONF_BIN 
- * Could try to get path from install/makefile data
- */
-#define CLIXON_NETCONF_BIN "/usr/local/bin/clixon_netconf"
-
 #define CLIXON_CLIENT_MAGIC 0x54fe649a
 
 #define chandle(ch) (assert(clixon_client_handle_check(ch)==0),(struct clixon_client2_handle *)(ch))
@@ -75,7 +74,7 @@ struct clixon_client2_handle{
     struct timeval     ch_conn_time;  /* Time when entering last connection state */
     clicon_handle      ch_h;      /* Clixon handle */ 
     clixon_client_type ch_type;   /* Clixon socket type */
-    int                ch_socket; /* Input/output socket */
+    int                ch_socket; /* Input/output socket, -1 is closed */
     int                ch_pid;    /* Sub-process-id Only applies for NETCONF/SSH */
     cbuf              *ch_frame_buf; /* Remaining expecting chunk bytes */
     int                ch_frame_state; /* Framing state for detecting EOM */
@@ -101,20 +100,6 @@ clixon_client_handle_check(clixon_client_handle ch)
     return cch->ch_magic == CLIXON_CLIENT_MAGIC ? 0 : -1;
 }
 
-/*! Mapping between enum conn_state and yang connection-state
- * @see clixon-controller@2023-01-01.yang for mirror enum and descriptions
- * @see enum conn_state for basic type
- */
-static const map_str2int csmap[] = {
-    {"CLOSED",       CS_CLOSED},
-    {"CONNECTING",   CS_CONNECTING},
-    {"DEVICE-SYNC",  CS_DEVICE_SYNC},
-    {"SCHEMA",       CS_SCHEMA},
-    {"OPEN",         CS_OPEN},
-    {"WRESP",        CS_WRESP},
-    {NULL,           -1}
-};
-
 /*! Create client handle from clicon handle and add it to global list
  * @param[in]  h    Clixon  handle
  * @retval     ch   Client handle
@@ -135,6 +120,7 @@ clixon_client2_new(clicon_handle h,
     memset(cch, 0, sz);
     cch->ch_magic = CLIXON_CLIENT_MAGIC;
     cch->ch_h = h;
+    cch->ch_socket = -1;
     cch->ch_conn_state = CS_CLOSED;
     if ((cch->ch_name = strdup(name)) == NULL){
         clicon_err(OE_UNIX, errno, "strdup");
@@ -239,119 +225,6 @@ clixon_client2_find(clicon_handle h,
     return NULL;
 }
 
-/*! Map connection state from int to string */
-char *
-controller_state_int2str(conn_state_t state)
-{
-    return (char*)clicon_int2str(csmap, state);
-}
-
-/*! Map connection state from string to int */
-conn_state_t
-controller_state_str2int(char *str)
-{
-    return clicon_str2int(csmap, str);
-}
-
-/*! Find clixon-client given name
- *
- * @param[in]  h     Clixon  handle
- * @param[in]  name  Client name
- * @retval     ch    Client handle
- */
-static int
-clixon_client_connect_netconf(clicon_handle                h,
-                              struct clixon_client2_handle *cch)
-{
-    int         retval = -1;
-    int         nr;
-    int         i;
-    char      **argv = NULL;
-    char       *netconf_bin = NULL;
-    struct stat st = {0,};
-    char        dbgstr[8];
-
-    nr = 7;
-    if (clicon_debug_get() != 0)
-        nr += 2;
-    if ((argv = calloc(nr, sizeof(char *))) == NULL){
-        clicon_err(OE_UNIX, errno, "calloc");
-        goto done;
-    }
-    i = 0;
-    if ((netconf_bin = getenv("CLIXON_NETCONF_BIN")) == NULL)
-        netconf_bin = CLIXON_NETCONF_BIN;
-    if (stat(netconf_bin, &st) < 0){
-        clicon_err(OE_NETCONF, errno, "netconf binary %s. Set with CLIXON_NETCONF_BIN=", 
-                   netconf_bin);
-        goto done;
-    }
-    argv[i++] = netconf_bin;
-    argv[i++] = "-q";
-    argv[i++] = "-f";
-    argv[i++] = clicon_option_str(h, "CLICON_CONFIGFILE");
-    argv[i++] = "-l"; /* log to syslog */
-    argv[i++] = "s";
-    if (clicon_debug_get() != 0){
-        argv[i++] = "-D";
-        snprintf(dbgstr, sizeof(dbgstr)-1, "%d", clicon_debug_get());
-        argv[i++] = dbgstr;
-    }
-    argv[i++] = NULL;
-    assert(i==nr);
-    if (clixon_proc_socket(argv, SOCK_DGRAM, &cch->ch_pid, &cch->ch_socket) < 0){
-        goto done;
-    }
-    retval = 0;
- done:
-    return retval;
-}
-
-/*!
- */
-static int
-clixon_client_connect_ssh(clicon_handle                h,
-                          struct clixon_client2_handle *cch,
-                          const char                  *dest)
-{
-    int         retval = -1;
-    int         nr;
-    int         i;
-    char      **argv = NULL;
-    char       *ssh_bin = SSH_BIN;
-    struct stat st = {0,};
-
-    clicon_debug(1, "%s %s", __FUNCTION__, dest);
-    nr = 9;
-    if ((argv = calloc(nr, sizeof(char *))) == NULL){
-        clicon_err(OE_UNIX, errno, "calloc");
-        goto done;
-    }
-    i = 0;
-    if (stat(ssh_bin, &st) < 0){
-        clicon_err(OE_NETCONF, errno, "ssh binary %s", ssh_bin);
-        goto done;
-    }
-    argv[i++] = ssh_bin;
-    argv[i++] = (char*)dest;
-    argv[i++] = "-o";
-    argv[i++] = "StrictHostKeyChecking=yes"; // dont ask
-    argv[i++] = "-o";
-    argv[i++] = "PasswordAuthentication=no"; // dont query
-    argv[i++] = "-s";
-    argv[i++] = "netconf";
-    argv[i++] = NULL;
-    assert(i==nr);
-    for (i=0;i<nr;i++)
-        clicon_debug(1, "%s: argv[%d]:%s", __FUNCTION__, i, argv[i]);
-    if (clixon_proc_socket(argv, SOCK_STREAM, &cch->ch_pid, &cch->ch_socket) < 0){
-        goto done;
-    }
-    retval = 0;
- done:
-    return retval;
-}
-
 /*! Connect client to clixon backend according to config and return a socket
  * @param[in]  h        Clixon handle
  * @param[in]  socktype Type of socket, internal/external/netconf/ssh
@@ -382,12 +255,12 @@ clixon_client2_connect(clixon_client_handle ch,
             goto err;
         break;
     case CLIXON_CLIENT_NETCONF:
-        if (clixon_client_connect_netconf(h, cch) < 0)
+        if (clixon_client_connect_netconf(h, &cch->ch_pid, &cch->ch_socket) < 0)
             goto err;
         break;
 #ifdef SSH_BIN
     case CLIXON_CLIENT_SSH:
-        if (clixon_client_connect_ssh(h, cch, dest) < 0)
+        if (clixon_client_connect_ssh(h, dest, &cch->ch_pid, &cch->ch_socket) < 0)
             goto err;
 #else
         clicon_err(OE_UNIX, 0, "No ssh bin");
@@ -424,18 +297,23 @@ clixon_client2_disconnect(clixon_client_handle ch)
     switch(cch->ch_type){
     case CLIXON_CLIENT_IPC:
         close(cch->ch_socket);
+        cch->ch_socket = -1;
         break;
     case CLIXON_CLIENT_SSH:
     case CLIXON_CLIENT_NETCONF:
         if (clixon_proc_socket_close(cch->ch_pid,
                                      cch->ch_socket) < 0)
             goto done;
+        cch->ch_pid = 0;
+        cch->ch_socket = -1;
         break;
     }
     retval = 0;
  done:
     return retval;
 }
+
+
 /* Accessor functions ------------------------------
  */
 /*! Get name of connection, allocated at creation time
@@ -598,9 +476,21 @@ clixon_client2_frame_buf_get(clixon_client_handle ch)
     return cch->ch_frame_buf;
 }
 
+/*! Get capabilities as xml tree
+ * @param[in]  ch     Clixon client handle
+ * @retval     xcaps  XML tree
+ */
+cxobj *
+clixon_client2_capabilities_get(clixon_client_handle ch)
+{
+    struct clixon_client2_handle *cch = chandle(ch);
+
+    return cch->ch_xcaps;
+}
+
 /*! Set capabilities as xml tree
  * @param[in]  ch     Clixon client handle
- * @retval     xcaps  XML tree, is consumed
+ * @param[in]  xcaps  XML tree, is consumed
  * @retval     0      OK
  */
 int

@@ -45,7 +45,10 @@ CPPFLAGS  	= @CPPFLAGS@ -fPIC -DSSH_BIN=\"@SSH_BIN@\"
 # eg clixon main example
 BE_PLUGIN       = $(APPNAME)_backend.so
 BE_SRC          = $(APPNAME)_backend.c
-BE_SRC         += clixon_client2.c # XXX move back to clixon?
+BE_SRC         += controller_device_state.c
+BE_SRC         += controller_netconf.c # XXX move back to clixon?
+BE_SRC         += clixon_client2.c
+
 BE_OBJ          = $(BE_SRC:%.c=%.o)
 
 $(BE_PLUGIN): $(BE_OBJ)
