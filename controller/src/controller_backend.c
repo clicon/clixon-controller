@@ -47,37 +47,30 @@
 #include "controller_custom.h"
 #include "controller.h"
 #include "controller_device_state.h"
-#include "clixon_client2.h"
-
-#ifdef XXX
-/* 
- * Forward declarations
- */
-static int device_input_cb(int s, void *arg);
-#endif
+#include "controller_device_handle.h"
 
 /*! Connect to device via Netconf SSH
  * @param[in]  h  Clixon handle
- * @param[in]  ch Clixon client handle, either NULL or in closed state
+ * @param[in]  dh Device handle, either NULL or in closed state
  */
 static int
-connect_netconf_ssh(clicon_handle h,
-                    clixon_client_handle ch,
+connect_netconf_ssh(clixon_handle h,
+                    device_handle dh,
                     cxobj        *xn,
                     char         *name,
                     char         *user,
                     char         *addr)
 {
-    int                  retval = -1;
-    cbuf                *cb;
-    int                  s;
+    int   retval = -1;
+    cbuf *cb;
+    int   s;
 
     if (xn == NULL || addr == NULL){
         clicon_err(OE_PLUGIN, EINVAL, "xn or addr is NULL");
         return -1;
     }
-    if (ch != NULL && clixon_client2_conn_state_get(ch) != CS_CLOSED){
-        clicon_err(OE_PLUGIN, EINVAL, "ch is not closed");
+    if (dh != NULL && device_handle_conn_state_get(dh) != CS_CLOSED){
+        clicon_err(OE_PLUGIN, EINVAL, "dh is not closed");
         return -1;
     }
     if ((cb = cbuf_new()) == NULL){
@@ -87,16 +80,16 @@ connect_netconf_ssh(clicon_handle h,
     if (user)
         cprintf(cb, "%s@", user);
     cprintf(cb, "%s", addr);
-    if (ch == NULL &&
-        (ch = clixon_client2_new(h, name)) == NULL)
+    if (dh == NULL &&
+        (dh = device_handle_new(h, name)) == NULL)
         goto done;
-    if (clixon_client2_connect(ch, CLIXON_CLIENT_SSH, cbuf_get(cb)) < 0)
+    if (device_handle_connect(dh, CLIXON_CLIENT_SSH, cbuf_get(cb)) < 0)
         goto done;
-    device_state_timeout_register(ch);
-    clixon_client2_conn_state_set(ch, CS_CONNECTING);
-    s = clixon_client2_socket_get(ch);    
+    device_state_timeout_register(dh);
+    device_handle_conn_state_set(dh, CS_CONNECTING);
+    s = device_handle_socket_get(dh);    
     clicon_option_int_set(h, "netconf-framing", NETCONF_SSH_EOM); /* Always start with EOM */
-    if (clixon_event_reg_fd(s, device_input_cb, ch, "netconf socket") < 0)
+    if (clixon_event_reg_fd(s, device_input_cb, dh, "netconf socket") < 0)
         goto done;
     retval = 0;
  done:
@@ -108,24 +101,25 @@ connect_netconf_ssh(clicon_handle h,
 /*! Connect to one or several devices.
  */
 static int 
-sync_rpc(clicon_handle h,            /* Clicon handle */
+sync_rpc(clixon_handle h,            /* Clicon handle */
          cxobj        *xe,           /* Request: <rpc><xn></rpc> */
          cbuf         *cbret,        /* Reply eg <rpc-reply>... */
          void         *arg,          /* client_entry */
          void         *regarg)       /* Argument given at register */
 {
-    int                  retval = -1;
-    cxobj               *xret = NULL;
-    cxobj               *xn;
-    cvec                *nsc = NULL;
-    cxobj              **vec = NULL;
-    size_t               veclen;
-    int                  i;
-    char                *pattern = NULL;
-    char                *name;
-    clixon_client_handle ch;
-    conn_state_t         state;
-    cbuf                *cb = NULL;
+    int           retval = -1;
+    cxobj        *xret = NULL;
+    cxobj        *xn;
+    cvec         *nsc = NULL;
+    cxobj       **vec = NULL;
+    size_t        veclen;
+    int           i;
+    char         *pattern = NULL;
+    char         *name;
+    device_handle dh;
+    conn_state_t  state;
+    cbuf         *cb = NULL;
+    int           s;
     
     clicon_debug(1, "%s", __FUNCTION__);
     cprintf(cbret, "<rpc-reply xmlns=\"%s\">", NETCONF_BASE_NAMESPACE);
@@ -138,17 +132,18 @@ sync_rpc(clicon_handle h,            /* Clicon handle */
         xn = vec[i];
         if ((name = xml_find_body(xn, "name")) == NULL)
             continue;
-        if ((ch = clixon_client2_find(h, name)) == NULL)
+        if ((dh = device_handle_find(h, name)) == NULL)
             continue;
-        if ((state = clixon_client2_conn_state_get(ch)) != CS_OPEN)
+        s = device_handle_socket_get(dh);
+        if ((state = device_handle_conn_state_get(dh)) != CS_OPEN)
             continue;
         if (pattern != NULL && fnmatch(pattern, name, 0) != 0)
             continue;
         cprintf(cbret, "<name xmlns=\"%s\">%s</name>",  CONTROLLER_NAMESPACE, name);
-        if (device_sync(h, ch) < 0)
+        if (device_send_sync(h, dh, s) < 0)
             goto done;
-        device_state_timeout_register(ch);
-        clixon_client2_conn_state_set(ch, CS_DEVICE_SYNC);
+        device_state_timeout_register(dh);
+        device_handle_conn_state_set(dh, CS_DEVICE_SYNC);
     } /* for */
     cprintf(cbret, "</rpc-reply>");
     retval = 0;
@@ -172,23 +167,23 @@ sync_rpc(clicon_handle h,            /* Clicon handle */
  * @retval      -1        Error
  */
 int 
-controller_statedata(clicon_handle   h, 
+controller_statedata(clixon_handle   h, 
                      cvec           *nsc,
                      char           *xpath,
                      cxobj          *xstate)
 {
-    int                  retval = -1;
-    cxobj              **vec = NULL;
-    size_t               veclen;
-    cxobj               *xret = NULL;
-    int                  i;
-    cxobj               *xn;
-    char                *name;
-    clixon_client_handle ch;
-    cbuf                *cb = NULL;
-    conn_state_t         state;
-    char                *logmsg;
-    struct timeval       tv;
+    int            retval = -1;
+    cxobj        **vec = NULL;
+    size_t         veclen;
+    cxobj         *xret = NULL;
+    int            i;
+    cxobj         *xn;
+    char          *name;
+    device_handle  dh;
+    cbuf          *cb = NULL;
+    conn_state_t   state;
+    char          *logmsg;
+    struct timeval tv;
     
     if ((cb = cbuf_new()) == NULL){
         clicon_err(OE_UNIX, errno, "cbuf_new");
@@ -202,19 +197,19 @@ controller_statedata(clicon_handle   h,
         xn = vec[i];
         if ((name = xml_find_body(xn, "name")) == NULL)
             continue;
-        if ((ch = clixon_client2_find(h, name)) == NULL)
+        if ((dh = device_handle_find(h, name)) == NULL)
             continue;
         cprintf(cb, "<devices xmlns=\"%s\"><device><name>%s</name>",
                 CONTROLLER_NAMESPACE,
                 name);
-        state = clixon_client2_conn_state_get(ch);
-        cprintf(cb, "<conn-state>%s</conn-state>", controller_state_int2str(state));
+        state = device_handle_conn_state_get(dh);
+        cprintf(cb, "<conn-state>%s</conn-state>", device_state_int2str(state));
 #ifdef NOTYET // something with encoding
         {
             cxobj *xcaps;
             cxobj *x;
 
-            if ((xcaps = clixon_client2_capabilities_get(ch)) != NULL){
+            if ((xcaps = device_handle_capabilities_get(dh)) != NULL){
                 cprintf(cb, "<capabilities>");
                 x = NULL;
                 while ((x = xml_child_each(xcaps, x, -1)) != NULL) {
@@ -227,21 +222,21 @@ controller_statedata(clicon_handle   h,
             }
         }
 #endif
-        clixon_client2_conn_time_get(ch, &tv);
+        device_handle_conn_time_get(dh, &tv);
         if (tv.tv_sec != 0){
             char timestr[28];            
             if (time2str(tv, timestr, sizeof(timestr)) < 0)
                 goto done;
             cprintf(cb, "<conn-state-timestamp>%s</conn-state-timestamp>", timestr);
         }
-        clixon_client2_sync_time_get(ch, &tv);
+        device_handle_sync_time_get(dh, &tv);
         if (tv.tv_sec != 0){
             char timestr[28];            
             if (time2str(tv, timestr, sizeof(timestr)) < 0)
                 goto done;
             cprintf(cb, "<sync-timestamp>%s</sync-timestamp>", timestr);
         }
-        if ((logmsg = clixon_client2_logmsg_get(ch)) != NULL)
+        if ((logmsg = device_handle_logmsg_get(dh)) != NULL)
             cprintf(cb, "<logmsg>%s</logmsg>", logmsg);
         cprintf(cb, "</device></devices>");
         if (clixon_xml_parse_string(cbuf_get(cb), YB_NONE, NULL, &xstate, NULL) < 0)
@@ -263,16 +258,16 @@ controller_statedata(clicon_handle   h,
  * via commit
  */
 static int
-controller_connect(clicon_handle h,
+controller_connect(clixon_handle h,
                    cxobj        *xn)
 {
-    int                  retval = -1;
-    char                *name;
-    clixon_client_handle ch;
-    cbuf                *cb = NULL;
-    char                *type;
-    char                *addr;
-    char                *enable;
+    int           retval = -1;
+    char         *name;
+    device_handle dh;
+    cbuf         *cb = NULL;
+    char         *type;
+    char         *addr;
+    char         *enable;
     
     clicon_debug(1, "%s", __FUNCTION__);
     if ((name = xml_find_body(xn, "name")) == NULL)
@@ -281,14 +276,14 @@ controller_connect(clicon_handle h,
         goto ok;
     }
     if (strcmp(enable, "true") != 0){
-        if ((ch = clixon_client2_new(h, name)) == NULL)
+        if ((dh = device_handle_new(h, name)) == NULL)
             goto done;
-        clixon_client2_logmsg_set(ch, strdup("Configured down"));
+        device_handle_logmsg_set(dh, strdup("Configured down"));
         goto ok;
     }
-    ch = clixon_client2_find(h, name); /* can be NULL */
-    if (ch != NULL &&
-        clixon_client2_conn_state_get(ch) != CS_CLOSED)
+    dh = device_handle_find(h, name); /* can be NULL */
+    if (dh != NULL &&
+        device_handle_conn_state_get(dh) != CS_CLOSED)
         goto ok;
     /* Only handle netconf/ssh */
     if ((type = xml_find_body(xn, "type")) == NULL ||
@@ -296,7 +291,7 @@ controller_connect(clicon_handle h,
         goto ok;
     if ((addr = xml_find_body(xn, "addr")) == NULL)
         goto ok;
-    if (connect_netconf_ssh(h, ch, xn,
+    if (connect_netconf_ssh(h, dh, xn,
                             name,
                             xml_find_body(xn, "user"),
                             addr) < 0) /* match */
@@ -310,15 +305,15 @@ controller_connect(clicon_handle h,
 }
 
 static int
-controller_disconnect(clicon_handle h,
+controller_disconnect(clixon_handle h,
                       cxobj        *xn)
 {
-    char                *name;
-    clixon_client_handle ch;
+    char         *name;
+    device_handle dh;
     
     if ((name = xml_find_body(xn, "name")) != NULL &&
-        (ch = clixon_client2_find(h, name)) != NULL)
-        device_close_connection(ch, NULL); /* Regular disconnect, no reason */
+        (dh = device_handle_find(h, name)) != NULL)
+        device_close_connection(dh, NULL); /* Regular disconnect, no reason */
     return 0;
 }
 
@@ -337,7 +332,7 @@ controller_disconnect(clicon_handle h,
  * 3) if device added, connect
  */
 static int
-controller_commit_device(clicon_handle h,
+controller_commit_device(clixon_handle h,
                          cvec         *nsc,
                          cxobj        *src,
                          cxobj        *target)
@@ -407,15 +402,15 @@ controller_commit_device(clicon_handle h,
  * @retval    0    OK
  */
 static int
-controller_commit_generic(clicon_handle h,
+controller_commit_generic(clixon_handle h,
                           cvec         *nsc,
                           cxobj        *target)
 {
-    int     retval = -1;
-    char   *body;
-    cxobj **vec = NULL;
-    size_t  veclen;
-    int     i;
+    int      retval = -1;
+    char    *body;
+    cxobj  **vec = NULL;
+    size_t   veclen;
+    int      i;
     uint32_t d;
     
     if (xpath_vec_flag(target, nsc, "generic/device-timeout",
@@ -441,7 +436,7 @@ controller_commit_generic(clicon_handle h,
 /*! Transaction commit
  */
 int
-controller_commit(clicon_handle    h,
+controller_commit(clixon_handle    h,
                   transaction_data td)
 {
     int     retval = -1;
@@ -465,28 +460,45 @@ controller_commit(clicon_handle    h,
     return retval;
 }
 
+/*! Callback for yang extensions controller 
+ * 
+ * @param[in] h    Clixon handle
+ * @param[in] yext Yang node of extension 
+ * @param[in] ys   Yang node of (unknown) statement belonging to extension
+ * @retval     0   OK
+ * @retval    -1   Error
+ */
+int
+controller_unknown(clicon_handle h,
+                     yang_stmt    *yext,
+                     yang_stmt    *ys)
+{
+    return 0;
+}
+
 /* Called just before plugin unloaded. 
  * @param[in] h    Clixon handle
  */
 static int
-controller_exit(clicon_handle h)
+controller_exit(clixon_handle h)
 {
-    clixon_client2_free_all(h);
+    device_handle_free_all(h);
     return 0;
 }
 
 /* Forward declaration */
-clixon_plugin_api *clixon_plugin_init(clicon_handle h);
+clixon_plugin_api *clixon_plugin_init(clixon_handle h);
 
 static clixon_plugin_api api = {
     "wifi backend",
     .ca_exit         = controller_exit,
+    .ca_extension    = controller_unknown,
     .ca_statedata    = controller_statedata,
     .ca_trans_commit = controller_commit,
 };
 
 clixon_plugin_api *
-clixon_plugin_init(clicon_handle h)
+clixon_plugin_init(clixon_handle h)
 {
     /* Register callback for rpc calls 
      */

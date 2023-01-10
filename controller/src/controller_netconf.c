@@ -60,9 +60,9 @@
  * @retval     ch    Client handle
  */
 int
-clixon_client_connect_netconf(clicon_handle                h,
-                              pid_t                       *pid,
-                              int                         *sock)
+clixon_client_connect_netconf(clixon_handle  h,
+                              pid_t         *pid,
+                              int           *sock)
 {
     int         retval = -1;
     int         nr;
@@ -114,10 +114,10 @@ clixon_client_connect_netconf(clicon_handle                h,
 /*! Connect to backend using NETCONF over SSH
  */
 int
-clixon_client_connect_ssh(clicon_handle                h,
-                          const char                  *dest,
-                          pid_t                       *pid,
-                          int                         *sock)
+clixon_client_connect_ssh(clixon_handle  h,
+                          const char    *dest,
+                          pid_t         *pid,
+                          int           *sock)
 {
     int         retval = -1;
     int         nr;
@@ -170,17 +170,17 @@ clixon_client_connect_ssh(clicon_handle                h,
  * @retval     -1     Fatal error
  */
 int
-netconf_input_frame(cbuf                *cb,
-                    yang_stmt           *yspec,
-                    cxobj              **xrecv)
+netconf_input_frame(cbuf       *cb,
+                    yang_stmt  *yspec,
+                    cxobj     **xrecv)
 {
-    int                  retval = -1;
-    char                *str = NULL;
-    cxobj               *xtop = NULL; /* Request (in) */
-    cxobj               *xerr = NULL;
-    int                  ret;
+    int     retval = -1;
+    char   *str = NULL;
+    cxobj  *xtop = NULL; /* Request (in) */
+    cxobj  *xerr = NULL;
+    int     ret;
 
-    clicon_debug(1, "%s", __FUNCTION__);
+    clicon_debug(2, "%s", __FUNCTION__);
     if (xrecv == NULL){
         clicon_err(OE_PLUGIN, EINVAL, "xrecv is NULL");
         return -1;
@@ -192,7 +192,6 @@ netconf_input_frame(cbuf                *cb,
     }    
     if (strlen(str) != 0){
         if ((ret = clixon_xml_parse_string(str, YB_RPC, yspec, &xtop, &xerr)) < 0){
-            
             goto fail;
         }
 #if 0 // XXX only after schema mount and get-schema stuff
@@ -241,13 +240,13 @@ netconf_input_frame(cbuf                *cb,
  * then only "</a>" would be delivered to netconf_input_frame().
  */
 int
-netconf_input_msg(int                  s,
-                  int                  framing,
-                  int                 *frame_state,
-                  size_t              *frame_size,
-                  cbuf                *cb,
-                  int                 *eom,
-                  int                 *eof)
+netconf_input_msg(int      s,
+                  int      framing,
+                  int     *frame_state,
+                  size_t  *frame_size,
+                  cbuf    *cb,
+                  int     *eom,
+                  int     *eof)
 {
     int            retval = -1;
     unsigned char  buf[BUFSIZ]; /* from stdio.h, typically 8K */
@@ -256,10 +255,10 @@ netconf_input_msg(int                  s,
     int            ret;
     int            found = 0;
 
-    clicon_debug(1, "%s", __FUNCTION__);
+    clicon_debug(2, "%s", __FUNCTION__);
     memset(buf, 0, sizeof(buf));
     while (1){
-        clicon_debug(1, "%s read()", __FUNCTION__);
+        clicon_debug(2, "%s read()", __FUNCTION__);
         if ((len = read(s, buf, sizeof(buf))) < 0){
             if (errno == ECONNRESET)
                 len = 0; /* emulate EOF */
@@ -268,9 +267,9 @@ netconf_input_msg(int                  s,
                 goto done;
             }
         } /* read */
-        clicon_debug(1, "%s len:%ld", __FUNCTION__, len);
+        clicon_debug(2, "%s len:%ld", __FUNCTION__, len);
         if (len == 0){  /* EOF */
-            clicon_debug(1, "%s len==0, closing", __FUNCTION__);
+            clicon_debug(2, "%s len==0, closing", __FUNCTION__);
             *eof = 1;
         }
         else
@@ -320,7 +319,7 @@ netconf_input_msg(int                  s,
             if ((poll = clixon_event_poll(s)) < 0)
                 goto done;
             if (poll == 0){
-                clicon_debug(1, "%s poll==0: no data on s", __FUNCTION__);
+                clicon_debug(2, "%s poll==0: no data on s", __FUNCTION__);
                 break; 
             }
         }
@@ -330,7 +329,7 @@ netconf_input_msg(int                  s,
     *eom = found;
     retval = 0;
  done:
-    clicon_debug(1, "%s retval:%d", __FUNCTION__, retval);
+    clicon_debug(2, "%s retval:%d", __FUNCTION__, retval);
     return retval;
 }
 

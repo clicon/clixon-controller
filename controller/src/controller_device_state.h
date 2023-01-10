@@ -33,14 +33,24 @@
 
   State machine:
 
+  Device connection state machine:
+
   CS_CLOSED
-     ^     \ connect  
+     ^      \ connect  
      |       v        send get
-     |    CS_CONNECTING --> CS_DEVICE_SYNC
-     |    /            \    /   |
-     |   /------------  \ -+    |
-     |  v                v      v
-  CS_OPEN  <------------  CS_SCHEMA(n)
+     |<-- CS_CONNECTING
+     |       |
+     |       v
+     |<-- CS_SCHEMA_LIST
+     |       |
+     |       v
+     |<-- CS_SCHEMA_ONE(n) ---+
+     |       |             <--+
+     |       v             
+     |<-- CS_DEVICE_SYNC
+     |       |
+     |       v
+  CS_OPEN <-+
   */
 
 #ifndef _CONTROLLER_DEVICE_STATE_H
@@ -49,6 +59,7 @@
 /*
  * Types
  */
+typedef void *device_handle;
 
 /*! State of connection
  * Only closed and open are "stable", the others are transient and timeout to closed
@@ -59,9 +70,9 @@ enum conn_state{
     CS_CLOSED = 0,  /* Closed, also "closed" if handle non-existent but then no state */
     CS_CONNECTING,  /* Connect() called, expect to receive hello from device
                        May fail due to (1) connect fails or (2) hello not receivd */
-    CS_DEVICE_SYNC, /* get all config and state */
     CS_SCHEMA_LIST, /* Get ietf-netconf-monitor schema state */
     CS_SCHEMA_ONE,      /* Connection established and Hello sent to device. */
+    CS_DEVICE_SYNC, /* Get all config (and state) */
     CS_OPEN,        /* Connection established and Hello sent to device. */
     CS_WRESP,       /* Request sent, waiting for reply */
 };
@@ -74,14 +85,14 @@ typedef enum conn_state conn_state_t;
 extern "C" {
 #endif
     
-char        *controller_state_int2str(conn_state_t state);
-conn_state_t controller_state_str2int(char *str);
-int          device_close_connection(clixon_client_handle ch, const char *format, ...) __attribute__ ((format (printf, 2, 3)));
+char        *device_state_int2str(conn_state_t state);
+conn_state_t device_state_str2int(char *str);
+int          device_close_connection(device_handle ch, const char *format, ...) __attribute__ ((format (printf, 2, 3)));
 int          device_input_cb(int s, void *arg);
-int          device_sync(clicon_handle h, clixon_client_handle ch);
-int          device_state_timeout_register(clixon_client_handle ch);
-int          device_state_timeout_unregister(clixon_client_handle ch);
-int          device_state_handler(clixon_client_handle ch, clicon_handle h, int s, cxobj *xmsg);
+int          device_send_sync(clixon_handle h, device_handle ch, int s);
+int          device_state_timeout_register(device_handle ch);
+int          device_state_timeout_unregister(device_handle ch);
+int          device_state_handler(clixon_handle h, device_handle ch, int s, cxobj *xmsg);
     
 #ifdef __cplusplus
 }

@@ -47,14 +47,20 @@
  * Example: "/var/tmp/%s/yang/%s.yang"
  * 
  */
-#undef CONTROLLER_DUMP_YANG_FILE // "/var/tmp/%s/yang/%s.yang"
+//#define CONTROLLER_DUMP_YANG_FILE "/var/tmp/%s/yang/%s.yang"
+#undef CONTROLLER_DUMP_YANG_FILE
 
-/*! Workaround to get which Yang files a junos release uses
- * The option points to dir where files named as Junos release (eg 20.4R3-S2.6)
- * include a list of YANG module names
- * The controller should really get the YANGs by ietf-yang-library or
- * ietf-netconf-monitoring but I dont see them implemented by Junos
+/*! Skip junos-configuration-metadata.yang
+ * cRPD gives error if you request it with get-schema:
+ * <error-message>invalid schema identifier : junos-configuration-metadata</error-message>
  */
-#undef CONTROLLER_JUNOS_YANGS // "/var/tmp/junos/yangs"
+#define CONTROLLER_JUNOS_SKIP_METADATA
+
+/*! Add grouping command-forwarding in junos-rpc yangs if not exists
+ * cRPD YANGs do not have groupimg command-grouping in junos-rpc YANGs so that
+ * uses command-grouping fails.
+ * Insert an empty grouping command-forwarding if it does not exist
+ */
+#define CONTROLLER_JUNOS_ADD_COMMAND_FORWARDING
 
 #endif /* _CONTROLLER_CUSTOM_H */

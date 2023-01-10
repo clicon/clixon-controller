@@ -1,7 +1,7 @@
 module clixon-controller {
     yang-version 1.1;
     namespace "urn:example:clixon-controller";
-    prefix clco;
+    prefix controller;
     import ietf-yang-types {
         prefix "yang";
     }
@@ -29,32 +29,39 @@ module clixon-controller {
     }
     typedef connection-state{
         description
-            "Connection state";
+            "Device connection state. 
+             The controller holds this connection state per device.";
         type enumeration{
             enum CLOSED {
                 description
-                "Not connected";
+                "Not connected
+                 Implicitly if no state exists for device, it is in CLOSED state";
             }
             enum CONNECTING {
                 description
                 "Connection initiated: connect called
-                Expect to receive netconf hello from device
-                Transient state that timeout to CLOSED.
-                Connect failures include (1) connect fails or (2) hello not received";
+                 Expect to receive netconf hello from device
+                 Transient state that timeout to CLOSED.
+                 Connect failures include (1) connect fails or (2) hello not received";
+            }
+            enum SCHEMA_LIST {
+                description
+                  "Get ietf-netconf-monitoring schema for all YANG schemas,
+                  Waiting for reply
+                  Transient state that timeout to CLOSED.";
+            }
+            enum SCHEMA_ONE {
+                description
+                "Get-schema sent to device for each yang the device announces
+                 Waiting for reply
+                 Transient state that timeout to CLOSED.";
             }
             enum DEVICE-SYNC {
                 description
                     "Hello received and hello sent to device,
-                    If device announces monitoring a get-state on ietf-netconf-monitoring
-                    is sent";
-            }
-            enum SCHEMA_LIST {
-                description
-                  "get ietf-netconf-monitoring schema for all YANG schemas";
-            }
-            enum SCHEMA_ONE {
-                description
-                "get-schema sent to device for each yang the device announces";
+                     If device announces monitoring a get-state on ietf-netconf-monitoring
+                     is sent.
+                    Transient state that timeout to CLOSED.";
             }
             enum OPEN{
                 description
@@ -63,9 +70,13 @@ module clixon-controller {
             enum WRESP{
                 description
                 "Netconf reuest is sent, waiting for response.
-                Transient state that timeout to CLOSED.";
+                 Transient state that timeout to CLOSED.
+                Currently not used, OBSOLETE?";
             }
         }
+    }
+    container services {
+        description "Placeholder for services";
     }
     container generic{
         leaf device-timeout{
@@ -139,10 +150,14 @@ module clixon-controller {
                 config false;
                 type string;
             }
+            //            container root{
             anydata root{
-                yangmnt:mount-point "root";
                 description
-                    "Mount-point for node config, for the time being without schema";
+                    "Mount-point for device configs";
+                yangmnt:mount-point "root"{
+                    description
+                       "Root for yang models retrieved from device via get-schema";
+                }
             }
         }
     }
