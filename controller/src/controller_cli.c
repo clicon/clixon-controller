@@ -51,7 +51,7 @@
  * Note devices connect due to commit but may have a failure state
  */
 int
-cli_connect_device(clicon_handle h, 
+cli_connect_device(clixon_handle h, 
                    cvec         *cvv, 
                    cvec         *argv)
 {
@@ -109,7 +109,7 @@ cli_connect_device(clicon_handle h,
  * @param[in] argv
  */
 int
-cli_sync_rpc(clicon_handle h, 
+cli_sync_rpc(clixon_handle h, 
              cvec         *cvv, 
              cvec         *argv)
 {
@@ -166,7 +166,7 @@ cli_sync_rpc(clicon_handle h,
  * @param[in] argv
  */
 int
-cli_show_devices(clicon_handle h,
+cli_show_devices(clixon_handle h,
                  cvec         *cvv,
                  cvec         *argv)
 {
@@ -250,7 +250,7 @@ static clixon_plugin_api api = {
  * @retval     api  Pointer to API struct
  */
 clixon_plugin_api *
-clixon_plugin_init(clicon_handle h)
+clixon_plugin_init(clixon_handle h)
 {
     struct timeval tv;
 
