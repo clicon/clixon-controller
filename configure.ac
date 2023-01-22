@@ -135,9 +135,7 @@ AC_MSG_RESULT(Clixon yang files are installed in ${YANG_INSTALLDIR})
 AC_ARG_ENABLE(nls)
 
 AC_OUTPUT([Makefile
-	  controller/Makefile
-  	  controller/src/Makefile
-	  controller/yang/Makefile
-    	  controller/docker/Makefile
-          util/Makefile
+  	  src/Makefile
+	  yang/Makefile
+    	  docker/Makefile
 ])

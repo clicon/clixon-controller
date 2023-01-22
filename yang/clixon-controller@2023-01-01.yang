@@ -1,7 +1,7 @@
 module clixon-controller {
     yang-version 1.1;
-    namespace "urn:example:clixon-controller";
-    prefix controller;
+    namespace "http://clicon.org/controller";
+    prefix ctrl;
     import ietf-yang-types {
         prefix "yang";
     }
@@ -150,7 +150,7 @@ module clixon-controller {
                 config false;
                 type string;
             }
-            //            container root{
+            //container root{
             anydata root{
                 description
                     "Mount-point for device configs";
@@ -160,6 +160,9 @@ module clixon-controller {
                 }
             }
         }
+    }
+    notification services-commit {
+        description "A commit has been made that changes the services declaration.";
     }
     rpc sync {
         description "Read the config of one or several devices.";

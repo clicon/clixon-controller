@@ -180,12 +180,12 @@ netconf_input_frame(cbuf       *cb,
     cxobj  *xerr = NULL;
     int     ret;
 
-    clicon_debug(2, "%s", __FUNCTION__);
+    clicon_debug(CLIXON_DBG_DETAIL, "%s", __FUNCTION__);
     if (xrecv == NULL){
         clicon_err(OE_PLUGIN, EINVAL, "xrecv is NULL");
         return -1;
     }
-    //    clicon_debug(2, "%s: \"%s\"", __FUNCTION__, cbuf_get(cb));
+    //    clicon_debug(CLIXON_DBG_MSG, "%s: \"%s\"", __FUNCTION__, cbuf_get(cb));
     if ((str = strdup(cbuf_get(cb))) == NULL){
         clicon_err(OE_UNIX, errno, "strdup");
         goto done;
@@ -255,10 +255,10 @@ netconf_input_msg(int      s,
     int            ret;
     int            found = 0;
 
-    clicon_debug(2, "%s", __FUNCTION__);
+    clicon_debug(CLIXON_DBG_DETAIL, "%s", __FUNCTION__);
     memset(buf, 0, sizeof(buf));
     while (1){
-        clicon_debug(2, "%s read()", __FUNCTION__);
+        clicon_debug(CLIXON_DBG_DETAIL, "%s read()", __FUNCTION__);
         if ((len = read(s, buf, sizeof(buf))) < 0){
             if (errno == ECONNRESET)
                 len = 0; /* emulate EOF */
@@ -267,9 +267,9 @@ netconf_input_msg(int      s,
                 goto done;
             }
         } /* read */
-        clicon_debug(2, "%s len:%ld", __FUNCTION__, len);
+        clicon_debug(CLIXON_DBG_DETAIL, "%s len:%ld", __FUNCTION__, len);
         if (len == 0){  /* EOF */
-            clicon_debug(2, "%s len==0, closing", __FUNCTION__);
+            clicon_debug(CLIXON_DBG_DETAIL, "%s len==0, closing", __FUNCTION__);
             *eof = 1;
         }
         else
@@ -319,7 +319,7 @@ netconf_input_msg(int      s,
             if ((poll = clixon_event_poll(s)) < 0)
                 goto done;
             if (poll == 0){
-                clicon_debug(2, "%s poll==0: no data on s", __FUNCTION__);
+                clicon_debug(CLIXON_DBG_DETAIL, "%s poll==0: no data on s", __FUNCTION__);
                 break; 
             }
         }
@@ -329,7 +329,7 @@ netconf_input_msg(int      s,
     *eom = found;
     retval = 0;
  done:
-    clicon_debug(2, "%s retval:%d", __FUNCTION__, retval);
+    clicon_debug(CLIXON_DBG_DETAIL, "%s retval:%d", __FUNCTION__, retval);
     return retval;
 }
 

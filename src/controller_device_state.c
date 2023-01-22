@@ -172,7 +172,7 @@ device_input_cb(int   s,
     int           ret;
     char         *name;
 
-    clicon_debug(2, "%s", __FUNCTION__);
+    clicon_debug(CLIXON_DBG_DETAIL, "%s", __FUNCTION__);
     h = device_handle_handle_get(dh);
     frame_state = device_handle_frame_state_get(dh);
     frame_size = device_handle_frame_size_get(dh);
@@ -194,14 +194,14 @@ device_input_cb(int   s,
     device_handle_frame_state_set(dh, frame_state);
     device_handle_frame_size_set(dh, frame_size);
     if (eom == 0){ /* frame not complete */
-        clicon_debug(2, "%s %s: frame: %lu strlen:%lu", __FUNCTION__,
+        clicon_debug(CLIXON_DBG_DETAIL, "%s %s: frame: %lu strlen:%lu", __FUNCTION__,
                      name, cbuf_len(cb), strlen(cbuf_get(cb)));
         goto ok;
     }
     clicon_debug(1, "%s %s: frame: %lu strlen:%lu", __FUNCTION__,
                  name, cbuf_len(cb), strlen(cbuf_get(cb)));
     cbuf_trunc(cb, cbuf_len(cb));
-    clicon_debug(2, "%s cb: %s", __FUNCTION__, cbuf_get(cb));
+    clicon_debug(CLIXON_DBG_DETAIL, "%s cb: %s", __FUNCTION__, cbuf_get(cb));
     yspec = clicon_dbspec_yang(h);
     if ((ret = netconf_input_frame(cb, yspec, &xtop)) < 0)
         goto done;
@@ -216,7 +216,7 @@ device_input_cb(int   s,
  ok:
     retval = 0;
  done:
-    clicon_debug(2, "%s retval:%d", __FUNCTION__, retval);
+    clicon_debug(CLIXON_DBG_DETAIL, "%s retval:%d", __FUNCTION__, retval);
     if (xtop)
         xml_free(xtop);
     return retval;
@@ -296,7 +296,7 @@ device_send_get_schema_one(clixon_handle h,
     char    *name;
     uint64_t seq;
     
-    clicon_debug(2, "%s", __FUNCTION__);
+    clicon_debug(CLIXON_DBG_DETAIL, "%s", __FUNCTION__);
     if ((identifier = xml_find_body(xd, "identifier")) == NULL ||
         (version = xml_find_body(xd, "version")) == NULL ||
         (format = xml_find_body(xd, "format")) == NULL){
@@ -366,7 +366,7 @@ device_send_get_schema_next(clixon_handle h,
     cxobj  *xschemas;
     cxobj  *x;
 
-    clicon_debug(2, "%s %d", __FUNCTION__, *nr);
+    clicon_debug(CLIXON_DBG_DETAIL, "%s %d", __FUNCTION__, *nr);
     xschemas = device_handle_schema_list_get(dh);
     x = NULL;
     i = 0;
@@ -459,7 +459,7 @@ device_state_recv_hello(clixon_handle h,
     cvec   *nsc = NULL;
     cxobj  *xcaps;
 
-    clicon_debug(2, "%s", __FUNCTION__);
+    clicon_debug(CLIXON_DBG_DETAIL, "%s", __FUNCTION__);
     rpcprefix = xml_prefix(xmsg);
     if (xml2ns(xmsg, rpcprefix, &namespace) < 0)
         goto done;
@@ -543,9 +543,10 @@ device_state_recv_config(clixon_handle h,
     yang_stmt *yspec1;
     int        ret;
     cxobj     *x;
-    //    yang_stmt *yroot;
-
-    clicon_debug(2, "%s", __FUNCTION__);
+#ifdef CONTROLLER_MOUNTPOINT
+    yang_stmt *yroot;
+#endif
+    clicon_debug(CLIXON_DBG_DETAIL, "%s", __FUNCTION__);
     if (strcmp(rpcname, "rpc-reply") != 0){
         device_close_connection(dh, "Unexpected msg %s in state %s",
                                 rpcname, device_state_int2str(conn_state));
@@ -584,10 +585,9 @@ device_state_recv_config(clixon_handle h,
         clicon_err(OE_XML, 0, "device/root mountpoint not found");
         goto done;
     }
-#ifdef NOTYET
+#ifdef CONTROLLER_MOUNTPOINT
     yroot = xml_spec(xroot);
     /* Sanity-check mount-point extension */
-
     if ((ret = yang_schema_mount_point(yroot)) < 0)
         goto done;
     if (ret == 0){
@@ -601,14 +601,17 @@ device_state_recv_config(clixon_handle h,
     }
     /*
      * <root>  clixon-controller:root
-     * <data>  ietf-netconf:data
+     * <data>  ietf-netconf:data (dont bother to bind this node, its just a placeholder)
+     * <x>     bind to yspec1
      */
-    if (0 && (ret = xml_bind_yang(xdata, YB_MODULE, yspec1, NULL)) < 0)
+#ifdef CONTROLLER_MOUNTPOINT
+    if ((ret = xml_bind_yang(xdata, YB_MODULE, yspec1, NULL)) < 0)
         goto done;
     if (ret == 0){
         device_close_connection(dh, "YANG binding failed at mountpoint");
         goto closed;
     }
+#endif
     /* Add all xdata children to xroot
      * XXX:
      * 1. idempotent?
@@ -620,9 +623,8 @@ device_state_recv_config(clixon_handle h,
     }
     if (xml_sort_recurse(xroot) < 0)
         goto done;
-#if 0 // XXX debug
-    xml_print(stdout, x1);
-    fflush(stdout);
+#if 1
+    clicon_debug_xml(1, x1, "mount-point");
 #endif
     if ((cbret = cbuf_new()) == NULL){
         clicon_err(OE_UNIX, errno, "cbuf_new");
@@ -687,7 +689,7 @@ device_state_recv_schema_list(device_handle dh,
     cxobj *x1;
     cvec  *nsc = NULL;
 
-    clicon_debug(2, "%s", __FUNCTION__);
+    clicon_debug(CLIXON_DBG_DETAIL, "%s", __FUNCTION__);
     if (strcmp(rpcname, "rpc-reply") != 0){
         device_close_connection(dh, "Unexpected msg %s in state %s",
                          rpcname, device_state_int2str(conn_state));
@@ -771,7 +773,7 @@ device_state_recv_get_schema(device_handle dh,
     yang_stmt  *ymod;
     yang_stmt  *ygr;
 
-    clicon_debug(2, "%s", __FUNCTION__);
+    clicon_debug(CLIXON_DBG_DETAIL, "%s", __FUNCTION__);
     if (strcmp(rpcname, "rpc-reply") != 0){
         device_close_connection(dh, "Unexpected msg %s in state %s",
                          rpcname, device_state_int2str(conn_state));
@@ -861,8 +863,8 @@ device_state_recv_get_schema(device_handle dh,
  * @retval   -1          Error
  */
 static int
-device_state_schemas_post(clixon_handle h,
-                          device_handle dh)
+device_state_schemas_ready(clixon_handle h,
+                           device_handle dh)
 {
     int         retval = -1;
     yang_stmt  *yspec;
@@ -872,12 +874,11 @@ device_state_schemas_post(clixon_handle h,
         goto done;
     }
     clicon_debug(1, "%s parse %d yangs", __FUNCTION__, yang_len_get(yspec));
+
+    if (yang_parse_post(h, yspec, 0) < 0)
 #if 1
-    if (yang_parse_post(h, yspec, 0) < 0)
         goto fail;
-    retval = 1;
 #else
-    if (yang_parse_post(h, yspec, 0) < 0)
         goto done;
 #endif
     /* Mount */
@@ -1078,7 +1079,7 @@ device_state_handler(clixon_handle h,
         if ((ret = device_send_get_schema_next(h, dh, s, &nr)) < 0)
             goto done;
         if (ret == 0){ /* None sent, done */
-            if ((ret = device_state_schemas_post(h, dh)) < 0)
+            if ((ret = device_state_schemas_ready(h, dh)) < 0)
                 goto done;
             if (ret == 0){
                 device_close_connection(dh, "YANG parse error");

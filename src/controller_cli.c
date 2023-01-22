@@ -44,6 +44,7 @@
 #include "controller_custom.h"
 #include "controller.h"
 
+#if 1 // XXX Obsoleted since they modify config, just a shorthand for set devices device <name> enable <bool>
 /*! Explicit connect/disconnect rpc of devices
  * @param[in] h
  * @param[in] cvv  : name pattern
@@ -87,11 +88,6 @@ cli_connect_device(clixon_handle h,
         clixon_netconf_error(xerr, "Get configuration", NULL);
         goto done;
     }
-#if 0
-    /* Print result */
-    if (clixon_xml2file(stdout, xml_child_i(xret, 0), 0, 1, cligen_output, 0, 1) < 0)
-        goto done;
-#endif
     retval = 0;
  done:
     if (cb)
@@ -102,6 +98,7 @@ cli_connect_device(clixon_handle h,
         xml_free(xtop);
     return retval;
 }
+#endif
 
 /*! Read the config of one or several devices
  * @param[in] h
