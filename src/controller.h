@@ -31,36 +31,15 @@
 
   ***** END LICENSE BLOCK *****
 
-  Custom file included by controller code
-  These are compile-time options. 
-  In general they are kludges and "should be removed" when code is improved
-  and not proper system config options.
+  * Common controller definitions
   */
 
-#ifndef _CONTROLLER_CUSTOM_H
-#define _CONTROLLER_CUSTOM_H
+#ifndef _CONTROLLER_H
+#define _CONTROLLER_H
 
-/*! Dump yang retirieved by get-schema to file
- * Debug option that dumps all YANG files retrieved by the get-scema RPC 
- * The option if set is a format string with two parameters: device and
- * YANG module names
- * Example: "/var/tmp/%s/yang/%s.yang"
- * 
+/*
+ * Constants
  */
-//#define CONTROLLER_DUMP_YANG_FILE "/var/tmp/%s/yang/%s.yang"
-#undef CONTROLLER_DUMP_YANG_FILE
+#define CONTROLLER_NAMESPACE "http://clicon.org/controller"
 
-/*! Skip junos-configuration-metadata.yang
- * cRPD gives error if you request it with get-schema:
- * <error-message>invalid schema identifier : junos-configuration-metadata</error-message>
- */
-#define CONTROLLER_JUNOS_SKIP_METADATA
-
-/*! Add grouping command-forwarding in junos-rpc yangs if not exists
- * cRPD YANGs do not have groupimg command-grouping in junos-rpc YANGs so that
- * uses command-grouping fails.
- * Insert an empty grouping command-forwarding if it does not exist
- */
-#define CONTROLLER_JUNOS_ADD_COMMAND_FORWARDING
-
-#endif /* _CONTROLLER_CUSTOM_H */
+#endif /* _CONTROLLER_H */

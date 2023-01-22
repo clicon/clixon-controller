@@ -3871,7 +3871,7 @@ $as_echo "CFLAGS is $CFLAGS" >&6; }
 { $as_echo "$as_me:${as_lineno-$LINENO}: result: INSTALLFLAGS is $INSTALLFLAGS" >&5
 $as_echo "INSTALLFLAGS is $INSTALLFLAGS" >&6; }
 
-# SSH binary path
+# SSH binary path (see controller/src/Makefile and clixon_client.c
 # Extract the first word of "ssh", so it can be a program name with args.
 set dummy ssh; ac_word=$2
 { $as_echo "$as_me:${as_lineno-$LINENO}: checking for $ac_word" >&5
@@ -3912,7 +3912,6 @@ $as_echo "no" >&6; }
 fi
 
 
-#AC_DEFINE_UNQUOTED(SSH_BIN, "$SSH_BIN", [SSH binary])
 
 if test "$prefix" = "NONE"; then
      prefix=${ac_default_prefix}
@@ -4354,7 +4353,7 @@ if test "${enable_nls+set}" = set; then :
 fi
 
 
-ac_config_files="$ac_config_files Makefile controller/Makefile controller/src/Makefile controller/yang/Makefile controller/docker/Makefile util/Makefile"
+ac_config_files="$ac_config_files Makefile src/Makefile yang/Makefile docker/Makefile"
 
 cat >confcache <<\_ACEOF
 # This file is a shell script that caches the results of configure
@@ -5063,11 +5062,9 @@ for ac_config_target in $ac_config_targets
 do
   case $ac_config_target in
     "Makefile") CONFIG_FILES="$CONFIG_FILES Makefile" ;;
-    "controller/Makefile") CONFIG_FILES="$CONFIG_FILES controller/Makefile" ;;
-    "controller/src/Makefile") CONFIG_FILES="$CONFIG_FILES controller/src/Makefile" ;;
-    "controller/yang/Makefile") CONFIG_FILES="$CONFIG_FILES controller/yang/Makefile" ;;
-    "controller/docker/Makefile") CONFIG_FILES="$CONFIG_FILES controller/docker/Makefile" ;;
-    "util/Makefile") CONFIG_FILES="$CONFIG_FILES util/Makefile" ;;
+    "src/Makefile") CONFIG_FILES="$CONFIG_FILES src/Makefile" ;;
+    "yang/Makefile") CONFIG_FILES="$CONFIG_FILES yang/Makefile" ;;
+    "docker/Makefile") CONFIG_FILES="$CONFIG_FILES docker/Makefile" ;;
 
   *) as_fn_error $? "invalid argument: \`$ac_config_target'" "$LINENO" 5;;
   esac

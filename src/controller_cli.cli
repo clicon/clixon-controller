@@ -138,16 +138,21 @@ load("Load configuration from XML file") <filename:string>("Filename (local file
     }
 }
 
-connect("Connect to device.") [
-                 (<name:string>("device pattern")|
-                  <name:string expand_dbvar("running","/clixon-controller:devices/device/name")>("device pattern"))
-                 ], cli_connect_device("true");
-disconnect("Disconnect device.") [
-                 (<name:string>("device pattern")|
-                  <name:string expand_dbvar("running","/clixon-controller:devices/device/name")>("device pattern"))
-                 ], cli_connect_device("false");
-
 sync("Read the config of one or several devices.") [
                  (<name:string>("device pattern")|
                   <name:string expand_dbvar("running","/clixon-controller:devices/device/name")>("device pattern"))
                  ], cli_sync_rpc();
+
+notifications("Get notifications from backend"), cli_notify("controller", "1", "text");
+
+obsolete {
+         # Obsoleted since they modify config, just a shorthand for set devices device <name> enable <bool>
+         connect("Connect to device.") [
+                 (<name:string>("device pattern")|
+                  <name:string expand_dbvar("running","/clixon-controller:devices/device/name")>("device pattern"))
+                 ], cli_connect_device("true");
+         disconnect("Disconnect device.") [
+                 (<name:string>("device pattern")|
+                  <name:string expand_dbvar("running","/clixon-controller:devices/device/name")>("device pattern"))
+                 ], cli_connect_device("false");
+}

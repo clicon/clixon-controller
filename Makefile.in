@@ -41,7 +41,9 @@ INSTALL		= @INSTALL@
 INCLUDES 	= -I. -I@srcdir@ @INCLUDES@
 SHELL		= /bin/sh
 
-SUBDIRS = controller util
+SUBDIRS  = src
+SUBDIRS += yang
+#SUBDIRS += docker
 
 .PHONY:	all clean $(SUBDIRS) install uninstall docker push TAGS .config.status
 
@@ -59,12 +61,11 @@ uninstall:
 	do (cd $$i && $(MAKE) $(MFLAGS) $@)||exit 1; done;
 
 docker:
-	for i in $(SUBDIRS) ; \
-	do (cd $$i && $(MAKE) $(MFLAGS) $@)||exit 1; done;
+	(cd docker; $(MAKE) $(MFLAGS) $@)
+	echo "make push to push images to dockerhub"
 
 push:
-	for i in $(SUBDIRS) ; \
-	do (cd $$i && $(MAKE) $(MFLAGS) $@)||exit 1; done; 
+	(cd docker; $(MAKE) $(MFLAGS) $@)
 
 config.status:	configure
 	$(SHELL) config.status --recheck

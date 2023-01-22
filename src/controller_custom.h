@@ -31,15 +31,43 @@
 
   ***** END LICENSE BLOCK *****
 
-  * Common controller definitions
+  Custom file included by controller code
+  These are compile-time options. 
+  In general they are kludges and "should be removed" when code is improved
+  and not proper system config options.
   */
 
-#ifndef _CONTROLLER_H
-#define _CONTROLLER_H
+#ifndef _CONTROLLER_CUSTOM_H
+#define _CONTROLLER_CUSTOM_H
 
-/*
- * Constants
+/*! Dump yang retirieved by get-schema to file
+ * Debug option that dumps all YANG files retrieved by the get-scema RPC 
+ * The option if set is a format string with two parameters: device and
+ * YANG module names
+ * Example: "/var/tmp/%s/yang/%s.yang"
+ * 
  */
-#define CONTROLLER_NAMESPACE "urn:example:clixon-controller"
+//#define CONTROLLER_DUMP_YANG_FILE "/var/tmp/%s/yang/%s.yang"
+#undef CONTROLLER_DUMP_YANG_FILE
 
-#endif /* _CONTROLLER_H */
+/*! Skip junos-configuration-metadata.yang
+ * cRPD gives error if you request it with get-schema:
+ * <error-message>invalid schema identifier : junos-configuration-metadata</error-message>
+ */
+#define CONTROLLER_JUNOS_SKIP_METADATA
+
+/*! Add grouping command-forwarding in junos-rpc yangs if not exists
+ * cRPD YANGs do not have groupimg command-grouping in junos-rpc YANGs so that
+ * uses command-grouping fails.
+ * Insert an empty grouping command-forwarding if it does not exist
+ */
+#define CONTROLLER_JUNOS_ADD_COMMAND_FORWARDING
+
+/*! Temp development constant while RFC8528 doesnt work properly
+ * Note you need to specify the "root" container in clixon-controller.yang as:
+ * - anydata if this is undef
+ * - container if this is define
+ */
+#undef CONTROLLER_MOUNTPOINT
+
+#endif /* _CONTROLLER_CUSTOM_H */

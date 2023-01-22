@@ -318,6 +318,7 @@ controller_disconnect(clixon_handle h,
 }
 
 /*! Commit generic part of controller yang
+ *
  * @param[in] h    Clixon handle
  * @param[in] nsc  Namespace context
  * @param[in] src  pre-existing xml tree
@@ -433,6 +434,81 @@ controller_commit_generic(clixon_handle h,
     return retval;
 }
                   
+/*!
+ */
+static int
+services_commit_notify(clixon_handle h)
+{
+    int   retval = -1;
+    cbuf *cb = NULL;
+
+    if ((cb = cbuf_new()) == NULL){
+        clicon_err(OE_UNIX, errno, "cbuf_new");
+        goto done;
+    }
+    cprintf(cb, "<services-commit xmlns=\"%s\">", CONTROLLER_NAMESPACE);
+    cprintf(cb, "</services-commit>");
+    if (stream_notify(h, "controller", cbuf_get(cb)) < 0)
+        goto done;
+    retval = 0;
+ done:
+    if (cb)
+        cbuf_free(cb);
+    return retval;
+}
+
+/*! Commit services part: detect any change then trigger a services-commit notification
+ *
+ * @param[in] h      Clixon handle
+ * @param[in] nsc    Namespace context
+ * @param[in] src  pre-existing xml tree
+ * @param[in] target Post target xml tree
+ * @retval   -1      Error
+ * @retval    0      OK
+ */
+static int
+controller_commit_services(clixon_handle h,
+                           cvec         *nsc,
+                           cxobj        *src,
+                           cxobj        *target)
+{
+    int     retval = -1;
+    cxobj **vec1 = NULL;
+    cxobj **vec2 = NULL;
+    cxobj **vec3 = NULL;
+    size_t  veclen1;
+    size_t  veclen2;
+    size_t  veclen3;
+    
+    /* 1) if device removed, disconnect */
+    if (xpath_vec_flag(src, nsc, "services",
+                       XML_FLAG_DEL,
+                       &vec1, &veclen1) < 0)
+        goto done;
+    /* 2a) if enable changed to false, disconnect, to true connect
+     */
+    if (xpath_vec_flag(target, nsc, "services",
+                       XML_FLAG_CHANGE,
+                       &vec2, &veclen2) < 0)
+        goto done;
+    /* 3) if device added, connect */
+    if (xpath_vec_flag(target, nsc, "services",
+                       XML_FLAG_ADD,
+                       &vec3, &veclen3) < 0)
+        goto done;
+    if (veclen1 || veclen2 || veclen3)
+        services_commit_notify(h);
+    retval = 0;
+ done:
+    if (vec1)
+        free(vec1);
+    if (vec2)
+        free(vec2);
+    if (vec3)
+        free(vec3);
+    return retval;
+}
+
 /*! Transaction commit
  */
 int
@@ -452,6 +528,8 @@ controller_commit(clixon_handle    h,
     if (controller_commit_generic(h, nsc, target) < 0)
         goto done;
     if (controller_commit_device(h, nsc, src, target) < 0)
+        goto done;
+    if (controller_commit_services(h, nsc, src, target) < 0)
         goto done;
     retval = 0;
  done:
@@ -490,7 +568,7 @@ controller_exit(clixon_handle h)
 clixon_plugin_api *clixon_plugin_init(clixon_handle h);
 
 static clixon_plugin_api api = {
-    "wifi backend",
+    "controller backend",
     .ca_exit         = controller_exit,
     .ca_extension    = controller_unknown,
     .ca_statedata    = controller_statedata,
@@ -507,6 +585,8 @@ clixon_plugin_init(clixon_handle h)
                               CONTROLLER_NAMESPACE,
                               "sync"
                               ) < 0)
+        goto done;
+    if (stream_add(h, "controller", "Clixon controller event stream", 0, NULL) < 0)
         goto done;
     return &api;
  done:

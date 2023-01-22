@@ -399,7 +399,15 @@ device_handle_conn_state_set(device_handle dh,
             device_state_int2str(cdh->cdh_conn_state),
             device_state_int2str(state));
 #endif
+    /* Free logmsg if leaving closed */
+    if (cdh->cdh_conn_state == CS_CLOSED &&
+        cdh->cdh_logmsg){
+        free(cdh->cdh_logmsg);
+        cdh->cdh_logmsg = NULL;
+    }
+
     cdh->cdh_conn_state = state;
+
     device_handle_conn_time_set(dh, NULL);
     return 0;
 }
