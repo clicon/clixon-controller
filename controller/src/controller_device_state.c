@@ -638,7 +638,7 @@ device_state_recv_config(clixon_handle h,
     /* XXX: here goes,... */
     if (xmldb_put(h, "candidate", OP_NONE, x1, NULL, cbret) < 0)
         goto done;
-    if ((ret = candidate_commit(h, NULL, "candidate", cb)) < 0)
+    if ((ret = candidate_commit(h, NULL, "candidate", 0, cb)) < 0)
         goto done;
     if (ret == 0){ /* discard */
         xmldb_copy(h, "running", "candidate");            
