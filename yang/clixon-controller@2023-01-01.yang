@@ -150,8 +150,8 @@ module clixon-controller {
                 config false;
                 type string;
             }
-            //container root{
-            anydata root{
+            container root{
+                presence "Otherwise root is not visible";
                 description
                     "Mount-point for device configs";
                 yangmnt:mount-point "root"{
