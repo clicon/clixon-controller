@@ -40,16 +40,6 @@
 #ifndef _CONTROLLER_CUSTOM_H
 #define _CONTROLLER_CUSTOM_H
 
-/*! Dump yang retirieved by get-schema to file
- * Debug option that dumps all YANG files retrieved by the get-scema RPC 
- * The option if set is a format string with two parameters: device and
- * YANG module names
- * Example: "/var/tmp/%s/yang/%s.yang"
- * 
- */
-//#define CONTROLLER_DUMP_YANG_FILE "/var/tmp/%s/yang/%s.yang"
-#undef CONTROLLER_DUMP_YANG_FILE
-
 /*! Skip junos-configuration-metadata.yang
  * cRPD gives error if you request it with get-schema:
  * <error-message>invalid schema identifier : junos-configuration-metadata</error-message>
@@ -63,11 +53,9 @@
  */
 #define CONTROLLER_JUNOS_ADD_COMMAND_FORWARDING
 
-/*! Temp development constant while RFC8528 doesnt work properly
- * Note you need to specify the "root" container in clixon-controller.yang as:
- * - anydata if this is undef
- * - container if this is define
+/*! Where to write all yangs from devices 
+ * Move to clixon as option?
  */
-#undef CONTROLLER_MOUNTPOINT
+#define YANG_SCHEMA_MOUNT_DIR "/usr/local/share/clixon/mounts"
 
 #endif /* _CONTROLLER_CUSTOM_H */

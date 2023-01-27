@@ -42,11 +42,11 @@
      |       |
      |       v
      |<-- CS_SCHEMA_LIST
-     |       |
-     |       v
-     |<-- CS_SCHEMA_ONE(n) ---+
-     |       |             <--+
-     |       v             
+     |       |       \
+     |       |        v
+     |<-------- CS_SCHEMA_ONE(n) ---+
+     |       |       /           <--+
+     |       v      v       
      |<-- CS_DEVICE_SYNC
      |       |
      |       v

@@ -147,12 +147,12 @@ notifications("Get notifications from backend"), cli_notify("controller", "1", "
 
 obsolete {
          # Obsoleted since they modify config, just a shorthand for set devices device <name> enable <bool>
-         connect("Connect to device.") [
+         connect("Connect to device.")
                  (<name:string>("device pattern")|
                   <name:string expand_dbvar("running","/clixon-controller:devices/device/name")>("device pattern"))
-                 ], cli_connect_device("true");
-         disconnect("Disconnect device.") [
+                 , cli_connect_device("true");
+         disconnect("Disconnect device.") 
                  (<name:string>("device pattern")|
                   <name:string expand_dbvar("running","/clixon-controller:devices/device/name")>("device pattern"))
-                 ], cli_connect_device("false");
+                 , cli_connect_device("false");
 }

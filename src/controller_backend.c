@@ -115,7 +115,7 @@ sync_rpc(clixon_handle h,            /* Clicon handle */
     size_t        veclen;
     int           i;
     char         *pattern = NULL;
-    char         *name;
+    char         *devname;
     device_handle dh;
     conn_state_t  state;
     cbuf         *cb = NULL;
@@ -130,16 +130,16 @@ sync_rpc(clixon_handle h,            /* Clicon handle */
         goto done;
     for (i=0; i<veclen; i++){
         xn = vec[i];
-        if ((name = xml_find_body(xn, "name")) == NULL)
+        if ((devname = xml_find_body(xn, "name")) == NULL)
             continue;
-        if ((dh = device_handle_find(h, name)) == NULL)
+        if ((dh = device_handle_find(h, devname)) == NULL)
             continue;
         s = device_handle_socket_get(dh);
         if ((state = device_handle_conn_state_get(dh)) != CS_OPEN)
             continue;
-        if (pattern != NULL && fnmatch(pattern, name, 0) != 0)
+        if (pattern != NULL && fnmatch(pattern, devname, 0) != 0)
             continue;
-        cprintf(cbret, "<name xmlns=\"%s\">%s</name>",  CONTROLLER_NAMESPACE, name);
+        cprintf(cbret, "<name xmlns=\"%s\">%s</name>",  CONTROLLER_NAMESPACE, devname);
         if (device_send_sync(h, dh, s) < 0)
             goto done;
         device_state_timeout_register(dh);
@@ -554,6 +554,44 @@ controller_unknown(clicon_handle h,
     return 0;
 }
 
+/*! Example YANG schema mount
+ *
+ * Given an XML mount-point xt, return XML yang-lib modules-set
+ * @param[in]  h       Clixon handle
+ * @param[in]  xt      XML mount-point in XML tree
+ * @param[out] yanglib XML yang-lib module-set tree
+ * @retval     0       OK
+ * @retval    -1       Error
+ * XXX hardcoded to clixon-example@2022-11-01.yang
+ * @see RFC 8528
+ */
+int
+controller_yang_mount(clicon_handle h,
+                      cxobj        *xt,
+                      cxobj       **yanglib)
+{
+    int           retval = -1;
+    device_handle dh;
+    char         *devname;
+    cxobj        *xy0;
+    cxobj        *xy1;
+
+    if ((devname = xml_find_body(xml_parent(xt), "name")) != NULL &&
+        (dh = device_handle_find(h, devname)) != NULL){
+        /* copy it */
+        if ((xy0 = device_handle_yang_lib_get(dh)) != NULL){
+            if ((xy1 = xml_new("new", NULL, xml_type(xy0))) == NULL)
+                goto done;
+            if (xml_copy(xy0, xy1) < 0)
+                goto done;
+            *yanglib = xy1;
+        }
+    }
+    retval = 0;
+ done:
+    return retval;
+}
+
 /* Called just before plugin unloaded. 
  * @param[in] h    Clixon handle
  */
@@ -573,6 +611,7 @@ static clixon_plugin_api api = {
     .ca_extension    = controller_unknown,
     .ca_statedata    = controller_statedata,
     .ca_trans_commit = controller_commit,
+    .ca_yang_mount = controller_yang_mount,
 };
 
 clixon_plugin_api *

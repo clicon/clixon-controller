@@ -82,11 +82,14 @@ struct controller_device_handle{
     int                cdh_frame_state;/* Framing state for detecting EOM */
     size_t             cdh_frame_size; /* Remaining expecting chunk bytes */
     cxobj             *cdh_xcaps;      /* Capabilities as XML tree */
-    cxobj             *cdh_xschemas;   /* YANG schema list as XML tree */
+    cxobj             *cdh_yang_lib;   /* RFC 8525 yang-library module list */
     struct timeval     cdh_sync_time;  /* Time when last sync (0 if unsynched) */
     yang_stmt         *cdh_yspec;      /* Top-level yang spec of device */
     int                cdh_nr_schemas; /* How many schemas from this device */
+    char              *cdh_schema_name; /* Pending schema name */
+    char              *cdh_schema_rev;  /* Pending schema revision */
     char              *cdh_logmsg;     /* Error log message / reason of failed open */
+
 };
 
 /*! Check struct magic number for sanity checks
@@ -146,16 +149,20 @@ device_handle_handle_free(struct controller_device_handle *cdh)
 {
     if (cdh->cdh_name)
         free(cdh->cdh_name);
-    if (cdh->cdh_logmsg)
-        free(cdh->cdh_logmsg);
     if (cdh->cdh_frame_buf)
         cbuf_free(cdh->cdh_frame_buf);
     if (cdh->cdh_xcaps)
         xml_free(cdh->cdh_xcaps);
-    if (cdh->cdh_xschemas)
-        xml_free(cdh->cdh_xschemas);
+    if (cdh->cdh_yang_lib)
+        xml_free(cdh->cdh_yang_lib);
     if (cdh->cdh_yspec)
         ys_free(cdh->cdh_yspec);
+    if (cdh->cdh_logmsg)
+        free(cdh->cdh_logmsg);
+    if (cdh->cdh_schema_name)
+        free(cdh->cdh_schema_name);
+    if (cdh->cdh_schema_rev)
+        free(cdh->cdh_schema_rev);
     free(cdh);
     return 0;
 }
@@ -390,15 +397,10 @@ device_handle_conn_state_set(device_handle dh,
     struct controller_device_handle *cdh = devhandle(dh);
 
     clicon_debug(1, "%s %s: %s -> %s",
-                 __FUNCTION__, cdh->cdh_name,
+                 __FUNCTION__,
+                 device_handle_name_get(dh),
                  device_state_int2str(cdh->cdh_conn_state),
                  device_state_int2str(state));
-#if 0
-    fprintf(stderr, "%s: %s -> %s\n",
-            cdh->cdh_name,
-            device_state_int2str(cdh->cdh_conn_state),
-            device_state_int2str(state));
-#endif
     /* Free logmsg if leaving closed */
     if (cdh->cdh_conn_state == CS_CLOSED &&
         cdh->cdh_logmsg){
@@ -556,32 +558,33 @@ device_handle_capabilities_find(clixon_handle dh,
     return x?1:0;
 }
 
-/*! Get schema list as xml tree
+/*! Get RFC 8525 yang-lib as xml tree
  * @param[in]  dh     Device handle
- * @retval     xschemas  XML tree
+ * @retval     yang_lib  XML tree
+ * On the form: yang-library/module-set/name=<name>/module/name,revision,namespace  RFC 8525
  */
 cxobj *
-device_handle_schema_list_get(device_handle dh)
+device_handle_yang_lib_get(device_handle dh)
 {
     struct controller_device_handle *cdh = devhandle(dh);
 
-    return cdh->cdh_xschemas;
+    return cdh->cdh_yang_lib;
 }
 
-/*! Set schema list as xml tree
- * @param[in]  dh     Device handle
- * @param[in]  xschemas  XML tree, is consumed
- * @retval     0      OK
+/*! Set RFC 8525 yang library as xml tree
+ * @param[in]  dh      Device handle
+ * @param[in]  yanglib XML tree, is consumed
+ * @retval     0       OK
  */
 int
-device_handle_schema_list_set(device_handle dh,
-                              cxobj        *xschemas)
+device_handle_yang_lib_set(device_handle dh,
+                           cxobj        *yang_lib)
 {
     struct controller_device_handle *cdh = devhandle(dh);
 
-    if (cdh->cdh_xschemas != NULL)
-        xml_free(cdh->cdh_xschemas);
-    cdh->cdh_xschemas = xschemas;
+    if (cdh->cdh_yang_lib != NULL)
+        xml_free(cdh->cdh_yang_lib);
+    cdh->cdh_yang_lib = yang_lib;
     return 0;
 }
 
@@ -668,6 +671,64 @@ device_handle_nr_schemas_set(device_handle dh,
     struct controller_device_handle *cdh = devhandle(dh);
 
     cdh->cdh_nr_schemas = nr;
+    return 0;
+}
+
+/*! Get pending schema name, strdup
+ * @param[in]  dh     Device handle
+ * @retval     schema-name
+ * @retval     NULL
+ */
+char*
+device_handle_schema_name_get(device_handle dh)
+{
+    struct controller_device_handle *cdh = devhandle(dh);
+
+    return cdh->cdh_schema_name;
+}
+
+/*! Set pending schema name, strdup
+ * @param[in]  dh     Device handle
+ * @param[in]  schema-name Is copied
+ */
+int
+device_handle_schema_name_set(device_handle dh,
+                              char        *schema_name)
+{
+    struct controller_device_handle *cdh = devhandle(dh);
+
+    if (cdh->cdh_schema_name)
+        free(cdh->cdh_schema_name);
+    cdh->cdh_schema_name = strdup(schema_name);
+    return 0;
+}
+
+/*! Get pending schema rev, strdup
+ * @param[in]  dh     Device handle
+ * @retval     schema-rev
+ * @retval     NULL
+ */
+char*
+device_handle_schema_rev_get(device_handle dh)
+{
+    struct controller_device_handle *cdh = devhandle(dh);
+
+    return cdh->cdh_schema_rev;
+}
+
+/*! Set pending schema rev, strdup
+ * @param[in]  dh     Device handle
+ * @param[in]  schema-rev Is copied
+ */
+int
+device_handle_schema_rev_set(device_handle dh,
+                              char        *schema_rev)
+{
+    struct controller_device_handle *cdh = devhandle(dh);
+
+    if (cdh->cdh_schema_rev)
+        free(cdh->cdh_schema_rev);
+    cdh->cdh_schema_rev = strdup(schema_rev);
     return 0;
 }
 
