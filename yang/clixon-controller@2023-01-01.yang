@@ -27,6 +27,25 @@ module clixon-controller {
             }
         }
     }
+    typedef config-state{
+        description
+            "Goal state of connection. Could be more fine-granular, expand if
+             necessary.";
+        type enumeration{
+            enum CLOSED {
+                description "Do not connect to device";
+            }
+            enum YANG {
+                description
+                  "Get device config and YANG model. 
+                   Bind YANG model to config, but do not fully validate
+                   This corresponds to a sub-state in connection-state after DEVICE-SYNC";
+            }
+            enum VALIDATE {
+                description "Fully validate device config";
+            }
+        }
+    }
     typedef connection-state{
         description
             "Device connection state. 
@@ -94,16 +113,16 @@ module clixon-controller {
             leaf name{
                 type string;
             }
-            leaf enable{
-                type boolean;
-                default true;
-            }
             leaf description{
                 description
                     "Description of node";
                 type string;
             }
-            leaf type{
+            leaf config-state{
+                type config-state;
+                default YANG;
+            }
+            leaf conn-type{
                 description
                     "Connection type, eg how to connect to (or from) the device";
                 mandatory true;

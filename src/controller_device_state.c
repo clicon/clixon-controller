@@ -71,8 +71,7 @@
 #include "controller_device_handle.h"
 
 /*! Mapping between enum conn_state and yang connection-state
- * @see clixon-controller@2023-01-01.yang for mirror enum and descriptions
- * @see enum conn_state for basic type
+ * @see clixon-controller@2023-01-01.yang connection-state
  */
 static const map_str2int csmap[] = {
     {"CLOSED",       CS_CLOSED},
@@ -83,6 +82,16 @@ static const map_str2int csmap[] = {
     {"OPEN",         CS_OPEN},
     {"WRESP",        CS_WRESP},
     {NULL,           -1}
+};
+
+/*! Mapping between enum config_state and yang config-state
+ * @see clixon-controller@2023-01-01.yang config-state
+ */
+static const map_str2int cfmap[] = {
+    {"CLOSED",     CF_CLOSED},
+    {"YANG",       CF_YANG},
+    {"VALIDATE",   CF_VALIDATE},
+    {NULL,         -1}
 };
 
 /*! Map controller device connection state from int to string 
@@ -105,6 +114,16 @@ device_state_str2int(char *str)
     return clicon_str2int(csmap, str);
 }
 
+/*! Map controller device connection state from string to int 
+ * @param[in]  str    Device state as string
+ * @retval     state  Device state as int
+ */
+enum config_state
+config_state_str2int(char *str)
+{
+    return clicon_str2int(cfmap, str);
+}
+
 /*! Close connection, unregister events and timers
  * @param[in]  dh      Clixon client handle.
  * @param[in]  format  Format string for Log message
@@ -125,6 +144,7 @@ device_close_connection(device_handle dh,
     clixon_event_unreg_fd(s, device_input_cb); /* deregister events */
     device_state_timeout_unregister(dh);
     device_handle_disconnect(dh);              /* close socket, reap sub-processes */
+    device_handle_yang_lib_set(dh, NULL);
     device_handle_conn_state_set(dh, CS_CLOSED);
     if (format == NULL)
         device_handle_logmsg_set(dh, NULL);
@@ -510,7 +530,12 @@ device_state_recv_hello(clixon_handle h,
     goto done;
 }
 
-/*! Given devicename and XML tree, return top of tree and device mount-point
+/*! Given devicename and XML tree, create XML tree and device mount-point
+ *
+ * @param[in]  devicename Name of device
+ * @param[in]  yspec      Top level Yang spec
+ * @param[out] xt         Top of created tree (Deallocate with xml_free)
+ * @param[out] xroot      XML mount-point in created tree
  */
 static int
 device_state_mount_point_get(char      *devicename,
@@ -587,6 +612,7 @@ device_state_recv_config(clixon_handle h,
     cxobj     *xroot;
     yang_stmt *yroot;
     cxobj     *xerr = NULL;
+    config_state_t config_state;
 
     clicon_debug(1, "%s", __FUNCTION__);
     //    clicon_debug(CLIXON_DBG_DETAIL, "%s", __FUNCTION__);
@@ -638,16 +664,11 @@ device_state_recv_config(clixon_handle h,
             clicon_err(OE_UNIX, errno, "cbuf_new");
             goto done;
         }
-        cprintf(cberr, "YANG binding failed at mountpoint for %s:", name);
-        if (netconf_err2cb(xerr, cberr) < 0)
-            goto done;
-#if 0 // encode xml
+        cprintf(cberr, "YANG binding failed at mountpoint:");
+        if ((x=xpath_first(xerr, NULL, "//error-message"))!=NULL)
+            cprintf(cberr, "%s", xml_body(x));
         if (device_close_connection(dh, cbuf_get(cberr)) < 0)
             goto done;
-#else
-        if (device_close_connection(dh, "YANG binding failed at mountpoint") < 0)
-            goto done;
-#endif
         goto closed;
     }
     /* Add all xdata children to xroot
@@ -678,19 +699,25 @@ device_state_recv_config(clixon_handle h,
         goto done;
     if ((ret = xmldb_put(h, "candidate", OP_NONE, xt, NULL, cbret)) < 0)
         goto done;
-    if (ret && (ret = candidate_commit(h, NULL, "candidate", 0, cbret)) < 0)
+    /* Check config-state */
+    config_state = device_handle_config_state_get(dh);
+    if (ret && (ret = candidate_commit(h, NULL, "candidate", 0,
+                                       config_state==CF_VALIDATE?VL_FULL:VL_NONE,
+                                       cbret)) < 0)
         goto done;
     if (ret == 0){ /* discard */
         xmldb_copy(h, "running", "candidate");            
         xmldb_modified_set(h, "candidate", 0); /* reset dirty bit */
-#if 0         /* XXX cbret is XML and looks ugly in logmsg (at least encode it?)*/
-
-        if (device_close_connection(dh, "Failed to commit: %s", cbuf_get(cbret)) < 0)
-            goto done;
+        clicon_debug(CLIXON_DBG_DEFAULT, cbuf_get(cbret));
+        if (device_close_connection(dh, 
+#if 0
+                                    /* XXX cbret is XML and looks ugly in logmsg (at least encode it?)*/
+                                    "Failed to commit: %s", cbuf_get(cbret)
 #else
-        if (device_close_connection(dh, "Failed to commit") < 0)
-            goto done;
+                                    "Failed to commit"
 #endif
+                                    ) < 0)
+            goto done;
         goto closed;
     }
     else {
@@ -1003,6 +1030,74 @@ device_state_recv_get_schema(device_handle dh,
     goto done;
 }
 
+#ifdef CONTROLLER_JUNOS_ADD_COMMAND_FORWARDING
+/*! Ugly rewrite of junos YANGs after parsing
+ * Add grouping command-forwarding in junos-rpc yangs if not exists
+ * tried to make other less intrusive solutions or make a generic way in the
+ * original function, but the easiest was just to rewrite the function.
+ */
+int
+yang_lib2yspec_junos_patch(clicon_handle h,
+                           cxobj        *yanglib,
+                           yang_stmt    *yspec)
+{
+    int        retval = -1;
+    cxobj     *xi;
+    char      *name;
+    char      *revision;
+    cvec      *nsc = NULL;
+    cxobj    **vec = NULL;
+    size_t     veclen;
+    int        i;
+
+    clicon_debug(1, "%s", __FUNCTION__);
+    if (xpath_vec(yanglib, nsc, "module-set/module", &vec, &veclen) < 0) 
+        goto done;
+    for (i=0; i<veclen; i++){
+        xi = vec[i];
+        if ((name = xml_find_body(xi, "name")) == NULL)
+            continue;
+        if ((revision = xml_find_body(xi, "revision")) == NULL)
+            continue;
+#ifdef CONTROLLER_JUNOS_ADD_COMMAND_FORWARDING
+        {
+            yang_stmt  *ymod;
+            yang_stmt  *ygr;
+
+            if ((ymod = yang_parse_module(h, name, revision, yspec, NULL)) == NULL)
+                goto fail;
+            if (yang_find(ymod, Y_GROUPING, "command-forwarding") == NULL){
+                if ((ygr = ys_new(Y_GROUPING)) == NULL)
+                    goto done;
+                if (yang_argument_set(ygr, "command-forwarding") < 0)
+                    goto done;
+                if (yn_insert(ymod, ygr) < 0)
+                    goto done;
+            }
+        }
+#else
+        if (yang_parse_module(h, name, revision, yspec, NULL) == NULL)
+            goto fail;
+#endif
+    }
+    /* XXX: Ensure yang-lib is always there otherwise get state dont work for mountpoint */
+    if (yang_parse_module(h, "ietf-yang-library", "2019-01-04", yspec, NULL) < 0)
+        goto fail;
+    clicon_debug(1, "%s yang_parse_post", __FUNCTION__);
+    if (yang_parse_post(h, yspec, 0) < 0)
+        goto done;
+    retval = 1;
+ done:
+    clicon_debug(1, "%s %d", __FUNCTION__, retval);
+    if (vec)
+        free(vec);
+    return retval;
+ fail:
+    retval = 0;
+    goto done;
+}
+#endif
+
 /*! All schemas ready from one device, parse the locally
  *
  * @param[in] h          Clixon handle.
@@ -1018,7 +1113,7 @@ device_state_schemas_ready(clixon_handle h,
 {
     int        retval = -1;
     yang_stmt *yspec1;
-    cxobj     *xylib;
+    cxobj     *yanglib;
     cxobj     *xt = NULL;
     cxobj     *xmount;
     char      *devname;
@@ -1029,31 +1124,32 @@ device_state_schemas_ready(clixon_handle h,
         clicon_err(OE_YANG, 0, "No yang spec");
         goto done;
     }
-    xylib = device_handle_yang_lib_get(dh);
+    yanglib = device_handle_yang_lib_get(dh);
+    /* Given yang-lib, parse all modules into yspec */
+#ifdef CONTROLLER_JUNOS_ADD_COMMAND_FORWARDING
+    /* Added extra JUNOS patch to mod YANGs */
+    if ((ret = yang_lib2yspec_junos_patch(h, yanglib, yspec1)) < 0)
+        goto done;
+#else
+    if ((ret = yang_lib2yspec(h, yanglib, yspec1)) < 0)
+        goto done;
+#endif
+    if (ret == 0)
+        goto fail;
     devname = device_handle_name_get(dh);
+    /* Create XML tree and device mount-point */
     if (device_state_mount_point_get(devname, yspec0, &xt, &xmount) < 0)
         goto done;
-#if 1
-    if ((ret = yang_lib2yspec(h, xylib, yspec1)) < 0)
-        goto done;
-    if (ret == 0)
-        goto fail;
-#ifdef YANG_SCHEMA_MOUNT_YANG_LIB_FORCE
-    /* XXX: Ensure yang-lib is always there otherwise get state dont work for mountpoint */
-    if (yang_spec_parse_module(h, "ietf-yang-library", "2019-01-04", yspec1) < 0)
-        goto done;
-#endif
     if (xml_yang_mount_set(xmount, yspec1) < 0)
         goto done;    
-#else
-    if ((ret = xml_schema_parse_yang(h, xylib, xmount, yspec1)) < 0)
-        goto done;
-#endif
     if (ret == 0)
         goto fail;
+    yspec1 = NULL;
     retval = 1;
  done:
     clicon_debug(1, "%s retval %d", __FUNCTION__, retval);
+    if (yspec1)
+        ys_free(yspec1);
     if (xt)
         xml_free(xt);
     return retval;

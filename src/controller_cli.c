@@ -44,62 +44,6 @@
 #include "controller_custom.h"
 #include "controller.h"
 
-#if 1 // XXX Obsoleted since they modify config, just a shorthand for set devices device <name> enable <bool>
-/*! Explicit connect/disconnect rpc of devices
- * @param[in] h
- * @param[in] cvv  : name pattern
- * @param[in] argv : state ("true" / "false")
- * Note devices connect due to commit but may have a failure state
- */
-int
-cli_connect_device(clixon_handle h, 
-                   cvec         *cvv, 
-                   cvec         *argv)
-{
-    int        retval = -1;
-    cbuf      *cb = NULL;
-    cg_var    *cv;
-    cxobj     *xtop = NULL;
-    cxobj     *xret = NULL;
-    cxobj     *xerr;
-    char      *state = "true";
-
-    if (cvec_len(argv) > 0){
-        cv = cvec_i(argv, 0);
-        state = cv_string_get(cv);
-    }
-    if ((cb = cbuf_new()) == NULL){
-        clicon_err(OE_UNIX, errno, "cbuf_new");
-        goto done;
-    }
-    cprintf(cb, "<config><devices xmlns=\"%s\">",
-            CONTROLLER_NAMESPACE);
-    cprintf(cb, "<device>");
-    if ((cv = cvec_find(cvv, "name")) != NULL)
-        cprintf(cb, "<name>%s</name>", cv_string_get(cv));
-    cprintf(cb, "<enable %s:operation=\"replace\">%s</enable>",
-            NETCONF_BASE_PREFIX, state);
-    cprintf(cb, "</device></devices></config>");
-    if (clicon_rpc_edit_config(h, "candidate", OP_NONE, cbuf_get(cb)) < 0)
-        goto done;
-    if (clicon_rpc_commit(h, 0, 0, 0, NULL, NULL) < 0)
-        goto done;
-    if ((xerr = xpath_first(xret, NULL, "//rpc-error")) != NULL){
-        clixon_netconf_error(xerr, "Get configuration", NULL);
-        goto done;
-    }
-    retval = 0;
- done:
-    if (cb)
-        cbuf_free(cb);
-    if (xret)
-        xml_free(xret);
-    if (xtop)
-        xml_free(xtop);
-    return retval;
-}
-#endif
-
 /*! Read the config of one or several devices
  * @param[in] h
  * @param[in] cvv  : name pattern

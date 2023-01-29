@@ -51,43 +51,45 @@ extern "C" {
 #endif
     
 device_handle device_handle_new(clixon_handle h, const char *name);
-int    device_handle_free(device_handle ch);
+int    device_handle_free(device_handle dh);
 int    device_handle_free_all(clixon_handle h);
 device_handle device_handle_find(clixon_handle h, const char *name);
-int    device_handle_connect(device_handle ch, clixon_client_type socktype, const char *dest);
-int    device_handle_disconnect(device_handle ch);
+int    device_handle_connect(device_handle dh, clixon_client_type socktype, const char *dest);
+int    device_handle_disconnect(device_handle dh);
 
 /* Accessor functions */
-char  *device_handle_name_get(device_handle ch);
-int    device_handle_socket_get(device_handle ch);
-uint64_t device_handle_msg_id_getinc(device_handle ch);
-clixon_handle device_handle_handle_get(device_handle ch);
-conn_state_t device_handle_conn_state_get(device_handle ch);
-int    device_handle_conn_state_set(device_handle ch, conn_state_t state);    
-int    device_handle_conn_time_get(device_handle ch, struct timeval *t);
-int    device_handle_conn_time_set(device_handle ch, struct timeval *t);
-int    device_handle_frame_state_get(device_handle ch);
-int    device_handle_frame_state_set(device_handle ch, int state);
-size_t device_handle_frame_size_get(device_handle ch);
-int    device_handle_frame_size_set(device_handle ch, size_t size);
-cbuf  *device_handle_frame_buf_get(device_handle ch);
-cxobj *device_handle_capabilities_get(device_handle ch);
-int    device_handle_capabilities_set(device_handle ch, cxobj *xcaps);
+char  *device_handle_name_get(device_handle dh);
+int    device_handle_socket_get(device_handle dh);
+uint64_t device_handle_msg_id_getinc(device_handle dh);
+clixon_handle device_handle_handle_get(device_handle dh);
+conn_state_t device_handle_conn_state_get(device_handle dh);
+config_state_t device_handle_config_state_get(device_handle dh);
+int    device_handle_config_state_set(device_handle  dh, char *config_state);
+int    device_handle_conn_state_set(device_handle dh, conn_state_t state);    
+int    device_handle_conn_time_get(device_handle dh, struct timeval *t);
+int    device_handle_conn_time_set(device_handle dh, struct timeval *t);
+int    device_handle_frame_state_get(device_handle dh);
+int    device_handle_frame_state_set(device_handle dh, int state);
+size_t device_handle_frame_size_get(device_handle dh);
+int    device_handle_frame_size_set(device_handle dh, size_t size);
+cbuf  *device_handle_frame_buf_get(device_handle dh);
+cxobj *device_handle_capabilities_get(device_handle dh);
+int    device_handle_capabilities_set(device_handle dh, cxobj *xcaps);
 int    device_handle_capabilities_find(clixon_handle ch, const char *name);
-cxobj *device_handle_yang_lib_get(device_handle ch);
-int    device_handle_yang_lib_set(device_handle ch, cxobj *xschemas);
-int    device_handle_sync_time_get(device_handle ch, struct timeval *t);
-int    device_handle_sync_time_set(device_handle ch, struct timeval *t);
-yang_stmt *device_handle_yspec_get(device_handle ch);
-int    device_handle_yspec_set(device_handle ch, yang_stmt *yspec);
-int    device_handle_nr_schemas_get(device_handle ch);
-int    device_handle_nr_schemas_set(device_handle ch, int nr);
+cxobj *device_handle_yang_lib_get(device_handle dh);
+int    device_handle_yang_lib_set(device_handle dh, cxobj *xschemas);
+int    device_handle_sync_time_get(device_handle dh, struct timeval *t);
+int    device_handle_sync_time_set(device_handle dh, struct timeval *t);
+yang_stmt *device_handle_yspec_get(device_handle dh);
+int    device_handle_yspec_set(device_handle dh, yang_stmt *yspec);
+int    device_handle_nr_schemas_get(device_handle dh);
+int    device_handle_nr_schemas_set(device_handle dh, int nr);
 char  *device_handle_schema_name_get(device_handle dh);
 int    device_handle_schema_name_set(device_handle dh, char *schema_name);
 char  *device_handle_schema_rev_get(device_handle dh);
 int    device_handle_schema_rev_set(device_handle dh, char  *schema_rev);
-char  *device_handle_logmsg_get(device_handle ch);
-int    device_handle_logmsg_set(device_handle ch, char *logmsg);
+char  *device_handle_logmsg_get(device_handle dh);
+int    device_handle_logmsg_set(device_handle dh, char *logmsg);
 
 #ifdef __cplusplus
 }

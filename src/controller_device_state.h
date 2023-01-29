@@ -63,7 +63,7 @@ typedef void *device_handle;
 
 /*! State of connection
  * Only closed and open are "stable", the others are transient and timeout to closed
- * @see clixon-controller@2023-01-01.yang for mirror enum and descriptions
+ * @see clixon-controller@2023-01-01.yang connection-state
  * @see csmap translation table
  */
 enum conn_state{
@@ -78,6 +78,18 @@ enum conn_state{
 };
 typedef enum conn_state conn_state_t;
 
+/*! Goal state of connection
+ * @see clixon-controller@2023-01-01.yang config-state
+ * @see cfmap translation table
+ */
+enum config_state{
+    CF_CLOSED,   /* Do not connect to device */
+    CF_YANG,     /* Bind YANG model to config, but do not fully validate */
+    CF_VALIDATE, /* Fully validate device config */
+};
+typedef enum config_state config_state_t;
+
+
 /*
  * Prototypes
  */
@@ -87,6 +99,7 @@ extern "C" {
     
 char        *device_state_int2str(conn_state_t state);
 conn_state_t device_state_str2int(char *str);
+config_state_t config_state_str2int(char *str);
 int          device_close_connection(device_handle ch, const char *format, ...) __attribute__ ((format (printf, 2, 3)));
 int          device_input_cb(int s, void *arg);
 int          device_send_sync(clixon_handle h, device_handle ch, int s);

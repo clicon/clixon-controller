@@ -255,7 +255,9 @@ controller_statedata(clixon_handle   h,
 }
 
 /*! Connect to device 
- * via commit
+ * typically called from commit
+ * @param[in] h   Clixon handle
+ * @param[in] xn  XML of type
  */
 static int
 controller_connect(clixon_handle h,
@@ -267,26 +269,29 @@ controller_connect(clixon_handle h,
     cbuf         *cb = NULL;
     char         *type;
     char         *addr;
-    char         *enable;
+    char         *config_state;
     
     clicon_debug(1, "%s", __FUNCTION__);
     if ((name = xml_find_body(xn, "name")) == NULL)
         goto ok;
-    if ((enable = xml_find_body(xn, "enable")) == NULL){
-        goto ok;
-    }
-    if (strcmp(enable, "true") != 0){
-        if ((dh = device_handle_new(h, name)) == NULL)
-            goto done;
-        device_handle_logmsg_set(dh, strdup("Configured down"));
+    if ((config_state = xml_find_body(xn, "config-state")) == NULL){
         goto ok;
     }
     dh = device_handle_find(h, name); /* can be NULL */
-    if (dh != NULL &&
-        device_handle_conn_state_get(dh) != CS_CLOSED)
+    if (strcmp(config_state, "CLOSED") == 0){
+        if ((dh = device_handle_new(h, name)) == NULL)
+            goto done;
+        device_handle_config_state_set(dh, config_state);
+        device_handle_logmsg_set(dh, strdup("Configured down"));
         goto ok;
+    }
+    if (dh != NULL){
+        device_handle_config_state_set(dh, config_state);
+        if (device_handle_conn_state_get(dh) != CS_CLOSED)
+            goto ok;
+    }
     /* Only handle netconf/ssh */
-    if ((type = xml_find_body(xn, "type")) == NULL ||
+    if ((type = xml_find_body(xn, "conn-type")) == NULL ||
         strcmp(type, "NETCONF_SSH"))
         goto ok;
     if ((addr = xml_find_body(xn, "addr")) == NULL)
@@ -347,6 +352,7 @@ controller_commit_device(clixon_handle h,
     size_t  veclen3;
     int     i;
     char   *body;
+    //    device_handle dh;
     
     /* 1) if device removed, disconnect */
     if (xpath_vec_flag(src, nsc, "devices/device",
@@ -359,14 +365,13 @@ controller_commit_device(clixon_handle h,
     }
     /* 2a) if enable changed to false, disconnect, to true connect
      */
-    if (xpath_vec_flag(target, nsc, "devices/device/enable",
+    if (xpath_vec_flag(target, nsc, "devices/device/config_state",
                        XML_FLAG_CHANGE,
                        &vec2, &veclen2) < 0)
         goto done;
     for (i=0; i<veclen2; i++){
-        
         if ((body = xml_body(vec2[i])) != NULL){
-            if (strcmp(body, "false") == 0){
+            if (strcmp(body, "CLOSED") == 0){
                 if (controller_disconnect(h, xml_parent(vec2[i])) < 0)
                     goto done;
             }
@@ -480,18 +485,20 @@ controller_commit_services(clixon_handle h,
     size_t  veclen2;
     size_t  veclen3;
     
-    /* 1) if device removed, disconnect */
+    /* 1) chek deleted
+     */
     if (xpath_vec_flag(src, nsc, "services",
                        XML_FLAG_DEL,
                        &vec1, &veclen1) < 0)
         goto done;
-    /* 2a) if enable changed to false, disconnect, to true connect
+    /* 2) Check changed
      */
     if (xpath_vec_flag(target, nsc, "services",
                        XML_FLAG_CHANGE,
                        &vec2, &veclen2) < 0)
         goto done;
-    /* 3) if device added, connect */
+    /* 3) Check added
+     */
     if (xpath_vec_flag(target, nsc, "services",
                        XML_FLAG_ADD,
                        &vec3, &veclen3) < 0)
@@ -576,16 +583,21 @@ controller_yang_mount(clicon_handle h,
     cxobj        *xy0;
     cxobj        *xy1;
 
+    /* Return yangs only if device connection is open.
+     * This could be discussed: one could want to mount also in a 
+     * disconnected state.
+     * But there is an error case where there is YANG parse error in which
+     * case it will re-try mounting repeatedy.
+     */
     if ((devname = xml_find_body(xml_parent(xt), "name")) != NULL &&
-        (dh = device_handle_find(h, devname)) != NULL){
+        (dh = device_handle_find(h, devname)) != NULL &&
+        (xy0 = device_handle_yang_lib_get(dh)) != NULL){
         /* copy it */
-        if ((xy0 = device_handle_yang_lib_get(dh)) != NULL){
-            if ((xy1 = xml_new("new", NULL, xml_type(xy0))) == NULL)
-                goto done;
-            if (xml_copy(xy0, xy1) < 0)
-                goto done;
-            *yanglib = xy1;
-        }
+        if ((xy1 = xml_new("new", NULL, xml_type(xy0))) == NULL)
+            goto done;
+        if (xml_copy(xy0, xy1) < 0)
+            goto done;
+        *yanglib = xy1;
     }
     retval = 0;
  done:
@@ -611,7 +623,7 @@ static clixon_plugin_api api = {
     .ca_extension    = controller_unknown,
     .ca_statedata    = controller_statedata,
     .ca_trans_commit = controller_commit,
-    .ca_yang_mount = controller_yang_mount,
+    .ca_yang_mount   = controller_yang_mount,
 };
 
 clixon_plugin_api *
@@ -619,7 +631,7 @@ clixon_plugin_init(clixon_handle h)
 {
     /* Register callback for rpc calls 
      */
-    if (rpc_callback_register(h, sync_rpc, 
+    if (rpc_callback_register(h, sync_rpc,
                               NULL, 
                               CONTROLLER_NAMESPACE,
                               "sync"
