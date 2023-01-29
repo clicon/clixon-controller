@@ -71,6 +71,7 @@ struct controller_device_handle{
     qelem_t            cdh_qelem;      /* List header */
     uint32_t           cdh_magic;      /* Magic number */
     char              *cdh_name;       /* Connection name */
+    config_state_t     cdh_config_state; /* Configred state: goal (shadow of config) */
     conn_state_t       cdh_conn_state; /* Connection state */
     struct timeval     cdh_conn_time;  /* Time when entering last connection state */
     clixon_handle      cdh_h;          /* Clixon handle */ 
@@ -371,6 +372,37 @@ device_handle_handle_get(device_handle dh)
     struct controller_device_handle *cdh = devhandle(dh);
 
     return cdh->cdh_h;
+}
+
+/*! Get config state
+ * @param[in]  dh     Device handle
+ * @retval     config-state
+ * @note mirror of config
+ */
+config_state_t
+device_handle_config_state_get(device_handle dh)
+{
+    struct controller_device_handle *cdh = devhandle(dh);
+
+    return cdh->cdh_config_state;
+}
+
+/*! Set config state also timestamp
+ * @param[in]  dh     Device handle
+ * @retval     config-state  Config-state
+ * @retval     0      OK
+ * @note mirror of config, only commit callback code should set this value
+ */
+int
+device_handle_config_state_set(device_handle dh,
+                               char         *config_state_str)
+{
+    struct controller_device_handle *cdh = devhandle(dh);
+    config_state_t config_state;
+
+    config_state = config_state_str2int(config_state_str);
+    cdh->cdh_config_state = config_state;
+    return 0;
 }
 
 /*! Get connection state
