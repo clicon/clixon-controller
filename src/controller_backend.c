@@ -453,7 +453,7 @@ services_commit_notify(clixon_handle h)
     }
     cprintf(cb, "<services-commit xmlns=\"%s\">", CONTROLLER_NAMESPACE);
     cprintf(cb, "</services-commit>");
-    if (stream_notify(h, "controller", cbuf_get(cb)) < 0)
+    if (stream_notify(h, "controller", "%s", cbuf_get(cb)) < 0)
         goto done;
     retval = 0;
  done:

@@ -667,7 +667,7 @@ device_state_recv_config(clixon_handle h,
         cprintf(cberr, "YANG binding failed at mountpoint:");
         if ((x=xpath_first(xerr, NULL, "//error-message"))!=NULL)
             cprintf(cberr, "%s", xml_body(x));
-        if (device_close_connection(dh, cbuf_get(cberr)) < 0)
+        if (device_close_connection(dh, "%s", cbuf_get(cberr)) < 0)
             goto done;
         goto closed;
     }
@@ -708,7 +708,7 @@ device_state_recv_config(clixon_handle h,
     if (ret == 0){ /* discard */
         xmldb_copy(h, "running", "candidate");            
         xmldb_modified_set(h, "candidate", 0); /* reset dirty bit */
-        clicon_debug(CLIXON_DBG_DEFAULT, cbuf_get(cbret));
+        clicon_debug(CLIXON_DBG_DEFAULT, "%s", cbuf_get(cbret));
         if (device_close_connection(dh, 
 #if 0
                                     /* XXX cbret is XML and looks ugly in logmsg (at least encode it?)*/

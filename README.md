@@ -11,18 +11,10 @@ Clixon network controller
 
 See https://clixon-docs.readthedocs.io/en/latest/install.html
 
-Change as follows before compile:
+Configure clixon as follows:
+
 ```
-diff --git a/include/clixon_custom.h b/include/clixon_custom.h
-index ce4e5f27..c49c4c0b 100644
---- a/include/clixon_custom.h
-+++ b/include/clixon_custom.h
-@@ -196,4 +196,4 @@
-  * Experimental
-  * See also test/test_yang_schema_mount.sh
-  */
--#undef YANG_SCHEMA_MOUNT
-+#define YANG_SCHEMA_MOUNT
+> ./configure --enable-yang-schema-mount
 ```
 
 ## Build and install:
@@ -31,5 +23,32 @@ index ce4e5f27..c49c4c0b 100644
 > ./configure
 > make        # native build
 > sudo make install
-
 ```
+
+or via Docker (does not work yet)
+
+## Devices
+
+For each device, add an entry in a startup config, example:
+```
+$ cat /usr/local/var/controller/startup_db
+<config>
+  <devices xmlns="http://clicon.org/controller">
+    <device>
+      <name>clixon</name>
+      <description>Clixon container</description>
+      <conn-type>NETCONF_SSH</conn-type>
+      <user>root</user>
+      <addr>172.17.0.2</addr>
+    </device>
+    ...
+  <devices xmlns="http://clicon.org/controller">
+</config>
+```
+
+Start the controller:
+```
+$ sudo clixon_backend -s startup
+```
+
+
