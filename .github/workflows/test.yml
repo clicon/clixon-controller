@@ -19,10 +19,10 @@ jobs:
     - name: install ssl and nghttp2
       run: sudo apt install -y libssl-dev libnghttp2-dev
     - name: install clixon native
-      run: (git clone https://github.com/clicon/clixon.git && cd clixon && ./configure && make && sudo make install)
+      run: (git clone https://github.com/clicon/clixon.git && cd clixon && ./configure --enable-yang-schema-mount && make && sudo make install)
     - name: configure
       run: ./configure
 # 2) Use docker for tests
     - name: make test # this is docker test
-      run: (cd controller/docker; make docker)
+      run: (cd docker; make docker)
 #      run: make test
