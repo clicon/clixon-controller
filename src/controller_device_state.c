@@ -978,37 +978,6 @@ device_state_recv_get_schema(device_handle dh,
         clicon_err(OE_UNIX, errno, "fopen(%s)", cbuf_get(cb));
         goto done;
     }
-#if 0 // #ifdef CONTROLLER_JUNOS_ADD_COMMAND_FORWARDING // XXX Move to parsing
-    if (strncmp(modname, "junos-rpc", strlen("junos-rpc")) == 0){
-        char *name;
-        yang_stmt  *yspec;
-        yang_stmt  *ymod;
-        yang_stmt  *ygr;
-
-        if ((yspec = yspec_new()) == NULL)
-            goto done;
-        name = device_handle_name_get(dh);
-        /* XXX Parse just to get revision (better get it from get-schema) */
-        if ((ymod = yang_parse_str(ydec, name, yspec)) == NULL)
-            goto done;
-        if (yang_find(ymod, Y_GROUPING, "command-forwarding") == NULL){
-            if ((ygr = ys_new(Y_GROUPING)) == NULL)
-                goto done;
-            if (yang_argument_set(ygr, "command-forwarding") < 0)
-                goto done;
-            if (yn_insert(ymod, ygr) < 0)
-                goto done;
-        }
-        else{
-            if (fwrite(ydec, 1, sz, f) != sz){
-                clicon_err(OE_UNIX, errno, "fwrite");
-                goto done;
-            }
-        }
-        yang_print(f, ymod);
-        // XXX        ys_free(yspec);
-    }
-#endif
     if (fwrite(ydec, 1, sz, f) != sz){
         clicon_err(OE_UNIX, errno, "fwrite");
         goto done;
@@ -1059,26 +1028,8 @@ yang_lib2yspec_junos_patch(clicon_handle h,
             continue;
         if ((revision = xml_find_body(xi, "revision")) == NULL)
             continue;
-#ifdef CONTROLLER_JUNOS_ADD_COMMAND_FORWARDING
-        {
-            yang_stmt  *ymod;
-            yang_stmt  *ygr;
-
-            if ((ymod = yang_parse_module(h, name, revision, yspec, NULL)) == NULL)
-                goto fail;
-            if (yang_find(ymod, Y_GROUPING, "command-forwarding") == NULL){
-                if ((ygr = ys_new(Y_GROUPING)) == NULL)
-                    goto done;
-                if (yang_argument_set(ygr, "command-forwarding") < 0)
-                    goto done;
-                if (yn_insert(ymod, ygr) < 0)
-                    goto done;
-            }
-        }
-#else
         if (yang_parse_module(h, name, revision, yspec, NULL) == NULL)
             goto fail;
-#endif
     }
     /* XXX: Ensure yang-lib is always there otherwise get state dont work for mountpoint */
     if (yang_parse_module(h, "ietf-yang-library", "2019-01-04", yspec, NULL) < 0)
