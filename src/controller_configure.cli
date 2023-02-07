@@ -1,0 +1,141 @@
+CLICON_MODE="configure";
+CLICON_PROMPT="%U@%H[%W]# ";
+CLICON_PLUGIN="controller_cli";
+
+operation("Change to operation mode"), cli_set_mode("operation");
+
+# Al11: Auto edit mode
+# Autocli syntax tree operations
+edit @datamodelmode, cli_auto_edit("basemodel");
+up, cli_auto_up("basemodel");
+top, cli_auto_top("basemodel");
+set @datamodel, cli_auto_set();
+merge @datamodel, cli_auto_merge();
+create @datamodel, cli_auto_create();
+delete("Delete a configuration item") {
+      @datamodel, cli_auto_del(); 
+      all("Delete whole candidate configuration"), delete_all("candidate");
+}
+
+# Alt2: top-edit mode
+# Reference generated data model
+#set @datamodel, cli_set();
+#merge @datamodel, cli_merge();
+#create @datamodel, cli_create();
+#delete("Delete a configuration item") @datamodel, cli_del();
+
+validate("Validate changes"), cli_validate();
+
+quit("Quit"), cli_quit();
+delete("Delete a configuration item") {
+      @datamodel, cli_auto_del(); 
+      all("Delete whole candidate configuration"), delete_all("candidate");
+}
+
+commit("Commit the changes"), cli_commit(); {
+  [persist-id("Specify the 'persist' value of a previous confirmed-commit") <persist-id-val:string show:"string">("The 'persist' value of the persistent confirmed-commit")], cli_commit(); {
+    <cancel:string keyword:cancel>("Cancel an ongoing confirmed-commit"), cli_commit();
+    <confirmed:string keyword:confirmed>("Require a confirming commit") {
+       [persist("Make this confirmed-commit persistent") <persist-val:string show:"string">("The value that must be provided as 'persist-id' in the confirming-commit or cancel-commit")]
+       [<timeout:uint32 range[1:4294967295] show:"1..4294967295">("The rollback timeout in seconds")], cli_commit();
+    }
+  }
+}
+
+startup("Store running as startup config"), db_copy("running", "startup");
+no("Negate or remove") debug("Debugging parts of the system"), cli_debug_cli((int32)0);
+debug("Debugging parts of the system"), cli_debug_cli((int32)1);{
+    level("Set debug level: 1..n") <level:int32>("Set debug level (0..n)"), cli_debug_backend();
+}
+debug("Debugging parts of the system"){
+    cli("Set cli debug")	 <level:int32>("Set debug level (0..n)"), cli_debug_cli();
+    backend("Set backend debug") <level:int32>("Set debug level (0..n)"), cli_debug_backend();
+    restconf("Set restconf debug") <level:int32>("Set debug level (0..n)"), cli_debug_restconf();
+}
+
+discard("Discard edits (rollback 0)"), discard_changes();
+rollback("Discard edits (rollback 0)"), discard_changes();
+
+show("Show a particular state of the system"){
+    auto("Show expand x"){
+      xml @datamodelshow, cli_show_auto("candidate", "xml", true, false, "report-all");
+      text @datamodelshow, cli_show_auto("candidate", "text", true, false, "report-all");
+      json @datamodelshow, cli_show_auto("candidate", "json", true, false, "report-all");
+      netconf @datamodelshow, cli_show_auto("candidate", "netconf", true, false, "report-all");
+      cli @datamodelshow, cli_show_auto("candidate", "cli", true, false, "report-all", "set ");
+    }
+    xpath("Show configuration") <xpath:string>("XPATH expression")
+       [<ns:string>("Namespace")], show_conf_xpath("candidate");
+    version("Show version"), cli_show_version("candidate", "text", "/");
+    options("Show clixon options"), cli_show_options();
+    compare("Compare candidate and running databases"), compare_dbs((int32)0);{
+    		     xml("Show comparison in xml"), compare_dbs((int32)0);
+		     text("Show comparison in text"), compare_dbs((int32)1);
+    }
+    devices("Show state of devices")[
+                 (<name:string>("device pattern")|
+                  <name:string expand_dbvar("running","/clixon-controller:devices/device/name")>("device pattern"))
+                 ], cli_show_devices();
+    pagination("Show list pagination") xpath("Show configuration") <xpath:string>("XPATH expression"){
+    	xml, cli_pagination("use xpath var", "es", "http://example.com/ns/example-social", "xml", "10");
+	cli, cli_pagination("use xpath var", "es", "http://example.com/ns/example-social", "cli", "10");
+	text, cli_pagination("use xpath var", "es", "http://example.com/ns/example-social", "text", "10");
+	json, cli_pagination("use xpath var", "es", "http://example.com/ns/example-social", "json", "10");
+    }
+    configuration("Show configuration"), cli_show_auto_mode("running", "text", true, false);{
+	    xml("Show configuration as XML"), cli_show_auto_mode("running", "xml", true, false);{
+	       default("With-default mode"){
+	          report-all, cli_show_auto_mode("running", "xml", true, false, "report-all");
+		  trim, cli_show_auto_mode("running", "xml", true, false, "trim");
+		  explicit, cli_show_auto_mode("running", "xml", true, false, "explicit");
+		  report-all-tagged, cli_show_auto_mode("running", "xml", true, false, "report-all-tagged");
+		  report-all-tagged-default, cli_show_auto_mode("running", "xml", true, false, "report-all-tagged-default");
+		  report-all-tagged-strip, cli_show_auto_mode("running", "xml", true, false, "report-all-tagged-strip");
+	       }
+	    }
+	    cli("Show configuration as CLI commands"), cli_show_auto_mode("running", "cli", true, false, "explicit", "set ");
+	    netconf("Show configuration as netconf edit-config operation"), cli_show_auto_mode("running", "netconf", true, false);
+	    text("Show configuration as text"), cli_show_auto_mode("running", "text", true, false);
+	    json("Show configuration as JSON"), cli_show_auto_mode("running", "json", true, false);
+ 
+    }
+    state("Show configuration and state"), cli_show_auto_mode("running", "text", true, true); {
+    	    xml("Show configuration and state as XML"), cli_show_auto_mode("running", "xml", true, true);{
+	    default("With-default mode"){
+	     	  report-all, cli_show_auto_mode("running", "xml", true, true, "report-all");
+		  trim, cli_show_auto_mode("running", "xml", true, true, "trim");
+		  explicit, cli_show_auto_mode("running", "xml", true, true, "explicit");
+		  report-all-tagged, cli_show_auto_mode("running", "xml", true, true, "report-all-tagged");
+		  report-all-tagged-default, cli_show_auto_mode("running", "xml", true, true, "report-all-tagged-default");
+		  report-all-tagged-strip, cli_show_auto_mode("running", "xml", true, true, "report-all-tagged-strip");
+	    }
+        }
+    }
+    yang("Show yang specs"), show_yang(); {
+        clixon-example("Show clixon-example yang spec"), show_yang("clixon-example");
+    }		   
+}
+
+save("Save candidate configuration to XML file") <filename:string>("Filename (local filename)"), save_config_file("candidate","filename", "xml");{
+    cli("Save configuration as CLI commands"), save_config_file("candidate","filename", "cli");
+    xml("Save configuration as XML"), save_config_file("candidate","filename", "xml");
+    json("Save configuration as JSON"), save_config_file("candidate","filename", "json");
+    text("Save configuration as TEXT"), save_config_file("candidate","filename", "text");
+    netconf("Save configuration as NETCONF"), save_config_file("candidate","filename", "netconf");
+}
+load("Load configuration from XML file") <filename:string>("Filename (local filename)"),load_config_file("filename", "replace");{
+    replace("Replace candidate with file contents"), load_config_file("filename", "replace");{
+	cli("Replace candidate with file containing CLI commands"), load_config_file("filename", "replace", "cli");
+	xml("Replace candidate with file containing XML"), load_config_file("filename", "replace", "xml");
+	json("Replace candidate with file containing JSON"), load_config_file("filename", "replace", "json");
+	text("Replace candidate with file containing TEXT"), load_config_file("filename", "replace", "text");
+    }
+    merge("Merge file with existent candidate"), load_config_file("filename", "merge");{
+	cli("Merge candidate with file containing CLI commands"), load_config_file("filename", "merge", "cli");
+	xml("Merge candidate with file containing XML"), load_config_file("filename", "merge", "xml");
+	json("Merge candidate with file containing JSON"), load_config_file("filename", "merge", "json");
+	text("Merge candidate with file containing TEXT"), load_config_file("filename", "merge", "text");
+    }
+}
+
+

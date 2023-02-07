@@ -96,6 +96,8 @@ module clixon-controller {
     }
     container services {
         description "Placeholder for services";
+        container properties{
+        }
     }
     container generic{
         leaf device-timeout{
@@ -108,6 +110,28 @@ module clixon-controller {
     }
     /* Generic config data */
     container devices{
+        list device-group{
+            description "Groups of devices, NOTE: device-name/-group unclear semantics?";
+            key name;
+            leaf name{
+                type string;
+            }
+            leaf-list device-name {
+                description "Device within group";
+                type leafref {
+                    require-instance false;
+                    path "/devices/device/name";
+                }
+            }
+            leaf-list device-group {
+                description
+                   "A list of device groups contained in this device group.
+                    Recursive definitions are not valid.";
+                type leafref {
+                  path "/devices/device-group/name";
+                }
+            }
+        }
         list device{
             key name;
             leaf name{

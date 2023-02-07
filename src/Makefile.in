@@ -75,7 +75,8 @@ PLUGINS = $(BE_PLUGIN) $(CLI_PLUGIN)
 
 all: $(PLUGINS)
 
-CLISPECS = $(APPNAME)_cli.cli
+CLISPECS  = $(APPNAME)_operation.cli
+CLISPECS += $(APPNAME)_configure.cli
 
 clean:
 	rm -f $(PLUGINS) $(OBJS)

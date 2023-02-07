@@ -624,6 +624,10 @@ controller_yang_patch(clicon_handle h,
     char       *modname;
     yang_stmt  *ygr;
 
+    if (ymod == NULL){
+        clicon_err(OE_PLUGIN, EINVAL, "ymod is NULL");
+        goto done;
+    }
     modname = yang_argument_get(ymod);
     if (strncmp(modname, "junos-rpc", strlen("junos-rpc")) == 0){
         if (yang_find(ymod, Y_GROUPING, "command-forwarding") == NULL){
