@@ -98,29 +98,53 @@ connect_netconf_ssh(clixon_handle h,
     return retval;
 }
 
-/*! Connect to one or several devices.
+/*! Incoming rpc handler to sync from one or several devices
+ *
+ * @param[in]  h       Clicon handle 
+ * @param[in]  xe      Request: <rpc><xn></rpc> 
+ * @param[out] cbret   Return xml tree, eg <rpc-reply>..., <rpc-error.. 
+ * @retval     0       OK
+ * @retval    -1       Error
  */
 static int 
-sync_rpc(clixon_handle h,            /* Clicon handle */
-         cxobj        *xe,           /* Request: <rpc><xn></rpc> */
-         cbuf         *cbret,        /* Reply eg <rpc-reply>... */
-         void         *arg,          /* client_entry */
-         void         *regarg)       /* Argument given at register */
+sync_rpc_push(clixon_handle h,
+              cxobj        *xe,
+              cbuf         *cbret)
+{
+    clicon_debug(1, "%s", __FUNCTION__);
+    cprintf(cbret, "<rpc-reply xmlns=\"%s\">", NETCONF_BASE_NAMESPACE);
+    cprintf(cbret, "<ok/>");
+    cprintf(cbret, "</rpc-reply>");
+    return 0;
+}
+
+/*! Incoming rpc handler to sync from one or several devices
+ *
+ * @param[in]  h       Clicon handle 
+ * @param[in]  xe      Request: <rpc><xn></rpc> 
+ * @param[out] cbret   Return xml tree, eg <rpc-reply>..., <rpc-error.. 
+ * @retval     0       OK
+ * @retval    -1       Error
+ */
+static int 
+sync_rpc_pull(clixon_handle h,
+              cxobj        *xe,      
+              cbuf         *cbret)
 {
     int           retval = -1;
+    char         *pattern = NULL;
     cxobj        *xret = NULL;
     cxobj        *xn;
     cvec         *nsc = NULL;
     cxobj       **vec = NULL;
     size_t        veclen;
     int           i;
-    char         *pattern = NULL;
     char         *devname;
     device_handle dh;
     conn_state_t  state;
     cbuf         *cb = NULL;
     int           s;
-    
+
     clicon_debug(1, "%s", __FUNCTION__);
     cprintf(cbret, "<rpc-reply xmlns=\"%s\">", NETCONF_BASE_NAMESPACE);
     pattern = xml_find_body(xe, "name");
@@ -155,6 +179,35 @@ sync_rpc(clixon_handle h,            /* Clicon handle */
     if (xret)
         xml_free(xret);
     return retval;
+}
+
+/*! Incoming rpc handler to sync from or to one or several devices
+ *
+ * @param[in]  h       Clicon handle 
+ * @param[in]  xe      Request: <rpc><xn></rpc> 
+ * @param[out] cbret   Return xml tree, eg <rpc-reply>..., <rpc-error.. 
+ * @param[in]  arg     Domain specific arg, ec client-entry or FCGX_Request 
+ * @param[in]  regarg  User argument given at rpc_callback_register() 
+ * @retval     0       OK
+ * @retval    -1       Error
+ */
+static int 
+sync_rpc(clixon_handle h,            /* Clicon handle */
+         cxobj        *xe,           /* Request: <rpc><xn></rpc> */
+         cbuf         *cbret,        /* Reply eg <rpc-reply>... */
+         void         *arg,          /* client_entry */
+         void         *regarg)       /* Argument given at register */
+{
+    char         *str;
+    int           push = 0;
+    
+    clicon_debug(1, "%s", __FUNCTION__);
+    if ((str = xml_find_body(xe, "push")) != NULL)
+        push = strcmp(str, "true")==0;
+    if (push == 1)
+        return sync_rpc_push(h, xe, cbret);
+    else
+        return sync_rpc_pull(h, xe, cbret);
 }
 
 /*! Called to get state data from plugin by programmatically adding state

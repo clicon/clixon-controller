@@ -47,7 +47,7 @@
 /*! Read the config of one or several devices
  * @param[in] h
  * @param[in] cvv  : name pattern
- * @param[in] argv
+ * @param[in] argv : "0": pull, "1": push
  */
 int
 cli_sync_rpc(clixon_handle h, 
@@ -61,9 +61,26 @@ cli_sync_rpc(clixon_handle h,
     cxobj     *xrpc;
     cxobj     *xret = NULL;
     cxobj     *xerr;
+    char      *push = NULL;
+    char      *name = "*";
 
+    if (argv == NULL || cvec_len(argv) != 1){
+        clicon_err(OE_PLUGIN, EINVAL, "requires argument: <push>");
+        goto done;
+    }
+    if ((cv = cvec_i(argv, 0)) == NULL){
+        clicon_err(OE_PLUGIN, 0, "Error when accessing argument <push>");
+        goto done;
+    }
+    push = cv_string_get(cv);
+    if (strcmp(push, "true") != 0 && strcmp(push, "false") != 0){
+        clicon_err(OE_PLUGIN, EINVAL, "<push> argument is %s, expected \"true\" or \"false\"", push);
+        goto done;
+    }
+    if ((cv = cvec_find(cvv, "name")) != NULL)
+        name = cv_string_get(cv);
     if ((cb = cbuf_new()) == NULL){
-        clicon_err(OE_UNIX, errno, "cbuf_new");
+        clicon_err(OE_PLUGIN, errno, "cbuf_new");
         goto done;
     }
     cprintf(cb, "<rpc xmlns=\"%s\" username=\"%s\" %s>",
@@ -71,8 +88,8 @@ cli_sync_rpc(clixon_handle h,
             clicon_username_get(h),
             NETCONF_MESSAGE_ID_ATTR);
     cprintf(cb, "<sync xmlns=\"%s\">", CONTROLLER_NAMESPACE);
-    if ((cv = cvec_find(cvv, "name")) != NULL)
-        cprintf(cb, "<name>%s</name>", cv_string_get(cv));
+    cprintf(cb, "<name>%s</name>", name);
+    cprintf(cb, "<push>%s</push>", push);
     cprintf(cb, "</sync></rpc>");
     if (clixon_xml_parse_string(cbuf_get(cb), YB_NONE, NULL, &xtop, NULL) < 0)
         goto done;

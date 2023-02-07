@@ -74,7 +74,7 @@ show("Show a particular state of the system"){
     }
     devices("Show state of devices")[
                  (<name:string>("device pattern")|
-                  <name:string expand_dbvar("running","/clixon-controller:devices/device/name")>("device pattern"))
+                  <name:string expand_dbvar("candidate","/clixon-controller:devices/device/name")>("device pattern"))
                  ], cli_show_devices();
     pagination("Show list pagination") xpath("Show configuration") <xpath:string>("XPATH expression"){
     	xml, cli_pagination("use xpath var", "es", "http://example.com/ns/example-social", "xml", "10");
@@ -82,32 +82,32 @@ show("Show a particular state of the system"){
 	text, cli_pagination("use xpath var", "es", "http://example.com/ns/example-social", "text", "10");
 	json, cli_pagination("use xpath var", "es", "http://example.com/ns/example-social", "json", "10");
     }
-    configuration("Show configuration"), cli_show_auto_mode("running", "text", true, false);{
-	    xml("Show configuration as XML"), cli_show_auto_mode("running", "xml", true, false);{
+    configuration("Show configuration"), cli_show_auto_mode("candidate", "text", true, false);{
+	    xml("Show configuration as XML"), cli_show_auto_mode("candidate", "xml", true, false);{
 	       default("With-default mode"){
-	          report-all, cli_show_auto_mode("running", "xml", true, false, "report-all");
-		  trim, cli_show_auto_mode("running", "xml", true, false, "trim");
-		  explicit, cli_show_auto_mode("running", "xml", true, false, "explicit");
-		  report-all-tagged, cli_show_auto_mode("running", "xml", true, false, "report-all-tagged");
-		  report-all-tagged-default, cli_show_auto_mode("running", "xml", true, false, "report-all-tagged-default");
-		  report-all-tagged-strip, cli_show_auto_mode("running", "xml", true, false, "report-all-tagged-strip");
+	          report-all, cli_show_auto_mode("candidate", "xml", true, false, "report-all");
+		  trim, cli_show_auto_mode("candidate", "xml", true, false, "trim");
+		  explicit, cli_show_auto_mode("candidate", "xml", true, false, "explicit");
+		  report-all-tagged, cli_show_auto_mode("candidate", "xml", true, false, "report-all-tagged");
+		  report-all-tagged-default, cli_show_auto_mode("candidate", "xml", true, false, "report-all-tagged-default");
+		  report-all-tagged-strip, cli_show_auto_mode("candidate", "xml", true, false, "report-all-tagged-strip");
 	       }
 	    }
-	    cli("Show configuration as CLI commands"), cli_show_auto_mode("running", "cli", true, false, "explicit", "set ");
-	    netconf("Show configuration as netconf edit-config operation"), cli_show_auto_mode("running", "netconf", true, false);
-	    text("Show configuration as text"), cli_show_auto_mode("running", "text", true, false);
-	    json("Show configuration as JSON"), cli_show_auto_mode("running", "json", true, false);
+	    cli("Show configuration as CLI commands"), cli_show_auto_mode("candidate", "cli", true, false, "explicit", "set ");
+	    netconf("Show configuration as netconf edit-config operation"), cli_show_auto_mode("candidate", "netconf", true, false);
+	    text("Show configuration as text"), cli_show_auto_mode("candidate", "text", true, false);
+	    json("Show configuration as JSON"), cli_show_auto_mode("candidate", "json", true, false);
  
     }
-    state("Show configuration and state"), cli_show_auto_mode("running", "text", true, true); {
-    	    xml("Show configuration and state as XML"), cli_show_auto_mode("running", "xml", true, true);{
+    state("Show configuration and state"), cli_show_auto_mode("candidate", "text", true, true); {
+    	    xml("Show configuration and state as XML"), cli_show_auto_mode("candidate", "xml", true, true);{
 	    default("With-default mode"){
-	     	  report-all, cli_show_auto_mode("running", "xml", true, true, "report-all");
-		  trim, cli_show_auto_mode("running", "xml", true, true, "trim");
-		  explicit, cli_show_auto_mode("running", "xml", true, true, "explicit");
-		  report-all-tagged, cli_show_auto_mode("running", "xml", true, true, "report-all-tagged");
-		  report-all-tagged-default, cli_show_auto_mode("running", "xml", true, true, "report-all-tagged-default");
-		  report-all-tagged-strip, cli_show_auto_mode("running", "xml", true, true, "report-all-tagged-strip");
+	     	  report-all, cli_show_auto_mode("candidate", "xml", true, true, "report-all");
+		  trim, cli_show_auto_mode("candidate", "xml", true, true, "trim");
+		  explicit, cli_show_auto_mode("candidate", "xml", true, true, "explicit");
+		  report-all-tagged, cli_show_auto_mode("candidate", "xml", true, true, "report-all-tagged");
+		  report-all-tagged-default, cli_show_auto_mode("candidate", "xml", true, true, "report-all-tagged-default");
+		  report-all-tagged-strip, cli_show_auto_mode("candidate", "xml", true, true, "report-all-tagged-strip");
 	    }
         }
     }
