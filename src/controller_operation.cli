@@ -1,47 +1,14 @@
-CLICON_MODE="controller";
+CLICON_MODE="operation";
 #CLICON_PROMPT="%U@%H %W> ";
-CLICON_PROMPT="cli %W> ";
+CLICON_PROMPT="%U@%H> ";
 CLICON_PLUGIN="controller_cli";
 
 # Al11: Auto edit mode
 # Autocli syntax tree operations
-edit @datamodelmode, cli_auto_edit("basemodel");
-up, cli_auto_up("basemodel");
-top, cli_auto_top("basemodel");
-set @datamodel, cli_auto_set();
-merge @datamodel, cli_auto_merge();
-create @datamodel, cli_auto_create();
-delete("Delete a configuration item") {
-      @datamodel, cli_auto_del(); 
-      all("Delete whole candidate configuration"), delete_all("candidate");
-}
-
-# Alt2: top-edit mode
-# Reference generated data model
-#set @datamodel, cli_set();
-#merge @datamodel, cli_merge();
-#create @datamodel, cli_create();
-#delete("Delete a configuration item") @datamodel, cli_del();
-
-validate("Validate changes"), cli_validate();
+configure("Change to configure mode"), cli_set_mode("configure");
 
 quit("Quit"), cli_quit();
-delete("Delete a configuration item") {
-      @datamodel, cli_auto_del(); 
-      all("Delete whole candidate configuration"), delete_all("candidate");
-}
 
-commit("Commit the changes"), cli_commit(); {
-  [persist-id("Specify the 'persist' value of a previous confirmed-commit") <persist-id-val:string show:"string">("The 'persist' value of the persistent confirmed-commit")], cli_commit(); {
-    <cancel:string keyword:cancel>("Cancel an ongoing confirmed-commit"), cli_commit();
-    <confirmed:string keyword:confirmed>("Require a confirming commit") {
-       [persist("Make this confirmed-commit persistent") <persist-val:string show:"string">("The value that must be provided as 'persist-id' in the confirming-commit or cancel-commit")]
-       [<timeout:uint32 range[1:4294967295] show:"1..4294967295">("The rollback timeout in seconds")], cli_commit();
-    }
-  }
-}
-
-startup("Store running as startup config"), db_copy("running", "startup");
 no("Negate or remove") debug("Debugging parts of the system"), cli_debug_cli((int32)0);
 debug("Debugging parts of the system"), cli_debug_cli((int32)1);{
     level("Set debug level: 1..n") <level:int32>("Set debug level (0..n)"), cli_debug_backend();
@@ -51,7 +18,7 @@ debug("Debugging parts of the system"){
     backend("Set backend debug") <level:int32>("Set debug level (0..n)"), cli_debug_backend();
     restconf("Set restconf debug") <level:int32>("Set debug level (0..n)"), cli_debug_restconf();
 }
-discard("Discard edits (rollback 0)"), discard_changes();
+
 shell("System command"), cli_start_shell("bash");{
   <source:rest>("Single shell command"), cli_start_shell("bash");
 }
