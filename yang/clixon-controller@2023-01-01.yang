@@ -215,6 +215,13 @@ module clixon-controller {
                     "Name of device to connect to, can use wildchars for several.";
                 type string;
             }
+            leaf push {
+                description
+                    "If false: pull from devices,
+                     If true: push to devices";
+                type boolean;
+                default false;
+            }
         }
         output {
             leaf-list name {

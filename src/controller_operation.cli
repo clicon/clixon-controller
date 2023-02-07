@@ -105,9 +105,15 @@ load("Load configuration from XML file") <filename:string>("Filename (local file
     }
 }
 
-sync("Read the config of one or several devices.") [
+sync("Read the config of one or several devices.") {
+           pull("sync config from one or multiple devices")[
                  (<name:string>("device pattern")|
                   <name:string expand_dbvar("running","/clixon-controller:devices/device/name")>("device pattern"))
-                 ], cli_sync_rpc();
+                 ], cli_sync_rpc("false");
+           push("sync config to one or multiple devices")[
+                 (<name:string>("device pattern")|
+                  <name:string expand_dbvar("running","/clixon-controller:devices/device/name")>("device pattern"))
+                 ], cli_sync_rpc("true");
+}
 
 notifications("Get notifications from backend"), cli_notify("controller", "1", "text");

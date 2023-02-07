@@ -76,7 +76,8 @@ RUN mkdir /clixon/build/lib/controller/backend
 
 # Copy src file from local: config file and standard clispec file
 COPY src/controller.xml /clixon/build/etc/clixon.xml
-COPY src/controller_cli.cli /clixon/build/lib/controller/clispec/
+COPY src/controller_operation.cli /clixon/build/lib/controller/clispec/
+COPY src/controller_configure.cli /clixon/build/lib/controller/clispec/
 COPY yang/clixon-*.yang /clixon/build/share/clixon/
 
 # XXX BUILD CONTROLLER, NEED TO CONFIGURE IN ALPINE?
