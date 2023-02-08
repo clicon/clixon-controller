@@ -3,6 +3,7 @@ CLICON_PROMPT="%U@%H[%W]# ";
 CLICON_PLUGIN="controller_cli";
 
 operation("Change to operation mode"), cli_set_mode("operation");
+exit("Change to operation mode"), cli_set_mode("operation");
 
 # Al11: Auto edit mode
 # Autocli syntax tree operations
@@ -57,7 +58,7 @@ discard("Discard edits (rollback 0)"), discard_changes();
 rollback("Discard edits (rollback 0)"), discard_changes();
 
 show("Show a particular state of the system"){
-    auto("Show expand x"){
+    configuration("Show configuration"){
       xml @datamodelshow, cli_show_auto("candidate", "xml", true, false, "report-all");
       text @datamodelshow, cli_show_auto("candidate", "text", true, false, "report-all");
       json @datamodelshow, cli_show_auto("candidate", "json", true, false, "report-all");
@@ -68,7 +69,7 @@ show("Show a particular state of the system"){
        [<ns:string>("Namespace")], show_conf_xpath("candidate");
     version("Show version"), cli_show_version("candidate", "text", "/");
     options("Show clixon options"), cli_show_options();
-    compare("Compare candidate and running databases"), compare_dbs((int32)0);{
+    compare("Compare candidate and running databases"), compare_dbs((int32)1);{
     		     xml("Show comparison in xml"), compare_dbs((int32)0);
 		     text("Show comparison in text"), compare_dbs((int32)1);
     }
@@ -81,23 +82,6 @@ show("Show a particular state of the system"){
 	cli, cli_pagination("use xpath var", "es", "http://example.com/ns/example-social", "cli", "10");
 	text, cli_pagination("use xpath var", "es", "http://example.com/ns/example-social", "text", "10");
 	json, cli_pagination("use xpath var", "es", "http://example.com/ns/example-social", "json", "10");
-    }
-    configuration("Show configuration"), cli_show_auto_mode("candidate", "text", true, false);{
-	    xml("Show configuration as XML"), cli_show_auto_mode("candidate", "xml", true, false);{
-	       default("With-default mode"){
-	          report-all, cli_show_auto_mode("candidate", "xml", true, false, "report-all");
-		  trim, cli_show_auto_mode("candidate", "xml", true, false, "trim");
-		  explicit, cli_show_auto_mode("candidate", "xml", true, false, "explicit");
-		  report-all-tagged, cli_show_auto_mode("candidate", "xml", true, false, "report-all-tagged");
-		  report-all-tagged-default, cli_show_auto_mode("candidate", "xml", true, false, "report-all-tagged-default");
-		  report-all-tagged-strip, cli_show_auto_mode("candidate", "xml", true, false, "report-all-tagged-strip");
-	       }
-	    }
-	    cli("Show configuration as CLI commands"), cli_show_auto_mode("candidate", "cli", true, false, "explicit", "set ");
-	    netconf("Show configuration as netconf edit-config operation"), cli_show_auto_mode("candidate", "netconf", true, false);
-	    text("Show configuration as text"), cli_show_auto_mode("candidate", "text", true, false);
-	    json("Show configuration as JSON"), cli_show_auto_mode("candidate", "json", true, false);
- 
     }
     state("Show configuration and state"), cli_show_auto_mode("candidate", "text", true, true); {
     	    xml("Show configuration and state as XML"), cli_show_auto_mode("candidate", "xml", true, true);{
