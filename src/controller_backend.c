@@ -48,6 +48,7 @@
 #include "controller.h"
 #include "controller_device_state.h"
 #include "controller_device_handle.h"
+#include "controller_device_send.h"
 
 /*! Connect to device via Netconf SSH
  * @param[in]  h  Clixon handle
@@ -100,84 +101,128 @@ connect_netconf_ssh(clixon_handle h,
 
 /*! Incoming rpc handler to sync from one or several devices
  *
+ * 1) get previous device synced xml
+ * 2) get current and compute diff with previous
+ * 3) construct an edit-config, send it and validate it
+ * 4) phase 2 commit
  * @param[in]  h       Clicon handle 
  * @param[in]  xe      Request: <rpc><xn></rpc> 
- * @param[out] cbret   Return xml tree, eg <rpc-reply>..., <rpc-error.. 
- * @retval     0       OK
+ * @param[out] cbret   Return xml tree, eg <rpc-reply>..., <rpc-error.. , if retval = 0
+ * @retval     1       OK
+ * @retval     0       Fail, cbret set
  * @retval    -1       Error
  */
 static int 
 sync_rpc_push(clixon_handle h,
-              cxobj        *xe,
+              device_handle dh,
               cbuf         *cbret)
 {
-    clicon_debug(1, "%s", __FUNCTION__);
-    cprintf(cbret, "<rpc-reply xmlns=\"%s\">", NETCONF_BASE_NAMESPACE);
-    cprintf(cbret, "<ok/>");
-    cprintf(cbret, "</rpc-reply>");
-    return 0;
+    int        retval = -1;
+    cxobj     *x0;
+    cxobj     *x1;
+    cxobj     *x1t = NULL;
+    cvec      *nsc = NULL;
+    cbuf      *cb = NULL;
+    char      *name;
+    cxobj    **dvec = NULL;
+    int        dlen;
+    cxobj    **avec = NULL;
+    int        alen;
+    cxobj    **chvec0 = NULL;
+    cxobj    **chvec1 = NULL;
+    int        chlen;
+
+    yang_stmt *yspec;
+
+    /* 1) get previous device synced xml */
+    if ((x0 = device_handle_sync_xml_get(dh)) == NULL){
+        if (netconf_operation_failed(cbret, "application", "No synced device tree")< 0)
+            goto done;
+        goto fail;
+    }
+    /* 2) get current and compute diff with previous */
+    if ((cb = cbuf_new()) == NULL){
+        clicon_err(OE_UNIX, errno, "cbuf_new");
+        goto done;
+    }
+    name = device_handle_name_get(dh);
+    cprintf(cb, "devices/device[name='%s']/root", name);
+    if (xmldb_get(h, "running", nsc, cbuf_get(cb), &x1t) < 0)
+        goto done;
+    if ((x1 = xpath_first(x1t, nsc, "%s", cbuf_get(cb))) == NULL){
+        if (netconf_operation_failed(cbret, "application", "Device not configured")< 0)
+            goto done;
+        goto fail;
+    }
+    if ((yspec = device_handle_yspec_get(dh)) == NULL){
+        if (netconf_operation_failed(cbret, "application", "No YANGs in device")< 0)
+            goto done;
+        goto fail;
+    }
+    if (xml_diff(yspec, 
+                 x0, x1,
+                 &dvec, &dlen,
+                 &avec, &alen,
+                 &chvec0, &chvec1, &chlen) < 0)
+        goto done;
+    /* 3) construct an edit-config, send it and validate it */
+    if (dlen || alen || chlen){
+        if (device_send_edit_config_diff(h, dh,
+                                         x0, x1, yspec,
+                                         dvec, dlen,
+                                         avec, alen,
+                                         chvec0, chvec1, chlen) < 0)
+            goto done;
+        device_handle_conn_state_set(dh, CS_PUSH_EDIT);
+        if (device_state_timeout_register(dh) < 0)
+            goto done;
+        /* 4) phase 2 commit (XXX later) */
+    }
+    retval = 1;
+ done:
+    if (dvec)
+        free(dvec);
+    if (avec)
+        free(avec);
+    if (chvec0)
+        free(chvec0);
+    if (chvec1)
+        free(chvec1);
+    if (cb)
+        cbuf_free(cb);
+    if (x1t)
+        xml_free(x1t);
+    return retval;
+ fail:
+    retval = 0;
+    goto done;
 }
 
 /*! Incoming rpc handler to sync from one or several devices
  *
  * @param[in]  h       Clicon handle 
  * @param[in]  xe      Request: <rpc><xn></rpc> 
- * @param[out] cbret   Return xml tree, eg <rpc-reply>..., <rpc-error.. 
- * @retval     0       OK
+ * @param[out] cbret   Return xml tree, eg <rpc-reply>..., <rpc-error.. if retval = 0
+ * @retval     1       OK
+ * @retval     0       Fail, cbret set
  * @retval    -1       Error
  */
 static int 
 sync_rpc_pull(clixon_handle h,
-              cxobj        *xe,      
+              device_handle dh,
               cbuf         *cbret)
 {
-    int           retval = -1;
-    char         *pattern = NULL;
-    cxobj        *xret = NULL;
-    cxobj        *xn;
-    cvec         *nsc = NULL;
-    cxobj       **vec = NULL;
-    size_t        veclen;
-    int           i;
-    char         *devname;
-    device_handle dh;
-    conn_state_t  state;
-    cbuf         *cb = NULL;
-    int           s;
+    int  retval = -1;
+    int  s;
 
     clicon_debug(1, "%s", __FUNCTION__);
-    cprintf(cbret, "<rpc-reply xmlns=\"%s\">", NETCONF_BASE_NAMESPACE);
-    pattern = xml_find_body(xe, "name");
-    if (xmldb_get(h, "running", nsc, "devices", &xret) < 0)
+    s = device_handle_socket_get(dh);
+    if (device_send_sync(h, dh, s) < 0)
         goto done;
-    if (xpath_vec(xret, nsc, "devices/device", &vec, &veclen) < 0) 
-        goto done;
-    for (i=0; i<veclen; i++){
-        xn = vec[i];
-        if ((devname = xml_find_body(xn, "name")) == NULL)
-            continue;
-        if ((dh = device_handle_find(h, devname)) == NULL)
-            continue;
-        s = device_handle_socket_get(dh);
-        if ((state = device_handle_conn_state_get(dh)) != CS_OPEN)
-            continue;
-        if (pattern != NULL && fnmatch(pattern, devname, 0) != 0)
-            continue;
-        cprintf(cbret, "<name xmlns=\"%s\">%s</name>",  CONTROLLER_NAMESPACE, devname);
-        if (device_send_sync(h, dh, s) < 0)
-            goto done;
-        device_state_timeout_register(dh);
-        device_handle_conn_state_set(dh, CS_DEVICE_SYNC);
-    } /* for */
-    cprintf(cbret, "</rpc-reply>");
-    retval = 0;
+    device_state_timeout_register(dh);
+    device_handle_conn_state_set(dh, CS_DEVICE_SYNC);
+    retval = 1;
  done:
-    if (cb)
-        cbuf_free(cb);
-    if (vec)
-        free(vec);
-    if (xret)
-        xml_free(xret);
     return retval;
 }
 
@@ -192,22 +237,65 @@ sync_rpc_pull(clixon_handle h,
  * @retval    -1       Error
  */
 static int 
-sync_rpc(clixon_handle h,            /* Clicon handle */
-         cxobj        *xe,           /* Request: <rpc><xn></rpc> */
-         cbuf         *cbret,        /* Reply eg <rpc-reply>... */
-         void         *arg,          /* client_entry */
-         void         *regarg)       /* Argument given at register */
+sync_rpc(clixon_handle h,
+         cxobj        *xe,
+         cbuf         *cbret,
+         void         *arg,  
+         void         *regarg)
 {
+    int           retval = -1;
     char         *str;
     int           push = 0;
+    char         *pattern = NULL;
+    cxobj        *xret = NULL;
+    cxobj        *xn;
+    cvec         *nsc = NULL;
+    cxobj       **vec = NULL;
+    size_t        veclen;
+    int           i;
+    char         *devname;
+    device_handle dh;
+    int           ret;
     
     clicon_debug(1, "%s", __FUNCTION__);
     if ((str = xml_find_body(xe, "push")) != NULL)
         push = strcmp(str, "true")==0;
-    if (push == 1)
-        return sync_rpc_push(h, xe, cbret);
-    else
-        return sync_rpc_pull(h, xe, cbret);
+    if (xmldb_get(h, "running", nsc, "devices", &xret) < 0)
+        goto done;
+    if (xpath_vec(xret, nsc, "devices/device", &vec, &veclen) < 0) 
+        goto done;
+    for (i=0; i<veclen; i++){
+        xn = vec[i];
+        if ((devname = xml_find_body(xn, "name")) == NULL)
+            continue;
+        if ((dh = device_handle_find(h, devname)) == NULL)
+            continue;
+        if (device_handle_conn_state_get(dh) != CS_OPEN)
+            continue;
+        if (pattern != NULL && fnmatch(pattern, devname, 0) != 0)
+            continue;
+        if (push == 1){
+            if ((ret = sync_rpc_push(h, dh, cbret)) < 0)
+                goto done;
+        }
+        else{
+            if ((ret = sync_rpc_pull(h, dh, cbret)) < 0)
+                goto done;
+        }
+        if (ret == 0)
+            goto ok;
+    } /* for */
+    cprintf(cbret, "<rpc-reply xmlns=\"%s\">", NETCONF_BASE_NAMESPACE);
+    cprintf(cbret, "<ok/>");
+    cprintf(cbret, "</rpc-reply>");
+ ok:
+    retval = 0;
+ done:
+    if (vec)
+        free(vec);
+    if (xret)
+        xml_free(xret);
+    return retval;
 }
 
 /*! Called to get state data from plugin by programmatically adding state
@@ -322,24 +410,25 @@ controller_connect(clixon_handle h,
     cbuf         *cb = NULL;
     char         *type;
     char         *addr;
-    char         *config_state;
+    char         *enablestr;
+    char         *yfstr;
     
     clicon_debug(1, "%s", __FUNCTION__);
     if ((name = xml_find_body(xn, "name")) == NULL)
         goto ok;
-    if ((config_state = xml_find_body(xn, "config-state")) == NULL){
+    if ((enablestr = xml_find_body(xn, "enabled")) == NULL){
         goto ok;
     }
     dh = device_handle_find(h, name); /* can be NULL */
-    if (strcmp(config_state, "CLOSED") == 0){
+    if (strcmp(enablestr, "false") == 0){
         if ((dh = device_handle_new(h, name)) == NULL)
             goto done;
-        device_handle_config_state_set(dh, config_state);
         device_handle_logmsg_set(dh, strdup("Configured down"));
         goto ok;
     }
     if (dh != NULL){
-        device_handle_config_state_set(dh, config_state);
+        if ((yfstr = xml_find_body(xn, "yang_config")) != NULL)
+            device_handle_yang_config_set(dh, yfstr); /* Cache yang config */
         if (device_handle_conn_state_get(dh) != CS_CLOSED)
             goto ok;
     }
@@ -418,13 +507,13 @@ controller_commit_device(clixon_handle h,
     }
     /* 2a) if enable changed to false, disconnect, to true connect
      */
-    if (xpath_vec_flag(target, nsc, "devices/device/config_state",
+    if (xpath_vec_flag(target, nsc, "devices/device/enabled",
                        XML_FLAG_CHANGE,
                        &vec2, &veclen2) < 0)
         goto done;
     for (i=0; i<veclen2; i++){
         if ((body = xml_body(vec2[i])) != NULL){
-            if (strcmp(body, "CLOSED") == 0){
+            if (strcmp(body, "false") == 0){
                 if (controller_disconnect(h, xml_parent(vec2[i])) < 0)
                     goto done;
             }
