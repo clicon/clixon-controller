@@ -27,19 +27,19 @@ module clixon-controller {
             }
         }
     }
-    typedef config-state{
+    typedef yang-config{
         description
-            "Goal state of connection. Could be more fine-granular, expand if
-             necessary.";
+            "How to bind device configuration to YANG.";
         type enumeration{
-            enum CLOSED {
-                description "Do not connect to device";
-            }
-            enum YANG {
+            enum NONE {
                 description
-                  "Get device config and YANG model. 
-                   Bind YANG model to config, but do not fully validate
-                   This corresponds to a sub-state in connection-state after DEVICE-SYNC";
+                  "Do not bind YANG to config 
+                   XXX not currently supported / required";
+            }
+            enum BIND {
+                description
+                "Bind YANG model to config, but do not fully validate
+                 This corresponds to a sub-state in connection-state after DEVICE-SYNC";
             }
             enum VALIDATE {
                 description "Fully validate device config";
@@ -142,9 +142,16 @@ module clixon-controller {
                     "Description of node";
                 type string;
             }
-            leaf config-state{
-                type config-state;
-                default YANG;
+            leaf enabled {
+                type boolean;
+                default "true";
+                description
+                    "This leaf contains the configured, desired state of the
+                     device.
+                     If false, a connection to the device is not attempted and
+                     conn-state remains in CLOSED state.
+                     If true, a connection to the device is attempted, striving to
+                     reach the state OPEN";
             }
             leaf conn-type{
                 description
@@ -161,6 +168,11 @@ module clixon-controller {
                 description
                     "DNS name or ip address of device for connection setup (see also user)";
                 type string;
+            }
+            leaf yang-config{
+                description "How to bind device configuration to YANG.";
+                type yang-config;
+                default BIND;
             }
             leaf conn-state {
                 description
@@ -221,14 +233,6 @@ module clixon-controller {
                      If true: push to devices";
                 type boolean;
                 default false;
-            }
-        }
-        output {
-            leaf-list name {
-                description
-                    "Names of devices where connections have been initiated.
-                    Note the connection establishement is asynchronous and continues in background";
-                type string;
             }
         }
     }

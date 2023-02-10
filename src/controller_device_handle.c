@@ -71,7 +71,7 @@ struct controller_device_handle{
     qelem_t            cdh_qelem;      /* List header */
     uint32_t           cdh_magic;      /* Magic number */
     char              *cdh_name;       /* Connection name */
-    config_state_t     cdh_config_state; /* Configred state: goal (shadow of config) */
+    yang_config_t      cdh_yang_config; /* Yang config (shadow of config) */
     conn_state_t       cdh_conn_state; /* Connection state */
     struct timeval     cdh_conn_time;  /* Time when entering last connection state */
     clixon_handle      cdh_h;          /* Clixon handle */ 
@@ -85,12 +85,12 @@ struct controller_device_handle{
     cxobj             *cdh_xcaps;      /* Capabilities as XML tree */
     cxobj             *cdh_yang_lib;   /* RFC 8525 yang-library module list */
     struct timeval     cdh_sync_time;  /* Time when last sync (0 if unsynched) */
+    cxobj             *cdh_sync_xml;   /* Complete sync tree of last sync */
     yang_stmt         *cdh_yspec;      /* Top-level yang spec of device */
     int                cdh_nr_schemas; /* How many schemas from this device */
     char              *cdh_schema_name; /* Pending schema name */
     char              *cdh_schema_rev;  /* Pending schema revision */
-    char              *cdh_logmsg;     /* Error log message / reason of failed open */
-
+    char              *cdh_logmsg;      /* Error log message / reason of failed open */
 };
 
 /*! Check struct magic number for sanity checks
@@ -156,6 +156,8 @@ device_handle_handle_free(struct controller_device_handle *cdh)
         xml_free(cdh->cdh_xcaps);
     if (cdh->cdh_yang_lib)
         xml_free(cdh->cdh_yang_lib);
+    if (cdh->cdh_sync_xml)
+        xml_free(cdh->cdh_sync_xml);
     if (cdh->cdh_yspec)
         ys_free(cdh->cdh_yspec);
     if (cdh->cdh_logmsg)
@@ -237,6 +239,25 @@ device_handle_find(clixon_handle h,
         } while (c && c != cdh_list);
     }
     return NULL;
+}
+
+/*! Iterator over device-handles
+ */
+device_handle 
+device_handle_each(clixon_handle h,
+                   device_handle dhprev)
+{
+    struct controller_device_handle *cdh = (struct controller_device_handle *)dhprev;
+    struct controller_device_handle *cdh0;
+
+    clicon_ptr_get(h, "client-list", (void**)&cdh0);
+    if (cdh == NULL)
+        return cdh0;
+    cdh = NEXTQ(struct controller_device_handle *, cdh);
+    if (cdh == cdh0)
+        return NULL;
+    else
+        return cdh;
 }
 
 /*! Connect client to clixon backend according to config and return a socket
@@ -374,34 +395,34 @@ device_handle_handle_get(device_handle dh)
     return cdh->cdh_h;
 }
 
-/*! Get config state
- * @param[in]  dh     Device handle
- * @retval     config-state
+/*! Get yang config
+ * @param[in]  dh          Device handle
+ * @retval     yang-config How to bind device configuration to YANG
  * @note mirror of config
  */
-config_state_t
-device_handle_config_state_get(device_handle dh)
+yang_config_t
+device_handle_yang_config_get(device_handle dh)
 {
     struct controller_device_handle *cdh = devhandle(dh);
 
-    return cdh->cdh_config_state;
+    return cdh->cdh_yang_config;
 }
 
-/*! Set config state also timestamp
+/*! Set yang config
  * @param[in]  dh     Device handle
- * @retval     config-state  Config-state
+ * @param[in]  yfstr  Yang config setting as string
  * @retval     0      OK
  * @note mirror of config, only commit callback code should set this value
  */
 int
-device_handle_config_state_set(device_handle dh,
-                               char         *config_state_str)
+device_handle_yang_config_set(device_handle dh,
+                              char         *yfstr)
 {
     struct controller_device_handle *cdh = devhandle(dh);
-    config_state_t config_state;
+    yang_config_t                    yf;
 
-    config_state = config_state_str2int(config_state_str);
-    cdh->cdh_config_state = config_state;
+    yf = yang_config_str2int(yfstr);
+    cdh->cdh_yang_config = yf;
     return 0;
 }
 
@@ -648,6 +669,35 @@ device_handle_sync_time_set(device_handle   dh,
         gettimeofday(&cdh->cdh_sync_time, NULL);
     else
         cdh->cdh_sync_time = *t;
+    return 0;
+}
+
+/*! Get xml of last sync
+ * @param[in]  dh    Device handle
+ * @retval     xroot XML tree
+ */
+cxobj *
+device_handle_sync_xml_get(device_handle dh)
+{
+    struct controller_device_handle *cdh = devhandle(dh);
+
+    return cdh->cdh_sync_xml;
+}
+
+/*! Set xml of last sync
+ * @param[in]  dh    Device handle
+ * @param[in]  xroot XML tree, is consumed
+ * @retval     0     OK
+ */
+int
+device_handle_sync_xml_set(device_handle dh,
+                           cxobj        *xroot)
+{
+    struct controller_device_handle *cdh = devhandle(dh);
+
+    if (cdh->cdh_sync_xml != NULL)
+        xml_free(cdh->cdh_sync_xml);
+    cdh->cdh_sync_xml = xroot;
     return 0;
 }
 

@@ -74,21 +74,23 @@ enum conn_state{
     CS_SCHEMA_ONE,      /* Connection established and Hello sent to device. */
     CS_DEVICE_SYNC, /* Get all config (and state) */
     CS_OPEN,        /* Connection established and Hello sent to device. */
-    CS_WRESP,       /* Request sent, waiting for reply */
+    CS_PUSH_EDIT,   /* edit-config sent, waiting for reply (push) */
+    CS_PUSH_VALIDATE, /* validate sent, waiting for reply (push) */
+    CS_PUSH_WAIT,   /* Waiting for other devices to validate (push) */
+    CS_PUSH_COMMIT  /* commit sent, waiting for reply (push) */
 };
 typedef enum conn_state conn_state_t;
 
-/*! Goal state of connection
- * @see clixon-controller@2023-01-01.yang config-state
- * @see cfmap translation table
+/*! How to bind device configuration to YANG
+ * @see clixon-controller@2023-01-01.yang yang-config
+ * @see yfmap translation table
  */
-enum config_state{
-    CF_CLOSED,   /* Do not connect to device */
-    CF_YANG,     /* Bind YANG model to config, but do not fully validate */
-    CF_VALIDATE, /* Fully validate device config */
+enum yang_config {
+    YF_NONE,     /* Do not bind YANG to config */
+    YF_BIND,     /* Bind YANG model to config, but do not fully validate */
+    YF_VALIDATE, /* Fully validate device config */
 };
-typedef enum config_state config_state_t;
-
+typedef enum yang_config yang_config_t;
 
 /*
  * Prototypes
@@ -99,10 +101,12 @@ extern "C" {
     
 char        *device_state_int2str(conn_state_t state);
 conn_state_t device_state_str2int(char *str);
-config_state_t config_state_str2int(char *str);
+yang_config_t yang_config_str2int(char *str);
 int          device_close_connection(device_handle ch, const char *format, ...) __attribute__ ((format (printf, 2, 3)));
 int          device_input_cb(int s, void *arg);
 int          device_send_sync(clixon_handle h, device_handle ch, int s);
+int          device_state_mount_point_get(char *devicename, yang_stmt *yspec,
+                                          cxobj **xtp, cxobj **xrootp);
 int          device_state_timeout_register(device_handle ch);
 int          device_state_timeout_unregister(device_handle ch);
 int          device_state_handler(clixon_handle h, device_handle ch, int s, cxobj *xmsg);
