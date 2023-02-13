@@ -296,7 +296,10 @@ device_state_recv_config(clixon_handle h,
         goto done;
     if (ret == 0)
         goto closed;
-    xdata = xpath_first(xmsg, nsc, "data");
+    if ((xdata = xml_find_type(xmsg, NULL, "data", CX_ELMNT)) == NULL){
+        device_close_connection(dh, "No data in get reply");
+        goto closed;
+    }
     /* Move all xmlns declarations to <data> */
     if (xmlns_set_all(xdata, nsc) < 0)
         goto done;
@@ -575,7 +578,6 @@ device_state_recv_ok(device_handle dh,
                      conn_state_t  conn_state)
 {
     int    retval = -1;
-    cvec  *nsc = NULL;
     int    ret;
     cxobj *xerr;
     cxobj *x;
@@ -591,7 +593,7 @@ device_state_recv_ok(device_handle dh,
                                 device_state_int2str(conn_state));
         goto closed;
     }
-    if (xpath_first(xmsg, nsc, "ok") == NULL){
+    if (xml_find_type(xmsg, NULL, "ok", CX_ELMNT) == NULL){
         device_close_connection(dh, "No ok in reply in state %s",
                                 device_state_int2str(conn_state));
         goto closed;

@@ -357,8 +357,9 @@ device_send_edit_config_diff(clixon_handle h,
             NETCONF_BASE_NAMESPACE,
             NETCONF_BASE_NAMESPACE, 
             device_handle_msg_id_getinc(dh));
-    cprintf(cb, "<edit-config nc:operation=\"none\">");
+    cprintf(cb, "<edit-config>");
     cprintf(cb, "<target><candidate/></target>");
+    cprintf(cb, "<default-operation>none</default-operation>");
     cprintf(cb, "</edit-config>");
     cprintf(cb, "</rpc>");
     if ((ret = clixon_xml_parse_string(cbuf_get(cb), YB_NONE, NULL, &xt, NULL)) < 0)

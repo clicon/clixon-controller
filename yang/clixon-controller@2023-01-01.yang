@@ -219,20 +219,41 @@ module clixon-controller {
     notification services-commit {
         description "A commit has been made that changes the services declaration.";
     }
-    rpc sync {
+    rpc sync-pull {
         description "Read the config of one or several devices.";
         input {
             leaf name {
                 description
-                    "Name of device to connect to, can use wildchars for several.";
+                    "Name of device to pull from, can use wildchars for several.";
                 type string;
             }
-            leaf push {
+        }
+    }
+    rpc sync-push {
+        description "Push the config to one or several devices.";
+        input {
+            leaf name {
                 description
-                    "If false: pull from devices,
-                     If true: push to devices";
-                type boolean;
-                default false;
+                    "Name of device to push to, can use wildchars for several.";
+                type string;
+            }
+        }
+    }
+    rpc get-device-sync-config {
+        description
+            "Get last synced configuration of a single device
+             Note that this could be done by some peek in commit history.
+             Should probably be replaced by a more generic function.";
+        input {
+            leaf name {
+                description
+                    "Name of device";
+                type string;
+            }
+        }
+        output {
+            anydata config {
+                description "Device configuration";
             }
         }
     }
