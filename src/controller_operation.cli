@@ -24,20 +24,34 @@ shell("System command"), cli_start_shell("bash");{
 }
 
 show("Show a particular state of the system"){
-    configuration("Show configuration"){
-      xml @datamodelshow, cli_show_auto("running", "xml", true, false, "report-all");
-      text @datamodelshow, cli_show_auto("running", "text", true, false, "report-all");
-      json @datamodelshow, cli_show_auto("running", "json", true, false, "report-all");
-      netconf @datamodelshow, cli_show_auto("running", "netconf", true, false, "report-all");
-      cli @datamodelshow, cli_show_auto("running", "cli", true, false, "report-all", "set ");
+    configuration("Show configuration"), cli_show_auto_mode("running", "text", true, false);{
+      xml, cli_show_auto_mode("running", "xml", true, false);{
+      	   @datamodelshow, cli_show_auto("running", "xml", true, false, "report-all");
+      }
+      text, cli_show_auto_mode("running", "text", true, false);{
+           @datamodelshow, cli_show_auto("running", "text", true, false, "report-all");
+      }
+      json, cli_show_auto_mode("running", "json", true, false);{
+            @datamodelshow, cli_show_auto("running", "json", true, false, "report-all");
+      }
+      netconf, cli_show_auto_mode("running", "netconf", true, false);{
+            @datamodelshow, cli_show_auto("running", "netconf", true, false, "report-all");
+      }
+      cli, cli_show_auto_mode("running", "cli", true, false);{
+           @datamodelshow, cli_show_auto("running", "cli", true, false, "report-all", "set ");
+      }
     }
     xpath("Show configuration") <xpath:string>("XPATH expression")
        [<ns:string>("Namespace")], show_conf_xpath("running");
     version("Show version"), cli_show_version("running", "text", "/");
     options("Show clixon options"), cli_show_options();
     compare("Compare candidate and running databases"), compare_dbs((int32)1);{
-    		     xml("Show comparison in xml"), compare_dbs((int32)0);
-		     text("Show comparison in text"), compare_dbs((int32)1);
+          xml("Show comparison in xml"), compare_dbs((int32)0);
+	  text("Show comparison in text"), compare_dbs((int32)1);
+          device("Compare device sync with running") (<name:string>("device pattern")|<name:string expand_dbvar("running","/clixon-controller:devices/device/name")>("device pattern")), compare_device_dbs((int32)1);{
+    		         xml("Show comparison in xml"), compare_device_dbs((int32)0);
+		         text("Show comparison in text"), compare_device_dbs((int32)1);
+                     }
     }
     devices("Show state of devices")[
                  (<name:string>("device pattern")|

@@ -87,10 +87,12 @@ cli_sync_rpc(clixon_handle h,
             NETCONF_BASE_NAMESPACE,
             clicon_username_get(h),
             NETCONF_MESSAGE_ID_ATTR);
-    cprintf(cb, "<sync xmlns=\"%s\">", CONTROLLER_NAMESPACE);
+    cprintf(cb, "<sync-%s xmlns=\"%s\">",
+            push?"push":"pull",
+            CONTROLLER_NAMESPACE);
     cprintf(cb, "<name>%s</name>", name);
-    cprintf(cb, "<push>%s</push>", push);
-    cprintf(cb, "</sync></rpc>");
+    cprintf(cb, "</sync-%s>", push?"push":"pull");
+    cprintf(cb, "</rpc>");
     if (clixon_xml_parse_string(cbuf_get(cb), YB_NONE, NULL, &xtop, NULL) < 0)
         goto done;
     /* Skip top-level */
@@ -115,6 +117,93 @@ cli_sync_rpc(clixon_handle h,
         xml_free(xret);
     if (xtop)
         xml_free(xtop);
+    return retval;
+}
+
+/*! Compare device two dbs using XML. Write to file and run diff
+ * @param[in]   h     Clicon handle
+ * @param[in]   cvv  
+ * @param[in]   argv  arg: 0 as xml, 1: as text
+ */
+int
+compare_device_dbs(clicon_handle h, 
+                   cvec         *cvv, 
+                   cvec         *argv)
+{
+    int              retval = -1;
+    cxobj           *xc1 = NULL; /* running xml */
+    cxobj           *xc2 = NULL; /* candidate xml */
+    cxobj           *xret1 = NULL;
+    cxobj           *xret2 = NULL;
+    cxobj           *xrpc = NULL;
+    cxobj           *xerr = NULL;
+    enum format_enum format;
+    cg_var          *cv;
+    char            *name;
+    cbuf            *cb = NULL;
+
+    if (cvec_len(argv) > 1){
+        clicon_err(OE_PLUGIN, EINVAL, "Requires 0 or 1 element. If given: astext flag 0|1");
+        goto done;
+    }
+    if (cvec_len(argv) && cv_int32_get(cvec_i(argv, 0)) == 1)
+        format = FORMAT_TEXT;
+    else
+        format = FORMAT_XML;
+    if ((cv = cvec_find(cvv, "name")) == NULL)
+        goto ok;
+    name = cv_string_get(cv);
+    if (clicon_rpc_get_config(h, NULL, "running", "/", NULL, NULL, &xret1) < 0)
+        goto done;
+    if ((xerr = xpath_first(xret1, NULL, "/rpc-error")) != NULL){
+        clixon_netconf_error(xerr, "Get configuration", NULL);
+        goto done;
+    }
+    if ((xc1 = xpath_first(xret1, NULL, "devices/device/root")) == NULL){
+        clicon_err(OE_CFG, 0, "No device config in running");
+        goto done;
+    }
+    if ((cb = cbuf_new()) == NULL){
+        clicon_err(OE_PLUGIN, errno, "cbuf_new");
+        goto done;
+    }
+    cprintf(cb, "<rpc xmlns=\"%s\" username=\"%s\" %s>",
+            NETCONF_BASE_NAMESPACE,
+            clicon_username_get(h),
+            NETCONF_MESSAGE_ID_ATTR);
+    cprintf(cb, "<get-device-sync-config xmlns=\"%s\">", CONTROLLER_NAMESPACE);
+    cprintf(cb, "<name>%s</name>", name);
+    cprintf(cb, "</get-device-sync-config>");
+    cprintf(cb, "</rpc>");
+    if (clixon_xml_parse_string(cbuf_get(cb), YB_NONE, NULL, &xrpc, NULL) < 0)
+        goto done;
+    /* Skip top-level */
+    if (xml_rootchild(xrpc, 0, &xrpc) < 0)
+        goto done;
+    /* Send to backend */
+    if (clicon_rpc_netconf_xml(h, xrpc, &xret2, NULL) < 0)
+        goto done;
+    if ((xerr = xpath_first(xret2, NULL, "rpc-reply/rpc-error")) != NULL){
+        clixon_netconf_error(xerr, "Get configuration", NULL);
+        goto done;
+    }
+    if ((xc2 = xpath_first(xret2, NULL, "rpc-reply/config/root")) == NULL){
+        clicon_err(OE_CFG, 0, "No synced device config");
+        goto done;
+    }
+    if (clixon_compare_xmls(xc2, xc1, format, cligen_output) < 0) /* astext? */
+        goto done;
+ ok:
+    retval = 0;
+  done:
+    if (cb)
+        cbuf_free(cb);
+    if (xret1)
+        xml_free(xret1);
+    if (xret2)
+        xml_free(xret2);
+    if (xrpc)
+        xml_free(xrpc);
     return retval;
 }
 
