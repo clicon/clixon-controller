@@ -495,18 +495,17 @@ device_state_timeout_restart(device_handle dh)
  * @note This is best-effort and only handles one transaction and no discard
  * @param[in] h     Clixon handle.
  * @param[in] dh    Clixon client handle.
- * @param[in] s     NETCONF Socket
  * @retval    1     OK
  * @retval    0     Closed
  * @retval   -1     Error
  */
 static int
 device_push_check(clicon_handle h,
-                  device_handle dh,
-                  int           s)
+                  device_handle dh)
 {
-    int retval = -1;
-    device_handle  dh1;
+    int           retval = -1;
+    device_handle dh1;
+    int           s;
 
     device_handle_conn_state_set(dh, CS_PUSH_WAIT);
     device_state_timeout_restart(dh);
@@ -521,9 +520,10 @@ device_push_check(clicon_handle h,
         while ((dh1 = device_handle_each(h, dh1)) != NULL){
             if (device_handle_conn_state_get(dh1) != CS_PUSH_WAIT)
                 continue;
+            s = device_handle_socket_get(dh1);            
             if (device_send_commit(h, dh1, s) < 0)
                 goto done;
-            device_handle_conn_state_set(dh, CS_PUSH_COMMIT);
+            device_handle_conn_state_set(dh1, CS_PUSH_COMMIT);
             device_state_timeout_restart(dh1);
         }
     }
@@ -665,7 +665,7 @@ device_state_handler(clixon_handle h,
             goto done;
         if (ret == 0) /* closed */
             break;
-        if ((ret = device_push_check(h, dh, s)) < 0)
+        if ((ret = device_push_check(h, dh)) < 0)
             goto done;
         if (ret == 0) /* closed */
             break;
