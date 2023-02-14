@@ -51,39 +51,38 @@
 #include "controller_device_send.h"
 
 /*! Connect to device via Netconf SSH
+ *
  * @param[in]  h  Clixon handle
  * @param[in]  dh Device handle, either NULL or in closed state
+ * @param[in]  name Device name
+ * @param[in]  user Username for ssh login
+ * @param[in]  addr Address for ssh to connect to
  */
 static int
 connect_netconf_ssh(clixon_handle h,
                     device_handle dh,
-                    cxobj        *xn,
-                    char         *name,
                     char         *user,
                     char         *addr)
 {
     int   retval = -1;
-    cbuf *cb;
+    cbuf *cb = NULL;
     int   s;
 
-    if (xn == NULL || addr == NULL){
-        clicon_err(OE_PLUGIN, EINVAL, "xn or addr is NULL");
-        return -1;
+    if (addr == NULL || dh == NULL){
+        clicon_err(OE_PLUGIN, EINVAL, "xn, addr or dh is NULL");
+        goto done;
     }
-    if (dh != NULL && device_handle_conn_state_get(dh) != CS_CLOSED){
+    if (device_handle_conn_state_get(dh) != CS_CLOSED){
         clicon_err(OE_PLUGIN, EINVAL, "dh is not closed");
-        return -1;
+        goto done;
     }
     if ((cb = cbuf_new()) == NULL){
         clicon_err(OE_UNIX, errno, "cbuf_new");
-        return -1;
+        goto done;
     }
     if (user)
         cprintf(cb, "%s@", user);
     cprintf(cb, "%s", addr);
-    if (dh == NULL &&
-        (dh = device_handle_new(h, name)) == NULL)
-        goto done;
     if (device_handle_connect(dh, CLIXON_CLIENT_SSH, cbuf_get(cb)) < 0)
         goto done;
     device_state_timeout_register(dh);
@@ -467,9 +466,10 @@ controller_statedata(clixon_handle   h,
 }
 
 /*! Connect to device 
- * typically called from commit
+ *
+ * Typically called from commit
  * @param[in] h   Clixon handle
- * @param[in] xn  XML of type
+ * @param[in] xn  XML of device config
  */
 static int
 controller_connect(clixon_handle h,
@@ -481,6 +481,7 @@ controller_connect(clixon_handle h,
     cbuf         *cb = NULL;
     char         *type;
     char         *addr;
+    char         *user;
     char         *enablestr;
     char         *yfstr;
     
@@ -497,22 +498,25 @@ controller_connect(clixon_handle h,
         device_handle_logmsg_set(dh, strdup("Configured down"));
         goto ok;
     }
-    if (dh != NULL){
-        if ((yfstr = xml_find_body(xn, "yang_config")) != NULL)
-            device_handle_yang_config_set(dh, yfstr); /* Cache yang config */
-        if (device_handle_conn_state_get(dh) != CS_CLOSED)
-            goto ok;
-    }
+    if (dh != NULL &&
+        device_handle_conn_state_get(dh) != CS_CLOSED)
+        goto ok;
     /* Only handle netconf/ssh */
     if ((type = xml_find_body(xn, "conn-type")) == NULL ||
         strcmp(type, "NETCONF_SSH"))
         goto ok;
     if ((addr = xml_find_body(xn, "addr")) == NULL)
         goto ok;
-    if (connect_netconf_ssh(h, dh, xn,
-                            name,
-                            xml_find_body(xn, "user"),
-                            addr) < 0) /* match */
+    user = xml_find_body(xn, "user");
+    /* Now dh is either NULL or in closed state and with correct type 
+     * First create it if still NULL
+     */
+    if (dh == NULL &&
+        (dh = device_handle_new(h, name)) == NULL)
+        goto done;
+    if ((yfstr = xml_find_body(xn, "yang-config")) != NULL)
+        device_handle_yang_config_set(dh, yfstr); /* Cache yang config */    
+    if (connect_netconf_ssh(h, dh, user, addr) < 0) /* match */
         goto done;
  ok:
     retval = 0;
