@@ -17,12 +17,15 @@ jobs:
     - name: install cligen native
       run: (git clone https://github.com/clicon/cligen.git && cd cligen && ./configure && make && sudo make install)
     - name: install ssl and nghttp2
-      run: sudo apt install -y libssl-dev libnghttp2-dev
+      run: sudo apt install -y libssl-dev libnghttp2-dev libcurl4-openssl-dev
     - name: install clixon native
-      run: (git clone https://github.com/clicon/clixon.git && cd clixon && ./configure --enable-yang-schema-mount && make && sudo make install)
+      run: (git clone https://github.com/clicon/clixon.git && cd clixon && ./configure && make && sudo make install)
     - name: configure
       run: ./configure
-# 2) Use docker for tests
-    - name: make test # this is docker test
-      run: (cd docker; make docker)
-#      run: make test
+    - name: make
+      run: make
+    - name: make
+      run: sudo make install
+# 2)  Run tests
+    - name: Run tests 
+      run: (cd test; ./start-devices.sh; ./init-controller.sh)

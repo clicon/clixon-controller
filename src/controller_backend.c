@@ -778,21 +778,32 @@ controller_unknown(clicon_handle h,
     return 0;
 }
 
-/*! Example YANG schema mount
+/*! YANG schema mount
  *
  * Given an XML mount-point xt, return XML yang-lib modules-set
+ * Return yanglib as XML tree on the RFC8525 form: 
+ *   <yang-library>
+ *      <module-set>
+ *         <module>...</module>
+ *         ...
+ *      </module-set>
+ *   </yang-library>
+ * No need to YANG bind.
  * @param[in]  h       Clixon handle
  * @param[in]  xt      XML mount-point in XML tree
- * @param[out] yanglib XML yang-lib module-set tree
+ * @param[out] config  If '0' all data nodes in the mounted schema are read-only
+ * @param[out] vallevel Do or dont do full RFC 7950 validation
+ * @param[out] yanglib XML yang-lib module-set tree. Freed by caller.
  * @retval     0       OK
  * @retval    -1       Error
- * XXX hardcoded to clixon-example@2022-11-01.yang
- * @see RFC 8528
+ * @see RFC 8528 (schema-mount) and RFC 8525 (yang-lib)
  */
 int
-controller_yang_mount(clicon_handle h,
-                      cxobj        *xt,
-                      cxobj       **yanglib)
+controller_yang_mount(clicon_handle   h,
+                      cxobj          *xt,
+                      int            *config,
+                      validate_level *vl, 
+                      cxobj         **yanglib)
 {
     int           retval = -1;
     device_handle dh;
@@ -807,14 +818,22 @@ controller_yang_mount(clicon_handle h,
      * case it will re-try mounting repeatedy.
      */
     if ((devname = xml_find_body(xml_parent(xt), "name")) != NULL &&
-        (dh = device_handle_find(h, devname)) != NULL &&
-        (xy0 = device_handle_yang_lib_get(dh)) != NULL){
-        /* copy it */
-        if ((xy1 = xml_new("new", NULL, xml_type(xy0))) == NULL)
-            goto done;
-        if (xml_copy(xy0, xy1) < 0)
-            goto done;
-        *yanglib = xy1;
+        (dh = device_handle_find(h, devname)) != NULL){
+        if (yanglib && (xy0 = device_handle_yang_lib_get(dh)) != NULL){
+            /* copy it */
+            if ((xy1 = xml_new("new", NULL, xml_type(xy0))) == NULL)
+                goto done;
+            if (xml_copy(xy0, xy1) < 0)
+                goto done;
+        }
+        if (config)
+            *config = 1;
+        if (vl){
+            if (device_handle_yang_config_get(dh) == YF_VALIDATE)
+                *vl =  VL_FULL;
+            else
+                *vl =  VL_NONE;
+        }
     }
     retval = 0;
  done:
@@ -890,6 +909,10 @@ static clixon_plugin_api api = {
 clixon_plugin_api *
 clixon_plugin_init(clixon_handle h)
 {
+    if (!clicon_option_bool(h, "CLICON_YANG_SCHEMA_MOUNT")){
+        clicon_err(OE_YANG, 0, "The clixon controller requires CLICON_YANG_SCHEMA_MOUNT set to true");
+        goto done;
+    }
     /* Register callback for rpc calls 
      */
     if (rpc_callback_register(h, rpc_sync_pull,

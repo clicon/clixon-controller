@@ -14,7 +14,7 @@ See https://clixon-docs.readthedocs.io/en/latest/install.html
 Configure clixon as follows:
 
 ```
-> ./configure --enable-yang-schema-mount
+> ./configure
 ```
 
 ## Build and install:
