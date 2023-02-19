@@ -84,6 +84,8 @@ typedef enum conn_state conn_state_t;
 /*! How to bind device configuration to YANG
  * @see clixon-controller@2023-01-01.yang yang-config
  * @see yfmap translation table
+ * @see validate_level  
+ * XXX Could this be same as validate_level?
  */
 enum yang_config {
     YF_NONE,     /* Do not bind YANG to config */
