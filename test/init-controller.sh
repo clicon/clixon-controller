@@ -60,7 +60,6 @@ message-id="42">
 EOF
        )
     match=$(echo $ret | grep --null -Eo "<rpc-error>") || true
-    echo "match:<$match>"
     if [ -n "$match" ]; then
         echo "netconf rpc-error detected"
         exit 1
