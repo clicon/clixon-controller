@@ -25,7 +25,6 @@ bindir 		= @bindir@
 includedir	= @includedir@
 datarootdir     = @datarootdir@
 sysconfdir      = @sysconfdir@
-datarootdir	= @datarootdir@
 localstatedir   = @localstatedir@
 libdir          = @exec_prefix@/lib
 
@@ -33,6 +32,8 @@ INSTALLFLAGS  	= @INSTALLFLAGS@
 
 # Here is where example yang appears
 YANG_INSTALLDIR  = @YANG_INSTALLDIR@/controller
+# Here is where example yang appears
+YANG_MOUNTDIR  = @YANG_INSTALLDIR@/mounts
 
 # Local yang files to install
 # IETF
@@ -50,6 +51,7 @@ distclean: clean
 install: $(YANGSPECS)
 	install -d -m 0755 $(DESTDIR)$(YANG_INSTALLDIR)
 	install -m 0644 $(YANGSPECS) $(DESTDIR)$(YANG_INSTALLDIR)
+	install -d -m 0755 $(DESTDIR)$(YANG_MOUNTDIR)
 
 uninstall: 
 	for i in $(YANGSPEC) ; \

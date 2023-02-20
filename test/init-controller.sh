@@ -76,10 +76,8 @@ EOF
 sleep $sleep
 
 res=$(clixon_cli -1f $CFG show devices | grep OPEN | wc -l)
-if [ "$res" = "$nr" ]; then
-   echo OK
-   exit 0;
-else
-   echo Error
+if [ "$res" != "$nr" ]; then
+   echo "Error: $res"
    exit -1;
 fi
+echo OK

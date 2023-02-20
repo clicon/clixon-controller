@@ -20,8 +20,12 @@ jobs:
       run: sudo apt install -y libssl-dev libnghttp2-dev libcurl4-openssl-dev
     - name: install clixon native
       run: (git clone https://github.com/clicon/clixon.git && cd clixon && ./configure && make && sudo make install)
-    - name: Build clixon-example docker
+    - name: Build clixon-example docker (should really use existing docker)
       run: (cd clixon/docker/example && make docker)
+    - name: check wo I am
+      run: whoami (debug)
+    - name: Add clixon user group
+      run: sudo useradd -M -U clicon
     - name: configure
       run: ./configure
     - name: make
