@@ -107,4 +107,4 @@ EOF
         exit 1
     fi
 done
-
+echo OK
