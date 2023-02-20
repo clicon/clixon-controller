@@ -20,16 +20,15 @@ jobs:
       run: sudo apt install -y libssl-dev libnghttp2-dev libcurl4-openssl-dev
     - name: install clixon native
       run: (git clone https://github.com/clicon/clixon.git && cd clixon && ./configure && make && sudo make install)
+    - name: Build clixon-example docker
+      run: (cd clixon/docker/example && make docker)
     - name: configure
       run: ./configure
     - name: make
       run: make
     - name: make install
       run: sudo make install
-# 2)  Login to docker
-    - name: Build clixon-example docker
-      run: (cd clixon/docker/example; sudo docker build -t clixon/clixon-example .)
-# 3)  Run tests
+# 2)  Run tests
     - name: Start devices
       run: (cd test; ./start-devices.sh)
     - name: Init controller
