@@ -9,7 +9,7 @@ IMG=clixon-example
 
 SSHKEY=/root/.ssh/id_rsa.pub
 #rm -f my.key
-#ssh-keygen -t rsa -N "" -f my.key
+ssh-keygen -t rsa -N "" -f /root/.ssh/id_rsa
 #SSHKEY=my.key
 
 for i in $(seq 1 $nr); do
