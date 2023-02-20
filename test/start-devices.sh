@@ -8,10 +8,7 @@ set -eux
 IMG=clixon-example
 
 SSHKEY=/root/.ssh/id_rsa.pub
-sudo test -f $SSHKEY
-if [ $? -ne 0 ]; then
-    sudo ssh-keygen -t rsa -N "" -f /root/.ssh/id_rsa
-fi
+sudo test -f $SSHKEY || sudo ssh-keygen -t rsa -N "" -f /root/.ssh/id_rsa
 
 for i in $(seq 1 $nr); do
     NAME=$IMG$i
