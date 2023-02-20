@@ -7,48 +7,70 @@
 # clixon-controller
 Clixon network controller
 
-## Build clixon
+## Installation
 
-See https://clixon-docs.readthedocs.io/en/latest/install.html
+### Install required packages
+sudo apt install flex bison git make gcc libnghttp2-dev libssl-dev
 
-Configure clixon as follows:
+### Clone the Git repositories
 
-```
-> ./configure
-```
-
-## Build and install:
-
-```
-> ./configure
-> make        # native build
-> sudo make install
+```console
+$ git clone https://github.com/clicon/cligen.git
+$ git clone https://github.com/clicon/clixon.git
+$ git clone https://github.com/clicon/clixon-controller.git
 ```
 
-or via Docker (does not work yet)
+### Build the components
 
-## Devices
-
-For each device, add an entry in a startup config, example:
-```
-$ cat /usr/local/var/controller/startup_db
-<config>
-  <devices xmlns="http://clicon.org/controller">
-    <device>
-      <name>clixon</name>
-      <description>Clixon container</description>
-      <conn-type>NETCONF_SSH</conn-type>
-      <user>root</user>
-      <addr>172.17.0.2</addr>
-    </device>
-    ...
-  <devices xmlns="http://clicon.org/controller">
-</config>
+Cligen:
+```console
+$ cd cligen
+$ ./configure
+$ make
+$ sudo make install
 ```
 
-Start the controller:
-```
-$ sudo clixon_backend -s startup
+Clixon:
+```console
+cd clixon
+./configure
+make
+sudo make install
 ```
 
+Clixon controller
+```console
+cd clixon-controller
+./configure
+make
+sudo make install
+sudo mkdir /usr/local/share/clixon/mounts/
+```
 
+### Start devices
+
+Example using clixon-example device::
+```console
+cd test
+./start-devices.sh
+```
+
+### Start controller
+
+Kill old backend and start a new:
+```console
+sudo clixon_backend -f /usr/local/etc/controller.xml -z
+sudo clixon_backend -f /usr/local/etc/controller.xml
+
+Start the CLI and configure devices
+
+```console
+clixon_cli -f /usr/local/etc/controller.xml
+
+configure
+set devices device crpd1 addr 172.20.20.2
+set devices device crpd1 user root
+set devices device crpd1 conn-type NETCONF_SSH
+set devices device crpd1 root
+commit
+```
