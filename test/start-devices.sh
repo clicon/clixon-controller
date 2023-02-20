@@ -8,15 +8,18 @@ set -eux
 IMG=clixon-example
 
 SSHKEY=/root/.ssh/id_rsa.pub
+#rm -f my.key
+#ssh-keygen -t rsa -N "" -f my.key
+#SSHKEY=my.key
 
 for i in $(seq 1 $nr); do
     NAME=$IMG$i
     sudo docker kill $NAME || true
     sudo docker run --name $NAME --rm -td clixon/$IMG #|| err "Error starting clixon-example"
-    sudo docker exec -it $NAME mkdir -m 700 /root/.ssh
+    sudo docker exec -t $NAME mkdir -m 700 /root/.ssh
     sudo docker cp $SSHKEY $NAME:/root/.ssh/authorized_keys
-    sudo docker exec -it $NAME chown root /root/.ssh/authorized_keys
-    sudo docker exec -it $NAME chgrp root /root/.ssh/authorized_keys
+    sudo docker exec -t $NAME chown root /root/.ssh/authorized_keys
+    sudo docker exec -t $NAME chgrp root /root/.ssh/authorized_keys
     ip=$(sudo docker inspect $NAME -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}')
     sudo ssh-keygen -f "/root/.ssh/known_hosts" -R "$ip" || true
 done
