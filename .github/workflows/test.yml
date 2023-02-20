@@ -28,6 +28,7 @@ jobs:
       run: make
     - name: make install
       run: sudo make install
+    - name: fix lib links
       run: sudo ldconfig
 # 2)  Run tests
     - name: Start devices
