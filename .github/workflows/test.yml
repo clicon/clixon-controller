@@ -28,6 +28,7 @@ jobs:
       run: make
     - name: make install
       run: sudo make install
+      run: sudo ldconfig
 # 2)  Run tests
     - name: Start devices
       run: (cd test; ./start-devices.sh)
