@@ -33,6 +33,32 @@ for i in $(seq 1 $nr); do
     NAME=$IMG$i
     ip=$(sudo docker inspect $NAME -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}')
     
+    echo "Init config for device$i edit-config 0"
+clixon_netconf -qe0 -f $CFG <<EOF
+<rpc xmlns="urn:ietf:params:xml:ns:netconf:base:1.0" 
+xmlns:nc="urn:ietf:params:xml:ns:netconf:base:1.0" 
+message-id="42">
+  <edit-config>
+    <target><candidate/></target>
+    <default-operation>none</default-operation>
+    <config>
+      <devices xmlns="http://clicon.org/controller">
+        <device nc:operation="create">
+          <name>$NAME</name>
+          <enabled>true</enabled>
+          <description>Clixon example container</description>
+          <conn-type>NETCONF_SSH</conn-type>
+          <user>root</user>
+          <addr>$ip</addr>
+          <yang-config>VALIDATE</yang-config>
+          <root/>
+        </device>
+      </devices>
+    </config>
+  </edit-config>
+</rpc>]]>]]>
+EOF
+
     echo "Init config for device$i edit-config"
     ret=$(clixon_netconf -qe0 -f $CFG <<EOF
 <rpc xmlns="urn:ietf:params:xml:ns:netconf:base:1.0" 
@@ -59,7 +85,9 @@ message-id="42">
 </rpc>]]>]]>
 EOF
        )
-    match=$(echo $ret | grep --null -Eo "<rpc-error>") || true
+    
+    echo "$ret"
+    match=$(echo "$ret" | grep --null -Eo "<rpc-error>") || true
     if [ -n "$match" ]; then
         echo "netconf rpc-error detected"
         exit 1
