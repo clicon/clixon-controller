@@ -51,4 +51,4 @@ for i in $(seq 1 $nr); do
 EOF
 
 done
-echo
+echo OK
