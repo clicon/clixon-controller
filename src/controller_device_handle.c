@@ -158,8 +158,10 @@ device_handle_handle_free(struct controller_device_handle *cdh)
         xml_free(cdh->cdh_yang_lib);
     if (cdh->cdh_sync_xml)
         xml_free(cdh->cdh_sync_xml);
+#if 0 // XXX see xml_yang_mount_freeall
     if (cdh->cdh_yspec)
         ys_free(cdh->cdh_yspec);
+#endif
     if (cdh->cdh_logmsg)
         free(cdh->cdh_logmsg);
     if (cdh->cdh_schema_name)
@@ -674,7 +676,7 @@ device_handle_sync_time_set(device_handle   dh,
 
 /*! Get xml of last sync
  * @param[in]  dh    Device handle
- * @retval     xroot XML tree
+ * @retval     xroot XML tree (direct pointer)
  */
 cxobj *
 device_handle_sync_xml_get(device_handle dh)

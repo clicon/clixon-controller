@@ -220,7 +220,7 @@ module clixon-controller {
         description "A commit has been made that changes the services declaration.";
     }
     rpc sync-pull {
-        description "Read the config of one or several devices.";
+        description "Read(pull) the config of one or several devices.";
         input {
             leaf name {
                 description
@@ -235,6 +235,18 @@ module clixon-controller {
             leaf name {
                 description
                     "Name of device to push to, can use wildchars for several.";
+                type string;
+            }
+        }
+    }
+    rpc reconnect {
+        description
+            "(Re)connect try an enabled device in CLOSED state.
+             If closed due to error it may need to be cleared and reconnected.";
+        input {
+            leaf name {
+                description
+                    "Name of device to reconnect.";
                 type string;
             }
         }

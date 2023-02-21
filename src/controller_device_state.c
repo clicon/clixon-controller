@@ -298,10 +298,18 @@ device_state_mount_point_get(char      *devicename,
 }
 
 #ifdef CONTROLLER_JUNOS_ADD_COMMAND_FORWARDING
-/*! Ugly rewrite of junos YANGs after parsing
+/*! Rewrite of junos YANGs after parsing
+ *
  * Add grouping command-forwarding in junos-rpc yangs if not exists
  * tried to make other less intrusive solutions or make a generic way in the
  * original function, but the easiest was just to rewrite the function.
+ * @param[in] h       Clicon handle
+ * @param[in] yanglib XML tree on the form <yang-lib>...
+ * @param[in] yspec   Will be populated with YANGs, is consumed
+ * @retval    1       OK
+ * @retval    0       Parse error
+ * @retval    -1      Error
+ * @see yang_lib2yspec  the original function
  */
 static int
 yang_lib2yspec_junos_patch(clicon_handle h,
@@ -316,7 +324,10 @@ yang_lib2yspec_junos_patch(clicon_handle h,
     cxobj    **vec = NULL;
     size_t     veclen;
     int        i;
-
+    yang_stmt *ymod;
+    yang_stmt *yrev;
+    int        modmin = 0;
+    
     clicon_debug(1, "%s", __FUNCTION__);
     if (xpath_vec(yanglib, nsc, "module-set/module", &vec, &veclen) < 0) 
         goto done;
@@ -326,14 +337,33 @@ yang_lib2yspec_junos_patch(clicon_handle h,
             continue;
         if ((revision = xml_find_body(xi, "revision")) == NULL)
             continue;
+        if ((ymod = yang_find(yspec, Y_MODULE, name)) != NULL ||
+            (ymod = yang_find(yspec, Y_SUBMODULE, name)) != NULL){
+            /* Skip if matching or no revision 
+             * Note this algorithm does not work for multiple revisions
+             */
+            if ((yrev = yang_find(ymod, Y_REVISION, NULL)) == NULL){
+                modmin++;
+                continue;
+            }
+            if (strcmp(yang_argument_get(yrev), revision) == 0){
+                modmin++;
+                continue;
+            }
+        }
         if (yang_parse_module(h, name, revision, yspec, NULL) == NULL)
             goto fail;
     }
     /* XXX: Ensure yang-lib is always there otherwise get state dont work for mountpoint */
-    if (yang_parse_module(h, "ietf-yang-library", "2019-01-04", yspec, NULL) < 0)
+    if ((ymod = yang_find(yspec, Y_MODULE, "ietf-yang-library")) != NULL &&
+        (yrev = yang_find(ymod, Y_REVISION, NULL)) != NULL &&
+        strcmp(yang_argument_get(yrev), "2019-01-04") == 0){
+        modmin++;
+    }
+    else if (yang_parse_module(h, "ietf-yang-library", "2019-01-04", yspec, NULL) < 0)
         goto fail;
     clicon_debug(1, "%s yang_parse_post", __FUNCTION__);
-    if (yang_parse_post(h, yspec, 0) < 0)
+    if (yang_parse_post(h, yspec, modmin) < 0)
         goto done;
     retval = 1;
  done:
@@ -397,7 +427,7 @@ device_state_schemas_ready(clixon_handle h,
     retval = 1;
  done:
     clicon_debug(1, "%s retval %d", __FUNCTION__, retval);
-    if (yspec1)
+    if (retval<0 && yspec1)
         ys_free(yspec1);
     if (xt)
         xml_free(xt);
@@ -571,9 +601,11 @@ device_state_handler(clixon_handle h,
         if (ret == 0) /* closed */
             break;
         /* Reset YANGs */
-        if ((yspec1 = yspec_new()) == NULL)
-            goto done;
-        device_handle_yspec_set(dh, yspec1);
+        if ((yspec1 = device_handle_yspec_get(dh)) == NULL){
+            if ((yspec1 = yspec_new()) == NULL)
+                goto done;
+            device_handle_yspec_set(dh, yspec1);
+        }
         if (!device_handle_capabilities_find(dh, "urn:ietf:params:xml:ns:yang:ietf-netconf-monitoring")){
             device_close_connection(dh, "No method to get schemas");
             break;
