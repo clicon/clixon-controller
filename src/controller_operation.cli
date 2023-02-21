@@ -92,11 +92,13 @@ sync("Read the config of one or several devices.") {
            pull("sync config from one or multiple devices")[
                  (<name:string>("device pattern")|
                   <name:string expand_dbvar("running","/clixon-controller:devices/device/name")>("device pattern"))
-                 ], cli_sync_rpc("false");
+                 ], cli_sync_rpc("pull");
            push("sync config to one or multiple devices")[
                  (<name:string>("device pattern")|
                   <name:string expand_dbvar("running","/clixon-controller:devices/device/name")>("device pattern"))
-                 ], cli_sync_rpc("true");
+                 ], cli_sync_rpc("push");
 }
+reconnect("reconnect one or several devices in closed state")  [<name:string>("device pattern")|
+                  <name:string expand_dbvar("running","/clixon-controller:devices/device/name")>("device pattern")], cli_reconnect();
 
 notifications("Get notifications from backend"), cli_notify("controller", "1", "text");

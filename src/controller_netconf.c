@@ -157,6 +157,8 @@ clixon_client_connect_ssh(clixon_handle  h,
     }
     retval = 0;
  done:
+    if (argv)
+        free(argv);
     return retval;
 }
 
@@ -208,11 +210,17 @@ netconf_input_frame(cbuf       *cb,
             clicon_log(LOG_WARNING, "%s: multiple message in single frames", __FUNCTION__);
             goto fail;
         }
-        else
+        else{
             *xrecv = xtop;
+            xtop = NULL;
+        }
     }
     retval = 1;
  done:
+    if (xerr)
+        xml_free(xerr);
+    if (xtop)
+        xml_free(xtop);
     if (str)
         free(str);
     return retval;

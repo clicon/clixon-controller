@@ -47,7 +47,7 @@
 /*! Read the config of one or several devices
  * @param[in] h
  * @param[in] cvv  : name pattern
- * @param[in] argv : "0": pull, "1": push
+ * @param[in] argv : "pull", "push"
  */
 int
 cli_sync_rpc(clixon_handle h, 
@@ -61,7 +61,7 @@ cli_sync_rpc(clixon_handle h,
     cxobj     *xrpc;
     cxobj     *xret = NULL;
     cxobj     *xerr;
-    char      *push = NULL;
+    char      *op;
     char      *name = "*";
 
     if (argv == NULL || cvec_len(argv) != 1){
@@ -72,9 +72,9 @@ cli_sync_rpc(clixon_handle h,
         clicon_err(OE_PLUGIN, 0, "Error when accessing argument <push>");
         goto done;
     }
-    push = cv_string_get(cv);
-    if (strcmp(push, "true") != 0 && strcmp(push, "false") != 0){
-        clicon_err(OE_PLUGIN, EINVAL, "<push> argument is %s, expected \"true\" or \"false\"", push);
+    op = cv_string_get(cv);
+    if (strcmp(op, "push") != 0 && strcmp(op, "pull") != 0){
+        clicon_err(OE_PLUGIN, EINVAL, "<push> argument is %s, expected \"push\" or \"pull\"", op);
         goto done;
     }
     if ((cv = cvec_find(cvv, "name")) != NULL)
@@ -87,11 +87,9 @@ cli_sync_rpc(clixon_handle h,
             NETCONF_BASE_NAMESPACE,
             clicon_username_get(h),
             NETCONF_MESSAGE_ID_ATTR);
-    cprintf(cb, "<sync-%s xmlns=\"%s\">",
-            push?"push":"pull",
-            CONTROLLER_NAMESPACE);
+    cprintf(cb, "<sync-%s xmlns=\"%s\">", op, CONTROLLER_NAMESPACE);
     cprintf(cb, "<name>%s</name>", name);
-    cprintf(cb, "</sync-%s>", push?"push":"pull");
+    cprintf(cb, "</sync-%s>", op);
     cprintf(cb, "</rpc>");
     if (clixon_xml_parse_string(cbuf_get(cb), YB_NONE, NULL, &xtop, NULL) < 0)
         goto done;
@@ -109,6 +107,61 @@ cli_sync_rpc(clixon_handle h,
     if (clixon_xml2file(stdout, xml_child_i(xret, 0), 0, 1, cligen_output, 0, 1) < 0)
         goto done;
 #endif
+    retval = 0;
+ done:
+    if (cb)
+        cbuf_free(cb);
+    if (xret)
+        xml_free(xret);
+    if (xtop)
+        xml_free(xtop);
+    return retval;
+}
+
+/*! Read the config of one or several devices
+ * @param[in] h
+ * @param[in] cvv  : name pattern
+ * @param[in] argv
+ */
+int
+cli_reconnect(clixon_handle h, 
+             cvec         *cvv, 
+             cvec         *argv)
+{
+    int        retval = -1;
+    cbuf      *cb = NULL;
+    cg_var    *cv;
+    cxobj     *xtop = NULL;
+    cxobj     *xrpc;
+    cxobj     *xret = NULL;
+    cxobj     *xerr;
+    char      *name = "*";
+
+    if ((cv = cvec_find(cvv, "name")) != NULL)
+        name = cv_string_get(cv);
+    if ((cb = cbuf_new()) == NULL){
+        clicon_err(OE_PLUGIN, errno, "cbuf_new");
+        goto done;
+    }
+    cprintf(cb, "<rpc xmlns=\"%s\" username=\"%s\" %s>",
+            NETCONF_BASE_NAMESPACE,
+            clicon_username_get(h),
+            NETCONF_MESSAGE_ID_ATTR);
+    cprintf(cb, "<reconnect xmlns=\"%s\">", CONTROLLER_NAMESPACE);
+    cprintf(cb, "<name>%s</name>", name);
+    cprintf(cb, "</reconnect>");
+    cprintf(cb, "</rpc>");
+    if (clixon_xml_parse_string(cbuf_get(cb), YB_NONE, NULL, &xtop, NULL) < 0)
+        goto done;
+    /* Skip top-level */
+    xrpc = xml_child_i(xtop, 0);
+    /* Send to backend */
+    if (clicon_rpc_netconf_xml(h, xrpc, &xret, NULL) < 0)
+        goto done;
+    if ((xerr = xpath_first(xret, NULL, "//rpc-error")) != NULL){
+        clixon_netconf_error(xerr, "Get configuration", NULL);
+        goto done;
+    }
     retval = 0;
  done:
     if (cb)

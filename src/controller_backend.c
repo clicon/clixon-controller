@@ -118,6 +118,7 @@ push_device(clixon_handle h,
 {
     int        retval = -1;
     cxobj     *x0;
+    cxobj     *x0copy = NULL;
     cxobj     *x1;
     cxobj     *x1t = NULL;
     cvec      *nsc = NULL;
@@ -165,8 +166,12 @@ push_device(clixon_handle h,
         goto done;
     /* 3) construct an edit-config, send it and validate it */
     if (dlen || alen || chlen){
+        if ((x0copy = xml_new("new", NULL, xml_type(x0))) == NULL)
+            goto done;
+        if (xml_copy(x0, x0copy) < 0)
+            goto done;
         if (device_send_edit_config_diff(h, dh,
-                                         x0, x1, yspec,
+                                         x0copy, x1, yspec,
                                          dvec, dlen,
                                          avec, alen,
                                          chvec0, chvec1, chlen) < 0)
@@ -188,6 +193,8 @@ push_device(clixon_handle h,
         free(chvec1);
     if (cb)
         cbuf_free(cb);
+    if (x0copy)
+        xml_free(x0copy);
     if (x1t)
         xml_free(x1t);
     return retval;
@@ -287,84 +294,6 @@ rpc_sync(clixon_handle h,
         free(vec);
     if (xret)
         xml_free(xret);
-    return retval;
-}
-
-/*! Read the config of one or several devices
- * @param[in]  h       Clicon handle 
- * @param[in]  xe      Request: <rpc><xn></rpc> 
- * @param[out] cbret   Return xml tree, eg <rpc-reply>..., <rpc-error.. 
- * @param[in]  arg     Domain specific arg, ec client-entry or FCGX_Request 
- * @param[in]  regarg  User argument given at rpc_callback_register() 
- * @retval     0       OK
- * @retval    -1       Error
- */
-static int 
-rpc_sync_pull(clixon_handle h,
-              cxobj        *xe,
-              cbuf         *cbret,
-              void         *arg,  
-              void         *regarg)
-{
-    return rpc_sync(h, xe, cbret, 0);
-}
-
-/*! Push the config to one or several devices
- * @param[in]  h       Clicon handle 
- * @param[in]  xe      Request: <rpc><xn></rpc> 
- * @param[out] cbret   Return xml tree, eg <rpc-reply>..., <rpc-error.. 
- * @param[in]  arg     Domain specific arg, ec client-entry or FCGX_Request 
- * @param[in]  regarg  User argument given at rpc_callback_register() 
- * @retval     0       OK
- * @retval    -1       Error
- */
-static int 
-rpc_sync_push(clixon_handle h,
-              cxobj        *xe,
-              cbuf         *cbret,
-              void         *arg,  
-              void         *regarg)
-{
-    return rpc_sync(h, xe, cbret, 1);
-}
-
-/*! Get last synced configuration of a single device
- *
- * Note that this could be done by some peek in commit history.
- * Should probably be replaced by a more generic function
- * @param[in]  h       Clicon handle 
- * @param[in]  xe      Request: <rpc><xn></rpc> 
- * @param[out] cbret   Return xml tree, eg <rpc-reply>..., <rpc-error.. 
- * @param[in]  arg     Domain specific arg, ec client-entry or FCGX_Request 
- * @param[in]  regarg  User argument given at rpc_callback_register() 
- * @retval     0       OK
- * @retval    -1       Error
- */
-static int 
-rpc_get_device_sync_config(clixon_handle h,
-                           cxobj        *xe,
-                           cbuf         *cbret,
-                           void         *arg,
-                           void         *regarg)
-{
-    int           retval = -1;
-    device_handle dh;
-    char         *devname;
-    cxobj        *xc;
-
-    cprintf(cbret, "<rpc-reply xmlns=\"%s\">", NETCONF_BASE_NAMESPACE);
-    cprintf(cbret, "<config xmlns=\"%s\">", CONTROLLER_NAMESPACE);
-    if ((devname = xml_find_body(xe, "name")) != NULL &&
-        (dh = device_handle_find(h, devname)) != NULL){
-        if ((xc = device_handle_sync_xml_get(dh)) != NULL){
-            if (clixon_xml2cbuf(cbret, xc, 0, 0, -1, 0) < 0)
-                goto done;
-        }
-    }
-    cprintf(cbret, "</config>");
-    cprintf(cbret, "</rpc-reply>");
-    retval = 0;
- done:
     return retval;
 }
 
@@ -470,6 +399,8 @@ controller_statedata(clixon_handle   h,
  * Typically called from commit
  * @param[in] h   Clixon handle
  * @param[in] xn  XML of device config
+ * @retval    0   OK
+ * @retval    -1  Error
  */
 static int
 controller_connect(clixon_handle h,
@@ -809,7 +740,7 @@ controller_yang_mount(clicon_handle   h,
     device_handle dh;
     char         *devname;
     cxobj        *xy0;
-    cxobj        *xy1;
+    cxobj        *xy1 = NULL;
 
     /* Return yangs only if device connection is open.
      * This could be discussed: one could want to mount also in a 
@@ -837,6 +768,8 @@ controller_yang_mount(clicon_handle   h,
     }
     retval = 0;
  done:
+    if (xy1)
+        xml_free(xy1);
     return retval;
 }
 
@@ -883,6 +816,144 @@ controller_yang_patch(clicon_handle h,
     return retval;
 }
 
+/*! Read the config of one or several devices
+ * @param[in]  h       Clicon handle 
+ * @param[in]  xe      Request: <rpc><xn></rpc> 
+ * @param[out] cbret   Return xml tree, eg <rpc-reply>..., <rpc-error.. 
+ * @param[in]  arg     Domain specific arg, ec client-entry or FCGX_Request 
+ * @param[in]  regarg  User argument given at rpc_callback_register() 
+ * @retval     0       OK
+ * @retval    -1       Error
+ */
+static int 
+rpc_sync_pull(clixon_handle h,
+              cxobj        *xe,
+              cbuf         *cbret,
+              void         *arg,  
+              void         *regarg)
+{
+    return rpc_sync(h, xe, cbret, 0);
+}
+
+/*! Push the config to one or several devices
+ * @param[in]  h       Clicon handle 
+ * @param[in]  xe      Request: <rpc><xn></rpc> 
+ * @param[out] cbret   Return xml tree, eg <rpc-reply>..., <rpc-error.. 
+ * @param[in]  arg     Domain specific arg, ec client-entry or FCGX_Request 
+ * @param[in]  regarg  User argument given at rpc_callback_register() 
+ * @retval     0       OK
+ * @retval    -1       Error
+ */
+static int 
+rpc_sync_push(clixon_handle h,
+              cxobj        *xe,
+              cbuf         *cbret,
+              void         *arg,  
+              void         *regarg)
+{
+    return rpc_sync(h, xe, cbret, 1);
+}
+
+
+/*! Get last synced configuration of a single device
+ *
+ * Note that this could be done by some peek in commit history.
+ * Should probably be replaced by a more generic function
+ * @param[in]  h       Clicon handle 
+ * @param[in]  xe      Request: <rpc><xn></rpc> 
+ * @param[out] cbret   Return xml tree, eg <rpc-reply>..., <rpc-error.. 
+ * @param[in]  arg     Domain specific arg, ec client-entry or FCGX_Request 
+ * @param[in]  regarg  User argument given at rpc_callback_register() 
+ * @retval     0       OK
+ * @retval    -1       Error
+ */
+static int 
+rpc_get_device_sync_config(clixon_handle h,
+                           cxobj        *xe,
+                           cbuf         *cbret,
+                           void         *arg,
+                           void         *regarg)
+{
+    int           retval = -1;
+    device_handle dh;
+    char         *devname;
+    cxobj        *xc;
+
+    cprintf(cbret, "<rpc-reply xmlns=\"%s\">", NETCONF_BASE_NAMESPACE);
+    cprintf(cbret, "<config xmlns=\"%s\">", CONTROLLER_NAMESPACE);
+    if ((devname = xml_find_body(xe, "name")) != NULL &&
+        (dh = device_handle_find(h, devname)) != NULL){
+        if ((xc = device_handle_sync_xml_get(dh)) != NULL){
+            if (clixon_xml2cbuf(cbret, xc, 0, 0, -1, 0) < 0)
+                goto done;
+        }
+    }
+    cprintf(cbret, "</config>");
+    cprintf(cbret, "</rpc-reply>");
+    retval = 0;
+ done:
+    return retval;
+}
+
+/*! (Re)connect try an enabled device in CLOSED state.
+ *
+ * If closed due to error it may need to be cleared and reconnected
+ * @param[in]  h       Clicon handle 
+ * @param[in]  xe      Request: <rpc><xn></rpc> 
+ * @param[out] cbret   Return xml tree, eg <rpc-reply>..., <rpc-error.. 
+ * @param[in]  arg     Domain specific arg, ec client-entry or FCGX_Request 
+ * @param[in]  regarg  User argument given at rpc_callback_register() 
+ * @retval     0       OK
+ * @retval    -1       Error
+ */
+static int 
+rpc_reconnect(clixon_handle h,
+              cxobj        *xe,
+              cbuf         *cbret,
+              void         *arg,  
+              void         *regarg)
+{
+    int           retval = -1;
+    char         *pattern = NULL;
+    cxobj        *xret = NULL;
+    cxobj        *xn;
+    cvec         *nsc = NULL;
+    cxobj       **vec = NULL;
+    size_t        veclen;
+    int           i;
+    char         *devname;
+    device_handle dh;
+    
+    clicon_debug(1, "%s", __FUNCTION__);
+    if (xmldb_get(h, "running", nsc, "devices", &xret) < 0)
+        goto done;
+    if (xpath_vec(xret, nsc, "devices/device", &vec, &veclen) < 0) 
+        goto done;
+    for (i=0; i<veclen; i++){
+        xn = vec[i];
+        if ((devname = xml_find_body(xn, "name")) == NULL)
+            continue;
+        if ((dh = device_handle_find(h, devname)) == NULL)
+            continue;
+        if (device_handle_conn_state_get(dh) != CS_CLOSED)
+            continue;
+        if (pattern != NULL && fnmatch(pattern, devname, 0) != 0)
+            continue;
+        if (controller_connect(h, xn) < 0)
+            goto done;
+    } /* for */
+    cprintf(cbret, "<rpc-reply xmlns=\"%s\">", NETCONF_BASE_NAMESPACE);
+    cprintf(cbret, "<ok/>");
+    cprintf(cbret, "</rpc-reply>");
+    retval = 0;
+ done:
+    if (vec)
+        free(vec);
+    if (xret)
+        xml_free(xret);
+    return retval;
+}
+
 /* Called just before plugin unloaded. 
  * @param[in] h    Clixon handle
  */
@@ -925,6 +996,12 @@ clixon_plugin_init(clixon_handle h)
                               NULL, 
                               CONTROLLER_NAMESPACE,
                               "sync-push"
+                              ) < 0)
+        goto done;
+    if (rpc_callback_register(h, rpc_reconnect,
+                              NULL, 
+                              CONTROLLER_NAMESPACE,
+                              "reconnect"
                               ) < 0)
         goto done;
     if (rpc_callback_register(h, rpc_get_device_sync_config,

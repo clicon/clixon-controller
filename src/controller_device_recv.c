@@ -89,6 +89,8 @@ rpc_reply_sanity(device_handle dh,
     }
     retval = 1;
  done:
+    if (nsc)
+        cvec_free(nsc);
     return retval;
  closed:
     retval = 0;
@@ -476,6 +478,8 @@ device_state_recv_schema_list(device_handle dh,
         goto done;
     retval = 1;
  done:
+    if (xschemas)
+        xml_free(xschemas);
     return retval;
  closed:
     retval = 0;
