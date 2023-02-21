@@ -22,12 +22,10 @@ jobs:
       run: (git clone https://github.com/clicon/clixon.git && cd clixon && ./configure && make && sudo make install)
     - name: Build clixon-example docker (should really use existing docker)
       run: (cd clixon/docker/example && make docker)
-    - name: check wo I am (debug)
-      run: whoami
     - name: Add clixon user group
       run: sudo useradd -M -U clicon
     - name: Add runner to clixon user group
-      run: sudo useradd usermod -a -G clicon $(whoami)
+      run: sudo usermod -a -G clicon $(whoami)
     - name: configure
       run: ./configure
     - name: make
