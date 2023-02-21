@@ -33,34 +33,6 @@ for i in $(seq 1 $nr); do
     NAME=$IMG$i
     ip=$(sudo docker inspect $NAME -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}')
     
-if true; then # XXX only for dbg actions
-    echo "Init config for device$i edit-config"
-clixon_netconf -qe0 -f $CFG -D 7 -l e <<EOF
-<rpc xmlns="urn:ietf:params:xml:ns:netconf:base:1.0" 
-xmlns:nc="urn:ietf:params:xml:ns:netconf:base:1.0" 
-message-id="42">
-  <edit-config>
-    <target><candidate/></target>
-    <default-operation>none</default-operation>
-    <config>
-      <devices xmlns="http://clicon.org/controller">
-        <device nc:operation="create">
-          <name>$NAME</name>
-          <enabled>true</enabled>
-          <description>Clixon example container</description>
-          <conn-type>NETCONF_SSH</conn-type>
-          <user>root</user>
-          <addr>$ip</addr>
-          <yang-config>VALIDATE</yang-config>
-          <root/>
-        </device>
-      </devices>
-    </config>
-  </edit-config>
-</rpc>]]>]]>
-EOF
-else
-
     echo "Init config for device$i edit-config"
     ret=$(clixon_netconf -qe0 -f $CFG <<EOF
 <rpc xmlns="urn:ietf:params:xml:ns:netconf:base:1.0" 
@@ -94,7 +66,6 @@ EOF
         echo "netconf rpc-error detected"
         exit 1
     fi
-fi
 done
 
 echo "controller commit"
