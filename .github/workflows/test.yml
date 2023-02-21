@@ -26,7 +26,7 @@ jobs:
       run: whoami
     - name: Add clixon user group
       run: sudo useradd -M -U clicon
-   - name: Add runner to clixon user group
+    - name: Add runner to clixon user group
       run: sudo useradd usermod -a -G clicon $(whoami)
     - name: configure
       run: ./configure
