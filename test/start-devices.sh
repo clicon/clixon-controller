@@ -5,6 +5,9 @@ set -eux
 # Number of device containers to start
 : ${nr:=2}
 
+# Sleep delay in seconds between each step                                      
+: ${sleep:=2}
+
 IMG=clixon-example
 
 SSHKEY=/root/.ssh/id_rsa.pub
@@ -22,7 +25,7 @@ for i in $(seq 1 $nr); do
     sudo ssh-keygen -f "/root/.ssh/known_hosts" -R "$ip" || true
 done
 
-sleep 5 # need time to spin up backend in containers
+sleep $sleep # need time to spin up backend in containers
 
 # Add parameters x and y
 for i in $(seq 1 $nr); do

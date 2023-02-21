@@ -33,7 +33,8 @@ for i in $(seq 1 $nr); do
     NAME=$IMG$i
     ip=$(sudo docker inspect $NAME -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}')
     
-    echo "Init config for device$i edit-config 0"
+if true; then # XXX only for dbg actions
+    echo "Init config for device$i edit-config"
 clixon_netconf -qe0 -f $CFG <<EOF
 <rpc xmlns="urn:ietf:params:xml:ns:netconf:base:1.0" 
 xmlns:nc="urn:ietf:params:xml:ns:netconf:base:1.0" 
@@ -58,6 +59,7 @@ message-id="42">
   </edit-config>
 </rpc>]]>]]>
 EOF
+else
 
     echo "Init config for device$i edit-config"
     ret=$(clixon_netconf -qe0 -f $CFG <<EOF
@@ -85,13 +87,14 @@ message-id="42">
 </rpc>]]>]]>
 EOF
        )
-    
+
     echo "$ret"
     match=$(echo "$ret" | grep --null -Eo "<rpc-error>") || true
     if [ -n "$match" ]; then
         echo "netconf rpc-error detected"
         exit 1
     fi
+fi
 done
 
 echo "controller commit"
