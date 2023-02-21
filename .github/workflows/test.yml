@@ -26,6 +26,12 @@ jobs:
       run: sudo useradd -M -U clicon
     - name: Add runner to clixon user group
       run: sudo usermod -a -G clicon $(whoami)
+    - name: check groups
+      run: groups
+    - name: check groups 2
+      run: sudo groups
+    - name: check groups 3
+      run: sudo groups runner
     - name: configure
       run: ./configure
     - name: make

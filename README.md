@@ -68,9 +68,12 @@ Start the CLI and configure devices
 clixon_cli -f /usr/local/etc/controller.xml
 
 configure
-set devices device crpd1 addr 172.20.20.2
-set devices device crpd1 user root
-set devices device crpd1 conn-type NETCONF_SSH
-set devices device crpd1 root
+set devices device clixon-example1 description "Clixon container"
+set devices device clixon-example1 conn-type NETCONF_SSH
+set devices device clixon-example1 addr 172.20.20.2
+set devices device clixon-example1 user root
+set devices device clixon-example1 enable true
+set devices device clixon-example1 yang-config VALIDATE
+set devices device clixon-example1 root
 commit
 ```
