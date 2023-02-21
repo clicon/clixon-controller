@@ -35,7 +35,7 @@ for i in $(seq 1 $nr); do
     
 if true; then # XXX only for dbg actions
     echo "Init config for device$i edit-config"
-clixon_netconf -qe0 -f $CFG <<EOF
+clixon_netconf -qe0 -f $CFG -D 7 -l e <<EOF
 <rpc xmlns="urn:ietf:params:xml:ns:netconf:base:1.0" 
 xmlns:nc="urn:ietf:params:xml:ns:netconf:base:1.0" 
 message-id="42">
@@ -62,7 +62,7 @@ EOF
 else
 
     echo "Init config for device$i edit-config"
-    ret=$(clixon_netconf -qe0 -D 7 -l e -f $CFG <<EOF
+    ret=$(clixon_netconf -qe0 -f $CFG <<EOF
 <rpc xmlns="urn:ietf:params:xml:ns:netconf:base:1.0" 
 xmlns:nc="urn:ietf:params:xml:ns:netconf:base:1.0" 
 message-id="42">
