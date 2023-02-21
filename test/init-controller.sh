@@ -62,7 +62,7 @@ EOF
 else
 
     echo "Init config for device$i edit-config"
-    ret=$(clixon_netconf -qe0 -f $CFG <<EOF
+    ret=$(clixon_netconf -qe0 -D 7 -l e -f $CFG <<EOF
 <rpc xmlns="urn:ietf:params:xml:ns:netconf:base:1.0" 
 xmlns:nc="urn:ietf:params:xml:ns:netconf:base:1.0" 
 message-id="42">
