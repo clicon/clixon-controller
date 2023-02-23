@@ -8,7 +8,7 @@ set -eux
 # Sleep delay in seconds between each step                                      
 : ${sleep:=2}
 
-IMG=clixon-example
+: ${IMG:=clixon-example}
 
 SSHKEY=/root/.ssh/id_rsa.pub
 sudo test -f $SSHKEY || sudo ssh-keygen -t rsa -N "" -f /root/.ssh/id_rsa

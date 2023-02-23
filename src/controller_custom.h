@@ -56,6 +56,6 @@
 /*! Where to write all yangs from devices 
  * Move to clixon as option?
  */
-#define YANG_SCHEMA_MOUNT_DIR "/usr/local/share/clixon/mounts"
+#define YANG_SCHEMA_MOUNT_DIR "/usr/local/share/clixon/controller/mounts"
 
 #endif /* _CONTROLLER_CUSTOM_H */

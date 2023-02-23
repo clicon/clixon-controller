@@ -98,6 +98,7 @@ install: $(CLISPECS) $(PLUGINS) $(APPNAME).xml
 	install -m 0644 $(INSTALLFLAGS) $(CLI_PLUGIN) $(DESTDIR)$(libdir)/$(APPNAME)/cli
 	install -d -m 0755 $(DESTDIR)$(libdir)/$(APPNAME)/backend
 	install -m 0644 $(INSTALLFLAGS) $(BE_PLUGIN) $(DESTDIR)$(libdir)/$(APPNAME)/backend
+	install -d -m 0755 $(DESTDIR)$(datarootdir)/clixon/controller/mounts # See YANG_SCHEMA_MOUNT_DIR
 
 uninstall: 
 	rm -rf $(DESTDIR)$(sysconfdir)/$(APPNAME).xml

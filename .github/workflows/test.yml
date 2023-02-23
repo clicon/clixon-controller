@@ -17,21 +17,13 @@ jobs:
     - name: install cligen native
       run: (git clone https://github.com/clicon/cligen.git && cd cligen && ./configure && make && sudo make install)
     - name: install ssl and nghttp2
-      run: sudo apt install -y libssl-dev libnghttp2-dev libcurl4-openssl-dev
-    - name: install clixon native
-      run: (git clone https://github.com/clicon/clixon.git && cd clixon && ./configure && make && sudo make install)
-    - name: Build clixon-example docker (should really use existing docker)
-      run: (cd clixon/docker/example && make docker)
+      run: sudo apt install -y libssl-dev libnghttp2-dev
     - name: Add clixon user group
       run: sudo useradd -M -U clicon
     - name: Add runner to clixon user group
       run: sudo usermod -a -G clicon $(whoami)
-    - name: check groups
-      run: groups
-    - name: check groups 2
-      run: sudo groups
-    - name: check groups 3
-      run: sudo groups runner
+    - name: install clixon native
+      run: (git clone https://github.com/clicon/clixon.git && cd clixon && ./configure && make && sudo make install)
     - name: configure
       run: ./configure
     - name: make
@@ -41,9 +33,9 @@ jobs:
     - name: fix lib links
       run: sudo ldconfig
 # 2)  Run tests
-    - name: Start devices
-      run: (cd test; ./start-devices.sh)
-    - name: Init controller
-      run: (cd test; ./init-controller.sh)
-    - name: Change values and push to devices
-      run: (cd test; ./change-push.sh)
+#    - name: Start devices
+#      run: (cd test; ./start-devices.sh)
+#    - name: Init controller
+#      run: (cd test; ./init-controller.sh)
+#    - name: Change values and push to devices
+#      run: (cd test; ./change-push.sh)

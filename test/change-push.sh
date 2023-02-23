@@ -8,7 +8,7 @@ set -eux
 # Sleep delay in seconds between each step                                      
 : ${sleep:=2}
 
-IMG=clixon-example
+: ${IMG:=clixon-example}
 
 CFG=/usr/local/etc/controller.xml
 
