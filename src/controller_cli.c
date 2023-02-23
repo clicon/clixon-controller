@@ -41,9 +41,69 @@
 #include <clixon/cli_generate.h>
 
 /* Controller includes */
-#include "controller_custom.h"
 #include "controller.h"
 
+/*! Request new transaction id from backend
+ */
+static int
+cli_transaction_new(clixon_handle h, 
+                    uint64_t     *idp)
+{
+    int        retval = -1;
+    cbuf      *cb = NULL;    
+    cxobj     *xtop = NULL;
+    cxobj     *xrpc;
+    cxobj     *xret = NULL;
+    cxobj     *xreply;
+    cxobj     *xerr;
+    cxobj     *xid;
+    char      *idstr;
+
+    if ((cb = cbuf_new()) == NULL){
+        clicon_err(OE_PLUGIN, errno, "cbuf_new");
+        goto done;
+    }
+    cprintf(cb, "<rpc xmlns=\"%s\" username=\"%s\" %s>",
+            NETCONF_BASE_NAMESPACE,
+            clicon_username_get(h),
+            NETCONF_MESSAGE_ID_ATTR);
+    cprintf(cb, "<transaction-new xmlns=\"%s\">", CONTROLLER_NAMESPACE);
+    cprintf(cb, "<origin>cli</origin>"); // user??
+    cprintf(cb, "</transaction-new>");
+    cprintf(cb, "</rpc>");
+    if (clixon_xml_parse_string(cbuf_get(cb), YB_NONE, NULL, &xtop, NULL) < 0)
+        goto done;
+    /* Skip top-level */
+    xrpc = xml_child_i(xtop, 0);
+    /* Send to backend */
+    if (clicon_rpc_netconf_xml(h, xrpc, &xret, NULL) < 0)
+        goto done;
+    if ((xreply = xpath_first(xret, NULL, "rpc-reply")) == NULL){
+        clicon_err(OE_CFG, 0, "Malformed rpc reply");
+        goto done;
+    }
+    if ((xerr = xpath_first(xreply, NULL, "rpc-error")) != NULL){
+        clixon_netconf_error(xerr, "Get configuration", NULL);
+        goto done;
+    }
+    if ((xid = xpath_first(xreply, NULL, "id")) == NULL){
+        clicon_err(OE_CFG, 0, "No returned id");
+        goto done;
+    }
+    idstr = xml_body(xid);
+    if (idstr && idp && parse_uint64(idstr, idp, NULL) <= 0)
+        goto done;
+    retval = 0;
+ done:
+    if (xret)
+        xml_free(xret);
+    if (xtop)
+        xml_free(xtop);
+    if (cb)
+        cbuf_free(cb);
+    return retval;
+}
+    
 /*! Read the config of one or several devices
  * @param[in] h
  * @param[in] cvv  : name pattern
@@ -63,6 +123,7 @@ cli_sync_rpc(clixon_handle h,
     cxobj     *xerr;
     char      *op;
     char      *name = "*";
+    uint64_t   id = 0;
 
     if (argv == NULL || cvec_len(argv) != 1){
         clicon_err(OE_PLUGIN, EINVAL, "requires argument: <push>");
@@ -77,6 +138,8 @@ cli_sync_rpc(clixon_handle h,
         clicon_err(OE_PLUGIN, EINVAL, "<push> argument is %s, expected \"push\" or \"pull\"", op);
         goto done;
     }
+    if (cli_transaction_new(h, &id) < 0)
+        goto done;
     if ((cv = cvec_find(cvv, "name")) != NULL)
         name = cv_string_get(cv);
     if ((cb = cbuf_new()) == NULL){
@@ -88,7 +151,7 @@ cli_sync_rpc(clixon_handle h,
             clicon_username_get(h),
             NETCONF_MESSAGE_ID_ATTR);
     cprintf(cb, "<sync-%s xmlns=\"%s\">", op, CONTROLLER_NAMESPACE);
-    cprintf(cb, "<name>%s</name>", name);
+    cprintf(cb, "<devname>%s</devname>", name);
     cprintf(cb, "</sync-%s>", op);
     cprintf(cb, "</rpc>");
     if (clixon_xml_parse_string(cbuf_get(cb), YB_NONE, NULL, &xtop, NULL) < 0)
@@ -148,7 +211,7 @@ cli_reconnect(clixon_handle h,
             clicon_username_get(h),
             NETCONF_MESSAGE_ID_ATTR);
     cprintf(cb, "<reconnect xmlns=\"%s\">", CONTROLLER_NAMESPACE);
-    cprintf(cb, "<name>%s</name>", name);
+    cprintf(cb, "<devname>%s</devname>", name);
     cprintf(cb, "</reconnect>");
     cprintf(cb, "</rpc>");
     if (clixon_xml_parse_string(cbuf_get(cb), YB_NONE, NULL, &xtop, NULL) < 0)
@@ -225,7 +288,7 @@ compare_device_dbs(clicon_handle h,
             clicon_username_get(h),
             NETCONF_MESSAGE_ID_ATTR);
     cprintf(cb, "<get-device-sync-config xmlns=\"%s\">", CONTROLLER_NAMESPACE);
-    cprintf(cb, "<name>%s</name>", name);
+    cprintf(cb, "<devname>%s</devname>", name);
     cprintf(cb, "</get-device-sync-config>");
     cprintf(cb, "</rpc>");
     if (clixon_xml_parse_string(cbuf_get(cb), YB_NONE, NULL, &xrpc, NULL) < 0)

@@ -219,10 +219,31 @@ module clixon-controller {
     notification services-commit {
         description "A commit has been made that changes the services declaration.";
     }
+    notification transaction-end {
+        description "A transaction has been completed.";
+        leaf tid {
+            type uint64;
+            description "Transaction id";
+            mandatory true;
+        }
+        leaf ok {
+            type boolean;
+            description "Status of transaction end: true: ok, false; error.";
+            mandatory true;
+        }
+        leaf reason {
+            description "Reason for terminating transaction (if ok=false)";
+            type string;
+        }        
+    }
     rpc sync-pull {
         description "Read(pull) the config of one or several devices.";
         input {
-            leaf name {
+            leaf tid {
+                description "Transaction id. If not present, generate one";
+                type uint64;
+            }
+            leaf devname {
                 description
                     "Name of device to pull from, can use wildchars for several.";
                 type string;
@@ -232,7 +253,11 @@ module clixon-controller {
     rpc sync-push {
         description "Push the config to one or several devices.";
         input {
-            leaf name {
+            leaf tid {
+                description "Transaction id. If not present, generate one";
+                type uint64;
+            }
+            leaf devname {
                 description
                     "Name of device to push to, can use wildchars for several.";
                 type string;
@@ -244,9 +269,13 @@ module clixon-controller {
             "(Re)connect try an enabled device in CLOSED state.
              If closed due to error it may need to be cleared and reconnected.";
         input {
-            leaf name {
+            leaf tid {
+                description "Transaction id. If not present, generate one";
+                type uint64;
+            }
+            leaf devname {
                 description
-                    "Name of device to reconnect.";
+                    "Name of device or pattern of devices to reconnect.";
                 type string;
             }
         }
@@ -257,15 +286,51 @@ module clixon-controller {
              Note that this could be done by some peek in commit history.
              Should probably be replaced by a more generic function.";
         input {
-            leaf name {
-                description
-                    "Name of device";
+            leaf devname {
+                description "Name of device";
                 type string;
             }
         }
         output {
             anydata config {
                 description "Device configuration";
+            }
+        }
+    }
+    rpc transaction-new {
+        description
+            "Create a new transaction and allocate a new transaction-id.";
+        input {
+            leaf origin {
+                description
+                    "Originator of transaction";
+                type string;
+            }
+        }
+        output {
+            leaf tid {
+                type uint64;
+                description "Transaction id";
+            }
+        }
+    }
+    rpc transaction-error {
+        description
+            "Terminate an ongoing transaction with an error condition.";
+        input {
+            leaf tid {
+                type uint64;
+                description "Transaction id";
+                mandatory true;
+            }
+            leaf origin {
+                description "Originator of error";
+                type string;
+            }
+            leaf reason {
+                description "Reason for terminating transaction";
+                type string;
+                mandatory true;
             }
         }
     }

@@ -2,7 +2,7 @@
  *
   ***** BEGIN LICENSE BLOCK *****
  
-  Copyright (C) 2020-2022 Olof Hagsand and Rubicon Communications, LLC(Netgate)
+  Copyright (C) 2023 Olof Hagsand
 
   This file is part of CLIXON.
 
@@ -53,7 +53,6 @@
 #include <clixon/clixon.h>
 
 /* Controller includes */
-#include "controller_custom.h"
 #include "controller_netconf.h"
 #include "controller_device_state.h"
 #include "controller_device_handle.h"
@@ -116,10 +115,11 @@ device_handle_new(clixon_handle h,
                   const char   *name)
 {
     struct controller_device_handle *cdh = NULL;
-    size_t                           sz = sizeof(struct controller_device_handle);
     struct controller_device_handle *cdh_list = NULL;
+    size_t                           sz;
 
     clicon_debug(1, "%s", __FUNCTION__);
+    sz = sizeof(struct controller_device_handle);
     if ((cdh = malloc(sz)) == NULL){
         clicon_err(OE_NETCONF, errno, "malloc");
         return NULL;

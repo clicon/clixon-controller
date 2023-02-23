@@ -2,7 +2,7 @@
  *
   ***** BEGIN LICENSE BLOCK *****
  
-  Copyright (C) 2020-2022 Olof Hagsand and Rubicon Communications, LLC(Netgate)
+  Copyright (C) 2023 Olof Hagsand
 
   This file is part of CLIXON.
 
@@ -31,7 +31,7 @@
 
   ***** END LICENSE BLOCK *****
 
-  * Common controller definitions
+  * Common controller and custom definitions
   */
 
 #ifndef _CONTROLLER_H
@@ -41,5 +41,23 @@
  * Constants
  */
 #define CONTROLLER_NAMESPACE "http://clicon.org/controller"
+
+/*! Skip junos-configuration-metadata.yang
+ * cRPD gives error if you request it with get-schema:
+ * <error-message>invalid schema identifier : junos-configuration-metadata</error-message>
+ */
+#define CONTROLLER_JUNOS_SKIP_METADATA
+
+/*! Add grouping command-forwarding in junos-rpc yangs if not exists
+ * cRPD YANGs do not have groupimg command-grouping in junos-rpc YANGs so that
+ * uses command-grouping fails.
+ * Insert an empty grouping command-forwarding if it does not exist
+ */
+#define CONTROLLER_JUNOS_ADD_COMMAND_FORWARDING
+
+/*! Where to write all yangs from devices 
+ * Move to clixon as option?
+ */
+#define YANG_SCHEMA_MOUNT_DIR "/usr/local/share/clixon/controller/mounts"
 
 #endif /* _CONTROLLER_H */
