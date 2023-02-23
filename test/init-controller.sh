@@ -13,7 +13,7 @@ set -eux
 # If set to 0, override starting of clixon_backend in test (you bring your own) 
 : ${BE:=1}
 
-IMG=clixon-example
+: ${IMG:=clixon-example}
 
 CFG=/usr/local/etc/controller.xml
 

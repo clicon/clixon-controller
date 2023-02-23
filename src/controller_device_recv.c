@@ -290,7 +290,6 @@ device_state_recv_config(clixon_handle h,
     cxobj     *xroot;
     yang_stmt *yroot;
     cxobj     *xerr = NULL;
-    yang_config_t yang_config;
 
     clicon_debug(1, "%s", __FUNCTION__);
     //    clicon_debug(CLIXON_DBG_DETAIL, "%s", __FUNCTION__);
@@ -369,11 +368,7 @@ device_state_recv_config(clixon_handle h,
         goto done;
     if ((ret = xmldb_put(h, "candidate", OP_NONE, xt, NULL, cbret)) < 0)
         goto done;
-    /* Check config-state */
-    yang_config = device_handle_yang_config_get(dh);
-    if (ret && (ret = candidate_commit(h, NULL, "candidate", 0,
-                                       yang_config==YF_VALIDATE?VL_FULL:VL_NONE,
-                                       cbret)) < 0)
+    if (ret && (ret = candidate_commit(h, NULL, "candidate", 0, 0, cbret)) < 0)
         goto done;
     if (ret == 0){ /* discard */
         xmldb_copy(h, "running", "candidate");            
@@ -526,7 +521,7 @@ device_state_recv_get_schema(device_handle dh,
     }
     if (xml_chardata_decode(&ydec, "%s", ystr) < 0)
         goto done;
-    sz = strlen(ydec) + 1;
+    sz = strlen(ydec);
     revision = device_handle_schema_rev_get(dh);
     modname = device_handle_schema_name_get(dh);
     /* Write to file */

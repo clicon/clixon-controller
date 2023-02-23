@@ -5,7 +5,7 @@ set -eux
 # Number of device containers to start
 : ${nr:=2}
 
-IMG=clixon-example
+: ${IMG:=clixon-example}
 
 for i in $(seq 1 $nr); do
     NAME=$IMG$i
