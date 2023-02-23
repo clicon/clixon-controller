@@ -2,7 +2,7 @@
  *
   ***** BEGIN LICENSE BLOCK *****
  
-  Copyright (C) 2020-2022 Olof Hagsand and Rubicon Communications, LLC(Netgate)
+  Copyright (C) 2023 Olof Hagsand
 
   This file is part of CLIXON.
 
@@ -31,31 +31,33 @@
 
   ***** END LICENSE BLOCK *****
 
-  Custom file included by controller code
-  These are compile-time options. 
-  In general they are kludges and "should be removed" when code is improved
-  and not proper system config options.
+  * Meta-transaction for client/controller/device commit and rollback
   */
 
-#ifndef _CONTROLLER_CUSTOM_H
-#define _CONTROLLER_CUSTOM_H
+#ifndef _CONTROLLER_TRANSACTION_H
+#define _CONTROLLER_TRANSACTION_H
 
-/*! Skip junos-configuration-metadata.yang
- * cRPD gives error if you request it with get-schema:
- * <error-message>invalid schema identifier : junos-configuration-metadata</error-message>
+/*! clixon controller meta transactions
  */
-#define CONTROLLER_JUNOS_SKIP_METADATA
-
-/*! Add grouping command-forwarding in junos-rpc yangs if not exists
- * cRPD YANGs do not have groupimg command-grouping in junos-rpc YANGs so that
- * uses command-grouping fails.
- * Insert an empty grouping command-forwarding if it does not exist
+struct controller_transaction_t{
+    qelem_t   ct_qelem;      /* List header */
+    uint64_t  ct_id;         /* transaction-id */
+    char     *ct_origin;
+};
+typedef struct controller_transaction_t controller_transaction;
+    
+/*
+ * Prototypes
  */
-#define CONTROLLER_JUNOS_ADD_COMMAND_FORWARDING
+#ifdef __cplusplus
+extern "C" {
+#endif
 
-/*! Where to write all yangs from devices 
- * Move to clixon as option?
- */
-#define YANG_SCHEMA_MOUNT_DIR "/usr/local/share/clixon/controller/mounts"
+int controller_transaction_new(clicon_handle h, controller_transaction **ct);
+controller_transaction *controller_transaction_find(clixon_handle h, const uint64_t id);
+    
+#ifdef __cplusplus
+}
+#endif
 
-#endif /* _CONTROLLER_CUSTOM_H */
+#endif /* _CONTROLLER_TRANSACTION_H */

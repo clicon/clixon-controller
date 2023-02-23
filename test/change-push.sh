@@ -49,7 +49,6 @@ message-id="42">
 EOF
           )
     match=$(echo $ret | grep --null -Eo "<rpc-error>") || true
-    echo "match:<$match>"
     if [ -n "$match" ]; then
         echo "netconf rpc-error detected"
         exit 1
@@ -63,12 +62,22 @@ clixon_netconf -q0 -f $CFG <<EOF
 </rpc>]]>]]>
 EOF
 
+# XXX get transaction-id
 echo "push sync"
-clixon_netconf -q0 -f $CFG <<EOF
+ret=$(clixon_netconf -q0 -f $CFG <<EOF
 <rpc xmlns="urn:ietf:params:xml:ns:netconf:base:1.0" message-id="43">
-  <sync-push xmlns="http://clicon.org/controller"/>
+  <sync-push xmlns="http://clicon.org/controller">
+    <tid>0</tid>
+  </sync-push>
 </rpc>]]>]]>
 EOF
+      )
+match=$(echo $ret | grep --null -Eo "<rpc-error>") || true
+if [ -n "$match" ]; then
+    echo "netconf rpc-error detected"
+    exit 1
+fi
+
 
 sleep $sleep
 

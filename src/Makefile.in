@@ -49,6 +49,8 @@ BE_SRC         += controller_netconf.c # XXX move back to clixon?
 BE_SRC         += controller_device_handle.c
 BE_SRC         += controller_device_send.c
 BE_SRC         += controller_device_recv.c
+BE_SRC         += controller_transaction.c
+BE_SRC         += controller_rpc.c
 
 BE_OBJ          = $(BE_SRC:%.c=%.o)
 

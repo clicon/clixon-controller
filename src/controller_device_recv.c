@@ -46,7 +46,6 @@
 #include <clixon/clixon_backend.h>
 
 /* Controller includes */
-#include "controller_custom.h"
 #include "controller.h"
 #include "controller_netconf.h"
 #include "controller_device_state.h"
