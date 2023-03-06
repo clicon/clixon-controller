@@ -88,8 +88,8 @@ connect_netconf_ssh(clixon_handle h,
     cprintf(cb, "%s", addr);
     if (device_handle_connect(dh, CLIXON_CLIENT_SSH, cbuf_get(cb)) < 0)
         goto done;
-    device_state_timeout_register(dh);
-    device_handle_conn_state_set(dh, CS_CONNECTING);
+    if (device_state_set(dh, CS_CONNECTING) < 0)
+        goto done;
     s = device_handle_socket_get(dh);    
     clicon_option_int_set(h, "netconf-framing", NETCONF_SSH_EOM); /* Always start with EOM */
     if (clixon_event_reg_fd(s, device_input_cb, dh, "netconf socket") < 0)
@@ -172,6 +172,8 @@ controller_connect(clixon_handle h,
  * 4) phase 2 commit
  * @param[in]  h       Clicon handle 
  * @param[in]  xe      Request: <rpc><xn></rpc> 
+ * @param[in]  tid     Transaction id
+ * @param[out] 
  * @param[out] cbret   Return xml tree, eg <rpc-reply>..., <rpc-error.. , if retval = 0
  * @retval     1       OK
  * @retval     0       Fail, cbret set
@@ -180,6 +182,8 @@ controller_connect(clixon_handle h,
 static int 
 push_device(clixon_handle h,
             device_handle dh,
+            uint64_t      tid,
+            int          *changed,
             cbuf         *cbret)
 {
     int        retval = -1;
@@ -232,6 +236,7 @@ push_device(clixon_handle h,
         goto done;
     /* 3) construct an edit-config, send it and validate it */
     if (dlen || alen || chlen){
+        (*changed)++;
         if ((x0copy = xml_new("new", NULL, xml_type(x0))) == NULL)
             goto done;
         if (xml_copy(x0, x0copy) < 0)
@@ -242,8 +247,8 @@ push_device(clixon_handle h,
                                          avec, alen,
                                          chvec0, chvec1, chlen) < 0)
             goto done;
-        device_handle_conn_state_set(dh, CS_PUSH_EDIT);
-        if (device_state_timeout_register(dh) < 0)
+        device_handle_tid_set(dh, tid);
+        if (device_state_set(dh, CS_PUSH_EDIT) < 0)
             goto done;
         /* 4) phase 2 commit (XXX later) */
     }
@@ -273,6 +278,7 @@ push_device(clixon_handle h,
  *
  * @param[in]  h       Clicon handle 
  * @param[in]  xe      Request: <rpc><xn></rpc> 
+ * @param[in]  tid     Transaction id
  * @param[out] cbret   Return xml tree, eg <rpc-reply>..., <rpc-error.. if retval = 0
  * @retval     1       OK
  * @retval     0       Fail, cbret set
@@ -281,6 +287,7 @@ push_device(clixon_handle h,
 static int 
 pull_device(clixon_handle h,
             device_handle dh,
+            uint64_t      tid,
             cbuf         *cbret)
 {
     int  retval = -1;
@@ -290,8 +297,8 @@ pull_device(clixon_handle h,
     s = device_handle_socket_get(dh);
     if (device_send_sync(h, dh, s) < 0)
         goto done;
-    device_state_timeout_register(dh);
-    device_handle_conn_state_set(dh, CS_DEVICE_SYNC);
+    if (device_state_set(dh, CS_DEVICE_SYNC) < 0)
+        goto done;
     retval = 1;
  done:
     return retval;
@@ -301,37 +308,46 @@ pull_device(clixon_handle h,
  *
  * @param[in]  h       Clicon handle 
  * @param[in]  xe      Request: <rpc><xn></rpc> 
- * @param[out] cbret   Return xml tree, eg <rpc-reply>..., <rpc-error.. 
+ * @param[in]  ce      Client entry
  * @param[in]  push    0: pull, 1: push
+ * @param[out] cbret   Return xml tree, eg <rpc-reply>..., <rpc-error.. 
  * @retval     0       OK
  * @retval    -1       Error
  */
 static int 
-rpc_sync(clixon_handle h,
-         cxobj        *xe,
-         cbuf         *cbret,
-         int           push)
+rpc_sync_common(clixon_handle        h,
+                cxobj               *xe,
+                struct client_entry *ce,
+                int                  push,
+                cbuf                *cbret)
 {
-    int           retval = -1;
-    char         *pattern = NULL;
-    cxobj        *xret = NULL;
-    cxobj        *xn;
-    cvec         *nsc = NULL;
-    cxobj       **vec = NULL;
-    size_t        veclen;
-    int           i;
-    char         *devname;
-    device_handle dh;
-    int           ret;
+    int                     retval = -1;
+    char                   *pattern = NULL;
+    cxobj                  *xret = NULL;
+    cxobj                  *xn;
+    cvec                   *nsc = NULL;
+    cxobj                 **vec = NULL;
+    size_t                  veclen;
+    int                     i;
+    char                   *devname;
+    device_handle           dh;
+    int                     ret;
+    controller_transaction *ct = NULL;
+    int                     touched = 0;
     
     clicon_debug(1, "%s", __FUNCTION__);
+    /* Initiate new transaction */
+    if (controller_transaction_new(h, &ct) < 0)
+        goto done;
+    ct->ct_client_id = ce->ce_id;
+    pattern = xml_find_body(xe, "devname");
     if (xmldb_get(h, "running", nsc, "devices", &xret) < 0)
         goto done;
     if (xpath_vec(xret, nsc, "devices/device", &vec, &veclen) < 0) 
         goto done;
     for (i=0; i<veclen; i++){
         xn = vec[i];
-        if ((devname = xml_find_body(xn, "devname")) == NULL)
+        if ((devname = xml_find_body(xn, "name")) == NULL)
             continue;
         if ((dh = device_handle_find(h, devname)) == NULL)
             continue;
@@ -340,18 +356,24 @@ rpc_sync(clixon_handle h,
         if (pattern != NULL && fnmatch(pattern, devname, 0) != 0)
             continue;
         if (push == 1){
-            if ((ret = push_device(h, dh, cbret)) < 0)
+            if ((ret = push_device(h, dh, ct->ct_id, &touched, cbret)) < 0)
                 goto done;
         }
         else{
-            if ((ret = pull_device(h, dh, cbret)) < 0)
+            if ((ret = pull_device(h, dh, ct->ct_id, cbret)) < 0)
                 goto done;
         }
-        if (ret == 0)
+        if (ret == 0)  /* Failed but cbret set */
             goto ok;
+        touched++;
     } /* for */
+    if (touched == 0){
+        if (netconf_operation_failed(cbret, "application", "No syncs activated")< 0)
+            goto done;
+        goto ok;
+    }
     cprintf(cbret, "<rpc-reply xmlns=\"%s\">", NETCONF_BASE_NAMESPACE);
-    cprintf(cbret, "<ok/>");
+    cprintf(cbret, "<tid xmlns=\"%s\">%" PRIu64"</tid>", CONTROLLER_NAMESPACE, ct->ct_id);
     cprintf(cbret, "</rpc-reply>");
  ok:
     retval = 0;
@@ -378,7 +400,9 @@ rpc_sync_pull(clixon_handle h,
               void         *arg,  
               void         *regarg)
 {
-    return rpc_sync(h, xe, cbret, 0);
+    struct client_entry *ce = (struct client_entry *)arg;
+
+    return rpc_sync_common(h, xe, ce, 0, cbret);
 }
 
 /*! Push the config to one or several devices
@@ -397,9 +421,10 @@ rpc_sync_push(clixon_handle h,
               void         *arg,  
               void         *regarg)
 {
-    return rpc_sync(h, xe, cbret, 1);
+    struct client_entry *ce = (struct client_entry *)arg;
+    
+    return rpc_sync_common(h, xe, ce, 1, cbret);
 }
-
 
 /*! Get last synced configuration of a single device
  *
@@ -459,25 +484,34 @@ rpc_reconnect(clixon_handle h,
               void         *arg,  
               void         *regarg)
 {
-    int           retval = -1;
-    char         *pattern = NULL;
-    cxobj        *xret = NULL;
-    cxobj        *xn;
-    cvec         *nsc = NULL;
-    cxobj       **vec = NULL;
-    size_t        veclen;
-    int           i;
-    char         *devname;
-    device_handle dh;
+    int                     retval = -1;
+    char                   *pattern = NULL;
+    cxobj                  *xret = NULL;
+    cxobj                  *xn;
+    cvec                   *nsc = NULL;
+    cxobj                 **vec = NULL;
+    size_t                  veclen;
+    int                     i;
+    char                   *devname;
+    device_handle           dh;
+    controller_transaction *ct = NULL;
+    struct client_entry    *ce;
+    int                     touched = 0;
     
     clicon_debug(1, "%s", __FUNCTION__);
+    ce = (struct client_entry *)arg;
+    if (controller_transaction_new(h, &ct) < 0)
+        goto done;
+    ct->ct_client_id = ce->ce_id;
+    pattern = xml_find_body(xe, "devname");
     if (xmldb_get(h, "running", nsc, "devices", &xret) < 0)
         goto done;
     if (xpath_vec(xret, nsc, "devices/device", &vec, &veclen) < 0) 
         goto done;
+    touched=0;
     for (i=0; i<veclen; i++){
         xn = vec[i];
-        if ((devname = xml_find_body(xn, "devname")) == NULL)
+        if ((devname = xml_find_body(xn, "name")) == NULL)
             continue;
         if ((dh = device_handle_find(h, devname)) == NULL)
             continue;
@@ -487,54 +521,23 @@ rpc_reconnect(clixon_handle h,
             continue;
         if (controller_connect(h, xn) < 0)
             goto done;
+        touched++;
     } /* for */
+    if (touched == 0){
+        if (netconf_operation_failed(cbret, "application", "No reconnects activated")< 0)
+            goto done;
+        goto ok;
+    }
     cprintf(cbret, "<rpc-reply xmlns=\"%s\">", NETCONF_BASE_NAMESPACE);
-    cprintf(cbret, "<ok/>");
+    cprintf(cbret, "<tid xmlns=\"%s\">%" PRIu64"</tid>", CONTROLLER_NAMESPACE, ct->ct_id);
     cprintf(cbret, "</rpc-reply>");
+ ok:
     retval = 0;
  done:
     if (vec)
         free(vec);
     if (xret)
         xml_free(xret);
-    return retval;
-}
-
-/*! Create a new transaction and allocazte a new transaction id.";
- *
- * If closed due to error it may need to be cleared and reconnected
- * @param[in]  h       Clicon handle 
- * @param[in]  xe      Request: <rpc><xn></rpc> 
- * @param[out] cbret   Return xml tree, eg <rpc-reply>..., <rpc-error.. 
- * @param[in]  arg     Domain specific arg, ec client-entry or FCGX_Request 
- * @param[in]  regarg  User argument given at rpc_callback_register() 
- * @retval     0       OK
- * @retval    -1       Error
- */
-static int 
-rpc_transaction_new(clixon_handle h,
-                    cxobj        *xe,
-                    cbuf         *cbret,
-                    void         *arg,  
-                    void         *regarg)
-{
-    int                     retval = -1;
-    char                   *origin;
-    controller_transaction *ct = NULL;
-
-    if (controller_transaction_new(h, &ct) < 0)
-        goto done;
-    if ((origin = xml_find_body(xe, "origin")) != NULL){
-        if ((ct->ct_origin = strdup(origin)) == NULL){
-            clicon_err(OE_UNIX, errno, "strdup");
-            goto done;
-        }
-    }
-    cprintf(cbret, "<rpc-reply xmlns=\"%s\">", NETCONF_BASE_NAMESPACE);
-    cprintf(cbret, "<id xmlns=\"%s\">%" PRIu64"</id>", CONTROLLER_NAMESPACE, ct->ct_id);
-    cprintf(cbret, "</rpc-reply>");    
-    retval = 0;
- done:
     return retval;
 }
 
@@ -591,12 +594,6 @@ controller_rpc_init(clicon_handle h)
                               NULL, 
                               CONTROLLER_NAMESPACE,
                               "get-device-sync-config"
-                              ) < 0)
-        goto done;
-    if (rpc_callback_register(h, rpc_transaction_new,
-                              NULL, 
-                              CONTROLLER_NAMESPACE,
-                              "transaction-new"
                               ) < 0)
         goto done;
     if (rpc_callback_register(h, rpc_transaction_error,

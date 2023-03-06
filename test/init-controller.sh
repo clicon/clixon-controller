@@ -60,7 +60,6 @@ message-id="42">
 EOF
        )
 
-    echo "$ret"
     match=$(echo "$ret" | grep --null -Eo "<rpc-error>") || true
     if [ -n "$match" ]; then
         echo "netconf rpc-error detected"
@@ -69,12 +68,17 @@ EOF
 done
 
 echo "controller commit"
-clixon_netconf -q0 -f $CFG <<EOF
+ret=$(clixon_netconf -q0 -f $CFG <<EOF
 <rpc xmlns="urn:ietf:params:xml:ns:netconf:base:1.0" message-id="43">
   <commit/>
 </rpc>]]>]]>
 EOF
-
+      )
+match=$(echo "$ret" | grep --null -Eo "<rpc-error>") || true
+if [ -n "$match" ]; then
+    echo "netconf rpc-error detected"
+    exit 1
+fi
 sleep $sleep
 
 res=$(clixon_cli -1f $CFG show devices | grep OPEN | wc -l)

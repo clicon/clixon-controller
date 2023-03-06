@@ -78,6 +78,7 @@ struct controller_device_handle{
     int                cdh_socket;     /* Input/output socket, -1 is closed */
     uint64_t           cdh_msg_id;     /* Client message-id to device */
     int                cdh_pid;        /* Sub-process-id Only applies for NETCONF/SSH */
+    uint64_t           cdh_tid;        /* if >0, dev is part of transaction, 0 means unassigned */
     cbuf              *cdh_frame_buf;  /* Remaining expecting chunk bytes */
     int                cdh_frame_state;/* Framing state for detecting EOM */
     size_t             cdh_frame_size; /* Remaining expecting chunk bytes */
@@ -90,6 +91,7 @@ struct controller_device_handle{
     char              *cdh_schema_name; /* Pending schema name */
     char              *cdh_schema_rev;  /* Pending schema revision */
     char              *cdh_logmsg;      /* Error log message / reason of failed open */
+
 };
 
 /*! Check struct magic number for sanity checks
@@ -376,10 +378,10 @@ device_handle_socket_get(device_handle dh)
     return cdh->cdh_socket;
 }
 
-/*! get msg-id and increment
+/*! Get msg-id and increment
+ *
  * @param[in]  dh     Device handle
- * @retval     s      Open socket
- * @retval    -1      No/closed socket
+ * @retval     msgid
  */
 uint64_t
 device_handle_msg_id_getinc(device_handle dh)
@@ -387,6 +389,34 @@ device_handle_msg_id_getinc(device_handle dh)
     struct controller_device_handle *cdh = devhandle(dh);
 
     return cdh->cdh_msg_id++;
+}
+
+/*! Get transaction id
+ *
+ * @param[in]  dh     Device handle
+ * @retval     tid    Transaction-id (0 means unassigned)
+ */
+uint64_t
+device_handle_tid_get(device_handle dh)
+{
+    struct controller_device_handle *cdh = devhandle(dh);
+
+    return cdh->cdh_tid;
+}
+
+/*! Get transaction id
+ *
+ * @param[in]  dh     Device handle
+ * @param[in]  tid    Transaction-id (0 means unassigned)
+ */
+int
+device_handle_tid_set(device_handle dh,
+                      uint64_t      tid)
+{
+    struct controller_device_handle *cdh = devhandle(dh);
+
+    cdh->cdh_tid = tid;
+    return 0;
 }
 
 clixon_handle
@@ -442,7 +472,7 @@ device_handle_conn_state_get(device_handle dh)
 
 /*! Set connection state also timestamp
  * @param[in]  dh     Device handle
- * @retval     state  State
+ * @param[in]  state  State
  * @retval     0      OK
  */
 int

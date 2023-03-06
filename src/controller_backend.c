@@ -218,9 +218,10 @@ controller_commit_device(clixon_handle h,
                 if (controller_disconnect(h, xml_parent(vec2[i])) < 0)
                     goto done;
             }
-            else
+            else{
                 if (controller_connect(h, xml_parent(vec2[i])) < 0)
                     goto done;
+            }
         }
     }
     /* 3) if device added, connect */
@@ -282,7 +283,7 @@ controller_commit_generic(clixon_handle h,
     return retval;
 }
                   
-/*!
+/*! Send a controller services-commit notification message
  */
 static int
 services_commit_notify(clixon_handle h)
@@ -296,7 +297,7 @@ services_commit_notify(clixon_handle h)
     }
     cprintf(cb, "<services-commit xmlns=\"%s\">", CONTROLLER_NAMESPACE);
     cprintf(cb, "</services-commit>");
-    if (stream_notify(h, "controller", "%s", cbuf_get(cb)) < 0)
+    if (stream_notify(h, "services-commit", "%s", cbuf_get(cb)) < 0)
         goto done;
     retval = 0;
  done:
@@ -545,7 +546,16 @@ clixon_plugin_init(clixon_handle h)
     /* Register callback for rpc calls */
     if (controller_rpc_init(h) < 0)
         goto done;
-    if (stream_add(h, "controller", "Clixon controller event stream", 0, NULL) < 0)
+    /* Register notifications
+     * see services_commit_notify */
+    if (stream_add(h, "services-commit",
+                   "A commit has been made that changes the services declaration",
+                   0, NULL) < 0)
+        goto done;
+    /* see controller_transaction_notify */
+    if (stream_add(h, "controller-transaction",
+                   "A transaction has been completed.",
+                   0, NULL) < 0)
         goto done;
     return &api;
  done:

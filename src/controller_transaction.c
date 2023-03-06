@@ -49,6 +49,41 @@
 #include "controller.h"
 #include "controller_transaction.h"
 
+/*! A transaction has been completed
+ *
+ * @param[in]  tid    Transaction id
+ * @param[in]  status Termination status: true or false
+ */
+int
+controller_transaction_notify(clixon_handle h,
+                              uint64_t      tid,
+                              int           status,
+                              char         *reason)
+{
+    int   retval = -1;
+    cbuf *cb = NULL;
+
+    clicon_debug(1, "%s", __FUNCTION__);
+    if ((cb = cbuf_new()) == NULL){
+        clicon_err(OE_UNIX, errno, "cbuf_new");
+        goto done;
+    }
+    cprintf(cb, "<controller-transaction xmlns=\"%s\">", CONTROLLER_NAMESPACE);
+    cprintf(cb, "<tid>%" PRIu64  "</tid>", tid);
+    cprintf(cb, "<status>%s</status>", status?"true":"false");
+    if (reason)
+        cprintf(cb, "<reason>%s</reason>", reason);
+    cprintf(cb, "</controller-transaction>");
+    if (stream_notify(h, "controller-transaction", "%s", cbuf_get(cb)) < 0)
+        goto done;
+    retval = 0;
+ done:
+    clicon_debug(1, "%s %d", __FUNCTION__, retval);
+    if (cb)
+        cbuf_free(cb);
+    return retval;
+}
+
 /*! Create new transaction id
  */
 static int
@@ -61,7 +96,7 @@ transaction_new_id(clicon_handle h,
     char     idstr0[128];
     
     if (clicon_data_get(h, "controller-transaction-id", &idstr) < 0){
-        id = 0;
+        id = 1; /* Dont start with 0, since 0 could mean unassigned */
     }
     else {
         if (parse_uint64(idstr, &id, NULL) <= 0)

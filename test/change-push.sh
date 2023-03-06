@@ -5,12 +5,21 @@ set -eux
 # Number of devices to add config to
 : ${nr:=2}
 
+# Set if also sync push, not only change
+: ${push:=true}
+
 # Sleep delay in seconds between each step                                      
 : ${sleep:=2}
 
 : ${IMG:=clixon-example}
 
 CFG=/usr/local/etc/controller.xml
+
+# If set to 0, override starting of clixon_backend in test (you bring your own) 
+: ${BE:=1}
+
+nr=$nr ./start-devices.sh
+BE=$BE nr=$nr ./init-controller.sh
 
 for i in $(seq 1 $nr); do
     NAME=$IMG$i
@@ -62,12 +71,17 @@ clixon_netconf -q0 -f $CFG <<EOF
 </rpc>]]>]]>
 EOF
 
+if ! $push ; then
+    echo "Stop after change, no push"
+    echo OK
+    exit 0
+fi
+
 # XXX get transaction-id
 echo "push sync"
 ret=$(clixon_netconf -q0 -f $CFG <<EOF
 <rpc xmlns="urn:ietf:params:xml:ns:netconf:base:1.0" message-id="43">
   <sync-push xmlns="http://clicon.org/controller">
-    <tid>0</tid>
   </sync-push>
 </rpc>]]>]]>
 EOF
@@ -78,7 +92,8 @@ if [ -n "$match" ]; then
     exit 1
 fi
 
-
+# XXX pick out tid
+echo "ret:$ret"
 sleep $sleep
 
 # Verify controller
