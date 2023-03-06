@@ -23,6 +23,8 @@
  */
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdint.h>
+#include <inttypes.h>
 #include <string.h>
 #include <errno.h>
 #include <syslog.h>
@@ -43,67 +45,58 @@
 /* Controller includes */
 #include "controller.h"
 
-/*! Request new transaction id from backend
+/*! This is the callback used by transaction end notification
+ *
+ * param[in]  s    UNIX socket from backend  where message should be read
+ * param[in]  arg  
  */
 static int
-cli_transaction_new(clixon_handle h, 
-                    uint64_t     *idp)
+transaction_notification_cb(int   s, 
+                            void *arg)
 {
-    int        retval = -1;
-    cbuf      *cb = NULL;    
-    cxobj     *xtop = NULL;
-    cxobj     *xrpc;
-    cxobj     *xret = NULL;
-    cxobj     *xreply;
-    cxobj     *xerr;
-    cxobj     *xid;
-    char      *idstr;
-
-    if ((cb = cbuf_new()) == NULL){
-        clicon_err(OE_PLUGIN, errno, "cbuf_new");
+    int                retval = -1;
+    struct clicon_msg *reply = NULL;
+    int                eof;
+    cxobj             *xt = NULL;
+    cxobj             *xn;
+    char              *tid;
+    char              *status;
+    int                ret;
+    
+    /* get msg (this is the reason this function is called) */
+    if (clicon_msg_rcv(s, &reply, &eof) < 0)
+        goto done;
+    if (eof){
+        clicon_err(OE_PROTO, ESHUTDOWN, "Socket unexpected close");
+        close(s);
+        errno = ESHUTDOWN;
+        clixon_event_unreg_fd(s, transaction_notification_cb);
         goto done;
     }
-    cprintf(cb, "<rpc xmlns=\"%s\" username=\"%s\" %s>",
-            NETCONF_BASE_NAMESPACE,
-            clicon_username_get(h),
-            NETCONF_MESSAGE_ID_ATTR);
-    cprintf(cb, "<transaction-new xmlns=\"%s\">", CONTROLLER_NAMESPACE);
-    cprintf(cb, "<origin>cli</origin>"); // user??
-    cprintf(cb, "</transaction-new>");
-    cprintf(cb, "</rpc>");
-    if (clixon_xml_parse_string(cbuf_get(cb), YB_NONE, NULL, &xtop, NULL) < 0)
+    /* XXX pass yang_spec and use xerr*/
+    if ((ret = clicon_msg_decode(reply, NULL, NULL, &xt, NULL)) < 0) 
         goto done;
-    /* Skip top-level */
-    xrpc = xml_child_i(xtop, 0);
-    /* Send to backend */
-    if (clicon_rpc_netconf_xml(h, xrpc, &xret, NULL) < 0)
+    if (ret == 0){ /* will not happen since no yspec ^*/
+        clicon_err(OE_NETCONF, EFAULT, "Notification malformed");
         goto done;
-    if ((xreply = xpath_first(xret, NULL, "rpc-reply")) == NULL){
-        clicon_err(OE_CFG, 0, "Malformed rpc reply");
+    }    
+    if (clicon_debug_xml(1, xt, "Transaction end") < 0)
         goto done;
+    if ((xn = xpath_first(xt, 0, "notification/controller-transaction")) != NULL){
+        tid = xml_find_body(xn, "tid");
+        status = xml_find_body(xn, "status");
+        if (tid && status)
+            fprintf(stdout, "Transaction %s completed with status: %s\n", tid, status);
     }
-    if ((xerr = xpath_first(xreply, NULL, "rpc-error")) != NULL){
-        clixon_netconf_error(xerr, "Get configuration", NULL);
-        goto done;
-    }
-    if ((xid = xpath_first(xreply, NULL, "id")) == NULL){
-        clicon_err(OE_CFG, 0, "No returned id");
-        goto done;
-    }
-    idstr = xml_body(xid);
-    if (idstr && idp && parse_uint64(idstr, idp, NULL) <= 0)
-        goto done;
     retval = 0;
- done:
-    if (xret)
-        xml_free(xret);
-    if (xtop)
-        xml_free(xtop);
-    if (cb)
-        cbuf_free(cb);
+  done:
+    if (xt)
+        xml_free(xt);
+    if (reply)
+        free(reply);
     return retval;
 }
-    
+
 /*! Read the config of one or several devices
  * @param[in] h
  * @param[in] cvv  : name pattern
@@ -120,10 +113,14 @@ cli_sync_rpc(clixon_handle h,
     cxobj     *xtop = NULL;
     cxobj     *xrpc;
     cxobj     *xret = NULL;
+    cxobj     *xreply;
     cxobj     *xerr;
     char      *op;
     char      *name = "*";
-    uint64_t   id = 0;
+    cxobj     *xid;
+    char      *idstr;
+    uint64_t   tid = 0;
+    int        s;
 
     if (argv == NULL || cvec_len(argv) != 1){
         clicon_err(OE_PLUGIN, EINVAL, "requires argument: <push>");
@@ -138,8 +135,6 @@ cli_sync_rpc(clixon_handle h,
         clicon_err(OE_PLUGIN, EINVAL, "<push> argument is %s, expected \"push\" or \"pull\"", op);
         goto done;
     }
-    if (cli_transaction_new(h, &id) < 0)
-        goto done;
     if ((cv = cvec_find(cvv, "name")) != NULL)
         name = cv_string_get(cv);
     if ((cb = cbuf_new()) == NULL){
@@ -161,15 +156,27 @@ cli_sync_rpc(clixon_handle h,
     /* Send to backend */
     if (clicon_rpc_netconf_xml(h, xrpc, &xret, NULL) < 0)
         goto done;
-    if ((xerr = xpath_first(xret, NULL, "//rpc-error")) != NULL){
+    if ((xreply = xpath_first(xret, NULL, "rpc-reply")) == NULL){
+        clicon_err(OE_CFG, 0, "Malformed rpc reply");
+        goto done;
+    }
+    if ((xerr = xpath_first(xreply, NULL, "rpc-error")) != NULL){
         clixon_netconf_error(xerr, "Get configuration", NULL);
         goto done;
     }
-#if 0
-    /* Print result */
-    if (clixon_xml2file(stdout, xml_child_i(xret, 0), 0, 1, cligen_output, 0, 1) < 0)
+    if ((xid = xpath_first(xreply, NULL, "tid")) == NULL){
+        clicon_err(OE_CFG, 0, "No returned id");
         goto done;
-#endif
+    }
+    idstr = xml_body(xid);
+    if (idstr && parse_uint64(idstr, &tid, NULL) <= 0)
+        goto done;
+    cbuf_reset(cb);
+    cprintf(cb, "controller-transaction[tid='%" PRIu64 "']", tid);
+    if (clicon_rpc_create_subscription(h, "controller-transaction", cbuf_get(cb), &s) < 0)
+        goto done;
+    if (cligen_regfd(s, transaction_notification_cb, NULL) < 0)
+        goto done;    
     retval = 0;
  done:
     if (cb)

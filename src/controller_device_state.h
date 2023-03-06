@@ -111,6 +111,7 @@ int          device_state_mount_point_get(char *devicename, yang_stmt *yspec,
                                           cxobj **xtp, cxobj **xrootp);
 int          device_state_timeout_register(device_handle ch);
 int          device_state_timeout_unregister(device_handle ch);
+int          device_state_set(device_handle dh, conn_state_t state);
 int          device_state_handler(clixon_handle h, device_handle ch, int s, cxobj *xmsg);
     
 #ifdef __cplusplus

@@ -1,5 +1,16 @@
 Clixon controller test directory
 
-nr=<n> start-devices.sh  Start <nr> devices
-init-controller.sh <nr>  Init controller config for <nr> devices
-change.sh                Modify config and push (<nr>)
+Base tests: 
+start-devices.sh   Start clixon-test container devices
+stop-devices.sh    Stop devices
+init-controller.sh Init controller config
+
+Composite tests:
+change-push.sh     Modify config and push (+ start containers and backend)
+
+Modifiers:
+n=<nr>             Apply on <nr> devices (all)
+BE=0               Do not start backend in script, start backend externally instead,
+                   ie in a debugger (init-controller.sh only)
+push=false         Only change dont sync push (change-push.sh only)
+sleep=<s>          Sleep <s> seconds instead of 2 (all)

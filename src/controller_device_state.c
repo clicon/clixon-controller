@@ -70,6 +70,7 @@
 #include "controller_device_handle.h"
 #include "controller_device_send.h"
 #include "controller_device_recv.h"
+#include "controller_transaction.h"
 
 /*! Mapping between enum conn_state and yang connection-state
  * @see clixon-controller@2023-01-01.yang connection-state
@@ -149,10 +150,10 @@ device_close_connection(device_handle dh,
     
     s = device_handle_socket_get(dh);
     clixon_event_unreg_fd(s, device_input_cb); /* deregister events */
-    device_state_timeout_unregister(dh);
     device_handle_disconnect(dh);              /* close socket, reap sub-processes */
     device_handle_yang_lib_set(dh, NULL);
-    device_handle_conn_state_set(dh, CS_CLOSED);
+    if (device_state_set(dh, CS_CLOSED) < 0)
+        goto done;
     if (format == NULL)
         device_handle_logmsg_set(dh, NULL);
     else {
@@ -517,6 +518,38 @@ device_state_timeout_restart(device_handle dh)
     return retval;
 }
 
+/*! Combined function to both change device state and set/reset/unregister timeout
+ *
+ * And possibly other "high-level" action associated with state change
+ * @param[in]   dh   Device handle
+ * @param[in]   state  State
+ */
+int
+device_state_set(device_handle dh,
+                 conn_state_t  state)
+{
+    int retval = -1;
+    conn_state_t state0;
+
+    /* From state handling */
+    state0 = device_handle_conn_state_get(dh);
+    if (state0 != CS_CLOSED && state0 != CS_OPEN){
+        if (device_state_timeout_unregister(dh) < 0)
+            goto done;
+    }
+    /* To state handling */
+    device_handle_conn_state_set(dh, state);
+    if (state == CS_CLOSED) 
+        device_handle_tid_set(dh, 0); /* Ensure no transaction id in closed device */
+    if (state != CS_CLOSED && state != CS_OPEN){
+        if (device_state_timeout_register(dh) < 0)
+            goto done;
+    }
+    retval = 0;
+ done:
+    return retval;
+}
+
 /*! Check device push transaction
  *
  * Go through all devices in a transaction
@@ -536,8 +569,8 @@ device_push_check(clicon_handle h,
     device_handle dh1;
     int           s;
 
-    device_handle_conn_state_set(dh, CS_PUSH_WAIT);
-    device_state_timeout_restart(dh);
+    if (device_state_set(dh, CS_PUSH_WAIT) < 0)
+        goto done;
     dh1 = NULL;
     while ((dh1 = device_handle_each(h, dh1)) != NULL){
         if (device_handle_conn_state_get(dh1) == CS_PUSH_EDIT ||
@@ -552,8 +585,8 @@ device_push_check(clicon_handle h,
             s = device_handle_socket_get(dh1);            
             if (device_send_commit(h, dh1, s) < 0)
                 goto done;
-            device_handle_conn_state_set(dh1, CS_PUSH_COMMIT);
-            device_state_timeout_restart(dh1);
+            if (device_state_set(dh1, CS_PUSH_COMMIT) < 0)
+                goto done;
         }
     }
     retval = 1;
@@ -611,8 +644,8 @@ device_state_handler(clixon_handle h,
         }
         if ((ret = device_send_get_schema_list(h, dh, s)) < 0)
             goto done;
-        device_handle_conn_state_set(dh, CS_SCHEMA_LIST);
-        device_state_timeout_restart(dh);
+        if (device_state_set(dh, CS_SCHEMA_LIST) < 0)
+            goto done;
         break;
     case CS_SCHEMA_LIST:
         /* Receive netconf-state schema list from device */
@@ -632,13 +665,13 @@ device_state_handler(clixon_handle h,
             /* Unconditionally sync */
             if (device_send_sync(h, dh, s) < 0)
                 goto done;
-            device_handle_conn_state_set(dh, CS_DEVICE_SYNC);
-            device_state_timeout_restart(dh);
+            if (device_state_set(dh, CS_DEVICE_SYNC) < 0)
+                goto done;
             break;
         }
         device_handle_nr_schemas_set(dh, nr);
-        device_handle_conn_state_set(dh, CS_SCHEMA_ONE);
-        device_state_timeout_restart(dh);
+        if (device_state_set(dh, CS_SCHEMA_ONE) < 0)
+            goto done;
         break;
     case CS_SCHEMA_ONE:
         /* Receive get-schema and write to local yang file */
@@ -661,8 +694,8 @@ device_state_handler(clixon_handle h,
             /* Unconditionally sync */
             if (device_send_sync(h, dh, s) < 0)
                 goto done;
-            device_handle_conn_state_set(dh, CS_DEVICE_SYNC);
-            device_state_timeout_restart(dh);
+            if (device_state_set(dh, CS_DEVICE_SYNC) < 0)
+                goto done;
             break;
         }
         device_handle_nr_schemas_set(dh, nr);
@@ -678,8 +711,8 @@ device_state_handler(clixon_handle h,
             goto done;
         if (ret == 0) /* closed */
             break;
-        device_handle_conn_state_set(dh, CS_OPEN);
-        device_state_timeout_unregister(dh);
+        if (device_state_set(dh, CS_OPEN) < 0)
+            goto done;
         break;
     case CS_PUSH_EDIT:
         if ((ret = device_state_recv_ok(dh, xmsg, rpcname, conn_state)) < 0)
@@ -688,8 +721,8 @@ device_state_handler(clixon_handle h,
             break;
         if ((ret = device_send_validate(h, dh, s)) < 0)
             goto done;
-        device_handle_conn_state_set(dh, CS_PUSH_VALIDATE);
-        device_state_timeout_restart(dh);
+        if (device_state_set(dh, CS_PUSH_VALIDATE) < 0)
+            goto done;
         break;
     case CS_PUSH_VALIDATE:
         if ((ret = device_state_recv_ok(dh, xmsg, rpcname, conn_state)) < 0)
@@ -706,8 +739,13 @@ device_state_handler(clixon_handle h,
             goto done;
         if (ret == 0) /* XXX closed actually this is more dangerous */
             break;
-        device_handle_conn_state_set(dh, CS_OPEN);
-        device_state_timeout_unregister(dh);
+        if (device_state_set(dh, CS_OPEN) < 0)
+            goto done;
+        /* XXX more logic here */
+        if (controller_transaction_notify(h,
+                                          device_handle_tid_get(dh),
+                                          1, NULL) < 0)
+            goto done;
         break;
     case CS_PUSH_WAIT:
     case CS_CLOSED:
