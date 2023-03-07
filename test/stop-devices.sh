@@ -12,4 +12,5 @@ for i in $(seq 1 $nr); do
     sudo docker kill $NAME || true
 done
 
+echo "stop-devices"
 echo OK

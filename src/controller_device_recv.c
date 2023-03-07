@@ -255,6 +255,51 @@ device_state_recv_hello(clixon_handle h,
     goto done;
 }
 
+/*! Get a config from device, write to db file without sanity of yang checks
+ *
+ * @param[in] h          Clixon handle.
+ */
+static int
+device_config_write(clixon_handle h,
+                    device_handle dh,
+                    char         *name,
+                    char         *extended,
+                    cxobj        *xdata,
+                    cbuf         *cbret)
+{
+    int    retval = -1;
+    cbuf  *cbdb = NULL;
+    char  *db;
+    int    ret;
+
+    if ((cbdb = cbuf_new()) == NULL){
+        clicon_err(OE_UNIX, errno, "cbuf_new");
+        goto done;
+    }   
+    if (extended)
+        cprintf(cbdb, "device-%s-%s", name, extended);
+    else
+        cprintf(cbdb, "device-%s", name);
+    db = cbuf_get(cbdb);
+    if (xmldb_db_reset(h, db) < 0)
+        goto done;
+    if ((ret = xmldb_put(h, db, OP_REPLACE, xdata, clicon_username_get(h), cbret)) < 0)
+        goto done;
+    if (ret == 0){
+        if (device_close_connection(dh, "Failed to sync db: %s", cbuf_get(cbret)) < 0)
+            goto done;
+        goto closed;
+    }
+    retval = 1;
+ done:
+    if (cbdb)
+        cbuf_free(cbdb);
+    return retval;
+ closed:
+    retval = 0;
+    goto done;
+}
+
 /*! Receive config data from device and add config to mount-point
  *
  * @param[in] h          Clixon handle.
@@ -277,7 +322,7 @@ device_state_recv_config(clixon_handle h,
 {
     int        retval = -1;
     cxobj     *xdata;
-    cxobj     *xt;
+    cxobj     *xt = NULL;
     cxobj     *xa;
     cbuf      *cbret = NULL;
     cbuf      *cberr = NULL;
@@ -300,11 +345,17 @@ device_state_recv_config(clixon_handle h,
         device_close_connection(dh, "No data in get reply");
         goto closed;
     }
+
     /* Move all xmlns declarations to <data> */
     if (xmlns_set_all(xdata, nsc) < 0)
         goto done;
     xml_sort(xdata);
     name = device_handle_name_get(dh);
+    if ((cbret = cbuf_new()) == NULL){
+        clicon_err(OE_UNIX, errno, "cbuf_new");
+        goto done;
+    }
+
     /* Create config tree (xt) and device mount-point (xroot) */
     if (device_state_mount_point_get(name, yspec0, &xt, &xroot) < 0)
         goto done;
@@ -350,13 +401,6 @@ device_state_recv_config(clixon_handle h,
     }
     if (xml_sort_recurse(xroot) < 0)
         goto done;
-#if 1
-    //    clicon_debug_xml(1, x1, "mount-point");
-#endif
-    if ((cbret = cbuf_new()) == NULL){
-        clicon_err(OE_UNIX, errno, "cbuf_new");
-        goto done;
-    }
     /* Add op=OP_REPLACE to root mountpoint */
     if ((xa = xml_new("operation", xroot, CX_ATTR)) == NULL)
         goto done;
@@ -365,6 +409,13 @@ device_state_recv_config(clixon_handle h,
     // XXX: merge?
     if (xml_value_set(xa, xml_operation2str(OP_REPLACE)) < 0)
         goto done;
+    if (device_handle_dryrun_get(dh)){
+        if ((ret = device_config_write(h, dh, name, "dryrun", xt, cbret)) < 0)
+            goto done;
+        if (ret == 0)
+            goto closed;
+        goto ok;
+    }
     if ((ret = xmldb_put(h, "candidate", OP_NONE, xt, NULL, cbret)) < 0)
         goto done;
     if (ret && (ret = candidate_commit(h, NULL, "candidate", 0, 0, cbret)) < 0)
@@ -387,9 +438,11 @@ device_state_recv_config(clixon_handle h,
     else {
         device_handle_sync_time_set(dh, NULL);
     }
-    /* Remove fromxt and store for diffs */
-    xml_rm(xroot);
-    device_handle_sync_xml_set(dh, xroot);
+    if ((ret = device_config_write(h, dh, name, NULL, xt, cbret)) < 0)
+        goto done;
+    if (ret == 0)
+        goto closed;
+ ok:
     retval = 1;
  done:
     if (xt)

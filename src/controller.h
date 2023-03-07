@@ -60,4 +60,9 @@
  */
 #define YANG_SCHEMA_MOUNT_DIR "/usr/local/share/clixon/controller/mounts"
 
+/*! Top-symbol in clixon datastores
+ * Duplicate of constant in clixon_custom.h
+ */
+#define DATASTORE_TOP_SYMBOL "config"
+
 #endif /* _CONTROLLER_H */

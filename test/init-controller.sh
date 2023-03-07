@@ -86,4 +86,5 @@ if [ "$res" != "$nr" ]; then
    echo "Error: $res"
    exit -1;
 fi
+echo "init-controller"
 echo OK

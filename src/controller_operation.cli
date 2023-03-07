@@ -56,7 +56,9 @@ show("Show a particular state of the system"){
     devices("Show state of devices")[
                  (<name:string>("device pattern")|
                   <name:string expand_dbvar("running","/clixon-controller:devices/device/name")>("device pattern"))
-                 ], cli_show_devices();
+                 ], cli_show_devices();{
+                 sync("Check if device is in sync"), cli_check_sync(); # XXX
+                 }
     pagination("Show list pagination") xpath("Show configuration") <xpath:string>("XPATH expression"){
     	xml, cli_pagination("use xpath var", "es", "http://example.com/ns/example-social", "xml", "10");
 	cli, cli_pagination("use xpath var", "es", "http://example.com/ns/example-social", "cli", "10");
@@ -92,13 +94,21 @@ sync("Read the config of one or several devices.") {
            pull("sync config from one or multiple devices")[
                  (<name:string>("device pattern")|
                   <name:string expand_dbvar("running","/clixon-controller:devices/device/name")>("device pattern"))
-                 ], cli_sync_rpc("pull");
+                 ], cli_sync_rpc("pull");{
+                    compare,   cli_sync_compare(); # XXX
+                 }
            push("sync config to one or multiple devices")[
                  (<name:string>("device pattern")|
                   <name:string expand_dbvar("running","/clixon-controller:devices/device/name")>("device pattern"))
                  ], cli_sync_rpc("push");
 }
-reconnect("reconnect one or several devices in closed state")  [<name:string>("device pattern")|
+reconnect("Reconnect one or several devices in closed state")  [<name:string>("device pattern")|
+                  <name:string expand_dbvar("running","/clixon-controller:devices/device/name")>("device pattern")], cli_reconnect();
+
+check-sync("Check if one or several devices is still in sync")  [<name:string>("device pattern")|
+                  <name:string expand_dbvar("running","/clixon-controller:devices/device/name")>("device pattern")], cli_reconnect();
+
+check-sync("Check if one or several devices is still in sync")  [<name:string>("device pattern")|
                   <name:string expand_dbvar("running","/clixon-controller:devices/device/name")>("device pattern")], cli_reconnect();
 
 notifications("Get notifications from backend"), cli_notify("controller", "1", "text");

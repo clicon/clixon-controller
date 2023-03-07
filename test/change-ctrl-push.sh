@@ -1,5 +1,10 @@
 #!/usr/bin/env bash
-# Commit a change to devices: remove x, change y, and add z and push to devices
+# Start clixon example container devices and initiate with config x=11, y=22
+# Start backend
+# Commit a change to devices (on controller): remove x, change y, and add z
+# Push to devices
+# Check the change on the devices
+
 set -eux
 
 # Number of devices to add config to
@@ -18,7 +23,12 @@ CFG=/usr/local/etc/controller.xml
 # If set to 0, override starting of clixon_backend in test (you bring your own) 
 : ${BE:=1}
 
+# Start devices
+nr=$nr ./stop-devices.sh
+sleep $sleep
 nr=$nr ./start-devices.sh
+
+# Start backend
 BE=$BE nr=$nr ./init-controller.sh
 
 for i in $(seq 1 $nr); do
@@ -26,8 +36,8 @@ for i in $(seq 1 $nr); do
     
     ret=$(clixon_netconf -q0 -f $CFG <<EOF
 <rpc xmlns="urn:ietf:params:xml:ns:netconf:base:1.0" 
-xmlns:nc="urn:ietf:params:xml:ns:netconf:base:1.0" 
-message-id="42">
+     xmlns:nc="urn:ietf:params:xml:ns:netconf:base:1.0" 
+     message-id="42">
   <edit-config>
     <target><candidate/></target>
     <default-operation>none</default-operation>
