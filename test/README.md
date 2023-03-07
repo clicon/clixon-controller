@@ -7,7 +7,7 @@ init-controller.sh    Init controller config
 
 Composite tests: (start containers and backend+)
 change-ctrl-push.sh   Change device config on controller and push to devices
-change-device-diff.sh Changeconfig on device and check diff
+change-device-diff.sh Change config on device and check diff
 
 Modifiers:
 n=<nr>                Apply on <nr> devices (all)

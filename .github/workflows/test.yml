@@ -33,9 +33,9 @@ jobs:
     - name: fix lib links
       run: sudo ldconfig
 # 2)  Run tests
-#    - name: Start devices
-#      run: (cd test; ./start-devices.sh)
-#    - name: Init controller
-#      run: (cd test; ./init-controller.sh)
-#    - name: Change values and push to devices
-#      run: (cd test; ./change-push.sh)
+    - name: Start devices
+      run: (cd test; ./start-devices.sh)
+#    - name: Change device config on controller and push to devices
+#      run: (cd test; ./change-ctrl-push.sh)
+#    - name: Change config on device and check diff
+#      run: (cd test; ./change-device-diff.sh)
