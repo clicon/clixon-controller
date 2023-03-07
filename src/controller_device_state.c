@@ -545,6 +545,8 @@ device_state_set(device_handle dh,
         if (device_state_timeout_register(dh) < 0)
             goto done;
     }
+    if (state == CS_DEVICE_SYNC)
+        device_handle_dryrun_set(dh, 0);
     retval = 0;
  done:
     return retval;
@@ -620,6 +622,7 @@ device_state_handler(clixon_handle h,
     yang_stmt     *yspec1;
     int            nr;
     int            ret;
+    uint64_t       tid;
 
     rpcname = xml_name(xmsg);
     conn_state = device_handle_conn_state_get(dh);
@@ -713,6 +716,11 @@ device_state_handler(clixon_handle h,
             break;
         if (device_state_set(dh, CS_OPEN) < 0)
             goto done;
+        /* XXX More logic here */
+        if ((tid = device_handle_tid_get(dh)) != 0){
+            if (controller_transaction_notify(h, tid, 1, NULL) < 0)
+                goto done;
+        }
         break;
     case CS_PUSH_EDIT:
         if ((ret = device_state_recv_ok(dh, xmsg, rpcname, conn_state)) < 0)
@@ -742,10 +750,10 @@ device_state_handler(clixon_handle h,
         if (device_state_set(dh, CS_OPEN) < 0)
             goto done;
         /* XXX more logic here */
-        if (controller_transaction_notify(h,
-                                          device_handle_tid_get(dh),
-                                          1, NULL) < 0)
-            goto done;
+        if ((tid = device_handle_tid_get(dh)) != 0){
+            if (controller_transaction_notify(h, tid, 1, NULL) < 0)
+                goto done;
+        }
         break;
     case CS_PUSH_WAIT:
     case CS_CLOSED:

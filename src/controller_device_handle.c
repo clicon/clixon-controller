@@ -85,7 +85,7 @@ struct controller_device_handle{
     cxobj             *cdh_xcaps;      /* Capabilities as XML tree */
     cxobj             *cdh_yang_lib;   /* RFC 8525 yang-library module list */
     struct timeval     cdh_sync_time;  /* Time when last sync (0 if unsynched) */
-    cxobj             *cdh_sync_xml;   /* Complete sync tree of last sync */
+    int                cdh_dryrun;     /* If set, dont replace/commit retrieved device config (CS_DEVICE_SYNC) */
     yang_stmt         *cdh_yspec;      /* Top-level yang spec of device */
     int                cdh_nr_schemas; /* How many schemas from this device */
     char              *cdh_schema_name; /* Pending schema name */
@@ -158,8 +158,6 @@ device_handle_handle_free(struct controller_device_handle *cdh)
         xml_free(cdh->cdh_xcaps);
     if (cdh->cdh_yang_lib)
         xml_free(cdh->cdh_yang_lib);
-    if (cdh->cdh_sync_xml)
-        xml_free(cdh->cdh_sync_xml);
 #if 0 // XXX see xml_yang_mount_freeall
     if (cdh->cdh_yspec)
         ys_free(cdh->cdh_yspec);
@@ -704,32 +702,31 @@ device_handle_sync_time_set(device_handle   dh,
     return 0;
 }
 
-/*! Get xml of last sync
- * @param[in]  dh    Device handle
- * @retval     xroot XML tree (direct pointer)
- */
-cxobj *
-device_handle_sync_xml_get(device_handle dh)
-{
-    struct controller_device_handle *cdh = devhandle(dh);
-
-    return cdh->cdh_sync_xml;
-}
-
-/*! Set xml of last sync
- * @param[in]  dh    Device handle
- * @param[in]  xroot XML tree, is consumed
- * @retval     0     OK
+    int                cdh_dryrun;     /* If set, dont replace/commit retrieved device config */
+/*! Get sync dryrun
+ * @param[in]  dh     Device handle
+ * @retval     true
+ * @retval     false
  */
 int
-device_handle_sync_xml_set(device_handle dh,
-                           cxobj        *xroot)
+device_handle_dryrun_get(device_handle dh)
 {
     struct controller_device_handle *cdh = devhandle(dh);
 
-    if (cdh->cdh_sync_xml != NULL)
-        xml_free(cdh->cdh_sync_xml);
-    cdh->cdh_sync_xml = xroot;
+    return cdh->cdh_dryrun;
+}
+
+/*! Set sync dryrun
+ * @param[in]  dh      Device handle
+ * @param[in]  dryrun
+ */
+int
+device_handle_dryrun_set(device_handle dh,
+                         int           dryrun)
+{
+    struct controller_device_handle *cdh = devhandle(dh);
+
+    cdh->cdh_dryrun = dryrun;
     return 0;
 }
 

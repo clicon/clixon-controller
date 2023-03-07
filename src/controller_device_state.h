@@ -71,8 +71,8 @@ enum conn_state{
     CS_CONNECTING,  /* Connect() called, expect to receive hello from device
                        May fail due to (1) connect fails or (2) hello not receivd */
     CS_SCHEMA_LIST, /* Get ietf-netconf-monitor schema state */
-    CS_SCHEMA_ONE,      /* Connection established and Hello sent to device. */
-    CS_DEVICE_SYNC, /* Get all config (and state) */
+    CS_SCHEMA_ONE,  /* Connection established and Hello sent to device (nr substate) */
+    CS_DEVICE_SYNC, /* Get all config (dryrun is sub-state) */
     CS_OPEN,        /* Connection established and Hello sent to device. */
     CS_PUSH_EDIT,   /* edit-config sent, waiting for reply (push) */
     CS_PUSH_VALIDATE, /* validate sent, waiting for reply (push) */

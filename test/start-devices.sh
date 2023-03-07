@@ -38,20 +38,26 @@ for i in $(seq 1 $nr); do
       <capability>urn:ietf:params:netconf:base:1.0</capability>
    </capabilities>
 </hello>]]>]]>
-<rpc xmlns="urn:ietf:params:xml:ns:netconf:base:1.0" message-id="42"><edit-config><target><candidate/></target><config>
-<table xmlns="urn:example:clixon">
-   <parameter>
-      <name>x</name>
-      <value>11</value>
-   </parameter>
-   <parameter>
-      <name>y</name>
-      <value>22</value>
-   </parameter>
-</table>
-</config></edit-config></rpc>]]>]]>
+<rpc xmlns="urn:ietf:params:xml:ns:netconf:base:1.0" message-id="42">
+  <edit-config>
+    <target><candidate/></target>
+    <config>
+      <table xmlns="urn:example:clixon">
+        <parameter>
+          <name>x</name>
+          <value>11</value>
+        </parameter>
+        <parameter>
+          <name>y</name>
+          <value>22</value>
+        </parameter>
+      </table>
+    </config>
+  </edit-config>
+</rpc>]]>]]>
 <rpc xmlns="urn:ietf:params:xml:ns:netconf:base:1.0" message-id="42"><commit/></rpc>]]>]]>
 EOF
 
 done
+echo "start-devices"
 echo OK

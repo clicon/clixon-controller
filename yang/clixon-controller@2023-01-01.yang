@@ -237,12 +237,23 @@ module clixon-controller {
         }        
     }
     rpc sync-pull {
-        description "Read(pull) the config of one or several devices.";
+        description
+            "Read(pull) the config of one or several devices.
+             The pulled config is either:
+             - cached as device-<devname>.xml and committed as master OR
+             - cached as device-<devname>-dryrun.xml (not installed)
+             And potentially ";
         input {
             leaf devname {
                 description
                     "Name of device to pull from, can use wildchars for several.";
                 type string;
+            }
+            leaf dryrun {
+                description
+                    "Get the device config but do not install it";
+                type boolean;
+                default false;
             }
         }
         output {
@@ -286,14 +297,19 @@ module clixon-controller {
             }
         }
     }
-    rpc get-device-sync-config {
+    rpc get-device-config {
         description
-            "Get last synced configuration of a single device
-             Note that this could be done by some peek in commit history.
-             Should probably be replaced by a more generic function.";
+            "Get configuration db of a single device of name 'device-<devname>-<postfix>.xml'
+             Typically this db is retrieved by the sync-pull rpc
+             Should probably be replaced by a more generic function.
+             Possibly just extend get-config with device dbs?";
         input {
             leaf devname {
                 description "Name of device";
+                type string;
+            }
+            leaf extended{
+                description "Extended name, eg 'dryrun', see sync-pull";
                 type string;
             }
         }

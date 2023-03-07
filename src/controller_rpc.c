@@ -164,6 +164,62 @@ controller_connect(clixon_handle h,
     return retval;
 }
 
+/*! Get local (cached) device datastore
+ *
+ * @param[in] h        Clixon handle
+ * @param[in] devname  Name of device
+ * @param[in] extended Extended name
+ * @param[out] xrootp  Device config XML (if retval=1)
+ * @param[out] cbret   Error message (if retval=0)
+ * @retval    1        OK
+ * @retval    0        Failed
+ * @retval   -1        Error
+ */
+static int
+get_device_db(clicon_handle h,
+              char         *devname,
+              char         *extended,
+              cxobj       **xrootp,
+              cbuf         *cbret)
+{
+    int    retval = -1;
+    cbuf  *cbdb = NULL;
+    char  *db;
+    cxobj *xt = NULL;
+    cxobj *xroot;
+    
+    if ((cbdb = cbuf_new()) == NULL){
+        clicon_err(OE_UNIX, errno, "cbuf_new");
+        goto done;
+    }   
+    if (extended)
+        cprintf(cbdb, "device-%s-%s", devname, extended);
+    else
+        cprintf(cbdb, "device-%s", devname);
+    db = cbuf_get(cbdb);
+    if (xmldb_get(h, db, NULL, NULL, &xt) < 0)
+        goto done;
+    if ((xroot = xpath_first(xt, NULL, "devices/device/root")) == NULL){
+        if (netconf_operation_failed(cbret, "application", "No such device tree")< 0)
+            goto done;
+        goto failed;
+    }
+    if (xrootp){
+        xml_rm(xroot);
+        *xrootp = xroot;
+    }
+    retval = 1;
+ done:
+    if (cbdb)
+        cbuf_free(cbdb);
+    if (xt)
+        xml_free(xt);
+    return retval;
+ failed:
+    retval = 0;
+    goto done;
+}
+
 /*! Incoming rpc handler to sync from one or several devices
  *
  * 1) get previous device synced xml
@@ -187,8 +243,7 @@ push_device(clixon_handle h,
             cbuf         *cbret)
 {
     int        retval = -1;
-    cxobj     *x0;
-    cxobj     *x0copy = NULL;
+    cxobj     *x0 = NULL;
     cxobj     *x1;
     cxobj     *x1t = NULL;
     cvec      *nsc = NULL;
@@ -204,17 +259,15 @@ push_device(clixon_handle h,
     yang_stmt *yspec;
 
     /* 1) get previous device synced xml */
-    if ((x0 = device_handle_sync_xml_get(dh)) == NULL){
-        if (netconf_operation_failed(cbret, "application", "No synced device tree")< 0)
-            goto done;
-        goto fail;
-    }
+    name = device_handle_name_get(dh);
+    if (get_device_db(h, name, NULL, &x0, cbret) < 0)
+        goto done;
     /* 2) get current and compute diff with previous */
     if ((cb = cbuf_new()) == NULL){
         clicon_err(OE_UNIX, errno, "cbuf_new");
         goto done;
     }
-    name = device_handle_name_get(dh);
+
     cprintf(cb, "devices/device[name='%s']/root", name);
     if (xmldb_get0(h, "running", YB_MODULE, nsc, cbuf_get(cb), 1, WITHDEFAULTS_EXPLICIT, &x1t, NULL, NULL) < 0)
         goto done;
@@ -237,12 +290,8 @@ push_device(clixon_handle h,
     /* 3) construct an edit-config, send it and validate it */
     if (dlen || alen || chlen){
         (*changed)++;
-        if ((x0copy = xml_new("new", NULL, xml_type(x0))) == NULL)
-            goto done;
-        if (xml_copy(x0, x0copy) < 0)
-            goto done;
         if (device_send_edit_config_diff(h, dh,
-                                         x0copy, x1, yspec,
+                                         x0, x1, yspec,
                                          dvec, dlen,
                                          avec, alen,
                                          chvec0, chvec1, chlen) < 0)
@@ -264,8 +313,8 @@ push_device(clixon_handle h,
         free(chvec1);
     if (cb)
         cbuf_free(cb);
-    if (x0copy)
-        xml_free(x0copy);
+    if (x0)
+        xml_free(x0);
     if (x1t)
         xml_free(x1t);
     return retval;
@@ -279,6 +328,7 @@ push_device(clixon_handle h,
  * @param[in]  h       Clicon handle 
  * @param[in]  xe      Request: <rpc><xn></rpc> 
  * @param[in]  tid     Transaction id
+ * @param[in]  dryrun  If set, dont install (commit) retreived config
  * @param[out] cbret   Return xml tree, eg <rpc-reply>..., <rpc-error.. if retval = 0
  * @retval     1       OK
  * @retval     0       Fail, cbret set
@@ -288,6 +338,7 @@ static int
 pull_device(clixon_handle h,
             device_handle dh,
             uint64_t      tid,
+            int           dryrun,
             cbuf         *cbret)
 {
     int  retval = -1;
@@ -299,6 +350,8 @@ pull_device(clixon_handle h,
         goto done;
     if (device_state_set(dh, CS_DEVICE_SYNC) < 0)
         goto done;
+    device_handle_dryrun_set(dh, dryrun);
+    device_handle_tid_set(dh, tid);
     retval = 1;
  done:
     return retval;
@@ -334,6 +387,8 @@ rpc_sync_common(clixon_handle        h,
     int                     ret;
     controller_transaction *ct = NULL;
     int                     touched = 0;
+    char                   *bd;
+    int                     dryrun = 0; /* only pull */
     
     clicon_debug(1, "%s", __FUNCTION__);
     /* Initiate new transaction */
@@ -341,6 +396,8 @@ rpc_sync_common(clixon_handle        h,
         goto done;
     ct->ct_client_id = ce->ce_id;
     pattern = xml_find_body(xe, "devname");
+    if ((bd = xml_find_body(xe, "dryrun")) != NULL)
+        dryrun = strcmp(bd, "true") == 0;
     if (xmldb_get(h, "running", nsc, "devices", &xret) < 0)
         goto done;
     if (xpath_vec(xret, nsc, "devices/device", &vec, &veclen) < 0) 
@@ -360,7 +417,7 @@ rpc_sync_common(clixon_handle        h,
                 goto done;
         }
         else{
-            if ((ret = pull_device(h, dh, ct->ct_id, cbret)) < 0)
+            if ((ret = pull_device(h, dh, ct->ct_id, dryrun, cbret)) < 0)
                 goto done;
         }
         if (ret == 0)  /* Failed but cbret set */
@@ -426,10 +483,11 @@ rpc_sync_push(clixon_handle h,
     return rpc_sync_common(h, xe, ce, 1, cbret);
 }
 
-/*! Get last synced configuration of a single device
+/*! Get configuration db of a single device of name 'device-<devname>-<postfix>.xml'
  *
- * Note that this could be done by some peek in commit history.
- * Should probably be replaced by a more generic function
+ * Typically this db is retrieved by the sync-pull rpc
+ * Should probably be replaced by a more generic function.
+ * Possibly just extend get-config with device dbs?";
  * @param[in]  h       Clicon handle 
  * @param[in]  xe      Request: <rpc><xn></rpc> 
  * @param[out] cbret   Return xml tree, eg <rpc-reply>..., <rpc-error.. 
@@ -439,30 +497,35 @@ rpc_sync_push(clixon_handle h,
  * @retval    -1       Error
  */
 static int 
-rpc_get_device_sync_config(clixon_handle h,
-                           cxobj        *xe,
-                           cbuf         *cbret,
-                           void         *arg,
-                           void         *regarg)
+rpc_get_device_config(clixon_handle h,
+                      cxobj        *xe,
+                      cbuf         *cbret,
+                      void         *arg,
+                      void         *regarg)
 {
     int           retval = -1;
-    device_handle dh;
     char         *devname;
-    cxobj        *xc;
+    cxobj        *xroot = NULL;
+    char         *extended;
+    int           ret;
 
+    devname = xml_find_body(xe, "devname");
+    extended = xml_find_body(xe, "extended");
+    if ((ret = get_device_db(h, devname, extended, &xroot, cbret)) < 0)
+        goto done;
+    if (ret == 0)
+        goto ok;
     cprintf(cbret, "<rpc-reply xmlns=\"%s\">", NETCONF_BASE_NAMESPACE);
     cprintf(cbret, "<config xmlns=\"%s\">", CONTROLLER_NAMESPACE);
-    if ((devname = xml_find_body(xe, "devname")) != NULL &&
-        (dh = device_handle_find(h, devname)) != NULL){
-        if ((xc = device_handle_sync_xml_get(dh)) != NULL){
-            if (clixon_xml2cbuf(cbret, xc, 0, 0, -1, 0) < 0)
-                goto done;
-        }
-    }
+    if (clixon_xml2cbuf(cbret, xroot, 0, 0, -1, 0) < 0)
+        goto done;
     cprintf(cbret, "</config>");
     cprintf(cbret, "</rpc-reply>");
+ ok:
     retval = 0;
  done:
+    if (xroot)
+        xml_free(xroot);
     return retval;
 }
 
@@ -590,10 +653,10 @@ controller_rpc_init(clicon_handle h)
                               "reconnect"
                               ) < 0)
         goto done;
-    if (rpc_callback_register(h, rpc_get_device_sync_config,
+    if (rpc_callback_register(h, rpc_get_device_config,
                               NULL, 
                               CONTROLLER_NAMESPACE,
-                              "get-device-sync-config"
+                              "get-device-config"
                               ) < 0)
         goto done;
     if (rpc_callback_register(h, rpc_transaction_error,
