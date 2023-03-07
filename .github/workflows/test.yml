@@ -35,7 +35,7 @@ jobs:
 # 2)  Run tests
     - name: Start devices
       run: (cd test; ./start-devices.sh)
-#    - name: Change device config on controller and push to devices
-#      run: (cd test; ./change-ctrl-push.sh)
-#    - name: Change config on device and check diff
-#      run: (cd test; ./change-device-diff.sh)
+    - name: Change device config on controller and push to devices
+      run: (cd test; ./change-ctrl-push.sh)
+    - name: Change config on device and check diff
+      run: (cd test; ./change-device-diff.sh)
