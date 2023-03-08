@@ -24,10 +24,14 @@ if $BE; then
     sudo clixon_backend -s init -f $CFG -z
 
     echo "Start new backend"
-    sudo clixon_backend -s init  -f $CFG -D 3 -lf/tmp/backend.log # $DBG
+    sudo clixon_backend -s init  -f $CFG -D $DBG
 
     sleep $sleep
 fi
+
+echo "check backend socket"
+whoami
+ls -l /usr/local/var/controller.sock
 
 # Startup contains x and y
 # This script adds deletes x, modifies y, and adds z
@@ -36,35 +40,6 @@ for i in $(seq 1 $nr); do
     ip=$(sudo docker inspect $NAME -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}')
     
     echo "Init config for device$i edit-config"
-    which clixon_netconf
-
-# XXX just for action debug
-clixon_netconf -qe0 -f $CFG -D 3 -l e <<EOF
-<rpc xmlns="urn:ietf:params:xml:ns:netconf:base:1.0" 
-  xmlns:nc="urn:ietf:params:xml:ns:netconf:base:1.0" 
-  message-id="42">
-  <edit-config>
-    <target><candidate/></target>
-    <default-operation>none</default-operation>
-    <config>
-      <devices xmlns="http://clicon.org/controller">
-        <device nc:operation="create">
-          <name>$NAME</name>
-          <enabled>true</enabled>
-          <description>Clixon example container</description>
-          <conn-type>NETCONF_SSH</conn-type>
-          <user>root</user>
-          <addr>$ip</addr>
-          <yang-config>VALIDATE</yang-config>
-          <root/>
-        </device>
-      </devices>
-    </config>
-  </edit-config>
-</rpc>]]>]]>
-EOF
-if false; then # XXX
-    echo "try again with variable"
     ret=$(clixon_netconf -qe0 -f $CFG <<EOF
 <rpc xmlns="urn:ietf:params:xml:ns:netconf:base:1.0" 
   xmlns:nc="urn:ietf:params:xml:ns:netconf:base:1.0" 
@@ -96,7 +71,6 @@ EOF
         echo "netconf rpc-error detected"
         exit 1
     fi
-fi
 done
 
 echo "controller commit"

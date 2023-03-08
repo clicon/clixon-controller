@@ -87,10 +87,6 @@ clixon_netconf -q0 -f $CFG <<EOF
 EOF
 
 if ! $push ; then
-    clixon_cli -f $CFG -1 show devices
-    clixon_cli -f $CFG -1 reconnect || true
-    clixon_cli -f $CFG -1 show devices
-    
     echo "Stop after change, no push"
     echo OK
     exit 0
