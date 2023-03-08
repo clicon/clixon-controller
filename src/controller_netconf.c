@@ -127,7 +127,7 @@ clixon_client_connect_ssh(clixon_handle  h,
     struct stat st = {0,};
 
     clicon_debug(1, "%s %s", __FUNCTION__, dest);
-    nr = 9;
+    nr = 10;  /* NOTE this is hardcoded */
     if ((argv = calloc(nr, sizeof(char *))) == NULL){
         clicon_err(OE_UNIX, errno, "calloc");
         goto done;
@@ -139,6 +139,7 @@ clixon_client_connect_ssh(clixon_handle  h,
     }
     argv[i++] = ssh_bin;
     argv[i++] = (char*)dest;
+    argv[i++] = "-T"; /* Disable pseudo-terminal allocation. */
     argv[i++] = "-o";
     argv[i++] = "StrictHostKeyChecking=yes"; // dont ask
     argv[i++] = "-o";

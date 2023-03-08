@@ -718,7 +718,7 @@ device_state_handler(clixon_handle h,
             goto done;
         /* XXX More logic here */
         if ((tid = device_handle_tid_get(dh)) != 0){
-            if (controller_transaction_notify(h, tid, 1, NULL) < 0)
+            if (controller_transaction_notify(h, tid, 1, NULL, NULL) < 0)
                 goto done;
         }
         break;
@@ -751,7 +751,7 @@ device_state_handler(clixon_handle h,
             goto done;
         /* XXX more logic here */
         if ((tid = device_handle_tid_get(dh)) != 0){
-            if (controller_transaction_notify(h, tid, 1, NULL) < 0)
+            if (controller_transaction_notify(h, tid, 1, NULL, NULL) < 0)
                 goto done;
         }
         break;

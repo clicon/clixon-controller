@@ -58,6 +58,7 @@ int
 controller_transaction_notify(clixon_handle h,
                               uint64_t      tid,
                               int           status,
+                              char         *origin,
                               char         *reason)
 {
     int   retval = -1;
@@ -71,6 +72,8 @@ controller_transaction_notify(clixon_handle h,
     cprintf(cb, "<controller-transaction xmlns=\"%s\">", CONTROLLER_NAMESPACE);
     cprintf(cb, "<tid>%" PRIu64  "</tid>", tid);
     cprintf(cb, "<status>%s</status>", status?"true":"false");
+    if (origin)
+        cprintf(cb, "<origin>%s</origin>", origin);
     if (reason)
         cprintf(cb, "<reason>%s</reason>", reason);
     cprintf(cb, "</controller-transaction>");

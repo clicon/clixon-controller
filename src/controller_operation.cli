@@ -105,10 +105,4 @@ sync("Read the config of one or several devices.") {
 reconnect("Reconnect one or several devices in closed state")  [<name:string>("device pattern")|
                   <name:string expand_dbvar("running","/clixon-controller:devices/device/name")>("device pattern")], cli_reconnect();
 
-check-sync("Check if one or several devices is still in sync")  [<name:string>("device pattern")|
-                  <name:string expand_dbvar("running","/clixon-controller:devices/device/name")>("device pattern")], cli_reconnect();
-
-check-sync("Check if one or several devices is still in sync")  [<name:string>("device pattern")|
-                  <name:string expand_dbvar("running","/clixon-controller:devices/device/name")>("device pattern")], cli_reconnect();
-
 notifications("Get notifications from backend"), cli_notify("controller", "1", "text");

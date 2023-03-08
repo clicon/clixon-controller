@@ -71,7 +71,7 @@ transaction_notification_handler(int   s,
     char              *tidstr;
     char              *statusstr;
     
-    if (clicon_msg_rcv(s, &reply, eof) < 0)
+    if (clicon_msg_rcv(s, 1, &reply, eof) < 0)
         goto done;
     if (*eof){
         clicon_err(OE_PROTO, ESHUTDOWN, "Socket unexpected close");
@@ -150,6 +150,61 @@ transaction_notification_cb(int   s,
 }
 #endif
 
+/*! Send transaction error to backend
+ */
+static int
+send_transaction_error(clicon_handle h,
+                       char         *tidstr)
+{
+    int    retval = -1;
+    cbuf  *cb = NULL;
+    cxobj *xtop = NULL;
+    cxobj *xrpc;
+    cxobj *xret = NULL;
+    cxobj *xreply;
+    cxobj *xerr;
+
+    if ((cb = cbuf_new()) == NULL){
+        clicon_err(OE_PLUGIN, errno, "cbuf_new");
+        goto done;
+    }
+    cprintf(cb, "<rpc xmlns=\"%s\" username=\"%s\" %s>",
+            NETCONF_BASE_NAMESPACE,
+            clicon_username_get(h),
+            NETCONF_MESSAGE_ID_ATTR);
+    cprintf(cb, "<transaction-error xmlns=\"%s\">", CONTROLLER_NAMESPACE);
+    cprintf(cb, "<tid>%s</tid>", tidstr);
+    cprintf(cb, "<origin>CLI</origin>");
+    cprintf(cb, "<reason>Interrupted</reason>");
+    cprintf(cb, "</transaction-error>");
+    cprintf(cb, "</rpc>");
+    if (clixon_xml_parse_string(cbuf_get(cb), YB_NONE, NULL, &xtop, NULL) < 0)
+        goto done;
+    /* Skip top-level */
+    xrpc = xml_child_i(xtop, 0);
+    /* Send to backend */
+    if (clicon_rpc_netconf_xml(h, xrpc, &xret, NULL) < 0)
+        goto done;
+    if ((xreply = xpath_first(xret, NULL, "rpc-reply")) == NULL){
+        clicon_err(OE_CFG, 0, "Malformed rpc reply");
+        goto done;
+    }
+    if ((xerr = xpath_first(xreply, NULL, "rpc-error")) != NULL){
+        clixon_netconf_error(xerr, "Get configuration", NULL);
+        goto done;
+    }
+
+    retval = 0;
+ done:
+    if (xtop)
+        xml_free(xtop);
+    if (xret)
+        xml_free(xret);
+    if (cb)
+        cbuf_free(cb);
+    return retval;
+}
+
 /*! Poll controller notification socket
  *
  * param[in]  h      Clicon handle
@@ -164,23 +219,28 @@ transaction_notification_poll(clicon_handle h,
 {
     int                retval = -1;
     int                eof = 0;
-    int                ret;
     int                s;
     int                match = 0;
     int                status = 0;
 
+    clicon_debug(CLIXON_DBG_DEFAULT, "%s tid:%s", __FUNCTION__, tidstr);
     if ((s = clicon_option_int(h, "controller-transaction-notify-socket")) < 0){
         clicon_err(OE_EVENTS, 0, "controller-transaction-notify-socket is closed");
         goto done;
     }
-    if ((ret = transaction_notification_handler(s, tidstr, &match, &status, &eof)) < 0)
-        goto done;
-    if (!match){
-        clicon_err(OE_NETCONF, EFAULT, "Transaction failed");
-        goto done;
+    while (!match){
+        if (transaction_notification_handler(s, tidstr, &match, &status, &eof) < 0){
+            if (eof)
+                goto done;
+            /* Interpret as user stop transaction: abort transaction */
+            if (send_transaction_error(h, tidstr) < 0)
+                goto done;
+            cligen_output(stderr, "Transaction aborted by user\n");
+        }
     }
     retval = 0;
  done:
+    clicon_debug(CLIXON_DBG_DEFAULT, "%s %d", __FUNCTION__, retval);
     return retval;
 }
 
@@ -712,6 +772,7 @@ controller_cli_start(clicon_handle h)
         goto done;
     if (clicon_option_int_set(h, "controller-transaction-notify-socket", s) < 0)
         goto done;
+    clicon_debug(CLIXON_DBG_DEFAULT, "%s notification socket:%d", __FUNCTION__, s);
     retval = 0;
  done:
     return retval;
