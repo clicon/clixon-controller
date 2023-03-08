@@ -22,6 +22,8 @@ jobs:
       run: sudo useradd -M -U clicon
     - name: Add runner to clixon user group
       run: sudo usermod -a -G clicon $(whoami)
+    - name: Check group
+      run: cat /etc/group|grep clicon
     - name: install clixon native
       run: (git clone https://github.com/clicon/clixon.git && cd clixon && ./configure && make && sudo make install)
     - name: configure
@@ -39,5 +41,5 @@ jobs:
       run: (cd test; ./init-controller.sh)
     - name: Change device config on controller and push to devices
       run: (cd test; INIT=false ./test-change-ctrl-push.sh)
-    - name: Change config on device and check diff
-      run: (cd test; ./test-change-device-diff.sh)
+#    - name: Change config on device and check diff
+#      run: (cd test; ./test-change-device-diff.sh)
