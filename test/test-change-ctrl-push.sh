@@ -21,12 +21,17 @@ set -eux
 CFG=/usr/local/etc/controller.xml
 
 # If set to 0, override starting of clixon_backend in test (you bring your own) 
-: ${BE:=1}
+: ${BE:=true}
 
-# Start devices
-nr=$nr ./stop-devices.sh
-sleep $sleep
-nr=$nr ./start-devices.sh
+# If set to false, dont start containers and controller, they are assumed to be already running
+: ${INIT:=true}
+
+if $INIT; then
+    # Start devices
+    nr=$nr ./stop-devices.sh
+    sleep $sleep
+    nr=$nr ./start-devices.sh
+fi
 
 # Start backend
 BE=$BE nr=$nr ./init-controller.sh
@@ -82,6 +87,10 @@ clixon_netconf -q0 -f $CFG <<EOF
 EOF
 
 if ! $push ; then
+    clixon_cli -f $CFG -1 show devices
+    clixon_cli -f $CFG -1 reconnect || true
+    clixon_cli -f $CFG -1 show devices
+    
     echo "Stop after change, no push"
     echo OK
     exit 0

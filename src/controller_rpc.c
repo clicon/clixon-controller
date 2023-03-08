@@ -267,7 +267,6 @@ push_device(clixon_handle h,
         clicon_err(OE_UNIX, errno, "cbuf_new");
         goto done;
     }
-
     cprintf(cb, "devices/device[name='%s']/root", name);
     if (xmldb_get0(h, "running", YB_MODULE, nsc, cbuf_get(cb), 1, WITHDEFAULTS_EXPLICIT, &x1t, NULL, NULL) < 0)
         goto done;
@@ -419,10 +418,10 @@ rpc_sync_common(clixon_handle        h,
         else{
             if ((ret = pull_device(h, dh, ct->ct_id, dryrun, cbret)) < 0)
                 goto done;
+            touched++;
         }
         if (ret == 0)  /* Failed but cbret set */
             goto ok;
-        touched++;
     } /* for */
     if (touched == 0){
         if (netconf_operation_failed(cbret, "application", "No syncs activated")< 0)
@@ -622,10 +621,35 @@ rpc_transaction_error(clixon_handle h,
                       void         *arg,  
                       void         *regarg)
 {
-    int           retval = -1;
+    int      retval = -1;
+    char    *tidstr;
+    char    *origin;
+    char    *reason;
+    uint64_t tid;
+    int      ret;
 
+    if ((tidstr = xml_find_body(xe, "tid")) == NULL){
+        if (netconf_operation_failed(cbret, "application", "No tid")< 0)
+            goto done;
+        goto ok;
+    }
+    if ((ret = parse_uint64(tidstr, &tid, NULL)) < 0)
+        goto done;
+    if (ret == 0){
+        if (netconf_operation_failed(cbret, "application", "Invalid tid")< 0)
+            goto done;
+        goto ok;
+    }
+    origin = xml_find_body(xe, "origin");
+    reason = xml_find_body(xe, "reason");
+    if (controller_transaction_notify(h, tid, 0, origin, reason) < 0)
+        goto done;
+    cprintf(cbret, "<rpc-reply xmlns=\"%s\">", NETCONF_BASE_NAMESPACE);
+    cprintf(cbret, "<ok/>");
+    cprintf(cbret, "</rpc-reply>");
+ ok:
     retval = 0;
-    // done:
+ done:
     return retval;
 }
 
