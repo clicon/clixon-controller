@@ -40,9 +40,11 @@
 /*! clixon controller meta transactions
  */
 struct controller_transaction_t{
-    qelem_t   ct_qelem;      /* List header */
-    uint64_t  ct_id;         /* transaction-id */
-    uint32_t  ct_client_id;  /* Client id of originator */
+    qelem_t       ct_qelem;      /* List header */
+    uint64_t      ct_id;         /* transaction-id */
+    uint32_t      ct_client_id;  /* Client id of originator */
+    int           ct_dryrun;     /* Validate on device dont commit (push) */
+    int           ct_merge;      /* Merge instead of replace (pull) */
 };
 typedef struct controller_transaction_t controller_transaction;
     

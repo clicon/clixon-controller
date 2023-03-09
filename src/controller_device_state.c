@@ -545,8 +545,6 @@ device_state_set(device_handle dh,
         if (device_state_timeout_register(dh) < 0)
             goto done;
     }
-    if (state == CS_DEVICE_SYNC)
-        device_handle_dryrun_set(dh, 0);
     retval = 0;
  done:
     return retval;

@@ -91,18 +91,26 @@ save("Save running configuration to XML file") <filename:string>("Filename (loca
 }
 
 sync("Read the config of one or several devices.") {
-           pull("sync config from one or multiple devices")[
+    pull("sync config from one or multiple devices")[
                  (<name:string>("device pattern")|
                   <name:string expand_dbvar("running","/clixon-controller:devices/device/name")>("device pattern"))
-                 ], cli_sync_rpc("pull");{
-                    compare,   cli_sync_compare(); # XXX
+                 ], cli_sync_rpc("pull", "replace");{
+                    compare, cli_sync_compare();
+                    replace, cli_sync_rpc("pull", "replace");
+                    merge, cli_sync_rpc("pull", "merge");
                  }
-           push("sync config to one or multiple devices")[
+    push("sync config to one or multiple devices")[
                  (<name:string>("device pattern")|
                   <name:string expand_dbvar("running","/clixon-controller:devices/device/name")>("device pattern"))
-                 ], cli_sync_rpc("push");
+                 ], cli_sync_rpc("push", "commit");{
+                    dryrun("Push to devices and validate"), cli_sync_rpc("push", "dryrun");
+                    commit("Push to devices and commit"), cli_sync_rpc("push", "commit");
+                 }
+
 }
+
 reconnect("Reconnect one or several devices in closed state")  [<name:string>("device pattern")|
                   <name:string expand_dbvar("running","/clixon-controller:devices/device/name")>("device pattern")], cli_reconnect();
 
-notifications("Get notifications from backend"), cli_notify("controller", "1", "text");
+services("Services operation") apply("(re)apply services scripts"), cli_services_apply();
+

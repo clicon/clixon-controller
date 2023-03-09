@@ -283,29 +283,6 @@ controller_commit_generic(clixon_handle h,
     return retval;
 }
                   
-/*! Send a controller services-commit notification message
- */
-static int
-services_commit_notify(clixon_handle h)
-{
-    int   retval = -1;
-    cbuf *cb = NULL;
-
-    if ((cb = cbuf_new()) == NULL){
-        clicon_err(OE_UNIX, errno, "cbuf_new");
-        goto done;
-    }
-    cprintf(cb, "<services-commit xmlns=\"%s\">", CONTROLLER_NAMESPACE);
-    cprintf(cb, "</services-commit>");
-    if (stream_notify(h, "services-commit", "%s", cbuf_get(cb)) < 0)
-        goto done;
-    retval = 0;
- done:
-    if (cb)
-        cbuf_free(cb);
-    return retval;
-}
-
 /*! Commit services part: detect any change then trigger a services-commit notification
  *
  * @param[in] h      Clixon handle
@@ -347,8 +324,10 @@ controller_commit_services(clixon_handle h,
                        XML_FLAG_ADD,
                        &vec3, &veclen3) < 0)
         goto done;
+#ifdef OBSOLETE // Moved to explicit rpc services-apply rpc
     if (veclen1 || veclen2 || veclen3)
         services_commit_notify(h);
+#endif
     retval = 0;
  done:
     if (vec1)

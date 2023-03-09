@@ -71,8 +71,6 @@ int    device_handle_yang_config_set(device_handle dh, char *yfstr);
 int    device_handle_conn_state_set(device_handle dh, conn_state_t state);    
 int    device_handle_conn_time_get(device_handle dh, struct timeval *t);
 int    device_handle_conn_time_set(device_handle dh, struct timeval *t);
-int    device_handle_dryrun_get(device_handle dh);
-int    device_handle_dryrun_set(device_handle dh, int dryrun);
 int    device_handle_frame_state_get(device_handle dh);
 int    device_handle_frame_state_set(device_handle dh, int state);
 size_t device_handle_frame_size_get(device_handle dh);

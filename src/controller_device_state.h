@@ -59,7 +59,7 @@
 /*
  * Types
  */
-typedef void *device_handle;
+typedef void *device_handle; // duplicated from controller_device_handle.h
 
 /*! State of connection
  * Only closed and open are "stable", the others are transient and timeout to closed
@@ -72,11 +72,11 @@ enum conn_state{
                        May fail due to (1) connect fails or (2) hello not receivd */
     CS_SCHEMA_LIST, /* Get ietf-netconf-monitor schema state */
     CS_SCHEMA_ONE,  /* Connection established and Hello sent to device (nr substate) */
-    CS_DEVICE_SYNC, /* Get all config (dryrun is sub-state) */
+    CS_DEVICE_SYNC, /* Get all config (dryrun+merge are sub-state parameters) */
     CS_OPEN,        /* Connection established and Hello sent to device. */
-    CS_PUSH_EDIT,   /* edit-config sent, waiting for reply (push) */
-    CS_PUSH_VALIDATE, /* validate sent, waiting for reply (push) */
-    CS_PUSH_WAIT,   /* Waiting for other devices to validate (push) */
+    CS_PUSH_EDIT,   /* edit-config sent, waiting for reply */
+    CS_PUSH_VALIDATE, /* validate sent, waiting for reply  */
+    CS_PUSH_WAIT,   /* Waiting for other devices to validate */
     CS_PUSH_COMMIT  /* commit sent, waiting for reply (push) */
 };
 typedef enum conn_state conn_state_t;
