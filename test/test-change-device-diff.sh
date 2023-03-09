@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # Start clixon example container devices and initiate with config x=11, y=22
 # Start backend
-# Commit a change to devices remove x, change y, and add z
+# Commit a change to _devices_ remove x, change y, and add z
+# Make a sync-pull dryrun
 # Check the diff between controller and devices
 
 set -eux
@@ -35,7 +36,7 @@ fi
 # Start backend
 BE=$BE nr=$nr ./init-controller.sh
 
-# Add parameters x and y
+# Add parameters x and y directly on devices
 for i in $(seq 1 $nr); do
     NAME=$IMG$i
     ip=$(sudo docker inspect $NAME -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}')
@@ -79,14 +80,13 @@ EOF
     fi
 done
 
-# verify controller 
-echo ""
+echo "trigger sync-pull dryrun"
 ret=$(clixon_netconf -q0 -f $CFG <<EOF
 <rpc xmlns="urn:ietf:params:xml:ns:netconf:base:1.0" message-id="43">
-  <get-device-config xmlns="http://clicon.org/controller">
-    <devname>clixon-example1</devname>
-    <extended>dryrun</extended>
-  </get-device-config>
+  <sync-pull xmlns="http://clicon.org/controller">
+    <devname>*</devname>
+    <dryrun>true</dryrun>
+  </sync-pull>
 </rpc>]]>]]>
 EOF
       )
@@ -95,11 +95,31 @@ if [ -n "$match" ]; then
     echo "netconf rpc-error detected"
     exit 1
 fi
-match=$(echo $ret | grep --null -Eo '<rpc-reply xmlns="urn:ietf:params:xml:ns:netconf:base:1.0" message-id="43"><config xmlns="http://clicon.org/controller"><root><table xmlns="urn:example:clixon"><parameter><name>y</name><value>122</value></parameter><parameter><name>z</name><value>99</value></parameter></table></root></config></rpc-reply>') || true
-if [ -z "$match" ]; then
-    echo "netconf rpc get-device-config failed"
-    exit 1
-fi
+
+for i in $(seq 1 $nr); do
+    NAME=$IMG$i
+    # verify controller 
+    echo "get and check dryrun device db"
+    ret=$(clixon_netconf -q0 -f $CFG <<EOF
+<rpc xmlns="urn:ietf:params:xml:ns:netconf:base:1.0" message-id="43">
+  <get-device-config xmlns="http://clicon.org/controller">
+    <devname>$NAME</devname>
+    <extended>dryrun</extended>
+  </get-device-config>
+</rpc>]]>]]>
+EOF
+      )
+    match=$(echo $ret | grep --null -Eo "<rpc-error>") || true
+    if [ -n "$match" ]; then
+        echo "netconf rpc-error detected"
+        exit 1
+    fi
+    match=$(echo $ret | grep --null -Eo '<rpc-reply xmlns="urn:ietf:params:xml:ns:netconf:base:1.0" message-id="43"><config xmlns="http://clicon.org/controller"><root><table xmlns="urn:example:clixon"><parameter><name>y</name><value>122</value></parameter><parameter><name>z</name><value>99</value></parameter></table></root></config></rpc-reply>') || true
+    if [ -z "$match" ]; then
+        echo "netconf rpc get-device-config failed"
+        exit 1
+    fi
+done
 
 echo "device-diff"
 echo OK
