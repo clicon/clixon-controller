@@ -92,7 +92,6 @@ if ! $push ; then
     exit 0
 fi
 
-# XXX get transaction-id
 echo "push sync"
 ret=$(clixon_netconf -q0 -f $CFG <<EOF
 <rpc xmlns="urn:ietf:params:xml:ns:netconf:base:1.0" message-id="43">
@@ -101,14 +100,16 @@ ret=$(clixon_netconf -q0 -f $CFG <<EOF
 </rpc>]]>]]>
 EOF
       )
+
+echo "ret:$ret"
 match=$(echo $ret | grep --null -Eo "<rpc-error>") || true
 if [ -n "$match" ]; then
     echo "netconf rpc-error detected"
     exit 1
 fi
 
-# XXX pick out tid
-echo "ret:$ret"
+# XXX get transaction-id from ret and wait for that?
+
 sleep $sleep
 
 # Verify controller
