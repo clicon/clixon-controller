@@ -85,13 +85,11 @@ struct controller_device_handle{
     cxobj             *cdh_xcaps;      /* Capabilities as XML tree */
     cxobj             *cdh_yang_lib;   /* RFC 8525 yang-library module list */
     struct timeval     cdh_sync_time;  /* Time when last sync (0 if unsynched) */
-    int                cdh_dryrun;     /* If set, dont replace/commit retrieved device config (CS_DEVICE_SYNC) */
     yang_stmt         *cdh_yspec;      /* Top-level yang spec of device */
     int                cdh_nr_schemas; /* How many schemas from this device */
     char              *cdh_schema_name; /* Pending schema name */
     char              *cdh_schema_rev;  /* Pending schema revision */
     char              *cdh_logmsg;      /* Error log message / reason of failed open */
-
 };
 
 /*! Check struct magic number for sanity checks
@@ -699,34 +697,6 @@ device_handle_sync_time_set(device_handle   dh,
         gettimeofday(&cdh->cdh_sync_time, NULL);
     else
         cdh->cdh_sync_time = *t;
-    return 0;
-}
-
-    int                cdh_dryrun;     /* If set, dont replace/commit retrieved device config */
-/*! Get sync dryrun
- * @param[in]  dh     Device handle
- * @retval     true
- * @retval     false
- */
-int
-device_handle_dryrun_get(device_handle dh)
-{
-    struct controller_device_handle *cdh = devhandle(dh);
-
-    return cdh->cdh_dryrun;
-}
-
-/*! Set sync dryrun
- * @param[in]  dh      Device handle
- * @param[in]  dryrun
- */
-int
-device_handle_dryrun_set(device_handle dh,
-                         int           dryrun)
-{
-    struct controller_device_handle *cdh = devhandle(dh);
-
-    cdh->cdh_dryrun = dryrun;
     return 0;
 }
 

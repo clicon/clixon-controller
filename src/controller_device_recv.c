@@ -50,6 +50,7 @@
 #include "controller_netconf.h"
 #include "controller_device_state.h"
 #include "controller_device_handle.h"
+#include "controller_transaction.h"
 #include "controller_device_recv.h"
 
 /*! Check sanity of a rpc-reply
@@ -320,20 +321,24 @@ device_state_recv_config(clixon_handle h,
                          char         *rpcname,
                          conn_state_t  conn_state)
 {
-    int        retval = -1;
-    cxobj     *xdata;
-    cxobj     *xt = NULL;
-    cxobj     *xa;
-    cbuf      *cbret = NULL;
-    cbuf      *cberr = NULL;
-    char      *name;
-    cvec      *nsc = NULL;
-    yang_stmt *yspec1;
-    int        ret;
-    cxobj     *x;
-    cxobj     *xroot;
-    yang_stmt *yroot;
-    cxobj     *xerr = NULL;
+    int                     retval = -1;
+    cxobj                  *xdata;
+    cxobj                  *xt = NULL;
+    cxobj                  *xa;
+    cbuf                   *cbret = NULL;
+    cbuf                   *cberr = NULL;
+    char                   *name;
+    cvec                   *nsc = NULL;
+    yang_stmt              *yspec1;
+    int                     ret;
+    cxobj                  *x;
+    cxobj                  *xroot;
+    yang_stmt              *yroot;
+    cxobj                  *xerr = NULL;
+    uint64_t                tid;
+    controller_transaction *ct;
+    int                     merge = 0;
+    int                     dryrun = 0;
 
     clicon_debug(1, "%s", __FUNCTION__);
     //    clicon_debug(CLIXON_DBG_DETAIL, "%s", __FUNCTION__);
@@ -406,10 +411,20 @@ device_state_recv_config(clixon_handle h,
         goto done;
     if (xml_prefix_set(xa, NETCONF_BASE_PREFIX) < 0)
         goto done;
-    // XXX: merge?
-    if (xml_value_set(xa, xml_operation2str(OP_REPLACE)) < 0)
-        goto done;
-    if (device_handle_dryrun_get(dh)){
+    if ((tid = device_handle_tid_get(dh)) != 0 &&
+        (ct = controller_transaction_find(h, tid)) != NULL){
+        merge = ct->ct_merge;
+        dryrun = ct->ct_dryrun;
+    }
+    if (merge){
+        if (xml_value_set(xa, xml_operation2str(OP_MERGE)) < 0)
+            goto done;
+    }
+    else{
+        if (xml_value_set(xa, xml_operation2str(OP_REPLACE)) < 0)
+            goto done;
+    }
+    if (dryrun){
         if ((ret = device_config_write(h, dh, name, "dryrun", xt, cbret)) < 0)
             goto done;
         if (ret == 0)

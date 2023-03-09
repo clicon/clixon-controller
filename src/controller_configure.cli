@@ -5,7 +5,7 @@ CLICON_PLUGIN="controller_cli";
 operation("Change to operation mode"), cli_set_mode("operation");
 exit("Change to operation mode"), cli_set_mode("operation");
 
-# Al11: Auto edit mode
+# Auto edit mode
 # Autocli syntax tree operations
 edit @datamodelmode, cli_auto_edit("basemodel");
 up, cli_auto_up("basemodel");
@@ -18,13 +18,6 @@ delete("Delete a configuration item") {
       all("Delete whole candidate configuration"), delete_all("candidate");
 }
 
-# Alt2: top-edit mode
-# Reference generated data model
-#set @datamodel, cli_set();
-#merge @datamodel, cli_merge();
-#create @datamodel, cli_create();
-#delete("Delete a configuration item") @datamodel, cli_del();
-
 validate("Validate changes"), cli_validate();
 
 quit("Quit"), cli_quit();
@@ -33,14 +26,9 @@ delete("Delete a configuration item") {
       all("Delete whole candidate configuration"), delete_all("candidate");
 }
 
-commit("Commit the changes"), cli_commit(); {
-  [persist-id("Specify the 'persist' value of a previous confirmed-commit") <persist-id-val:string show:"string">("The 'persist' value of the persistent confirmed-commit")], cli_commit(); {
-    <cancel:string keyword:cancel>("Cancel an ongoing confirmed-commit"), cli_commit();
-    <confirmed:string keyword:confirmed>("Require a confirming commit") {
-       [persist("Make this confirmed-commit persistent") <persist-val:string show:"string">("The value that must be provided as 'persist-id' in the confirming-commit or cancel-commit")]
-       [<timeout:uint32 range[1:4294967295] show:"1..4294967295">("The rollback timeout in seconds")], cli_commit();
-    }
-  }
+commit("Commit the changes, trigger services scripts"), cli_commit(), cli_services_apply();{
+    local("Local commit, do not trigger scripts"), cli_commit();
+    service("Trigger service scripts"), cli_commit(), cli_services_apply();
 }
 
 startup("Store running as startup config"), db_copy("running", "startup");
@@ -100,5 +88,3 @@ load("Load configuration from XML file") <filename:string>("Filename (local file
 	text("Merge candidate with file containing TEXT"), load_config_file("filename", "merge", "text");
     }
 }
-
-

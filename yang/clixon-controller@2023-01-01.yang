@@ -82,11 +82,11 @@ module clixon-controller {
                      is sent.
                     Transient state that timeout to CLOSED.";
             }
-            enum OPEN{
+            enum OPEN {
                 description
                 "Connection is open";
             }
-            enum WRESP{
+            enum WRESP {
                 description
                 "Netconf reuest is sent, waiting for response.
                  Transient state that timeout to CLOSED.
@@ -217,7 +217,9 @@ module clixon-controller {
         }
     }
     notification services-commit {
-        description "A commit has been made that changes the services declaration.";
+        description
+            "A commit has been made that changes the services declaration and
+             that triggers services script.";
     }
     notification controller-transaction {
         description "A transaction has been completed.";
@@ -249,6 +251,15 @@ module clixon-controller {
                     "Name of device to pull from, can use wildchars for several.";
                 type string;
             }
+            leaf merge {
+                description
+                    "If false, replace the local device configuration with the
+                     remote (actual) device config.
+                     If true, merge the remote device configuration with the local 
+                     device configuration.";
+                type boolean;
+                default false;
+            }
             leaf dryrun {
                 description
                     "Get the device config but do not install it";
@@ -271,7 +282,24 @@ module clixon-controller {
                     "Name of device to push to, can use wildchars for several.";
                 type string;
             }
+            leaf dryrun {
+                description "Validate on device, but do not commit";
+                type boolean;
+                default false;
+            }
         }
+        output {
+            leaf tid {
+                description "Id of allocated transaction, can be used for notification";
+                type uint64;
+            }
+        }
+    }
+    rpc services-apply {
+        description
+            "Apply service scripts: trigger services-commit notification, 
+             typically together with a commit.
+             XXX: no way to terminate this transaction?";
         output {
             leaf tid {
                 description "Id of allocated transaction, can be used for notification";
