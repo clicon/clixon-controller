@@ -18,14 +18,22 @@ jobs:
       run: (git clone https://github.com/clicon/cligen.git && cd cligen && ./configure && make && sudo make install)
     - name: install ssl and nghttp2
       run: sudo apt install -y libssl-dev libnghttp2-dev
+    - name: Check who I am
+      run: whoami
+    - name: Check groups
+      run: groups
     - name: Add clicon user group
       run: sudo useradd -M -U clicon
     - name: Add runner to clixon user group
       run: sudo usermod -a -G clicon runner
-    - name: Check group
-      run: cat /etc/group|grep clicon
-    - name: Check groups
+    - name: Check groups after
       run: groups
+    - name: Add runner to clixon user group agan
+      run: sudo adduser runner clicon
+    - name: Check groups again
+      run: groups
+    - name: Check /etc/group
+      run: cat /etc/group|grep clicon
     - name: install clixon native
       run: (git clone https://github.com/clicon/clixon.git && cd clixon && ./configure && make && sudo make install)
     - name: configure

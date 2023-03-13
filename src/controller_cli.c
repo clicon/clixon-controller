@@ -294,10 +294,16 @@ cli_sync_rpc(clixon_handle h,
         goto done;
     }
     type = cv_string_get(cv);
-    if (strcmp(type, "dryrun") != 0 && strcmp(type, "commit") != 0){
-        clicon_err(OE_PLUGIN, EINVAL, "<type> argument is %s, expected \"dryrun\" or \"commit\"", type);
-        goto done;
+    if (strcmp(op, "push") == 0){
+        if (strcmp(type, "dryrun") != 0 && strcmp(type, "commit") != 0){
+            clicon_err(OE_PLUGIN, EINVAL, "sync push <type> argument is %s, expected \"dryrun\" or \"commit\"", type);
+            goto done;
+        }
     }
+    else if (strcmp(type, "replace") != 0 && strcmp(type, "merge") != 0){
+            clicon_err(OE_PLUGIN, EINVAL, "sync pull <type> argument is %s, expected \"dryrun\" or \"commit\"", type);
+            goto done;
+        }
     if ((cv = cvec_find(cvv, "name")) != NULL)
         name = cv_string_get(cv);
     if ((cb = cbuf_new()) == NULL){
