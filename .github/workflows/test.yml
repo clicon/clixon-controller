@@ -36,7 +36,7 @@ jobs:
     - name: Start devices
       run: (cd test; ./start-devices.sh)
     - name: Start controller
-      run: clixon_backend -f /usr/local/etc/controller.xml
+      run: sudo clixon_backend -f /usr/local/etc/controller.xml
     - name: Run all tests
       run: (cd test; ./all.sh)
 
