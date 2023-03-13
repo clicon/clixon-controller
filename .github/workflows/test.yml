@@ -27,7 +27,7 @@ jobs:
     - name: Add runner to clixon user group
       run: sudo usermod -a -G clicon runner
     - name: ensure secondary group
-      su - runner
+      run:  su - runner
     - name: Check groups after
       run: groups
     - name: Add runner to clixon user group agan
