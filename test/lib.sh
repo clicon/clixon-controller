@@ -16,6 +16,10 @@ set -eux
 # If set to true, start containers and controller, otherwise they are assumed to be already running
 : ${INIT:=false}
 
+# Prefix to add in front of all client commands.
+# Eg to force all client to run as root if there is problem with group assignment (see github actions)
+: ${PREFIX:=}
+
 : ${DBG:=0}
 
 if $INIT; then

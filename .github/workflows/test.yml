@@ -38,5 +38,5 @@ jobs:
     - name: Start controller
       run: sudo clixon_backend -f /usr/local/etc/controller.xml
     - name: Run all tests
-      run: (cd test; ./all.sh)
+      run: (cd test; PREFIX=sudo ./all.sh)
 
