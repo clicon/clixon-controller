@@ -2,6 +2,8 @@
 # Start clixon example container devices and initiate with config x=11, y=22
 set -eux
 
+echo "reset-devices"
+
 # Number of device containers to start
 : ${nr:=2}
 
@@ -14,36 +16,27 @@ set -eux
 
 sudo test -f $SSHKEY || sudo ssh-keygen -t rsa -N "" -f /root/.ssh/id_rsa
 
-for i in $(seq 1 $nr); do
-    NAME=$IMG$i
-    sudo docker kill $NAME || true
-    sudo docker run --name $NAME --rm -td clixon/$IMG #|| err "Error starting clixon-example"
-    sudo docker exec -t $NAME mkdir -m 700 /root/.ssh
-    sudo docker cp $SSHKEY $NAME:/root/.ssh/authorized_keys
-    sudo docker exec -t $NAME chown root /root/.ssh/authorized_keys
-    sudo docker exec -t $NAME chgrp root /root/.ssh/authorized_keys
-    ip=$(sudo docker inspect $NAME -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}')
-    sudo ssh-keygen -f "/root/.ssh/known_hosts" -R "$ip" || true
-done
-
-sleep $sleep # need time to spin up backend in containers
-
 # Add parameters x and y
 for i in $(seq 1 $nr); do
     NAME=$IMG$i
     ip=$(sudo docker inspect $NAME -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}')
-    sudo ssh $ip -o StrictHostKeyChecking=no -o PasswordAuthentication=no -s netconf <<EOF
+    ret=$(sudo ssh $ip -o StrictHostKeyChecking=no -o PasswordAuthentication=no -s netconf <<EOF
 <?xml version="1.0" encoding="UTF-8"?>
 <hello xmlns="urn:ietf:params:xml:ns:netconf:base:1.0">
    <capabilities>
       <capability>urn:ietf:params:netconf:base:1.0</capability>
    </capabilities>
 </hello>]]>]]>
-<rpc xmlns="urn:ietf:params:xml:ns:netconf:base:1.0" message-id="42">
+<rpc xmlns="urn:ietf:params:xml:ns:netconf:base:1.0" 
+     xmlns:nc="urn:ietf:params:xml:ns:netconf:base:1.0" 
+     message-id="42">
   <edit-config>
-    <target><candidate/></target>
+    <target>
+      <candidate/>
+    </target>
+    <default-operation>none</default-operation>
     <config>
-      <table xmlns="urn:example:clixon">
+      <table xmlns="urn:example:clixon" nc:operation="replace">
         <parameter>
           <name>x</name>
           <value>11</value>
@@ -56,9 +49,15 @@ for i in $(seq 1 $nr); do
     </config>
   </edit-config>
 </rpc>]]>]]>
-<rpc xmlns="urn:ietf:params:xml:ns:netconf:base:1.0" message-id="42"><commit/></rpc>]]>]]>
+<rpc xmlns="urn:ietf:params:xml:ns:netconf:base:1.0" message-id="42">
+  <commit/>
+</rpc>]]>]]>
 EOF
-
+       )
+    match=$(echo $ret | grep --null -Eo "<rpc-error>") || true
+    if [ -n "$match" ]; then
+        echo "netconf rpc-error detected"
+        exit 1
+    fi
 done
-echo "start-devices"
-echo OK
+echo "reset-devices OK"

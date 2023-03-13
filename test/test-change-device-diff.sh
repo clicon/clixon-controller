@@ -7,34 +7,14 @@
 
 set -eux
 
-# Number of devices to add config to
-: ${nr:=2}
+# Magic line must be first in script (see README.md)
+s="$_" ; . ./lib.sh || if [ "$s" = $0 ]; then exit 0; else return 0; fi
 
-# Set if also sync push, not only change
-: ${push:=true}
+# Reset devices with initial config
+. ./reset-devices.sh
 
-# Sleep delay in seconds between each step                                      
-: ${sleep:=2}
-
-: ${IMG:=clixon-example}
-
-CFG=/usr/local/etc/controller.xml
-
-# If set to 0, override starting of clixon_backend in test (you bring your own) 
-: ${BE:=true}
-
-# If set to false, dont start containers and controller, they are assumed to be already running
-: ${INIT:=true}
-
-if $INIT; then
-    # Start devices
-    nr=$nr ./stop-devices.sh
-    sleep $sleep
-    nr=$nr ./start-devices.sh
-fi
-
-# Start backend
-BE=$BE nr=$nr ./init-controller.sh
+# Reset backend with 
+. ./reset-backend.sh
 
 # Add parameters x and y directly on devices
 for i in $(seq 1 $nr); do

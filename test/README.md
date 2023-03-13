@@ -1,11 +1,9 @@
 Clixon controller test directory
 
-Base tests: 
-start-devices.sh      Start clixon-test container devices
-stop-devices.sh       Stop devices
-init-controller.sh    Init controller config
+Prereqs:
+- devices run, backend runs (use INIT=true) to start them
 
-Composite tests: (start containers and backend+)
+Tests:
 test-change-ctrl-push.sh   Change device config on controller and push to devices
 test-change-device-diff.sh Change config on device and check diff
 
