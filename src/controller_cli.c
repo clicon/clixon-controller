@@ -44,6 +44,7 @@
 
 /* Controller includes */
 #include "controller.h"
+#include "controller_lib.h"
 
 /*! Common transaction notification handling from both async and poll
  *
@@ -151,6 +152,11 @@ transaction_notification_cb(int   s,
 #endif
 
 /*! Send transaction error to backend
+ *
+ * @param[in] h      Clixon handle
+ * @param[in] tidstr Transaction id
+ * @retval    0      OK
+ * @retval   -1      Error
  */
 static int
 send_transaction_error(clicon_handle h,
@@ -193,7 +199,6 @@ send_transaction_error(clicon_handle h,
         clixon_netconf_error(xerr, "Get configuration", NULL);
         goto done;
     }
-
     retval = 0;
  done:
     if (xtop)
@@ -224,7 +229,7 @@ transaction_notification_poll(clicon_handle h,
     int                status = 0;
 
     clicon_debug(CLIXON_DBG_DEFAULT, "%s tid:%s", __FUNCTION__, tidstr);
-    if ((s = clicon_option_int(h, "controller-transaction-notify-socket")) < 0){
+    if ((s = clicon_data_int_get(h, "controller-transaction-notify-socket")) < 0){
         clicon_err(OE_EVENTS, 0, "controller-transaction-notify-socket is closed");
         goto done;
     }
@@ -844,12 +849,237 @@ controller_cli_start(clicon_handle h)
     }
     if (clicon_rpc_create_subscription(h, "controller-transaction", NULL, &s) < 0)
         goto done;
-    if (clicon_option_int_set(h, "controller-transaction-notify-socket", s) < 0)
+    if (clicon_data_int_set(h, "controller-transaction-notify-socket", s) < 0)
         goto done;
     clicon_debug(CLIXON_DBG_DEFAULT, "%s notification socket:%d", __FUNCTION__, s);
     retval = 0;
  done:
     return retval;
+}
+
+/*! Send get yanglib of mountpount to backend
+ *
+ * @param[in]  h       Clixon handle
+ * @param[in]  devname Device name 
+ * @param[out] yanglib XML yang-library module-set, claler needs to deallocate this
+ * @retval     0       OK
+ * @retval    -1       Error
+ */
+static int
+rpc_get_yanglib_mount(clicon_handle h,
+                      char         *devname,
+                      cxobj       **yanglib)
+{
+    int retval = -1;
+
+    cbuf  *cb = NULL;
+    cxobj *xtop = NULL;
+    cxobj *xrpc;
+    cxobj *xret = NULL;
+    cxobj *xreply;
+    cxobj *xerr;
+
+    clicon_debug(1, "%s", __FUNCTION__);
+    if ((cb = cbuf_new()) == NULL){
+        clicon_err(OE_PLUGIN, errno, "cbuf_new");
+        goto done;
+    }
+    cprintf(cb, "<rpc xmlns=\"%s\" username=\"%s\" %s>",
+            NETCONF_BASE_NAMESPACE,
+            clicon_username_get(h),
+            NETCONF_MESSAGE_ID_ATTR);
+    cprintf(cb, "<get>");
+    cprintf(cb, "<filter type=\"xpath\" select=\"ctrl:devices/ctrl:device[ctrl:name='%s']/ctrl:root/yanglib:yang-library/yanglib:module-set\" xmlns:ctrl=\"%s\" xmlns:yanglib=\"urn:ietf:params:xml:ns:yang:ietf-yang-library\">",
+            devname,
+            CONTROLLER_NAMESPACE);
+    cprintf(cb, "</filter>");
+    cprintf(cb, "</get>");
+    cprintf(cb, "</rpc>");
+    if (clixon_xml_parse_string(cbuf_get(cb), YB_NONE, NULL, &xtop, NULL) < 0)
+        goto done;
+    /* Skip top-level */
+    xrpc = xml_child_i(xtop, 0);
+    /* Send to backend */
+    if (clicon_rpc_netconf_xml(h, xrpc, &xret, NULL) < 0)
+        goto done;
+    clicon_debug_xml(1, xret, "get module-set");
+    if ((xreply = xpath_first(xret, NULL, "rpc-reply")) == NULL){
+        clicon_err(OE_CFG, 0, "Malformed rpc reply");
+        goto done;
+    }
+    if ((xerr = xpath_first(xreply, NULL, "rpc-error")) != NULL){
+        clixon_netconf_error(xerr, "Get configuration", NULL);
+        goto done;
+    }
+    if (yanglib){
+        *yanglib = xpath_first(xreply, 0, "data/devices/device/root/yang-library");
+        xml_rm(*yanglib);
+    }
+    retval = 0;
+ done:
+    if (xtop)
+        xml_free(xtop);
+    if (xret)
+        xml_free(xret);
+    if (cb)
+        cbuf_free(cb);
+    return retval;
+}
+
+/*! There is not auto cligen tree "treename", create it
+ *
+ * 1. Check if yang controller extension/unknown mount-pint exists (yu)
+ * 2. Create xpath to specific mountpoint given by devname
+ * 3. Check if yspec associated to that mountpoint exists
+ * 4. Get yang specs of mountpoint from controller
+ * 5. Parse YANGs locally from the yang specs
+ * 6. Generate auto-cligen tree from the specs 
+ * @param[in]  h         Clicon handle
+ * @param[in]  debname   Device name
+ * @param[in]  treename  Autocli treename
+ * @retval     0         Ok
+ * @retval    -1         Error
+ */
+static int
+create_autocli_mount_tree(clicon_handle h,
+                          char         *devname,
+                          char         *treename,
+                          yang_stmt   **yspec1p)
+{
+    int        retval = -1;
+    yang_stmt *yu;
+    cbuf      *cb = NULL;
+    char      *xpath;
+    yang_stmt *yspec0;
+    yang_stmt *yspec1 = NULL;
+    yang_stmt *ymod;
+    cxobj     *yanglib = NULL;
+    int        ret;
+
+    clicon_debug(1, "%s", __FUNCTION__);
+    yspec0 = clicon_dbspec_yang(h);
+    if ((ymod = yang_find(yspec0,Y_MODULE,"clixon-controller")) == NULL){
+        clicon_err(OE_YANG, 0, "module clixon-controller not found");
+        goto done;
+    }
+    /* 1. Check if yang controller extension/unknwon mount-pint exists (yu) */
+    if (yang_path_arg(ymod, "/devices/device/root", &yu) < 0)
+        goto done;
+    if (yu == NULL){
+        clicon_err(OE_YANG, 0, "Mountpoint devices/device/root not found");
+        goto done;
+    }
+    if ((cb = cbuf_new()) == NULL){
+        clicon_err(OE_UNIX, errno, "cbuf_new");
+        goto done;
+    }
+    /* 2. Create xpath to specific mountpoint given by devname */
+    cprintf(cb, "devices/device[name='%s']/root", devname);
+    xpath = cbuf_get(cb);
+    /* 3. Check if yspec associated to that mountpoint exists */
+    if (yang_mount_get(yu, xpath, &yspec1) < 0)
+        goto done;
+    if (yspec1 == NULL){
+        if ((yspec1 = yspec_new()) == NULL)
+            goto done;
+        /* 4. Get yang specs of mountpoint from controller */
+        if (rpc_get_yanglib_mount(h, devname, &yanglib) < 0)
+            goto done;
+
+#ifdef CONTROLLER_JUNOS_ADD_COMMAND_FORWARDING
+        /* 5. Parse YANGs locally from the yang specs 
+           Added extra JUNOS patch to mod YANGs */
+        if ((ret = yang_lib2yspec_junos_patch(h, yanglib, yspec1)) < 0)
+            goto done;
+#else
+        /* 5. Parse YANGs locally from the yang specs */
+        if ((ret = yang_lib2yspec(h, yanglib, yspec1)) < 0)
+            goto done;
+#endif
+        if (ret == 0)
+            goto done;
+        if (yang_mount_set(yu, xpath, yspec1) < 0)
+            goto done;
+    }
+    if (yspec1p)
+        *yspec1p = yspec1;
+    retval = 0;
+ done:
+    if (yanglib)
+        xml_free(yanglib);
+    if (cb)
+        cbuf_free(cb);
+    return retval;
+}
+
+/*! CLIgen wrap function for making treeref lookup
+ *
+ * This adds an indirection based on name and context
+ * @param[in]  h     CLIgen handle
+ * @param[in]  name  Base tree name
+ * @param[in]  cvt   Tokenized string: vector of tokens
+ * @param[in]  arg   Argument given when registering wrap function (maybe not needed?)
+ * @param[out] namep New (malloced) name
+ * @retval     1     New malloced name in namep
+ * @retval     0     No wrapper, use existing
+ * @retval    -1     Error
+ */
+static int
+controller_cligen_treeref_wrap(cligen_handle ch,
+                               char         *name,
+                               cvec         *cvt,
+                               void         *arg,
+                               char        **namep)
+{
+    int           retval = -1;
+    cg_var       *cv;
+    char         *devname;
+    char         *treename2;
+    cbuf         *cb = NULL;
+    yang_stmt    *yspec1 = NULL;
+    clicon_handle h;
+
+    h = cligen_userhandle(ch);
+    if (strcmp(name, "mountpoint") == 0){
+        if ((cv = cvec_i(cvt, 4)) != NULL &&
+            (devname = cv_string_get(cv)) != NULL){
+            if ((cb = cbuf_new()) == NULL){
+                clicon_err(OE_UNIX, errno, "cbuf_new");
+                goto done;
+            }
+            cprintf(cb, "mountpoint-%s", devname);
+            treename2 = cbuf_get(cb);
+            /* Does this tree exist? */
+            if (cligen_ph_find(ch, treename2) == NULL){
+                if (create_autocli_mount_tree(h, devname, treename2, &yspec1) < 0)
+                    goto done;
+                if (yspec1 == NULL){
+                    clicon_err(OE_YANG, 0, "No yang spec");
+                    goto done;
+                }
+                /* Generate auto-cligen tree from the specs */
+                if (yang2cli_yspec(h, yspec1, treename2, 0) < 0)
+                    goto done;
+                /* Sanity */
+                if (cligen_ph_find(ch, treename2) == NULL){
+                    clicon_err(OE_YANG, 0, "autocli should have  been generated but is not?");
+                    goto done;
+                }
+            }
+            if (namep &&
+                (*namep = strdup(treename2)) == NULL){
+                clicon_err(OE_UNIX, errno, "strdup");
+                goto done;
+            }
+            retval = 1;
+            goto done;
+        }
+    }
+    retval = 0;
+ done:
+    if (cb)
+        cbuf_free(cb);
+    return retval; 
 }
 
 static clixon_plugin_api api = {
@@ -872,5 +1102,9 @@ clixon_plugin_init(clixon_handle h)
 
     gettimeofday(&tv, NULL);
     srandom(tv.tv_usec);
+    /* Register treeref wrap function */
+    if (clicon_option_bool(h, "CLICON_YANG_SCHEMA_MOUNT")){
+        cligen_tree_resolve_wrapper_set(cli_cligen(h), controller_cligen_treeref_wrap, NULL);
+    }
     return &api;
 }

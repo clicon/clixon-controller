@@ -86,7 +86,7 @@ device_send_sync(clixon_handle h,
         cprintf(cb, "</get>");
     }
     cprintf(cb, "</rpc>");
-    encap = clicon_option_int(h, "netconf-framing");
+    encap = clicon_data_int_get(h, "netconf-framing");
     if (netconf_output_encap(encap, cb) < 0)
         goto done;
     s = device_handle_socket_get(dh);
@@ -136,7 +136,7 @@ device_get_schema_sendit(clixon_handle h,
     cprintf(cb, "<format>yang</format>");
     cprintf(cb, "</get-schema>");
     cprintf(cb, "</rpc>");
-    encap = clicon_option_int(h, "netconf-framing");
+    encap = clicon_data_int_get(h, "netconf-framing");
     if (netconf_output_encap(encap, cb) < 0)
         goto done;
     if (clicon_msg_send1(s, cb) < 0)
@@ -250,7 +250,7 @@ device_send_get_schema_list(clixon_handle h,
     cprintf(cb, "</filter>");
     cprintf(cb, "</get>");
     cprintf(cb, "</rpc>");
-    encap = clicon_option_int(h, "netconf-framing");
+    encap = clicon_data_int_get(h, "netconf-framing");
     if (netconf_output_encap(encap, cb) < 0)
         goto done;
     if (clicon_msg_send1(s, cb) < 0)
@@ -372,7 +372,7 @@ device_send_edit_config_diff(clixon_handle h,
     cbuf_reset(cb);
     if (clixon_xml2cbuf(cb, xt, 0, 0, -1, 1) < 0)
         goto done;
-    encap = clicon_option_int(h, "netconf-framing");
+    encap = clicon_data_int_get(h, "netconf-framing");
     if (netconf_output_encap(encap, cb) < 0)
         goto done;
     s = device_handle_socket_get(dh);
@@ -410,7 +410,7 @@ device_send_validate(clixon_handle h,
     cprintf(cb, "<source><candidate/></source>");
     cprintf(cb, "</validate>");
     cprintf(cb, "</rpc>");
-    encap = clicon_option_int(h, "netconf-framing");
+    encap = clicon_data_int_get(h, "netconf-framing");
     if (netconf_output_encap(encap, cb) < 0)
         goto done;
     if (clicon_msg_send1(s, cb) < 0)
@@ -443,7 +443,7 @@ device_send_commit(clixon_handle h,
             device_handle_msg_id_getinc(dh));
     cprintf(cb, "<commit/>");
     cprintf(cb, "</rpc>");
-    encap = clicon_option_int(h, "netconf-framing");
+    encap = clicon_data_int_get(h, "netconf-framing");
     if (netconf_output_encap(encap, cb) < 0)
         goto done;
     if (clicon_msg_send1(s, cb) < 0)
