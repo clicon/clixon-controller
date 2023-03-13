@@ -18,7 +18,7 @@ echo "reset-backend"
 : ${IMG:=clixon-example}
 
 echo "Delete device config"
-ret=$(clixon_netconf -qe0 -f $CFG <<EOF
+ret=$(sudo clixon_netconf -qe0 -f $CFG <<EOF
 <rpc xmlns="urn:ietf:params:xml:ns:netconf:base:1.0" 
   xmlns:nc="urn:ietf:params:xml:ns:netconf:base:1.0" 
   message-id="42">
@@ -47,7 +47,7 @@ for i in $(seq 1 $nr); do
     ip=$(sudo docker inspect $NAME -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}')
     
     echo "Init config for device$i edit-config"
-    ret=$(clixon_netconf -qe0 -f $CFG <<EOF
+    ret=$(sudo clixon_netconf -qe0 -f $CFG <<EOF
 <rpc xmlns="urn:ietf:params:xml:ns:netconf:base:1.0" 
   xmlns:nc="urn:ietf:params:xml:ns:netconf:base:1.0" 
   message-id="42">
@@ -83,7 +83,7 @@ EOF
 done
 
 echo "controller commit"
-ret=$(clixon_netconf -q0 -f $CFG <<EOF
+ret=$(sudo clixon_netconf -q0 -f $CFG <<EOF
 <rpc xmlns="urn:ietf:params:xml:ns:netconf:base:1.0" message-id="43">
   <commit/>
 </rpc>]]>]]>
@@ -98,12 +98,12 @@ fi
 sleep $sleep
 
 echo "sync pull"
-clixon_cli -1f $CFG sync pull
+sudo clixon_cli -1f $CFG sync pull
 
 sleep $sleep
 
 echo "check open"
-res=$(clixon_cli -1f $CFG show devices | grep OPEN | wc -l)
+res=$(sudo clixon_cli -1f $CFG show devices | grep OPEN | wc -l)
 if [ "$res" != "$nr" ]; then
    echo "Error: $res"
    exit -1;
@@ -115,7 +115,7 @@ for i in $(seq 1 $nr); do
     ip=$(sudo docker inspect $NAME -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}')
     
     echo "Check config on device$i"
-    ret=$(clixon_netconf -qe0 -f $CFG <<EOF
+    ret=$(sudo clixon_netconf -qe0 -f $CFG <<EOF
 <rpc xmlns="urn:ietf:params:xml:ns:netconf:base:1.0" 
   xmlns:nc="urn:ietf:params:xml:ns:netconf:base:1.0" 
   message-id="42">
