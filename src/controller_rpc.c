@@ -91,7 +91,7 @@ connect_netconf_ssh(clixon_handle h,
     if (device_state_set(dh, CS_CONNECTING) < 0)
         goto done;
     s = device_handle_socket_get(dh);    
-    clicon_option_int_set(h, "netconf-framing", NETCONF_SSH_EOM); /* Always start with EOM */
+    clicon_data_int_set(h, "netconf-framing", NETCONF_SSH_EOM); /* Always start with EOM */
     if (clixon_event_reg_fd(s, device_input_cb, dh, "netconf socket") < 0)
         goto done;
     retval = 0;
@@ -616,7 +616,7 @@ rpc_reconnect(clixon_handle h,
         touched++;
     } /* for */
     if (touched == 0){
-        if (netconf_operation_failed(cbret, "application", "No reconnects activated")< 0)
+        if (netconf_operation_failed(cbret, "application", "Warning: no reconnects activated (maybe all were already open?)")< 0)
             goto done;
         goto ok;
     }

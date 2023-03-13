@@ -242,7 +242,7 @@ device_state_recv_hello(clixon_handle h,
     }
     clicon_debug(1, "%s version: %d", __FUNCTION__, version);
     version = 0; /* XXX hardcoded to 0 */
-    clicon_option_int_set(h, "netconf-framing", version);
+    clicon_data_int_set(h, "netconf-framing", version);
     /* Send hello */
     if (clixon_client_hello(s, version) < 0)
         goto done;
@@ -350,7 +350,6 @@ device_state_recv_config(clixon_handle h,
         device_close_connection(dh, "No data in get reply");
         goto closed;
     }
-
     /* Move all xmlns declarations to <data> */
     if (xmlns_set_all(xdata, nsc) < 0)
         goto done;

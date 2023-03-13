@@ -1,0 +1,127 @@
+/*
+ *
+  ***** BEGIN LICENSE BLOCK *****
+ 
+  Copyright (C) 2023 Olof Hagsand
+
+  This file is part of CLIXON.
+
+  Licensed under the Apache License, Version 2.0 (the "License");
+  you may not use this file except in compliance with the License.
+  You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+  Unless required by applicable law or agreed to in writing, software
+  distributed under the License is distributed on an "AS IS" BASIS,
+  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+  See the License for the specific language governing permissions and
+  limitations under the License.
+
+  ***** END LICENSE BLOCK *****
+  *
+  * Common functions, for backend, cli, etc 
+*/
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <stdint.h>
+#include <inttypes.h>
+#include <string.h>
+#include <errno.h>
+#include <signal.h>
+#include <unistd.h>
+#include <syslog.h>
+#include <fcntl.h>
+#include <fnmatch.h>
+#include <sys/time.h>
+
+/* clicon */
+#include <cligen/cligen.h>
+
+/* Clicon library functions. */
+#include <clixon/clixon.h>
+
+/* Controller includes */
+#include "controller.h"
+#include "controller_lib.h"
+
+#ifdef CONTROLLER_JUNOS_ADD_COMMAND_FORWARDING
+/*! Rewrite of junos YANGs after parsing
+ *
+ * Add grouping command-forwarding in junos-rpc yangs if not exists
+ * tried to make other less intrusive solutions or make a generic way in the
+ * original function, but the easiest was just to rewrite the function.
+ * @param[in] h       Clicon handle
+ * @param[in] yanglib XML tree on the form <yang-lib>...
+ * @param[in] yspec   Will be populated with YANGs, is consumed
+ * @retval    1       OK
+ * @retval    0       Parse error
+ * @retval    -1      Error
+ * @see yang_lib2yspec  the original function
+ */
+int
+yang_lib2yspec_junos_patch(clicon_handle h,
+                           cxobj        *yanglib,
+                           yang_stmt    *yspec)
+{
+    int        retval = -1;
+    cxobj     *xi;
+    char      *name;
+    char      *revision;
+    cvec      *nsc = NULL;
+    cxobj    **vec = NULL;
+    size_t     veclen;
+    int        i;
+    yang_stmt *ymod;
+    yang_stmt *yrev;
+    int        modmin = 0;
+    
+    clicon_debug(1, "%s", __FUNCTION__);
+    if (xpath_vec(yanglib, nsc, "module-set/module", &vec, &veclen) < 0) 
+        goto done;
+    for (i=0; i<veclen; i++){
+        xi = vec[i];
+        if ((name = xml_find_body(xi, "name")) == NULL)
+            continue;
+        if ((revision = xml_find_body(xi, "revision")) == NULL)
+            continue;
+        if ((ymod = yang_find(yspec, Y_MODULE, name)) != NULL ||
+            (ymod = yang_find(yspec, Y_SUBMODULE, name)) != NULL){
+            /* Skip if matching or no revision 
+             * Note this algorithm does not work for multiple revisions
+             */
+            if ((yrev = yang_find(ymod, Y_REVISION, NULL)) == NULL){
+                modmin++;
+                continue;
+            }
+            if (strcmp(yang_argument_get(yrev), revision) == 0){
+                modmin++;
+                continue;
+            }
+        }
+        if (yang_parse_module(h, name, revision, yspec, NULL) == NULL)
+            goto fail;
+    }
+    /* XXX: Ensure yang-lib is always there otherwise get state dont work for mountpoint */
+    if ((ymod = yang_find(yspec, Y_MODULE, "ietf-yang-library")) != NULL &&
+        (yrev = yang_find(ymod, Y_REVISION, NULL)) != NULL &&
+        strcmp(yang_argument_get(yrev), "2019-01-04") == 0){
+        modmin++;
+    }
+    else if (yang_parse_module(h, "ietf-yang-library", "2019-01-04", yspec, NULL) < 0)
+        goto fail;
+    clicon_debug(1, "%s yang_parse_post", __FUNCTION__);
+    if (yang_parse_post(h, yspec, modmin) < 0)
+        goto done;
+    retval = 1;
+ done:
+    clicon_debug(1, "%s %d", __FUNCTION__, retval);
+    if (vec)
+        free(vec);
+    return retval;
+ fail:
+    retval = 0;
+    goto done;
+}
+#endif  /* CONTROLLER_JUNOS_ADD_COMMAND_FORWARDING */

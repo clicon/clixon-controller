@@ -59,12 +59,6 @@ show("Show a particular state of the system"){
                  ], cli_show_devices();{
                  sync("Check if device is in sync"), cli_check_sync(); # XXX
                  }
-    pagination("Show list pagination") xpath("Show configuration") <xpath:string>("XPATH expression"){
-    	xml, cli_pagination("use xpath var", "es", "http://example.com/ns/example-social", "xml", "10");
-	cli, cli_pagination("use xpath var", "es", "http://example.com/ns/example-social", "cli", "10");
-	text, cli_pagination("use xpath var", "es", "http://example.com/ns/example-social", "text", "10");
-	json, cli_pagination("use xpath var", "es", "http://example.com/ns/example-social", "json", "10");
-    }
     state("Show configuration and state"), cli_show_auto_mode("running", "text", true, true); {
     	    xml("Show configuration and state as XML"), cli_show_auto_mode("running", "xml", true, true);{
 	    default("With-default mode"){

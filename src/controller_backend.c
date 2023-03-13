@@ -431,6 +431,8 @@ controller_yang_mount(clicon_handle   h,
                 goto done;
             if (xml_copy(xy0, xy1) < 0)
                 goto done;
+            *yanglib = xy1;
+            xy1 = NULL;
         }
         if (config)
             *config = 1;
