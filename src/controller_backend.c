@@ -50,8 +50,8 @@
 #include "controller_device_state.h"
 #include "controller_device_handle.h"
 #include "controller_device_send.h"
+#include "controller_transaction.h"
 #include "controller_rpc.h"
-
 
 /*! Called to get state data from plugin by programmatically adding state
  *
@@ -68,85 +68,14 @@ controller_statedata(clixon_handle   h,
                      char           *xpath,
                      cxobj          *xstate)
 {
-    int            retval = -1;
-    cxobj        **vec = NULL;
-    size_t         veclen;
-    cxobj         *xret = NULL;
-    int            i;
-    cxobj         *xn;
-    char          *name;
-    device_handle  dh;
-    cbuf          *cb = NULL;
-    conn_state_t   state;
-    char          *logmsg;
-    struct timeval tv;
-    
-    if ((cb = cbuf_new()) == NULL){
-        clicon_err(OE_UNIX, errno, "cbuf_new");
-        goto done;
-    }
-    if (xmldb_get(h, "running", nsc, "devices", &xret) < 0)
-        goto done;
-    if (xpath_vec(xret, nsc, "devices/device", &vec, &veclen) < 0) 
-        goto done;
-    for (i=0; i<veclen; i++){
-        xn = vec[i];
-        if ((name = xml_find_body(xn, "name")) == NULL)
-            continue;
-        if ((dh = device_handle_find(h, name)) == NULL)
-            continue;
-        cprintf(cb, "<devices xmlns=\"%s\"><device><name>%s</name>",
-                CONTROLLER_NAMESPACE,
-                name);
-        state = device_handle_conn_state_get(dh);
-        cprintf(cb, "<conn-state>%s</conn-state>", device_state_int2str(state));
-#ifdef NOTYET // something with encoding
-        {
-            cxobj *xcaps;
-            cxobj *x;
+    int retval = -1;
 
-            if ((xcaps = device_handle_capabilities_get(dh)) != NULL){
-                cprintf(cb, "<capabilities>");
-                x = NULL;
-                while ((x = xml_child_each(xcaps, x, -1)) != NULL) {
-                    if (xml_body(x) == NULL)
-                        continue;
-                    // XXX need encoding?
-                    cprintf(cb, "<capability>%s</capability>", xml_body(x));
-                }
-                cprintf(cb, "</capabilities>");
-            }
-        }
-#endif
-        device_handle_conn_time_get(dh, &tv);
-        if (tv.tv_sec != 0){
-            char timestr[28];            
-            if (time2str(tv, timestr, sizeof(timestr)) < 0)
-                goto done;
-            cprintf(cb, "<conn-state-timestamp>%s</conn-state-timestamp>", timestr);
-        }
-        device_handle_sync_time_get(dh, &tv);
-        if (tv.tv_sec != 0){
-            char timestr[28];            
-            if (time2str(tv, timestr, sizeof(timestr)) < 0)
-                goto done;
-            cprintf(cb, "<sync-timestamp>%s</sync-timestamp>", timestr);
-        }
-        if ((logmsg = device_handle_logmsg_get(dh)) != NULL)
-            cprintf(cb, "<logmsg>%s</logmsg>", logmsg);
-        cprintf(cb, "</device></devices>");
-        if (clixon_xml_parse_string(cbuf_get(cb), YB_NONE, NULL, &xstate, NULL) < 0)
-            goto done;
-        cbuf_reset(cb);
-    }
+    if (devices_statedata(h, nsc, xpath, xstate) < 0)
+        goto done;
+    if (controller_transactions_statedata(h, nsc, xpath, xstate) < 0)
+        goto done;
     retval = 0;
  done:
-    if (cb)
-        cbuf_free(cb);
-    if (vec)
-        free(vec);
-    if (xret)
-        xml_free(xret);
     return retval;
 }
 
@@ -186,16 +115,17 @@ controller_commit_device(clixon_handle h,
                          cxobj        *src,
                          cxobj        *target)
 {
-    int     retval = -1;
-    cxobj **vec1 = NULL;
-    cxobj **vec2 = NULL;
-    cxobj **vec3 = NULL;
-    size_t  veclen1;
-    size_t  veclen2;
-    size_t  veclen3;
-    int     i;
-    char   *body;
-    //    device_handle dh;
+    int                     retval = -1;
+    cxobj                 **vec1 = NULL;
+    cxobj                 **vec2 = NULL;
+    cxobj                 **vec3 = NULL;
+    size_t                  veclen1;
+    size_t                  veclen2;
+    size_t                  veclen3;
+    int                     i;
+    char                   *body;
+    controller_transaction *ct = NULL; /* created lazy/on-demand */
+    int                     ret;
     
     /* 1) if device removed, disconnect */
     if (xpath_vec_flag(src, nsc, "devices/device",
@@ -219,7 +149,15 @@ controller_commit_device(clixon_handle h,
                     goto done;
             }
             else{
-                if (controller_connect(h, xml_parent(vec2[i])) < 0)
+                if (ct == NULL){
+                    if ((ret = controller_transaction_new(h, "commit", &ct)) < 0)
+                        goto done;
+                }
+                if (ret == 0){
+                    clicon_err(OE_XML, 0, "Transaction is ongoing");
+                    goto done;
+                }
+                if (controller_connect(h, xml_parent(vec2[i]), ct) < 0)
                     goto done;
             }
         }
@@ -230,7 +168,15 @@ controller_commit_device(clixon_handle h,
                        &vec3, &veclen3) < 0)
         goto done;
     for (i=0; i<veclen3; i++){
-        if (controller_connect(h, vec3[i]) < 0)
+        if (ct == NULL){
+            if ((ret = controller_transaction_new(h, "commit", &ct)) < 0)
+                goto done;
+            if (ret == 0){
+                clicon_err(OE_XML, 0, "Transaction is ongoing");
+                goto done;
+            }
+        }
+        if (controller_connect(h, vec3[i], ct) < 0)
             goto done;
     }
     retval = 0;
@@ -274,7 +220,7 @@ controller_commit_generic(clixon_handle h,
             clicon_err(OE_UNIX, errno, "error parsing limit:%s", body);
             goto done;
         }
-        clicon_option_int_set(h, "controller_device_timeout", d);
+        clicon_data_int_set(h, "controller-device-timeout", d);
     }
     retval = 0;
  done:

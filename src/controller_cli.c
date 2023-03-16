@@ -51,7 +51,7 @@
  * @param[in]   s       Notification socket
  * @param[in]   tidstr0 Transaction id string
  * @param[out]  match   Transaction id match
- * @param[out]  status  0: transaction failed, 1: transaction OK (if match)
+ * @param[out]  result  0: transaction failed, 1: transaction OK (if match)
  * @param[out]  eof     EOF, socket closed
  * @param[out]  eof     EOF, socket closed
  * @retval      0       OK
@@ -61,7 +61,7 @@ static int
 transaction_notification_handler(int   s,
                                  char *tidstr0,
                                  int  *match,
-                                 int  *status,
+                                 int  *resultp,
                                  int  *eof)
 {
     int                retval = -1;
@@ -70,7 +70,9 @@ transaction_notification_handler(int   s,
     cxobj             *xn;
     int                ret;
     char              *tidstr;
-    char              *statusstr;
+    char              *reason = NULL;
+    char              *resstr;
+    int                result;
     
     if (clicon_msg_rcv(s, 1, &reply, eof) < 0)
         goto done;
@@ -91,18 +93,24 @@ transaction_notification_handler(int   s,
         clicon_err(OE_NETCONF, EFAULT, "Notification malformed");
         goto done;
     }
+    reason = xml_find_body(xn, "reason");
     if ((tidstr = xml_find_body(xn, "tid")) == NULL){
         clicon_err(OE_NETCONF, EFAULT, "Notification malformed: no tid");
         goto done;
     }
     if (tidstr0 && strcmp(tidstr0, tidstr) == 0 && match)
         *match = 1;
-    if ((statusstr = xml_find_body(xn, "status")) == NULL){
-        clicon_err(OE_NETCONF, EFAULT, "Notification malformed: no status");
+    if ((resstr = xml_find_body(xn, "result")) == NULL){
+        clicon_err(OE_NETCONF, EFAULT, "Notification malformed: no result");
         goto done;
     }
-    if (status && strcmp(statusstr, "true") == 0)
-        *status = 1;
+    if ((result = strcmp(resstr, "true") == 0) == 0){
+        clicon_err(OE_XML, 0, "Transaction %s failed %s", tidstr, reason?reason:"");
+        goto ok; // error == ^C
+    }
+    if (result)
+        *resultp = result;
+ ok:
     retval = 0;
  done:
     if (reply)
@@ -129,9 +137,9 @@ transaction_notification_cb(int   s,
     int                eof = 0;
     char              *tidstr = (char*)arg;
     int                match = 0;
-    int                status = 0;
+    int                result = 0;
     
-    if (transaction_notification_handler(s, tidstr, &match, &status, &eof) < 0)
+    if (transaction_notification_handler(s, tidstr, &match, &result, &eof) < 0)
         goto done;
     if (eof){ /* XXX: This is never called since eof is return -1, but maybe be used later */
         clixon_event_unreg_fd(s, transaction_notification_cb);
@@ -140,7 +148,7 @@ transaction_notification_cb(int   s,
         goto done;
     }
     if (match){
-        fprintf(stdout, "Transaction %s completed with status: %d\n", tidstr, status);
+        fprintf(stdout, "Transaction %s completed with result: %d\n", tidstr, result);
         clixon_event_unreg_fd(s, transaction_notification_cb);            
         if (tidstr)
             free(tidstr);
@@ -181,7 +189,7 @@ send_transaction_error(clicon_handle h,
     cprintf(cb, "<transaction-error xmlns=\"%s\">", CONTROLLER_NAMESPACE);
     cprintf(cb, "<tid>%s</tid>", tidstr);
     cprintf(cb, "<origin>CLI</origin>");
-    cprintf(cb, "<reason>Interrupted</reason>");
+    cprintf(cb, "<reason>Aborted by user</reason>");
     cprintf(cb, "</transaction-error>");
     cprintf(cb, "</rpc>");
     if (clixon_xml_parse_string(cbuf_get(cb), YB_NONE, NULL, &xtop, NULL) < 0)
@@ -226,7 +234,7 @@ transaction_notification_poll(clicon_handle h,
     int                eof = 0;
     int                s;
     int                match = 0;
-    int                status = 0;
+    int                result = 0;
 
     clicon_debug(CLIXON_DBG_DEFAULT, "%s tid:%s", __FUNCTION__, tidstr);
     if ((s = clicon_data_int_get(h, "controller-transaction-notify-socket")) < 0){
@@ -234,14 +242,22 @@ transaction_notification_poll(clicon_handle h,
         goto done;
     }
     while (!match){
-        if (transaction_notification_handler(s, tidstr, &match, &status, &eof) < 0){
+        clicon_debug(1, "%s A", __FUNCTION__);
+        if (transaction_notification_handler(s, tidstr, &match, &result, &eof) < 0){
             if (eof)
                 goto done;
             /* Interpret as user stop transaction: abort transaction */
             if (send_transaction_error(h, tidstr) < 0)
                 goto done;
-            cligen_output(stderr, "Transaction aborted by user\n");
+            cligen_output(stderr, "Aborted by user\n");
+            break;
         }
+    }
+    if (match){
+        if (result)
+            cligen_output(stderr, "OK\n");
+        else
+            cligen_output(stderr, "Failed\n");
     }
     retval = 0;
  done:
@@ -358,14 +374,14 @@ cli_sync_rpc(clixon_handle h,
 /*! Read the config of one or several devices
  * @param[in] h
  * @param[in] cvv  : name pattern
- * @param[in] argv
+ * @param[in] argv : 0: close, 1: open, 2: reconnect
  * @retval    0    OK
  * @retval   -1    Error
  */
 int
-cli_reconnect(clixon_handle h, 
-             cvec         *cvv, 
-             cvec         *argv)
+cli_connection_change(clixon_handle h, 
+                      cvec         *cvv, 
+                      cvec         *argv)
 {
     int        retval = -1;
     cbuf      *cb = NULL;
@@ -376,7 +392,17 @@ cli_reconnect(clixon_handle h,
     cxobj     *xreply;
     cxobj     *xerr;
     char      *name = "*";
+    char      *op;
 
+    if (argv == NULL || cvec_len(argv) != 1){
+        clicon_err(OE_PLUGIN, EINVAL, "requires argument: <operation>");
+        goto done;
+    }
+    if ((cv = cvec_i(argv, 0)) == NULL){
+        clicon_err(OE_PLUGIN, 0, "Error when accessing argument <push>");
+        goto done;
+    }
+    op = cv_string_get(cv);
     if ((cv = cvec_find(cvv, "name")) != NULL)
         name = cv_string_get(cv);
     if ((cb = cbuf_new()) == NULL){
@@ -387,9 +413,10 @@ cli_reconnect(clixon_handle h,
             NETCONF_BASE_NAMESPACE,
             clicon_username_get(h),
             NETCONF_MESSAGE_ID_ATTR);
-    cprintf(cb, "<reconnect xmlns=\"%s\">", CONTROLLER_NAMESPACE);
+    cprintf(cb, "<connection-change xmlns=\"%s\">", CONTROLLER_NAMESPACE);
     cprintf(cb, "<devname>%s</devname>", name);
-    cprintf(cb, "</reconnect>");
+    cprintf(cb, "<operation>%s</operation>", op);
+    cprintf(cb, "</connection-change>");
     cprintf(cb, "</rpc>");
     if (clixon_xml_parse_string(cbuf_get(cb), YB_NONE, NULL, &xtop, NULL) < 0)
         goto done;
@@ -545,7 +572,7 @@ compare_device_dbs(clicon_handle h,
 /*! Show controller device states
  * @param[in] h
  * @param[in] cvv  : name pattern
- * @param[in] argv
+ * @param[in] argv : "detail"?
  * @retval    0    OK
  * @retval   -1    Error
  */
@@ -555,7 +582,6 @@ cli_show_devices(clixon_handle h,
                  cvec         *argv)
 {
     int                retval = -1;
-    struct clicon_msg *msg = NULL;
     cvec              *nsc = NULL;
     cxobj             *xc;
     cxobj             *xerr;
@@ -567,7 +593,19 @@ cli_show_devices(clixon_handle h,
     char              *logmsg;
     char              *pattern = NULL;
     cg_var            *cv;
+    int                detail = 0;
     
+    if (argv != NULL && cvec_len(argv) != 1){
+        clicon_err(OE_PLUGIN, EINVAL, "optional argument: <detail>");
+        goto done;
+    }
+    if (cvec_len(argv) == 1){
+        if ((cv = cvec_i(argv, 0)) == NULL){
+            clicon_err(OE_PLUGIN, 0, "Error when accessing argument <detail>");
+            goto done;
+        }
+        detail = strcmp(cv_string_get(cv),"detail")==0;
+    }
     if ((cv = cvec_find(cvv, "name")) != NULL)
         pattern = cv_string_get(cv);
     if ((cb = cbuf_new()) == NULL){
@@ -583,31 +621,37 @@ cli_show_devices(clixon_handle h,
         clixon_netconf_error(xerr, "Get devices", NULL);
         goto done;
     }
-    /* Change top frm "data" to "devices" */
+    /* Change top from "data" to "devices" */
     if ((xc = xml_find_type(xn, NULL, "devices", CX_ELMNT)) != NULL){
         if (xml_rootchild_node(xn, xc) < 0)
             goto done;
         xn = xc;
-        cligen_output(stdout, "%-23s %-10s %-22s %-30s\n", "Name", "State", "Time", "Logmsg");
-        cligen_output(stdout, "========================================================================\n");
-        xc = NULL;
-        while ((xc = xml_child_each(xn, xc, CX_ELMNT)) != NULL) {
-            char *p;
-            name = xml_find_body(xc, "name");
-            if (pattern != NULL && fnmatch(pattern, name, 0) != 0)
-                continue;
-            cligen_output(stdout, "%-24s",  name);
-            state = xml_find_body(xc, "conn-state");
-            cligen_output(stdout, "%-11s",  state?state:"");
-            if ((timestamp = xml_find_body(xc, "conn-state-timestamp")) != NULL){
-                /* Remove 6 us digits */
-                if ((p = rindex(timestamp, '.')) != NULL)
-                    *p = '\0';
+        if (detail){
+            if (clixon_xml2file(stdout, xn, 0, 1, cligen_output, 0, 1) < 0)
+                goto done;
+        }
+        else {
+            cligen_output(stdout, "%-23s %-10s %-22s %-30s\n", "Name", "State", "Time", "Logmsg");
+            cligen_output(stdout, "========================================================================\n");
+            xc = NULL;
+            while ((xc = xml_child_each(xn, xc, CX_ELMNT)) != NULL) {
+                char *p;
+                name = xml_find_body(xc, "name");
+                if (pattern != NULL && fnmatch(pattern, name, 0) != 0)
+                    continue;
+                cligen_output(stdout, "%-24s",  name);
+                state = xml_find_body(xc, "conn-state");
+                cligen_output(stdout, "%-11s",  state?state:"");
+                if ((timestamp = xml_find_body(xc, "conn-state-timestamp")) != NULL){
+                    /* Remove 6 us digits */
+                    if ((p = rindex(timestamp, '.')) != NULL)
+                        *p = '\0';
+                }
+                cligen_output(stdout, "%-23s", timestamp?timestamp:"");
+                logmsg = xml_find_body(xc, "logmsg");
+                cligen_output(stdout, "%-31s",  logmsg?logmsg:"");
+                cligen_output(stdout, "\n");
             }
-            cligen_output(stdout, "%-23s", timestamp?timestamp:"");
-            logmsg = xml_find_body(xc, "logmsg");
-            cligen_output(stdout, "%-31s",  logmsg?logmsg:"");
-            cligen_output(stdout, "\n");
         }
     }
     retval = 0;
@@ -618,8 +662,75 @@ cli_show_devices(clixon_handle h,
         xml_free(xn);
     if (cb)
         cbuf_free(cb);
-    if (msg)
-        free(msg);
+    return retval;
+}
+
+/*! Show controller device states
+ * @param[in] h
+ * @param[in] cvv  
+ * @param[in] argv : 0: active, 1: all
+ * @retval    0    OK
+ * @retval   -1    Error
+ */
+int
+cli_show_transactions(clixon_handle h,
+                      cvec         *cvv,
+                      cvec         *argv)
+{
+    int                retval = -1;
+    cvec              *nsc = NULL;
+    cxobj             *xc;
+    cxobj             *xerr;
+    cbuf              *cb = NULL;
+    cxobj             *xn = NULL; /* XML of senders */
+    char              *state;
+    cg_var            *cv;
+    int                all = 0;
+    
+    if (argv == NULL || cvec_len(argv) != 1){
+        clicon_err(OE_PLUGIN, EINVAL, "requires argument: <operation>");
+        goto done;
+    }
+    if ((cv = cvec_i(argv, 0)) == NULL){
+        clicon_err(OE_PLUGIN, 0, "Error when accessing argument <all>");
+        goto done;
+    }
+    all = strcmp(cv_string_get(cv),"all")==0;
+    if ((cb = cbuf_new()) == NULL){
+        clicon_err(OE_PLUGIN, errno, "cbuf_new");
+        goto done;
+    }
+    /* Get config */
+    if ((nsc = xml_nsctx_init("co", CONTROLLER_NAMESPACE)) == NULL)
+        goto done;
+    if (clicon_rpc_get(h, "co:transactions", nsc, CONTENT_ALL, -1, "report-all", &xn) < 0)
+        goto done;
+    if ((xerr = xpath_first(xn, NULL, "/rpc-error")) != NULL){
+        clixon_netconf_error(xerr, "Get devices", NULL);
+        goto done;
+    }
+    /* Change top from "data" to "devices" */
+    if ((xc = xml_find_type(xn, NULL, "transactions", CX_ELMNT)) != NULL){
+        if (xml_rootchild_node(xn, xc) < 0)
+            goto done;
+        xn = xc;
+        xc = NULL;
+        while ((xc = xml_child_each(xn, xc, CX_ELMNT)) != NULL) {
+            state = xml_find_body(xc, "state");
+            if (!all && strcmp(state, "CLOSED") == 0)
+                continue;
+            if (clixon_xml2file(stdout, xc, 0, 1, cligen_output, 0, 1) < 0)
+                goto done;
+        }
+    }
+    retval = 0;
+ done:
+    if (nsc)
+        cvec_free(nsc);
+    if (xn)
+        xml_free(xn);
+    if (cb)
+        cbuf_free(cb);
     return retval;
 }
 

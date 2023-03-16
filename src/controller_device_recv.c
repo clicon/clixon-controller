@@ -67,13 +67,13 @@ static int
 rpc_reply_sanity(device_handle dh,
                  cxobj        *xmsg,
                  char         *rpcname,
-                 conn_state_t  conn_state)
+                 conn_state    conn_state)
 {
     int   retval = -1;
     cvec *nsc = NULL;
     char *rpcprefix;
     char *namespace;
-
+    
     if (strcmp(rpcname, "rpc-reply") != 0){
         device_close_connection(dh, "Unexpected msg %s in state %s",
                                 rpcname, device_state_int2str(conn_state));
@@ -197,7 +197,7 @@ device_state_recv_hello(clixon_handle h,
                         int           s,
                         cxobj        *xmsg,
                         char         *rpcname,
-                        conn_state_t  conn_state)
+                        conn_state    conn_state)
 {
     int     retval = -1;
     char   *rpcprefix;
@@ -216,7 +216,7 @@ device_state_recv_hello(clixon_handle h,
         goto closed;
     }
     if (namespace == NULL || strcmp(namespace, NETCONF_BASE_NAMESPACE) != 0){
-        device_close_connection(dh,  "No appropriate namespace associated with %s",
+        device_close_connection(dh, "No appropriate namespace associated with %s",
                    namespace);
         goto closed;
     }
@@ -237,7 +237,7 @@ device_state_recv_hello(clixon_handle h,
     else if (device_handle_capabilities_find(dh, NETCONF_BASE_CAPABILITY_1_0))
         version = 0;
     else{
-        device_close_connection(dh,  "No base netconf capability found");
+        device_close_connection(dh, "No base netconf capability found");
         goto closed;
     }
     clicon_debug(1, "%s version: %d", __FUNCTION__, version);
@@ -319,7 +319,7 @@ device_state_recv_config(clixon_handle h,
                          cxobj        *xmsg,
                          yang_stmt    *yspec0,
                          char         *rpcname,
-                         conn_state_t  conn_state)
+                         conn_state    conn_state)
 {
     int                     retval = -1;
     cxobj                  *xdata;
@@ -359,7 +359,6 @@ device_state_recv_config(clixon_handle h,
         clicon_err(OE_UNIX, errno, "cbuf_new");
         goto done;
     }
-
     /* Create config tree (xt) and device mount-point (xroot) */
     if (device_state_mount_point_get(name, yspec0, &xt, &xroot) < 0)
         goto done;
@@ -410,6 +409,7 @@ device_state_recv_config(clixon_handle h,
         goto done;
     if (xml_prefix_set(xa, NETCONF_BASE_PREFIX) < 0)
         goto done;
+    /* Special handling if part of transaction. XXX: currently not activated */
     if ((tid = device_handle_tid_get(dh)) != 0 &&
         (ct = controller_transaction_find(h, tid)) != NULL){
         merge = ct->ct_merge;
@@ -489,7 +489,7 @@ int
 device_state_recv_schema_list(device_handle dh,
                               cxobj        *xmsg,
                               char         *rpcname,
-                              conn_state_t  conn_state)
+                              conn_state    conn_state)
 {
     int    retval = -1;
     cxobj *xschemas = NULL;
@@ -563,7 +563,7 @@ int
 device_state_recv_get_schema(device_handle dh,
                              cxobj        *xmsg,
                              char         *rpcname,
-                             conn_state_t  conn_state)
+                             conn_state    conn_state)
 {
     int         retval = -1;
     char       *ystr;
@@ -632,41 +632,64 @@ device_state_recv_get_schema(device_handle dh,
  * @param[in] yspec      Yang top-level spec
  * @param[in] rpcname    Name of RPC, only "rpc-reply" expected here
  * @param[in] conn_state Device connection state
+ * @param[out] cberr     Error returned as cb, free with cbuf_err
  * @retval    1          OK
- * @retval    0          Closed
+ * @retval    0          Failed (cberr may be set if NOT closed)
  * @retval   -1          Error
  */
 int
 device_state_recv_ok(device_handle dh,
                      cxobj        *xmsg,
                      char         *rpcname,
-                     conn_state_t  conn_state)
+                     conn_state    conn_state,
+                     cbuf        **cberr)
 {
     int    retval = -1;
     int    ret;
     cxobj *xerr;
     cxobj *x;
+    cbuf  *cb = NULL;
 
     if ((ret = rpc_reply_sanity(dh, xmsg, rpcname, conn_state)) < 0)
         goto done;
     if (ret == 0)
-        goto closed;
+        goto failed;
     if ((xerr = xpath_first(xmsg, NULL, "rpc-error")) != NULL){
         x = xpath_first(xerr, NULL, "error-message");
-        device_close_connection(dh, "Error %s in state %s",
-                                x?xml_body(x):"reply",
-                                device_state_int2str(conn_state));
-        goto closed;
+        if ((cb = cbuf_new()) == NULL){
+            clicon_err(OE_UNIX, errno, "cbuf_new");
+            goto done;
+        }
+        cprintf(cb, "Error %s in state %s of device %s",
+                x?xml_body(x):"reply",
+                device_state_int2str(conn_state),
+                device_handle_name_get(dh));
+        if (cberr){
+            *cberr = cb;
+            cb = NULL;
+        }
+        goto failed;
     }
     if (xml_find_type(xmsg, NULL, "ok", CX_ELMNT) == NULL){
-        device_close_connection(dh, "No ok in reply in state %s",
-                                device_state_int2str(conn_state));
-        goto closed;
+        if ((cb = cbuf_new()) == NULL){
+            clicon_err(OE_UNIX, errno, "cbuf_new");
+            goto done;
+        }
+        cprintf(cb, "No ok in reply in state %s of device %s",
+                device_state_int2str(conn_state),
+                device_handle_name_get(dh));
+        if (cberr){
+            *cberr = cb;
+            cb = NULL;
+        }
+        goto failed;
     }
     retval = 1;
  done:
+    if (cb)
+        cbuf_free(cb);
     return retval;
- closed:
+ failed:
     retval = 0;
     goto done;
 }

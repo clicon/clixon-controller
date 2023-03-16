@@ -21,6 +21,42 @@
   ***** END LICENSE BLOCK *****
   *
   * Meta-transaction for client/controller/device commit and rollback
+  * The state transition is in the base case:
+  *   OPEN->EDIT->VALIDATE->WAIT*->COMMIT->OPEN
+  * where all devices must enter WAIT before any can proceed to COMMIT
+  *
+  * This leads to the following algorithm of when a device enters a EDIT/VALIDATE state:
+  * 1. The device has failed
+  * 1.1 The error is "recoverable" (eg validate fail) 
+  * --> 1.1.1 Trigger DISCARD of the device
+  * 1.2 The error is not recoverable,
+  * --> 1.2.1 close the device
+  * --> 1.2.2 Leave transaction
+  * --> 1.2.3 If no devices left in transaction, mark as OK
+  * 1.3 Further, if the transition is not in an error state
+  * --> 1.3.1 Set transition in error state
+  * If >= WAIT state
+  * --> 1.3.2 For all other devices in WAIT state trigger DISCARD 
+  *
+  * 2. The device is OK (so far)
+  * 2.1 The transaction is in an error state
+  * If >= WAIT
+  * --> 2.1.1 Trigger DISCARD of the device
+  * 2.2 The transaction is OK
+  * 2.2.1 IF IN VALIDATE:
+  * 2.2.1.1 All devices are in WAIT (none are in EDIT/VALIDATE)
+  * --> 2.2.1.1.1 Trigger COMMIT of all devices
+  * 2.2.1.2 Some device are in EDIT/VALIDATE
+  * --> 2.2.1.2.1 device proceed to next step
+  * 2.2.2 IF ENTERING OK
+  * --> 2.2.2.1 Leave transaction
+  * --> 2.2.2.2 If no devices left in transaction, close transaction (if OK set result=true)
+  *
+  * There are also unrecoverable errors, such as errors in discard, or commit.
+  * 1. A device fails in COMMIT/DISCARD
+  *  --> the transition is set in an (unrecoverable) error state 
+  *  --> All devices are closed?
+  * 
  */
 
 #include <stdio.h>
@@ -34,6 +70,7 @@
 #include <syslog.h>
 #include <fcntl.h>
 #include <fnmatch.h>
+#include <assert.h>
 #include <sys/time.h>
 
 /* clicon */
@@ -47,41 +84,114 @@
 
 /* Controller includes */
 #include "controller.h"
+#include "controller_device_state.h"
+#include "controller_device_send.h"
+#include "controller_device_handle.h"
 #include "controller_transaction.h"
+
+/*! Mapping between enum connection_state and yang transaction-state
+ * @see clixon-controller@2023-01-01.yang transaction-state
+ */
+static const map_str2int tsmap[] = {
+    {"INIT",      TS_INIT},
+    {"RESOLVED",  TS_RESOLVED},
+    {"CLOSED",    TS_CLOSED},
+    {NULL,        -1}
+};
+
+/*! Map controller transaction state from int to string 
+ * @param[in]  state  Transaction state as int
+ * @retval     str    Trsanction state as string
+ */
+char *
+transaction_state_int2str(conn_state state)
+{
+    return (char*)clicon_int2str(tsmap, state);
+}
+
+/*! Map controller transaction state from string to int 
+ * @param[in]  str    Transaction state as string
+ * @retval     state  Transaction state as int
+ */
+transaction_state
+transaction_state_str2int(char *str)
+{
+    return clicon_str2int(tsmap, str);
+}
+
+/*! Set new transaction state and timestamp
+ *
+ * @param[in]  ct     Transaction
+ * @param[in]  state  New state
+ * @param[in]  result 0:error, 1:success (only if state=TS_RESOLVED)
+ */
+int
+controller_transaction_state_set(controller_transaction *ct,
+                                 transaction_state       state,
+                                 int                     result)
+{
+    switch (state) {
+    case TS_INIT:
+        clicon_debug(1, "%s %" PRIu64 " : -> %s",
+                     __FUNCTION__,
+                     ct->ct_id,
+                     transaction_state_int2str(state));
+        break;
+    case TS_RESOLVED:
+        assert(state != ct->ct_state);
+        clicon_debug(1, "%s %" PRIu64 " : %s -> %s result: %d",
+                     __FUNCTION__,
+                     ct->ct_id,
+                     transaction_state_int2str(ct->ct_state),
+                     transaction_state_int2str(state),
+                     result);
+        break;
+    case TS_CLOSED:
+        assert(state != ct->ct_state);
+        clicon_debug(1, "%s %" PRIu64 " : %s -> %s",
+                     __FUNCTION__,
+                     ct->ct_id,
+                     transaction_state_int2str(ct->ct_state),
+                     transaction_state_int2str(state));
+    }
+    ct->ct_state = state;
+    if (state == TS_RESOLVED)
+        ct->ct_result = result;
+    gettimeofday(&ct->ct_timestamp, NULL);
+    return 0;
+}
 
 /*! A transaction has been completed
  *
- * @param[in]  tid    Transaction id
- * @param[in]  status Termination status: true or false
+ * @param[in]  h      Clixon handle
+ * @param[in]  ct     Controller transaction
+ * @param[in]  result 0:error, 1:success
  */
 int
-controller_transaction_notify(clixon_handle h,
-                              uint64_t      tid,
-                              int           status,
-                              char         *origin,
-                              char         *reason)
+controller_transaction_notify(clixon_handle           h,
+                              controller_transaction *ct,
+                              int                     result)
 {
     int   retval = -1;
     cbuf *cb = NULL;
 
-    clicon_debug(1, "%s", __FUNCTION__);
+    clicon_debug(1, "%s %" PRIu64, __FUNCTION__, ct->ct_id);
     if ((cb = cbuf_new()) == NULL){
         clicon_err(OE_UNIX, errno, "cbuf_new");
         goto done;
     }
     cprintf(cb, "<controller-transaction xmlns=\"%s\">", CONTROLLER_NAMESPACE);
-    cprintf(cb, "<tid>%" PRIu64  "</tid>", tid);
-    cprintf(cb, "<status>%s</status>", status?"true":"false");
-    if (origin)
-        cprintf(cb, "<origin>%s</origin>", origin);
-    if (reason)
-        cprintf(cb, "<reason>%s</reason>", reason);
+    cprintf(cb, "<tid>%" PRIu64  "</tid>", ct->ct_id);
+    cprintf(cb, "<result>%s</result>", result?"true":"false");
+    if (ct->ct_origin)
+        cprintf(cb, "<origin>%s</origin>", ct->ct_origin);
+    if (ct->ct_reason)
+        cprintf(cb, "<reason>%s</reason>", ct->ct_reason);
     cprintf(cb, "</controller-transaction>");
     if (stream_notify(h, "controller-transaction", "%s", cbuf_get(cb)) < 0)
         goto done;
     retval = 0;
  done:
-    clicon_debug(1, "%s %d", __FUNCTION__, retval);
     if (cb)
         cbuf_free(cb);
     return retval;
@@ -119,11 +229,16 @@ transaction_new_id(clicon_handle h,
 
 /*! Create a new controller-transaction, with a new id
  *
- * @param[in]   h   Clixon handle
- * @param[out]  ct  Transaction struct
+ * @param[in]   h           Clixon handle
+ * @param[in]   description Description of transaction
+ * @param[out]  ct          Transaction struct
+ * @retval      1           OK
+ * @retval      0           Failed, existing transaction
+ * @retval     -1           Error
  */
 int
 controller_transaction_new(clicon_handle            h,
+                           char                    *description,
                            controller_transaction **ctp)
 
 {
@@ -133,6 +248,15 @@ controller_transaction_new(clicon_handle            h,
     size_t                  sz;
     
     clicon_debug(1, "%s", __FUNCTION__);
+    /* Exclusive lock of single active transaction */
+    if (clicon_ptr_get(h, "controller-transaction-list", (void**)&ct_list) == 0 &&
+        (ct = ct_list) != NULL) {
+        do {
+            if (ct->ct_state != TS_CLOSED)
+                goto failed;
+            ct = NEXTQ(controller_transaction *, ct);
+        } while (ct && ct != ct_list);
+    }
     sz = sizeof(controller_transaction);
     if ((ct = malloc(sz)) == NULL){
         clicon_err(OE_NETCONF, errno, "malloc");
@@ -141,28 +265,46 @@ controller_transaction_new(clicon_handle            h,
     memset(ct, 0, sz);
     if (transaction_new_id(h, &ct->ct_id) < 0)
         goto done;
+    if (description &&
+        (ct->ct_description = strdup(description)) == NULL){
+        clicon_err(OE_UNIX, errno, "strdup");
+        goto done;
+    }
+    
     (void)clicon_ptr_get(h, "controller-transaction-list", (void**)&ct_list);
     ADDQ(ct, ct_list);
     clicon_ptr_set(h, "controller-transaction-list", (void*)ct_list);
     if (ctp)
         *ctp = ct;
-    retval = 0;
+    retval = 1;
  done:
     return retval;
+ failed:
+    retval = 0;
+    goto done;
 }
 
-#ifdef NOTYET
-/*! Free controller transaction itself
+/*! Remove and free single controller transaction
  */
-static int
-controller_transaction_free(controller_transaction *ct)
+int
+controller_transaction_free(clicon_handle           h,
+                            controller_transaction *ct)
 {
-    if (th->th_origin)
-        free(th->th_origin);
-    free(th);
+    controller_transaction *ct_list = NULL;
+
+    if (clicon_ptr_get(h, "controller-transaction-list", (void**)&ct_list) == 0){
+        DELQ(ct, ct_list, controller_transaction *);
+    }
+    if (ct->ct_description)
+        free(ct->ct_description);
+    if (ct->ct_origin)
+        free(ct->ct_origin);
+    if (ct->ct_reason)
+        free(ct->ct_reason);
+    free(ct);
     return 0;
 }
-#endif
+
 /*! Find clixon-client given name
  *
  * @param[in]  h     Clixon  handle
@@ -185,4 +327,255 @@ controller_transaction_find(clixon_handle  h,
         } while (ct && ct != ct_list);
     }
     return NULL;
+}
+
+/*! Return number of devices in a specific transaction
+ *
+ * @param[in]  h      Clixon handle
+ * @param[in]  tid    Transaction id
+ * @param[in]  state  In state (or -1 for any)
+ * @retval     nr     Number of devices in transaction
+ */
+int
+controller_transaction_devices(clicon_handle h,
+                               uint64_t      tid)
+{
+    device_handle dh = NULL;
+    int           nr = 0;
+
+    while ((dh = device_handle_each(h, dh)) != NULL){
+        if (device_handle_tid_get(dh) == tid)
+            nr++;
+    }
+    return nr;
+}
+
+/*! A controller transaction (device) has failed
+ *
+ * This device failed, ie validation has failed, the device lost connection, etc
+  * 1.1 The error is "recoverable" (eg validate fail) 
+  * --> 1.1.1 Trigger DISCARD of the device
+  * 1.2 The error is not recoverable,
+  * --> 1.2.1 close the device
+  * --> 1.2.2 Leave transaction
+  * --> 1.2.3 If no devices left in transaction, mark as OK
+  * 1.3 Further, if the transition is not in an error state
+  * --> 1.3.1 Set transition in error state
+  * If >= WAIT state
+  * --> 1.3.2 For all other devices in WAIT state trigger DISCARD 
+ * @param[in]  h      Clixon handle
+ * @param[in]  tid    Transaction id
+ * @param[in]  dh     Device handler (or NULL)
+ * @param[in]  recover Try to do a recover by initiating a DISCARD process on dh (only if reason)
+ * @param[in]  origin Originator of error
+ * @param[in]  reason Reason for terminating transaction. If set && !recover -> close device
+ * @retval     0      OK
+ * @retval    -1      Error
+ * @note This is called from device_close_connection which not only makes it risky for recursion, but
+ *       the (other) callers to that function should be analyzed
+ */
+int
+controller_transaction_failed(clicon_handle           h,
+                              uint64_t                tid,
+                              controller_transaction *ct,                              
+                              device_handle           dh,
+                              int                     recover,
+                              char                   *origin,
+                              char                   *reason)
+{
+    int retval = -1;
+
+    clicon_debug(1, "%s", __FUNCTION__);
+    if (dh != NULL){
+        if (recover && reason){ 
+            /* 1.1 The error is "recoverable" (eg validate fail) */
+            /* --> 1.1.1 Trigger DISCARD of the device */
+            if (device_send_discard_changes(h, dh) < 0)
+                goto done;
+            if (device_state_set(dh, CS_PUSH_DISCARD) < 0)
+                goto done;
+        }
+        else { /* 1.2 The error is not recoverable */
+            /* 1.2.1 close the device: if not already done in device_state_recv_ok */
+            if (reason && device_close_connection(dh, "%s", reason) < 0)
+                goto done;
+            /* 1.2.2 Leave transaction */
+            device_handle_tid_set(dh, 0);
+            /* 1.2.3 If no devices left in transaction, close it */
+            if (controller_transaction_devices(h, tid) == 0)
+                controller_transaction_state_set(ct, TS_CLOSED, 0);
+        }
+    }
+    if (ct->ct_state == TS_INIT){ /* 1.3 The transition is not in an error state */
+        /* 1.3.1 Set transition in error state */
+        controller_transaction_state_set(ct, TS_RESOLVED, 0);
+        if (origin && (ct->ct_origin = strdup(origin)) == NULL){
+            clicon_err(OE_UNIX, errno, "strdup");
+            goto done;
+        }
+        if (reason && (ct->ct_reason = strdup(reason)) == NULL){
+            clicon_err(OE_UNIX, errno, "strdup");
+            goto done;
+        }
+        if (controller_transaction_notify(h, ct, 0) < 0)
+            goto done;
+        /* 1.3.2 For all other devices in WAIT state trigger DISCARD */
+        if (controller_transaction_wait_trigger(h, tid, 0) < 0)
+            goto done;
+    }
+    else
+        assert(ct->ct_result == 0); /* Sanity: may not be in resolved OK state */
+    retval = 0;
+ done:
+    clicon_debug(1, "%s retval:%d", __FUNCTION__, retval);    
+    return retval;
+}
+
+/*! Check if all devices in a transaction is in wait case
+ * 
+ * @retval  1 All devices are in wait state
+ * @retval  0 Not all devices are in wait state
+ * @retval -1 Error: inconsistent states
+ */
+int
+controller_transaction_wait(clicon_handle h,
+                            uint64_t      tid)
+{
+    int           retval = -1;
+    device_handle dh;
+    int           notready = 0;
+    int           wait = 0;
+    int           other = 0;
+    
+    dh = NULL;
+    while ((dh = device_handle_each(h, dh)) != NULL){
+        if (device_handle_tid_get(dh) != tid)
+            continue;
+        if (device_handle_conn_state_get(dh) == CS_PUSH_EDIT ||
+            device_handle_conn_state_get(dh) == CS_PUSH_VALIDATE)
+            notready++;
+        if (device_handle_conn_state_get(dh) == CS_PUSH_WAIT)
+            wait++;
+        if (device_handle_conn_state_get(dh) != CS_PUSH_EDIT &&
+            device_handle_conn_state_get(dh) != CS_PUSH_VALIDATE &&
+            device_handle_conn_state_get(dh) != CS_PUSH_WAIT)
+            other++;
+    }
+    if ((notready||wait) && other){
+        clicon_err(OE_YANG, 0, "Inconsistent states: (notready||wait) && other");
+        goto done;
+    }
+    if (wait && notready==0)
+        retval = 1;
+    else
+        retval = 0;
+ done:
+    return retval;
+}
+
+/*! For all devices in WAIT state trigger commit or discard 
+ *
+ * @param[in]  h      Clixon handle
+ * @param[in]  tid    Transaction id
+ * @param[in]  commit 0: discard, 1: commit
+ * @retval     0      OK
+ * @retval    -1      Error
+ */
+int
+controller_transaction_wait_trigger(clicon_handle h,
+                                    uint64_t      tid,
+                                    int           commit)
+{
+    int           retval = -1;
+    device_handle dh = NULL;
+
+    while ((dh = device_handle_each(h, dh)) != NULL){
+        if (device_handle_tid_get(dh) != tid)
+            continue;
+        if (device_handle_conn_state_get(dh) != CS_PUSH_WAIT)
+            continue;
+        if (commit){
+            if (device_send_commit(h, dh) < 0)
+                goto done;
+            if (device_state_set(dh, CS_PUSH_COMMIT) < 0)
+                goto done;
+        }
+        else{
+            if (device_send_discard_changes(h, dh) < 0)
+                goto done;
+            if (device_state_set(dh, CS_PUSH_DISCARD) < 0)
+                goto done;
+        }
+    }
+    retval = 0;
+ done:
+    return retval;
+}
+
+/*! Get transactions statedata
+ *
+ * @param[in]    h        Clicon handle
+ * @param[in]    nsc      External XML namespace context, or NULL
+ * @param[in]    xpath    String with XPATH syntax. or NULL for all
+ * @param[out]   xstate   XML tree, <config/> on entry. 
+ * @retval       0        OK
+ * @retval      -1        Error
+ */
+int 
+controller_transactions_statedata(clixon_handle   h, 
+                                  cvec           *nsc,
+                                  char           *xpath,
+                                  cxobj          *xstate)
+{
+    int            retval = -1;
+    cxobj        **vec = NULL;
+    cxobj         *xret = NULL;
+    cbuf          *cb = NULL;
+    struct timeval *tv;
+    controller_transaction *ct_list = NULL;
+    controller_transaction *ct = NULL;
+
+    clicon_debug(1, "%s", __FUNCTION__);
+    if ((cb = cbuf_new()) == NULL){
+        clicon_err(OE_UNIX, errno, "cbuf_new");
+        goto done;
+    }
+    cprintf(cb, "<transactions xmlns=\"%s\">", CONTROLLER_NAMESPACE);
+    if (clicon_ptr_get(h, "controller-transaction-list", (void**)&ct_list) == 0 &&
+        (ct = ct_list) != NULL) {
+        do {
+            cprintf(cb, "<transaction>");
+            cprintf(cb, "<tid>%" PRIu64  "</tid>", ct->ct_id);
+            cprintf(cb, "<state>%s</state>", transaction_state_int2str(ct->ct_state));
+            if (ct->ct_description)
+                cprintf(cb, "<description>%s</description>", ct->ct_description);
+            if (ct->ct_origin)
+                cprintf(cb, "<origin>%s</origin>", ct->ct_origin);
+            if (ct->ct_reason)
+                cprintf(cb, "<reason>%s</reason>", ct->ct_reason);
+            if (ct->ct_state != TS_INIT)
+                cprintf(cb, "<result>%s</result>", ct->ct_result?"true":"false");
+            tv = &ct->ct_timestamp;
+            if (tv->tv_sec != 0){
+                char timestr[28];            
+                if (time2str(*tv, timestr, sizeof(timestr)) < 0)
+                    goto done;
+                cprintf(cb, "<timestamp>%s</timestamp>", timestr);
+            }
+            cprintf(cb, "</transaction>");
+            ct = NEXTQ(controller_transaction *, ct);
+        } while (ct && ct != ct_list);
+    }
+    cprintf(cb, "</transactions>");
+    if (clixon_xml_parse_string(cbuf_get(cb), YB_NONE, NULL, &xstate, NULL) < 0)
+        goto done;
+    retval = 0;
+ done:
+    if (cb)
+        cbuf_free(cb);
+    if (vec)
+        free(vec);
+    if (xret)
+        xml_free(xret);
+    return retval;
 }

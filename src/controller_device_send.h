@@ -52,8 +52,9 @@ int device_send_edit_config_diff(clixon_handle h, device_handle dh,
                                  cxobj **dvec, int dlen,
                                  cxobj **avec, int alen,
                                  cxobj **chvec0, cxobj **chvec1, int chlen);
-int device_send_validate(clixon_handle h, device_handle dh, int s);
-int device_send_commit(clixon_handle h, device_handle dh, int s);
+int device_send_validate(clixon_handle h, device_handle dh);
+int device_send_commit(clixon_handle h, device_handle dh);
+int device_send_discard_changes(clixon_handle h, device_handle dh);
     
 #ifdef __cplusplus
 }
