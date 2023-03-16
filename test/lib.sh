@@ -1,7 +1,5 @@
 #!/usr/bin/env bash
 
-set -eux
-
 # Number of device containers to start
 : ${nr:=2}
 
@@ -21,6 +19,31 @@ set -eux
 : ${PREFIX:=}
 
 : ${DBG:=0}
+
+# Namespace: netconf base
+BASENS='urn:ietf:params:xml:ns:netconf:base:1.0'
+
+# Namespace: Clixon lib
+LIBNS='xmlns="http://clicon.org/lib"'
+
+# Default netconf namespace statement, typically as placed on top-level <hello xmlns=""
+DEFAULTONLY="xmlns=\"$BASENS\""
+
+# Default netconf namespace + message-id, ie for <rpc xmlns="" message-id="", but NOT for hello
+DEFAULTNS="$DEFAULTONLY message-id=\"42\""
+
+# Multiplication factor to sleep less than whole seconds
+DEMSLEEP=0.2
+
+: ${clixon_cli:=clixon_cli}
+
+: ${clixon_netconf:=$(which clixon_netconf)}
+
+: ${clixon_restconf:=clixon_restconf}
+
+: ${clixon_backend:=clixon_backend}
+
+: ${clixon_snmp:=$(type -p clixon_snmp)}
 
 if $INIT; then
     # Start devices
@@ -56,17 +79,17 @@ function chunked_framing()
 # Wait for restconf to stop sending  502 Bad Gateway
 function wait_backend(){
     freq=$(chunked_framing "<rpc $DEFAULTNS><ping $LIBNS/></rpc>")
-    reply=$(echo "$freq" | $clixon_netconf -q1ef $cfg) 
+    reply=$(echo "$freq" | $clixon_netconf -q1ef $CFG) 
 #    freply=$(chunked_framing "<rpc-reply $DEFAULTNS><ok/></rpc-reply>")
 #    chunked_equal "$reply" "$freply"
-    let i=0;
+    let i=0 || true
     while [[ $reply != *"<rpc-reply"* ]]; do
-#       echo "sleep $DEMSLEEP"
+       echo "sleep $DEMSLEEP"
         sleep $DEMSLEEP
-        reply=$(echo "<rpc $ÐEFAULTSNS $LIBNS><ping/></rpc>]]>]]>" | clixon_netconf -qef $cfg 2> /dev/null)
-#       echo "reply:$reply"
+        reply=$(echo "<rpc $ÐEFAULTSNS $LIBNS><ping/></rpc>]]>]]>" | clixon_netconf -qef $CFG 2> /dev/null)
+       echo "reply:$reply"
         let i++;
-#       echo "wait_backend  $i"
+       echo "wait_backend  $i"
         if [ $i -ge $DEMLOOP ]; then
             err "backend timeout $DEMWAIT seconds"
         fi

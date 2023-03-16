@@ -6,6 +6,7 @@ Prereqs:
 Tests:
 test-change-ctrl-push.sh   Change device config on controller and push to devices
 test-change-device-diff.sh Change config on device and check diff
+test-yanglib.sh            Test RFC8528 YANG Schema Mount state
 
 Modifiers:
 n=<nr>                Apply on <nr> devices (all)
