@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# Start clixon example container devices and initiate with config x=11, y=22
-# Start backend
+# Assume backend and devics running
+# Reset devices and backend
 # Commit a change to devices (on controller): remove x, change y, and add z
 # Push to devices
 # Check the change on the devices
@@ -16,7 +16,10 @@ s="$_" ; . ./lib.sh || if [ "$s" = $0 ]; then exit 0; else return 0; fi
 # Reset devices with initial config
 . ./reset-devices.sh
 
-# Reset backend with 
+# Check backend is running
+wait_backend
+
+# Reset backend 
 . ./reset-backend.sh
 
 # Remove x, change y, and add z
