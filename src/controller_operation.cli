@@ -57,8 +57,13 @@ show("Show a particular state of the system"){
                  (<name:string>("device pattern")|
                   <name:string expand_dbvar("running","/clixon-controller:devices/device/name")>("device pattern"))
                  ], cli_show_devices();{
-                 sync("Check if device is in sync"), cli_check_sync(); # XXX
+                 sync("Check if device is in sync"), cli_check_sync();
+                 detail("Show detailed state"), cli_show_devices("detail");
                  }
+    transactions("Show state of transactions"), cli_show_transactions("all");{
+         active("Active transactions"), cli_show_transactions("active");
+         all("All transactions"), cli_show_transactions("all");
+    }
     state("Show configuration and state"), cli_show_auto_mode("running", "text", true, true); {
     	    xml("Show configuration and state as XML"), cli_show_auto_mode("running", "xml", true, true);{
 	    default("With-default mode"){
@@ -103,8 +108,12 @@ sync("Read the config of one or several devices.") {
 
 }
 
-reconnect("Reconnect one or several devices in closed state")  [<name:string>("device pattern")|
-                  <name:string expand_dbvar("running","/clixon-controller:devices/device/name")>("device pattern")], cli_reconnect();
+connection("Reconnect one or several devices in closed state")  [<name:string>("device pattern")|
+              <name:string expand_dbvar("running","/clixon-controller:devices/device/name")>("device pattern")]{
+              close("Close open connections"), cli_connection_change("CLOSE");
+              open("Open close connections"), cli_connection_change("OPEN");
+              reconnect("Close all open connections and open all connections"), cli_connection_change("RECONNECT");
+              }
 
-services("Services operation") apply("(re)apply services scripts"), cli_services_apply();
+services("Services operation") reapply("(re)apply services scripts"), cli_services_apply();
 

@@ -71,7 +71,7 @@ struct controller_device_handle{
     uint32_t           cdh_magic;      /* Magic number */
     char              *cdh_name;       /* Connection name */
     yang_config_t      cdh_yang_config; /* Yang config (shadow of config) */
-    conn_state_t       cdh_conn_state; /* Connection state */
+    conn_state         cdh_conn_state; /* Connection state */
     struct timeval     cdh_conn_time;  /* Time when entering last connection state */
     clixon_handle      cdh_h;          /* Clixon handle */ 
     clixon_client_type cdh_type;       /* Clixon socket type */
@@ -242,6 +242,11 @@ device_handle_find(clixon_handle h,
 }
 
 /*! Iterator over device-handles
+ * @code
+ *    device_handle dh = NULL;
+ *    while ((dh = device_handle_each(h, dh)) != NULL){
+ *       dh...
+ * @endcode
  */
 device_handle 
 device_handle_each(clixon_handle h,
@@ -324,7 +329,7 @@ device_handle_disconnect(device_handle dh)
     int                              retval = -1;
     struct controller_device_handle *cdh = devhandle(dh);
     
-    clicon_debug(1, "%s", __FUNCTION__);
+    clicon_debug(1, "%s %s", __FUNCTION__, cdh->cdh_name);
     if (cdh == NULL){
         clicon_err(OE_XML, EINVAL, "Expected cdh handle");
         goto done;
@@ -336,6 +341,7 @@ device_handle_disconnect(device_handle dh)
         break;
     case CLIXON_CLIENT_SSH:
     case CLIXON_CLIENT_NETCONF:
+        assert(cdh->cdh_pid && cdh->cdh_socket != -1);
         if (clixon_proc_socket_close(cdh->cdh_pid,
                                      cdh->cdh_socket) < 0)
             goto done;
@@ -345,6 +351,7 @@ device_handle_disconnect(device_handle dh)
     }
     retval = 0;
  done:
+    clicon_debug(1, "%s retval:%d", __FUNCTION__, retval);
     return retval;
 }
 
@@ -458,7 +465,7 @@ device_handle_yang_config_set(device_handle dh,
  * @param[in]  dh     Device handle
  * @retval     state
  */
-conn_state_t
+conn_state
 device_handle_conn_state_get(device_handle dh)
 {
     struct controller_device_handle *cdh = devhandle(dh);
@@ -473,10 +480,11 @@ device_handle_conn_state_get(device_handle dh)
  */
 int
 device_handle_conn_state_set(device_handle dh,
-                             conn_state_t  state)
+                             conn_state    state)
 {
     struct controller_device_handle *cdh = devhandle(dh);
 
+    assert(device_state_int2str(state)!=NULL);
     clicon_debug(1, "%s %s: %s -> %s",
                  __FUNCTION__,
                  device_handle_name_get(dh),
@@ -488,9 +496,7 @@ device_handle_conn_state_set(device_handle dh,
         free(cdh->cdh_logmsg);
         cdh->cdh_logmsg = NULL;
     }
-
     cdh->cdh_conn_state = state;
-
     device_handle_conn_time_set(dh, NULL);
     return 0;
 }
@@ -518,6 +524,7 @@ device_handle_conn_time_set(device_handle   dh,
                             struct timeval *t)
 {
     struct controller_device_handle *cdh = devhandle(dh);
+
     if (t == NULL)
         gettimeofday(&cdh->cdh_conn_time, NULL);
     else

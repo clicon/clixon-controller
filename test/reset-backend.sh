@@ -1,7 +1,6 @@
 #!/usr/bin/env bash
 # Reset devices with initial config
 
-
 set -eux
 
 echo "reset-backend"
@@ -16,6 +15,10 @@ echo "reset-backend"
 : ${sleep:=2}
 
 : ${IMG:=clixon-example}
+
+# Prefix to add in front of all client commands.
+# Eg to force all client to run as root if there is problem with group assignment (see github actions)
+: ${PREFIX:=}
 
 echo "Delete device config"
 ret=$(${PREFIX} clixon_netconf -qe0 -f $CFG <<EOF

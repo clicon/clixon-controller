@@ -34,6 +34,7 @@
 #include <syslog.h>
 #include <fcntl.h>
 #include <fnmatch.h>
+#include <assert.h>
 #include <sys/time.h>
 
 /* clicon */
@@ -387,18 +388,27 @@ device_send_edit_config_diff(clixon_handle h,
     return retval;
 }
 
-/*!
+/*! Send NETCONF RPC to device
+ *
+ * @param[in]  h       Clixon handle.
+ * @param[in]  dh      Clixon client handle.
+ * @param[in]  s       Netconf socket
+ * @param[in]  msgbody NETCONF RPC message fields (not including header)
+ * @retval     0       OK
+ * @retval    -1       Error
  */
-int
-device_send_validate(clixon_handle h,
-                     device_handle dh,
-                     int           s)
+static int
+device_send_rpc(clixon_handle h,
+                device_handle dh,
+                char         *msgbody)
 {
-    int    retval = -1;
+    int   retval = -1;
     cbuf *cb = NULL;
     int   encap;
+    int   s;
 
-    clicon_debug(1, "%s", __FUNCTION__);
+    clicon_debug(1, "%s %s", __FUNCTION__, msgbody);
+    s = device_handle_socket_get(dh);
     if ((cb = cbuf_new()) == NULL){
         clicon_err(OE_PLUGIN, errno, "cbuf_new");
         goto done;
@@ -406,9 +416,7 @@ device_send_validate(clixon_handle h,
     cprintf(cb, "<rpc xmlns=\"%s\" message-id=\"%" PRIu64 "\">",
             NETCONF_BASE_NAMESPACE, 
             device_handle_msg_id_getinc(dh));
-    cprintf(cb, "<validate>");
-    cprintf(cb, "<source><candidate/></source>");
-    cprintf(cb, "</validate>");
+    cprintf(cb, "%s", msgbody);
     cprintf(cb, "</rpc>");
     encap = clicon_data_int_get(h, "netconf-framing");
     if (netconf_output_encap(encap, cb) < 0)
@@ -422,36 +430,30 @@ device_send_validate(clixon_handle h,
     return retval;
 }
 
+/*! Send NETCONF validate to device
+ */
+int
+device_send_validate(clixon_handle h,
+                     device_handle dh)
+{
+    return device_send_rpc(h, dh, "<validate><source><candidate/></source></validate>");
+}
+
 /*! Send commit to device
  */
 int
 device_send_commit(clixon_handle h,
-                   device_handle dh,
-                   int           s)
+                   device_handle dh)
 {
-    int    retval = -1;
-    cbuf *cb = NULL;
-    int   encap;
+    return device_send_rpc(h, dh, "<commit/>");
+}
 
-    clicon_debug(1, "%s", __FUNCTION__);
-    if ((cb = cbuf_new()) == NULL){
-        clicon_err(OE_PLUGIN, errno, "cbuf_new");
-        goto done;
-    }
-    cprintf(cb, "<rpc xmlns=\"%s\" message-id=\"%" PRIu64 "\">",
-            NETCONF_BASE_NAMESPACE, 
-            device_handle_msg_id_getinc(dh));
-    cprintf(cb, "<commit/>");
-    cprintf(cb, "</rpc>");
-    encap = clicon_data_int_get(h, "netconf-framing");
-    if (netconf_output_encap(encap, cb) < 0)
-        goto done;
-    if (clicon_msg_send1(s, cb) < 0)
-        goto done;
-    retval = 0;
- done:
-    if (cb)
-        cbuf_free(cb);
-    return retval;
+/*! Send discard-changes to device
+ */
+int
+device_send_discard_changes(clixon_handle h,
+                            device_handle dh)
+{
+    return device_send_rpc(h, dh, "<discard-changes/>");
 }
 
