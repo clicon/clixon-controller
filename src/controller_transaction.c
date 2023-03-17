@@ -84,51 +84,22 @@
 
 /* Controller includes */
 #include "controller.h"
+#include "controller_lib.h"
 #include "controller_device_state.h"
 #include "controller_device_send.h"
 #include "controller_device_handle.h"
 #include "controller_transaction.h"
 
-/*! Mapping between enum connection_state and yang transaction-state
- * @see clixon-controller@2023-01-01.yang transaction-state
- */
-static const map_str2int tsmap[] = {
-    {"INIT",      TS_INIT},
-    {"RESOLVED",  TS_RESOLVED},
-    {"CLOSED",    TS_CLOSED},
-    {NULL,        -1}
-};
-
-/*! Map controller transaction state from int to string 
- * @param[in]  state  Transaction state as int
- * @retval     str    Trsanction state as string
- */
-char *
-transaction_state_int2str(conn_state state)
-{
-    return (char*)clicon_int2str(tsmap, state);
-}
-
-/*! Map controller transaction state from string to int 
- * @param[in]  str    Transaction state as string
- * @retval     state  Transaction state as int
- */
-transaction_state
-transaction_state_str2int(char *str)
-{
-    return clicon_str2int(tsmap, str);
-}
-
 /*! Set new transaction state and timestamp
  *
  * @param[in]  ct     Transaction
  * @param[in]  state  New state
- * @param[in]  result 0:error, 1:success (only if state=TS_RESOLVED)
+ * @param[in]  result New result
  */
 int
 controller_transaction_state_set(controller_transaction *ct,
                                  transaction_state       state,
-                                 int                     result)
+                                 transaction_result      result)
 {
     switch (state) {
     case TS_INIT:
@@ -139,12 +110,12 @@ controller_transaction_state_set(controller_transaction *ct,
         break;
     case TS_RESOLVED:
         assert(state != ct->ct_state);
-        clicon_debug(1, "%s %" PRIu64 " : %s -> %s result: %d",
+        clicon_debug(1, "%s %" PRIu64 " : %s -> %s result: %s",
                      __FUNCTION__,
                      ct->ct_id,
                      transaction_state_int2str(ct->ct_state),
                      transaction_state_int2str(state),
-                     result);
+                     transaction_result_int2str(result));
         break;
     case TS_CLOSED:
         assert(state != ct->ct_state);
@@ -170,7 +141,7 @@ controller_transaction_state_set(controller_transaction *ct,
 int
 controller_transaction_notify(clixon_handle           h,
                               controller_transaction *ct,
-                              int                     result)
+                              transaction_result      result)
 {
     int   retval = -1;
     cbuf *cb = NULL;
@@ -182,7 +153,7 @@ controller_transaction_notify(clixon_handle           h,
     }
     cprintf(cb, "<controller-transaction xmlns=\"%s\">", CONTROLLER_NAMESPACE);
     cprintf(cb, "<tid>%" PRIu64  "</tid>", ct->ct_id);
-    cprintf(cb, "<result>%s</result>", result?"true":"false");
+    cprintf(cb, "<result>%s</result>", transaction_result_int2str(result));
     if (ct->ct_origin)
         cprintf(cb, "<origin>%s</origin>", ct->ct_origin);
     if (ct->ct_reason)
@@ -403,12 +374,12 @@ controller_transaction_failed(clicon_handle           h,
             device_handle_tid_set(dh, 0);
             /* 1.2.3 If no devices left in transaction, close it */
             if (controller_transaction_devices(h, tid) == 0)
-                controller_transaction_state_set(ct, TS_CLOSED, 0);
+                controller_transaction_state_set(ct, TS_CLOSED, TR_FAILED);
         }
     }
     if (ct->ct_state == TS_INIT){ /* 1.3 The transition is not in an error state */
         /* 1.3.1 Set transition in error state */
-        controller_transaction_state_set(ct, TS_RESOLVED, 0);
+        controller_transaction_state_set(ct, TS_RESOLVED, TR_FAILED);
         if (origin && (ct->ct_origin = strdup(origin)) == NULL){
             clicon_err(OE_UNIX, errno, "strdup");
             goto done;
@@ -424,7 +395,7 @@ controller_transaction_failed(clicon_handle           h,
             goto done;
     }
     else
-        assert(ct->ct_result == 0); /* Sanity: may not be in resolved OK state */
+        assert(ct->ct_result != TR_SUCCESS); /* Sanity: may not be in resolved OK state */
     retval = 0;
  done:
     clicon_debug(1, "%s retval:%d", __FUNCTION__, retval);    
@@ -554,7 +525,7 @@ controller_transactions_statedata(clixon_handle   h,
             if (ct->ct_reason)
                 cprintf(cb, "<reason>%s</reason>", ct->ct_reason);
             if (ct->ct_state != TS_INIT)
-                cprintf(cb, "<result>%s</result>", ct->ct_result?"true":"false");
+                cprintf(cb, "<result>%s</result>", transaction_result_int2str(ct->ct_result));
             tv = &ct->ct_timestamp;
             if (tv->tv_sec != 0){
                 char timestr[28];            

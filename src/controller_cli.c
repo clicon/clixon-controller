@@ -51,18 +51,18 @@
  * @param[in]   s       Notification socket
  * @param[in]   tidstr0 Transaction id string
  * @param[out]  match   Transaction id match
- * @param[out]  result  0: transaction failed, 1: transaction OK (if match)
+ * @param[out]  result  Transaction result
  * @param[out]  eof     EOF, socket closed
  * @param[out]  eof     EOF, socket closed
  * @retval      0       OK
  * @retval     -1       Fatal error
  */
 static int
-transaction_notification_handler(int   s,
-                                 char *tidstr0,
-                                 int  *match,
-                                 int  *resultp,
-                                 int  *eof)
+transaction_notification_handler(int                 s,
+                                 char               *tidstr0,
+                                 int                *match,
+                                 transaction_result *resultp,
+                                 int                *eof)
 {
     int                retval = -1;
     struct clicon_msg *reply = NULL;
@@ -72,7 +72,7 @@ transaction_notification_handler(int   s,
     char              *tidstr;
     char              *reason = NULL;
     char              *resstr;
-    int                result;
+    transaction_result result;
     
     if (clicon_msg_rcv(s, 1, &reply, eof) < 0)
         goto done;
@@ -104,7 +104,7 @@ transaction_notification_handler(int   s,
         clicon_err(OE_NETCONF, EFAULT, "Notification malformed: no result");
         goto done;
     }
-    if ((result = strcmp(resstr, "true") == 0) == 0){
+    if ((result = transaction_result_str2int(resstr)) != TR_SUCCESS){
         clicon_err(OE_XML, 0, "Transaction %s failed %s", tidstr, reason?reason:"");
         goto ok; // error == ^C
     }
@@ -137,7 +137,7 @@ transaction_notification_cb(int   s,
     int                eof = 0;
     char              *tidstr = (char*)arg;
     int                match = 0;
-    int                result = 0;
+    transaction_result result = 0;
     
     if (transaction_notification_handler(s, tidstr, &match, &result, &eof) < 0)
         goto done;
@@ -148,7 +148,8 @@ transaction_notification_cb(int   s,
         goto done;
     }
     if (match){
-        fprintf(stdout, "Transaction %s completed with result: %d\n", tidstr, result);
+        fprintf(stdout, "Transaction %s completed with result: %s\n", tidstr,
+                transaction_result_int2str(result));
         clixon_event_unreg_fd(s, transaction_notification_cb);            
         if (tidstr)
             free(tidstr);
@@ -234,7 +235,7 @@ transaction_notification_poll(clicon_handle h,
     int                eof = 0;
     int                s;
     int                match = 0;
-    int                result = 0;
+    transaction_result result = 0;
 
     clicon_debug(CLIXON_DBG_DEFAULT, "%s tid:%s", __FUNCTION__, tidstr);
     if ((s = clicon_data_int_get(h, "controller-transaction-notify-socket")) < 0){
@@ -254,10 +255,17 @@ transaction_notification_poll(clicon_handle h,
         }
     }
     if (match){
-        if (result)
-            cligen_output(stderr, "OK\n");
-        else
+        switch (result){
+        case TR_ERROR:
+            cligen_output(stderr, "Failed (not recoverable)\n");
+            break;
+        case TR_FAILED:
             cligen_output(stderr, "Failed\n");
+            break;
+        case TR_SUCCESS:
+            cligen_output(stderr, "OK\n");
+            break;
+        }
     }
     retval = 0;
  done:

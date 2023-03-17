@@ -11,7 +11,7 @@ set -eux
 s="$_" ; . ./lib.sh || if [ "$s" = $0 ]; then exit 0; else return 0; fi
 
 # Reset devices with initial config
-#. ./reset-devices.sh
+. ./reset-devices.sh
 
 # Check backend is running
 wait_backend

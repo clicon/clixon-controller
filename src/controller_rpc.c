@@ -47,6 +47,7 @@
 
 /* Controller includes */
 #include "controller.h"
+#include "controller_lib.h"
 #include "controller_device_state.h"
 #include "controller_device_handle.h"
 #include "controller_device_send.h"
@@ -156,6 +157,7 @@ controller_connect(clixon_handle           h,
         goto done;
     if ((yfstr = xml_find_body(xn, "yang-config")) != NULL)
         device_handle_yang_config_set(dh, yfstr); /* Cache yang config */    
+    /* Point of no return: assume errors handled in device_input_cb */
     device_handle_tid_set(dh, ct->ct_id);
     if (connect_netconf_ssh(h, dh, user, addr) < 0) /* match */
         goto done;
@@ -232,7 +234,6 @@ get_device_db(clicon_handle h,
  * @param[in]  h       Clicon handle 
  * @param[in]  xe      Request: <rpc><xn></rpc> 
  * @param[in]  tid     Transaction id
- * @param[out] changed If this config in fact was changed and a push initiated
  * @param[out] cbret   Return xml tree, eg <rpc-reply>..., <rpc-error.. , if retval = 0
  * @retval     1       OK
  * @retval     0       Fail, cbret set
@@ -242,7 +243,6 @@ static int
 push_device_one(clixon_handle h,
                 device_handle dh,
                 uint64_t      tid,
-                int          *changed,
                 cbuf         *cbret)
 {
     int        retval = -1;
@@ -291,7 +291,6 @@ push_device_one(clixon_handle h,
         goto done;
     /* 3) construct an edit-config, send it and validate it */
     if (dlen || alen || chlen){
-        (*changed)++;
         if (device_send_edit_config_diff(h, dh,
                                          x0, x1, yspec,
                                          dvec, dlen,
@@ -385,7 +384,6 @@ rpc_sync_pull(clixon_handle h,
     device_handle           dh;
     int                     ret;
     controller_transaction *ct = NULL;
-    int                     touched = 0;
     char                   *str;
     
     clicon_debug(1, "%s", __FUNCTION__);
@@ -413,24 +411,24 @@ rpc_sync_pull(clixon_handle h,
             continue;
         if ((dh = device_handle_find(h, devname)) == NULL)
             continue;
-        if (device_handle_conn_state_get(dh) != CS_OPEN)
-            continue;
         if (pattern != NULL && fnmatch(pattern, devname, 0) != 0)
+            continue;
+        if (device_handle_conn_state_get(dh) != CS_OPEN) /* maybe this is an error? */
             continue;
         if ((ret = pull_device_one(h, dh, ct->ct_id, cbret)) < 0)
             goto done;
-        touched++;
         if (ret == 0)  /* Failed but cbret set */
             goto ok;
     } /* for */
-    if (touched == 0){
-        if (netconf_operation_failed(cbret, "application", "No syncs activated")< 0)
-            goto done;
-        goto ok;
-    }
     cprintf(cbret, "<rpc-reply xmlns=\"%s\">", NETCONF_BASE_NAMESPACE);
     cprintf(cbret, "<tid xmlns=\"%s\">%" PRIu64"</tid>", CONTROLLER_NAMESPACE, ct->ct_id);
     cprintf(cbret, "</rpc-reply>");
+    /* No device started, close transaction */
+    if (controller_transaction_devices(h, ct->ct_id) == 0){
+        if (controller_transaction_notify(h, ct, 1) < 0)
+            goto done;
+        controller_transaction_state_set(ct, TS_CLOSED, TR_SUCCESS);
+    } 
  ok:
     retval = 0;
  done:
@@ -463,7 +461,6 @@ rpc_sync_push(clixon_handle h,
     char                   *pattern = NULL;
     controller_transaction *ct = NULL;
     char                   *str;
-    int                     touched = 0;
     cxobj                  *xn;
     cvec                   *nsc = NULL;
     device_handle           dh;
@@ -501,19 +498,21 @@ rpc_sync_push(clixon_handle h,
             continue;
         if (pattern != NULL && fnmatch(pattern, devname, 0) != 0)
             continue;
-        if ((ret = push_device_one(h, dh, ct->ct_id, &touched, cbret)) < 0)
+        if ((ret = push_device_one(h, dh, ct->ct_id, cbret)) < 0)
             goto done;
         if (ret == 0)  /* Failed but cbret set */
             goto failed;
     } /* for */
-    if (touched == 0){
-        if (netconf_operation_failed(cbret, "application", "No syncs activated")< 0)
-            goto done;
-        goto failed;
-    }
+
     cprintf(cbret, "<rpc-reply xmlns=\"%s\">", NETCONF_BASE_NAMESPACE);
     cprintf(cbret, "<tid xmlns=\"%s\">%" PRIu64"</tid>", CONTROLLER_NAMESPACE, ct->ct_id);
     cprintf(cbret, "</rpc-reply>");
+    /* No device started, close transaction */
+    if (controller_transaction_devices(h, ct->ct_id) == 0){
+        if (controller_transaction_notify(h, ct, 1) < 0)
+            goto done;
+        controller_transaction_state_set(ct, TS_CLOSED, TR_SUCCESS);
+    }
     retval = 0;
  done:
     if (vec)
@@ -602,7 +601,6 @@ rpc_connection_change(clixon_handle h,
     device_handle           dh;
     controller_transaction *ct = NULL;
     client_entry           *ce;
-    int                     touched = 0;
     char                   *operation;
     int                     ret;
     
@@ -622,7 +620,6 @@ rpc_connection_change(clixon_handle h,
         goto done;
     if (xpath_vec(xret, nsc, "devices/device", &vec, &veclen) < 0) 
         goto done;
-    touched=0;
     for (i=0; i<veclen; i++){
         xn = vec[i];
         if ((devname = xml_find_body(xn, "name")) == NULL)
@@ -646,15 +643,16 @@ rpc_connection_change(clixon_handle h,
         }
         if (controller_connect(h, xn, ct) < 0)
             goto done;
-        touched++;
     } /* for */
-
     cprintf(cbret, "<rpc-reply xmlns=\"%s\">", NETCONF_BASE_NAMESPACE);
-    if (touched)
-        cprintf(cbret, "<tid xmlns=\"%s\">%" PRIu64"</tid>", CONTROLLER_NAMESPACE, ct->ct_id);
-    else
-        cprintf(cbret, "<ok/>");
+    cprintf(cbret, "<tid xmlns=\"%s\">%" PRIu64"</tid>", CONTROLLER_NAMESPACE, ct->ct_id);
     cprintf(cbret, "</rpc-reply>");
+    /* No device started, close transaction */
+    if (controller_transaction_devices(h, ct->ct_id) == 0){
+        if (controller_transaction_notify(h, ct, 1) < 0)
+            goto done;
+        controller_transaction_state_set(ct, TS_CLOSED, TR_SUCCESS);
+    } 
  ok:
     retval = 0;
  done:

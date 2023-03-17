@@ -556,8 +556,16 @@ device_state_handler(clixon_handle h,
         /* Receive hello from device, send hello */
         if ((ret = device_state_recv_hello(h, dh, s, xmsg, rpcname, conn_state)) < 0)
             goto done;
-        if (ret == 0) /* closed */
+        if (ret == 0){ /* closed */
+            if (controller_transaction_failed(h, tid, ct, dh, 0, name, NULL) < 0)
+                goto done;
             break;
+        }
+        /* 2. The device is OK */
+        if (ct->ct_state == TS_RESOLVED){ 
+            /* 2.1 But transaction is in error state */
+            assert(ct->ct_result != TR_SUCCESS);
+        }
         /* Reset YANGs */
         if ((yspec1 = device_handle_yspec_get(dh)) == NULL){
             if ((yspec1 = yspec_new()) == NULL)
@@ -582,6 +590,16 @@ device_state_handler(clixon_handle h,
         /* Receive netconf-state schema list from device */
         if ((ret = device_state_recv_schema_list(dh, xmsg, rpcname, conn_state)) < 0)
             goto done;
+        if (ret == 0){ /* closed */
+            if (controller_transaction_failed(h, tid, ct, dh, 0, name, NULL) < 0)
+                goto done;
+            break;
+        }
+        /* 2. The device is OK */
+        if (ct->ct_state == TS_RESOLVED){ 
+            /* 2.1 But transaction is in error state */
+            assert(ct->ct_result != TR_SUCCESS);
+        }
         nr = 0;
         if ((ret = device_send_get_schema_next(h, dh, s, &nr)) < 0)
             goto done;
@@ -613,8 +631,16 @@ device_state_handler(clixon_handle h,
         /* Receive get-schema and write to local yang file */
         if ((ret = device_state_recv_get_schema(dh, xmsg, rpcname, conn_state)) < 0)
             goto done;
-        if (ret == 0) /* closed */
+        if (ret == 0){ /* closed */
+            if (controller_transaction_failed(h, tid, ct, dh, 0, name, NULL) < 0)
+                goto done;
             break;
+        }
+        /* 2. The device is OK */
+        if (ct->ct_state == TS_RESOLVED){ 
+            /* 2.1 But transaction is in error state */
+            assert(ct->ct_result != TR_SUCCESS);
+        }
         /* Check if all schemas are received */
         nr = device_handle_nr_schemas_get(dh);
         if ((ret = device_send_get_schema_next(h, dh, s, &nr)) < 0)
@@ -653,23 +679,25 @@ device_state_handler(clixon_handle h,
         if (ret == 0){ /* failed */
             if (controller_transaction_failed(h, tid, ct, dh, 0, name, NULL) < 0)
                 goto done;
+            break;
         }
-        else{
-            if (ct->ct_state == TS_RESOLVED){ 
-                /* 2.1 But transaction is in error state */
-                assert(ct->ct_result == 0);
-            }
-            if (device_state_set(dh, CS_OPEN) < 0)
-                goto done;
-            /* 2.2.2.1 Leave transaction */
-            device_handle_tid_set(dh, 0);
-            /* 2.2.2.2 If no devices in transaction, mark as OK and close it*/
-            if (controller_transaction_devices(h, tid) == 0){
-                controller_transaction_state_set(ct, TS_RESOLVED, 1);
+        /* 2. The device is OK */
+        if (ct->ct_state == TS_RESOLVED){ 
+            /* 2.1 But transaction is in error state */
+            assert(ct->ct_result != TR_SUCCESS);
+        }
+        if (device_state_set(dh, CS_OPEN) < 0)
+            goto done;
+        /* 2.2.2.1 Leave transaction */
+        device_handle_tid_set(dh, 0);
+        /* 2.2.2.2 If no devices in transaction, mark as OK and close it*/
+        if (controller_transaction_devices(h, tid) == 0){
+            if (ct->ct_state != TS_RESOLVED){
+                controller_transaction_state_set(ct, TS_RESOLVED, TR_SUCCESS);
                 if (controller_transaction_notify(h, ct, 1) < 0)
                     goto done;
-                controller_transaction_state_set(ct, TS_CLOSED, 0);
             }
+            controller_transaction_state_set(ct, TS_CLOSED, TR_SUCCESS);
         }
         break;
     case CS_PUSH_EDIT:
@@ -686,10 +714,10 @@ device_state_handler(clixon_handle h,
                 goto done;
             break;
         }
-        /* 2. The device is OK (so far) */
+        /* 2. The device is OK */
         if (ct->ct_state == TS_RESOLVED){ 
             /* 2.1 But transaction is in error state */
-            assert(ct->ct_result == 0);
+            assert(ct->ct_result != TR_SUCCESS);
             /* 2.1.1 Trigger DISCARD of the device */
             if (device_send_discard_changes(h, dh) < 0)
                 goto done;
@@ -697,7 +725,8 @@ device_state_handler(clixon_handle h,
                 goto done;
             break;
         }        
-        /* 2.2 The transaction is also OK, proceed to next step */
+        /* 2.2 The transaction is OK 
+           Proceed to next step */
         if ((ret = device_send_validate(h, dh)) < 0)
             goto done;
         if (device_state_set(dh, CS_PUSH_VALIDATE) < 0)
@@ -717,12 +746,12 @@ device_state_handler(clixon_handle h,
                 goto done;
             break;
         }
-        /* 2. The device is OK (so far) */
+        /* 2. The device is OK */
         if (device_state_set(dh, CS_PUSH_WAIT) < 0)
             goto done;
         if (ct->ct_state == TS_RESOLVED){ 
             /* 2.1 But transaction is in error state */
-            assert(ct->ct_result == 0);
+            assert(ct->ct_result != TR_SUCCESS);
             /* 2.1.1 Trigger DISCARD of the device */
             if (device_send_discard_changes(h, dh) < 0)
                 goto done;
@@ -730,7 +759,7 @@ device_state_handler(clixon_handle h,
                 goto done;
             break;
         }        
-        /* 2.2 The transaction is also OK */
+        /* 2.2 The transaction is OK */
         /* 2.2.1 Check if all devices are in WAIT (none are in EDIT/VALIDATE) */
         if ((ret = controller_transaction_wait(h, tid)) < 0)
             goto done;
@@ -741,6 +770,7 @@ device_state_handler(clixon_handle h,
                 goto done;            
         }
         break;
+    case CS_PUSH_DISCARD:
     case CS_PUSH_COMMIT:
         if (tid == 0 || ct == NULL){
             device_close_connection(dh, "Device %s not associated with transaction in state %s",
@@ -757,8 +787,7 @@ device_state_handler(clixon_handle h,
         /* 2. The device is OK */
         if (ct->ct_state == TS_RESOLVED){ 
             /* 2.1 But transaction is in error state */
-            assert(ct->ct_result == 0);
-            // XXX mark as "catastrophic?"
+            assert(ct->ct_result != TR_SUCCESS);
         }
         if (device_state_set(dh, CS_OPEN) < 0)
             goto done;
@@ -766,35 +795,12 @@ device_state_handler(clixon_handle h,
         device_handle_tid_set(dh, 0);
         /* 2.2.2.2 If no devices in transaction, mark as OK and close it*/
         if (controller_transaction_devices(h, tid) == 0){
-            controller_transaction_state_set(ct, TS_RESOLVED, 1);
-            if (controller_transaction_notify(h, ct, 1) < 0)
-                goto done;
-            controller_transaction_state_set(ct, TS_CLOSED, 0);
-        }
-        break;
-    case CS_PUSH_DISCARD:
-        if (tid == 0 || ct == NULL){
-            device_close_connection(dh, "Device %s not associated with transaction in state %s",
-                                    name, device_state_int2str(conn_state));
-            break;
-        }
-        /* Assume transistion is already in error state */
-        assert(ct->ct_state == TS_RESOLVED && ct->ct_result == 0);
-        if ((ret = device_state_recv_ok(dh, xmsg, rpcname, conn_state, &cberr)) < 0)
-            goto done;
-        if (ret == 0){
-            if (controller_transaction_failed(h, tid, ct, dh, 0, name, cbuf_get(cberr)) < 0)
-                goto done;
-            break;
-        }
-        /* 2. The device is OK */
-        if (device_state_set(dh, CS_OPEN) < 0)
-            goto done;
-        /* 2.2.2.1 Leave transaction */
-        device_handle_tid_set(dh, 0);
-        /* 2.2.2.2 If no devices in transaction, close it*/
-        if (controller_transaction_devices(h, tid) == 0){
-            controller_transaction_state_set(ct, TS_CLOSED, 0);
+            if (ct->ct_state != TS_RESOLVED){
+                controller_transaction_state_set(ct, TS_RESOLVED, TR_SUCCESS);
+                if (controller_transaction_notify(h, ct, 1) < 0)
+                    goto done;
+            }
+            controller_transaction_state_set(ct, TS_CLOSED, TR_SUCCESS);
         }
         break;
     case CS_PUSH_WAIT:

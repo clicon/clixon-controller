@@ -37,24 +37,13 @@
 #ifndef _CONTROLLER_TRANSACTION_H
 #define _CONTROLLER_TRANSACTION_H
 
-/*! Transaction state
- * @see clixon-controller@2023-01-01.yang transaction-state
- * @see tsmap translation table
- */
-enum transaction_state_t{
-    TS_INIT = 0,  /* Started transaction */
-    TS_RESOLVED,  /* The result of the transaction is set (if result == 0, this is same as CLOSED) */
-    TS_CLOSED,    /* Terminated, inactive transaction */
-};
-typedef enum transaction_state_t transaction_state;
-
 /*! Clixon controller meta transactions spanning device operation
  */
 struct controller_transaction_t{
     qelem_t  ct_qelem;      /* List header */
     uint64_t ct_id;         /* transaction-id */
-    transaction_state ct_state; /* Transaction state */
-    int      ct_result;     /* 0:fail, 1:success (if resolved) */
+    transaction_state  ct_state; /* Transaction state */
+    transaction_result ct_result; /* Transaction result */
     void    *ct_h;          /* Back-pointer to clixon handle (for convenience in timeout callbacks) */
     uint32_t ct_client_id;  /* Client id of originator */
     int      ct_dryrun;     /* Validate on device dont commit (push) */
@@ -73,10 +62,8 @@ typedef struct controller_transaction_t controller_transaction;
 extern "C" {
 #endif
 
-char *transaction_state_int2str(conn_state state);
-transaction_state transaction_state_str2int(char *str);
-int   controller_transaction_state_set(controller_transaction *ct, transaction_state state, int result);
-int   controller_transaction_notify(clixon_handle h, controller_transaction *ct, int result);
+int   controller_transaction_state_set(controller_transaction *ct, transaction_state state, transaction_result result);
+int   controller_transaction_notify(clixon_handle h, controller_transaction *ct, transaction_result result);
 int   controller_transaction_new(clicon_handle h, char *description, controller_transaction **ct);
 int   controller_transaction_free(clicon_handle h, controller_transaction *ct);
 controller_transaction *controller_transaction_find(clixon_handle h, const uint64_t id);
