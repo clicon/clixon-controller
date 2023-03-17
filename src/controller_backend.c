@@ -47,6 +47,7 @@
 
 /* Controller includes */
 #include "controller.h"
+#include "controller_lib.h"
 #include "controller_device_state.h"
 #include "controller_device_handle.h"
 #include "controller_device_send.h"
@@ -178,6 +179,12 @@ controller_commit_device(clixon_handle h,
         }
         if (controller_connect(h, vec3[i], ct) < 0)
             goto done;
+    }
+    /* No device started, close transaction */
+    if (ct && controller_transaction_devices(h, ct->ct_id) == 0){
+        if (controller_transaction_notify(h, ct, 1) < 0)
+            goto done;
+        controller_transaction_state_set(ct, TS_CLOSED, TR_SUCCESS);
     }
     retval = 0;
  done:

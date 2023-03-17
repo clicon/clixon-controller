@@ -47,6 +47,7 @@
 
 /* Controller includes */
 #include "controller.h"
+#include "controller_lib.h"
 #include "controller_netconf.h"
 #include "controller_device_state.h"
 #include "controller_device_handle.h"

@@ -127,10 +127,28 @@ module clixon-controller {
                 description "Started transaction";
             }
             enum RESOLVED {
-                description "The result of the transaction is set";
+                description
+                "The result of the transaction resolved.
+                 Note that successful transactions are not in this state, they pass directly to closed,
+                 while failed transactions use this state for error handling.";
             }
             enum CLOSED {
                 description "Terminated, inactive transaction";
+            }
+        }
+    }
+    typedef transaction-result{
+        description
+            "Transaction result as set in resolved and closed state.";
+        type enumeration{
+            enum ERROR {
+                description "Transaction failed in an inconsistent state, not recoverable";
+            }
+            enum FAILED {
+                description "Transaction failed but reverted successfully";
+            }
+            enum SUCCESS {
+                description "Transaction completed successfully";
             }
         }
     }
@@ -273,6 +291,10 @@ module clixon-controller {
                 description "Transaction state";
                 type transaction-state;
             }
+            leaf result {
+                description "Transaction result";
+                type transaction-result;
+            }
             leaf description {
                 description "Description of transacttion";
                 type string;
@@ -284,10 +306,6 @@ module clixon-controller {
             leaf reason {
                 description "Reason for terminating transaction";
                 type string;
-            }
-            leaf result {
-                type boolean;
-                description "Result of transaction termination: true: ok, false; error.";
             }
             leaf timestamp {
                 description "Timestamp when entering current state";
@@ -312,8 +330,8 @@ module clixon-controller {
             mandatory true;
         }
         leaf result {
-            type boolean;
-            description "Status of transaction termination: true: ok, false; error.";
+            type transaction-result;
+            description "Status at transaction termination";
             mandatory true;
         }
         leaf reason {
