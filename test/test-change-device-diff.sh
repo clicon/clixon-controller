@@ -64,7 +64,7 @@ EOF
 done
 
 echo "trigger sync-pull dryrun"
-ret=$(${PREFIX} clixon_netconf -q0 -f $CFG <<EOF
+ret=$(${PREFIX} ${clixon_netconf} -q0 -f $CFG <<EOF
 <rpc xmlns="urn:ietf:params:xml:ns:netconf:base:1.0" message-id="43">
   <sync-pull xmlns="http://clicon.org/controller">
     <devname>*</devname>
@@ -83,7 +83,7 @@ for i in $(seq 1 $nr); do
     NAME=$IMG$i
     # verify controller 
     echo "get and check dryrun device db"
-    ret=$(${PREFIX} clixon_netconf -q0 -f $CFG <<EOF
+    ret=$(${PREFIX} ${clixon_netconf} -q0 -f $CFG <<EOF
 <rpc xmlns="urn:ietf:params:xml:ns:netconf:base:1.0" message-id="43">
   <get-device-config xmlns="http://clicon.org/controller">
     <devname>$NAME</devname>

@@ -19,7 +19,7 @@ wait_backend
 . ./reset-backend.sh
 
 # Query top-level schema-mount
-ret=$(${PREFIX} clixon_netconf -0 -f $CFG <<EOF
+ret=$(${PREFIX} ${clixon_netconf} -0 -f $CFG <<EOF
 <?xml version="1.0" encoding="UTF-8"?>
 <hello xmlns="urn:ietf:params:xml:ns:netconf:base:1.0">
    <capabilities>
@@ -52,7 +52,7 @@ if [ -z "$match" ]; then
 fi
 
 # Query per-device yanglibs
-ret=$(${PREFIX} clixon_netconf -0 -f $CFG <<EOF
+ret=$(${PREFIX} ${clixon_netconf} -0 -f $CFG <<EOF
 <?xml version="1.0" encoding="UTF-8"?>
 <hello xmlns="urn:ietf:params:xml:ns:netconf:base:1.0">
    <capabilities>

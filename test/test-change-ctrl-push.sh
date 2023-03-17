@@ -26,7 +26,7 @@ wait_backend
 for i in $(seq 1 $nr); do
     NAME=$IMG$i
     
-    ret=$(${PREFIX} clixon_netconf -0 -f $CFG <<EOF
+    ret=$(${PREFIX} ${clixon_netconf} -0 -f $CFG <<EOF
 <?xml version="1.0" encoding="UTF-8"?>
 <hello xmlns="urn:ietf:params:xml:ns:netconf:base:1.0">
    <capabilities>
@@ -73,7 +73,7 @@ EOF
 done
 
 echo "local commit"
-${PREFIX} clixon_netconf -0 -f $CFG <<EOF
+${PREFIX} ${clixon_netconf} -0 -f $CFG <<EOF
 <?xml version="1.0" encoding="UTF-8"?>
 <hello xmlns="urn:ietf:params:xml:ns:netconf:base:1.0">
    <capabilities>
@@ -92,7 +92,7 @@ if ! $push ; then
 fi
 
 echo "push sync"
-ret=$(${PREFIX} clixon_netconf -q0 -f $CFG <<EOF
+ret=$(${PREFIX} ${clixon_netconf} -q0 -f $CFG <<EOF
 <rpc xmlns="urn:ietf:params:xml:ns:netconf:base:1.0" message-id="43">
   <sync-push xmlns="http://clicon.org/controller">
   </sync-push>
@@ -112,7 +112,7 @@ fi
 sleep $sleep
 
 # Verify controller
-res=$(${PREFIX} clixon_cli -1f $CFG show devices | grep OPEN | wc -l)
+res=$(${PREFIX} ${clixon_cli} -1f $CFG show devices | grep OPEN | wc -l)
 if [ "$res" = "$nr" ]; then
    echo OK
 else
@@ -124,7 +124,7 @@ fi
 for i in $(seq 1 $nr); do
     NAME=$IMG$i
     ip=$(sudo docker inspect $NAME -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}')
-    ret=$(${PREFIX} clixon_netconf -qe0 -f $CFG <<EOF
+    ret=$(${PREFIX} ${clixon_netconf} -qe0 -f $CFG <<EOF
 <rpc xmlns="urn:ietf:params:xml:ns:netconf:base:1.0" 
 xmlns:nc="urn:ietf:params:xml:ns:netconf:base:1.0" 
 message-id="42">

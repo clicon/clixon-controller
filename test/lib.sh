@@ -79,14 +79,14 @@ function chunked_framing()
 # Wait for restconf to stop sending  502 Bad Gateway
 function wait_backend(){
     freq=$(chunked_framing "<rpc $DEFAULTNS><ping $LIBNS/></rpc>")
-    reply=$(echo "$freq" | $clixon_netconf -q1ef $CFG) || true
+    reply=$(echo "$freq" | $PREFIX ${clixon_netconf} -q1ef $CFG)
 #    freply=$(chunked_framing "<rpc-reply $DEFAULTNS><ok/></rpc-reply>")
 #    chunked_equal "$reply" "$freply"
     let i=0 || true
     while [[ $reply != *"<rpc-reply"* ]]; do
        echo "sleep $DEMSLEEP"
         sleep $DEMSLEEP
-        reply=$(echo "<rpc $ÐEFAULTSNS $LIBNS><ping/></rpc>]]>]]>" | clixon_netconf -qef $CFG 2> /dev/null)
+        reply=$(echo "<rpc $ÐEFAULTSNS $LIBNS><ping/></rpc>]]>]]>" | $PREFIX ${clixon_netconf} -qef $CFG 2> /dev/null)
        echo "reply:$reply"
         let i++;
        echo "wait_backend  $i"
