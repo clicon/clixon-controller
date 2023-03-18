@@ -388,7 +388,7 @@ controller_transaction_failed(clicon_handle           h,
             clicon_err(OE_UNIX, errno, "strdup");
             goto done;
         }
-        if (controller_transaction_notify(h, ct, 0) < 0)
+        if (controller_transaction_notify(h, ct, TR_FAILED) < 0)
             goto done;
         /* 1.3.2 For all other devices in WAIT state trigger DISCARD */
         if (controller_transaction_wait_trigger(h, tid, 0) < 0)

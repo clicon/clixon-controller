@@ -425,7 +425,7 @@ rpc_sync_pull(clixon_handle h,
     cprintf(cbret, "</rpc-reply>");
     /* No device started, close transaction */
     if (controller_transaction_devices(h, ct->ct_id) == 0){
-        if (controller_transaction_notify(h, ct, 1) < 0)
+        if (controller_transaction_notify(h, ct, TR_SUCCESS) < 0)
             goto done;
         controller_transaction_state_set(ct, TS_CLOSED, TR_SUCCESS);
     } 
@@ -482,7 +482,7 @@ rpc_sync_push(clixon_handle h,
     }
     ct->ct_client_id = ce->ce_id;
     pattern = xml_find_body(xe, "devname");
-    if ((str = xml_find_body(xe, "dryrun")) != NULL)
+    if ((str = xml_find_body(xe, "validate")) != NULL)
         ct->ct_dryrun = strcmp(str, "true") == 0;
     if (xmldb_get(h, "running", nsc, "devices", &xret) < 0)
         goto done;
@@ -509,7 +509,7 @@ rpc_sync_push(clixon_handle h,
     cprintf(cbret, "</rpc-reply>");
     /* No device started, close transaction */
     if (controller_transaction_devices(h, ct->ct_id) == 0){
-        if (controller_transaction_notify(h, ct, 1) < 0)
+        if (controller_transaction_notify(h, ct, TR_SUCCESS) < 0)
             goto done;
         controller_transaction_state_set(ct, TS_CLOSED, TR_SUCCESS);
     }
@@ -649,7 +649,7 @@ rpc_connection_change(clixon_handle h,
     cprintf(cbret, "</rpc-reply>");
     /* No device started, close transaction */
     if (controller_transaction_devices(h, ct->ct_id) == 0){
-        if (controller_transaction_notify(h, ct, 1) < 0)
+        if (controller_transaction_notify(h, ct, TR_SUCCESS) < 0)
             goto done;
         controller_transaction_state_set(ct, TS_CLOSED, TR_SUCCESS);
     } 

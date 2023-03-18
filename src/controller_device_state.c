@@ -694,7 +694,7 @@ device_state_handler(clixon_handle h,
         if (controller_transaction_devices(h, tid) == 0){
             if (ct->ct_state != TS_RESOLVED){
                 controller_transaction_state_set(ct, TS_RESOLVED, TR_SUCCESS);
-                if (controller_transaction_notify(h, ct, 1) < 0)
+                if (controller_transaction_notify(h, ct, TR_SUCCESS) < 0)
                     goto done;
             }
             controller_transaction_state_set(ct, TS_CLOSED, TR_SUCCESS);
@@ -743,6 +743,13 @@ device_state_handler(clixon_handle h,
         /* 1. The device has failed */
         if (ret == 0){
             if (controller_transaction_failed(h, tid, ct, dh, 1, name, cbuf_get(cberr)) < 0)
+                goto done;
+            break;
+        }
+        if (ct->ct_dryrun){
+            if (device_send_discard_changes(h, dh) < 0)
+                goto done;
+            if (device_state_set(dh, CS_PUSH_DISCARD) < 0)
                 goto done;
             break;
         }

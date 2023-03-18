@@ -93,19 +93,18 @@ sync("Read the config of one or several devices.") {
     pull("sync config from one or multiple devices")[
                  (<name:string>("device pattern")|
                   <name:string expand_dbvar("running","/clixon-controller:devices/device/name")>("device pattern"))
-                 ], cli_sync_rpc("pull", "replace");{
+                 ], cli_rpc_sync_pull("replace");{
                     compare, cli_sync_compare();
-                    replace, cli_sync_rpc("pull", "replace");
-                    merge, cli_sync_rpc("pull", "merge");
+                    replace, cli_rpc_sync_pull("replace");
+                    merge, cli_rpc_sync_pull("merge");
                  }
     push("sync config to one or multiple devices")[
                  (<name:string>("device pattern")|
                   <name:string expand_dbvar("running","/clixon-controller:devices/device/name")>("device pattern"))
-                 ], cli_sync_rpc("push", "commit");{
-                    dryrun("Push to devices and validate"), cli_sync_rpc("push", "dryrun");
-                    commit("Push to devices and commit"), cli_sync_rpc("push", "commit");
+                 ], cli_rpc_sync_push("commit");{
+                    validate("Push to devices and validate"), cli_rpc_sync_push("validate");
+                    commit("Push to devices and commit"), cli_rpc_sync_push("commit");
                  }
-
 }
 
 connection("Reconnect one or several devices in closed state")  [<name:string>("device pattern")|

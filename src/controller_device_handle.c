@@ -253,7 +253,7 @@ device_handle_each(clixon_handle h,
                    device_handle dhprev)
 {
     struct controller_device_handle *cdh = (struct controller_device_handle *)dhprev;
-    struct controller_device_handle *cdh0;
+    struct controller_device_handle *cdh0 = NULL;
 
     clicon_ptr_get(h, "client-list", (void**)&cdh0);
     if (cdh == NULL)
