@@ -273,17 +273,18 @@ transaction_notification_poll(clicon_handle h,
     return retval;
 }
 
-/*! Read the config of one or several devices
+/*! Read(pull) the config of one or several devices.
+ *
  * @param[in] h
  * @param[in] cvv  : name pattern
- * @param[in] argv : "pull", "push" / dryrun, commit
+ * @param[in] argv : replace/merge , dryrun
  * @retval    0      OK
  * @retval   -1      Error
  */
 int
-cli_sync_rpc(clixon_handle h, 
-             cvec         *cvv, 
-             cvec         *argv)
+cli_rpc_sync_pull(clixon_handle h, 
+                  cvec         *cvv, 
+                  cvec         *argv)
 {
     int        retval = -1;
     cbuf      *cb = NULL;
@@ -294,14 +295,13 @@ cli_sync_rpc(clixon_handle h,
     cxobj     *xreply;
     cxobj     *xerr;
     char      *op;
-    char      *type;
     char      *name = "*";
     cxobj     *xid;
     char      *tidstr;
     uint64_t   tid = 0;
 
-    if (argv == NULL || cvec_len(argv) != 2){
-        clicon_err(OE_PLUGIN, EINVAL, "requires argument: <push><type>");
+    if (argv == NULL || cvec_len(argv) != 1){
+        clicon_err(OE_PLUGIN, EINVAL, "requires argument: replace/merge");
         goto done;
     }
     if ((cv = cvec_i(argv, 0)) == NULL){
@@ -309,25 +309,10 @@ cli_sync_rpc(clixon_handle h,
         goto done;
     }
     op = cv_string_get(cv);
-    if (strcmp(op, "push") != 0 && strcmp(op, "pull") != 0){
-        clicon_err(OE_PLUGIN, EINVAL, "<push> argument is %s, expected \"push\" or \"pull\"", op);
+    if (strcmp(op, "replace") != 0 && strcmp(op, "merge") != 0){
+        clicon_err(OE_PLUGIN, EINVAL, "sync pull <type> argument is %s, expected \"validate\" or \"commit\"", op);
         goto done;
     }
-    if ((cv = cvec_i(argv, 1)) == NULL){
-        clicon_err(OE_PLUGIN, 0, "Error when accessing argument <type>");
-        goto done;
-    }
-    type = cv_string_get(cv);
-    if (strcmp(op, "push") == 0){
-        if (strcmp(type, "dryrun") != 0 && strcmp(type, "commit") != 0){
-            clicon_err(OE_PLUGIN, EINVAL, "sync push <type> argument is %s, expected \"dryrun\" or \"commit\"", type);
-            goto done;
-        }
-    }
-    else if (strcmp(type, "replace") != 0 && strcmp(type, "merge") != 0){
-            clicon_err(OE_PLUGIN, EINVAL, "sync pull <type> argument is %s, expected \"dryrun\" or \"commit\"", type);
-            goto done;
-        }
     if ((cv = cvec_find(cvv, "name")) != NULL)
         name = cv_string_get(cv);
     if ((cb = cbuf_new()) == NULL){
@@ -338,11 +323,101 @@ cli_sync_rpc(clixon_handle h,
             NETCONF_BASE_NAMESPACE,
             clicon_username_get(h),
             NETCONF_MESSAGE_ID_ATTR);
-    cprintf(cb, "<sync-%s xmlns=\"%s\">", op, CONTROLLER_NAMESPACE);
+    cprintf(cb, "<sync-pull xmlns=\"%s\">", CONTROLLER_NAMESPACE);
     cprintf(cb, "<devname>%s</devname>", name);
-    if (strcmp(type, "dryrun")==0)
-        cprintf(cb, "<dryrun>true</dryrun>");
-    cprintf(cb, "</sync-%s>", op);
+    if (strcmp(op, "merge") == 0)
+        cprintf(cb, "<merge>true</merge>");
+    cprintf(cb, "</sync-pull>");
+    cprintf(cb, "</rpc>");
+    if (clixon_xml_parse_string(cbuf_get(cb), YB_NONE, NULL, &xtop, NULL) < 0)
+        goto done;
+    /* Skip top-level */
+    xrpc = xml_child_i(xtop, 0);
+    /* Send to backend */
+    if (clicon_rpc_netconf_xml(h, xrpc, &xret, NULL) < 0)
+        goto done;
+    if ((xreply = xpath_first(xret, NULL, "rpc-reply")) == NULL){
+        clicon_err(OE_CFG, 0, "Malformed rpc reply");
+        goto done;
+    }
+    if ((xerr = xpath_first(xreply, NULL, "rpc-error")) != NULL){
+        clixon_netconf_error(xerr, "Get configuration", NULL);
+        goto done;
+    }
+    if ((xid = xpath_first(xreply, NULL, "tid")) == NULL){
+        clicon_err(OE_CFG, 0, "No returned id");
+        goto done;
+    }
+    tidstr = xml_body(xid);
+    if (tidstr && parse_uint64(tidstr, &tid, NULL) <= 0)
+        goto done;
+    if (transaction_notification_poll(h, tidstr) < 0)
+        goto done;
+    retval = 0;
+ done:
+    if (cb)
+        cbuf_free(cb);
+    if (xret)
+        xml_free(xret);
+    if (xtop)
+        xml_free(xtop);
+    return retval;
+}
+
+/*! Read the config of one or several devices
+ * @param[in] h
+ * @param[in] cvv  : name pattern
+ * @param[in] argv : "push" validate/commit
+ * @retval    0      OK
+ * @retval   -1      Error
+ */
+int
+cli_rpc_sync_push(clixon_handle h, 
+                  cvec         *cvv, 
+                  cvec         *argv)
+{
+    int        retval = -1;
+    cbuf      *cb = NULL;
+    cg_var    *cv;
+    cxobj     *xtop = NULL;
+    cxobj     *xrpc;
+    cxobj     *xret = NULL;
+    cxobj     *xreply;
+    cxobj     *xerr;
+    char      *op;
+    char      *name = "*";
+    cxobj     *xid;
+    char      *tidstr;
+    uint64_t   tid = 0;
+
+    if (argv == NULL || cvec_len(argv) != 1){
+        clicon_err(OE_PLUGIN, EINVAL, "requires argument: validate/commit");
+        goto done;
+    }
+    if ((cv = cvec_i(argv, 0)) == NULL){
+        clicon_err(OE_PLUGIN, 0, "Error when accessing argument <push>");
+        goto done;
+    }
+    op = cv_string_get(cv);
+    if (strcmp(op, "validate") != 0 && strcmp(op, "commit") != 0){
+        clicon_err(OE_PLUGIN, EINVAL, "<push> argument is %s, expected \"validate\" or \"commit\"", op);
+        goto done;
+    }
+    if ((cv = cvec_find(cvv, "name")) != NULL)
+        name = cv_string_get(cv);
+    if ((cb = cbuf_new()) == NULL){
+        clicon_err(OE_PLUGIN, errno, "cbuf_new");
+        goto done;
+    }
+    cprintf(cb, "<rpc xmlns=\"%s\" username=\"%s\" %s>",
+            NETCONF_BASE_NAMESPACE,
+            clicon_username_get(h),
+            NETCONF_MESSAGE_ID_ATTR);
+    cprintf(cb, "<sync-push xmlns=\"%s\">", CONTROLLER_NAMESPACE);
+    cprintf(cb, "<devname>%s</devname>", name);
+    if (strcmp(op, "validate") == 0)
+        cprintf(cb, "<validate>true</validate>");
+    cprintf(cb, "</sync-push>");
     cprintf(cb, "</rpc>");
     if (clixon_xml_parse_string(cbuf_get(cb), YB_NONE, NULL, &xtop, NULL) < 0)
         goto done;
