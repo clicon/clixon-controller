@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Stop clixon example container devices and initiate with config x=11, y=22
+# Stop clixon example container devices
 set -eux
 
 # Number of device containers to start

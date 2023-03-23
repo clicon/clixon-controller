@@ -1,16 +1,16 @@
 #!/usr/bin/env bash
 # Assume backend and devics running
 # Reset devices and backend
-# Commit a change to devices (on controller): remove x, change y, and add z
+# Commit a change to controller device config: remove x, change y, and add z
+# Push validate to devices
 # Push to devices
-# Check the change on the devices
 
 set -eux
 
 # Magic line must be first in script (see README.md)
 s="$_" ; . ./lib.sh || if [ "$s" = $0 ]; then exit 0; else return 0; fi
 
-# Set if also sync push, not only change
+# Set if also sync push, not only change (useful for manually doing push)
 : ${push:=true}
 
 # Set if also sync push commit, not only sync push validate
@@ -22,10 +22,10 @@ s="$_" ; . ./lib.sh || if [ "$s" = $0 ]; then exit 0; else return 0; fi
 # Check backend is running
 wait_backend
 
-# Reset backend 
-. ./reset-backend.sh
+# Reset controller
+. ./reset-controller.sh
 
-# Remove x, change y, and add z
+# Change device in controller: Remove x, change y=122, and add z=99
 for i in $(seq 1 $nr); do
     NAME=$IMG$i
     

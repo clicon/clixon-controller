@@ -44,7 +44,7 @@
 enum transaction_state_t{
     TS_INIT = 0,  /* Started transaction */
     TS_RESOLVED,  /* The result of the transaction is set (if result == 0, this is same as CLOSED) */
-    TS_CLOSED,    /* Terminated, inactive transaction */
+    TS_DONE,      /* Terminated, inactive transaction */
 };
 typedef enum transaction_state_t transaction_state;
 

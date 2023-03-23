@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
-# Reset devices with initial config
+# Reset controller by initiaiting with clixon-example devices and a sync pull
 
 set -eux
 
-echo "reset-backend"
+echo "reset-controller"
 
 # Controller config file
 : ${CFG:=/usr/local/etc/controller.xml}
@@ -157,4 +157,4 @@ EOF
     fi
 done
 
-echo "reset-backend OK"
+echo "reset-controller OK"

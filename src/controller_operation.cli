@@ -48,9 +48,9 @@ show("Show a particular state of the system"){
     compare("Compare candidate and running databases"), compare_dbs((int32)1);{
           xml("Show comparison in xml"), compare_dbs((int32)0);
 	  text("Show comparison in text"), compare_dbs((int32)1);
-          device("Compare device sync with running") (<name:string>("device pattern")|<name:string expand_dbvar("running","/clixon-controller:devices/device/name")>("device pattern")), compare_device_dbs((int32)1);{
-    		         xml("Show comparison in xml"), compare_device_dbs((int32)0);
-		         text("Show comparison in text"), compare_device_dbs((int32)1);
+          device("Compare device sync with running") [(<name:string>("device pattern")|<name:string expand_dbvar("running","/clixon-controller:devices/device/name")>("device pattern"))], compare_device_db_sync((int32)1);{
+    		         xml("Show comparison in xml"), compare_device_db_sync((int32)0);
+		         text("Show comparison in text"), compare_device_db_sync((int32)1);
                      }
     }
     devices("Show state of devices")[
@@ -94,7 +94,10 @@ sync("Read the config of one or several devices.") {
                  (<name:string>("device pattern")|
                   <name:string expand_dbvar("running","/clixon-controller:devices/device/name")>("device pattern"))
                  ], cli_rpc_sync_pull("replace");{
-                    compare, cli_sync_compare();
+                    compare, compare_device_db_dev((int32)1);{
+    		         xml("Show comparison in xml"), compare_device_db_dev((int32)0);
+		         text("Show comparison in text"), compare_device_db_dev((int32)1);
+                    }
                     replace, cli_rpc_sync_pull("replace");
                     merge, cli_rpc_sync_pull("merge");
                  }
@@ -110,7 +113,7 @@ sync("Read the config of one or several devices.") {
 connection("Reconnect one or several devices in closed state")  [<name:string>("device pattern")|
               <name:string expand_dbvar("running","/clixon-controller:devices/device/name")>("device pattern")]{
               close("Close open connections"), cli_connection_change("CLOSE");
-              open("Open close connections"), cli_connection_change("OPEN");
+              open("Open closed connections"), cli_connection_change("OPEN");
               reconnect("Close all open connections and open all connections"), cli_connection_change("RECONNECT");
               }
 

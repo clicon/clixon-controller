@@ -257,51 +257,6 @@ device_state_recv_hello(clixon_handle h,
     goto done;
 }
 
-/*! Get a config from device, write to db file without sanity of yang checks
- *
- * @param[in] h          Clixon handle.
- */
-static int
-device_config_write(clixon_handle h,
-                    device_handle dh,
-                    char         *name,
-                    char         *extended,
-                    cxobj        *xdata,
-                    cbuf         *cbret)
-{
-    int    retval = -1;
-    cbuf  *cbdb = NULL;
-    char  *db;
-    int    ret;
-
-    if ((cbdb = cbuf_new()) == NULL){
-        clicon_err(OE_UNIX, errno, "cbuf_new");
-        goto done;
-    }   
-    if (extended)
-        cprintf(cbdb, "device-%s-%s", name, extended);
-    else
-        cprintf(cbdb, "device-%s", name);
-    db = cbuf_get(cbdb);
-    if (xmldb_db_reset(h, db) < 0)
-        goto done;
-    if ((ret = xmldb_put(h, db, OP_REPLACE, xdata, clicon_username_get(h), cbret)) < 0)
-        goto done;
-    if (ret == 0){
-        if (device_close_connection(dh, "Failed to sync db: %s", cbuf_get(cbret)) < 0)
-            goto done;
-        goto closed;
-    }
-    retval = 1;
- done:
-    if (cbdb)
-        cbuf_free(cbdb);
-    return retval;
- closed:
-    retval = 0;
-    goto done;
-}
-
 /*! Receive config data from device and add config to mount-point
  *
  * @param[in] h          Clixon handle.
@@ -425,10 +380,13 @@ device_state_recv_config(clixon_handle h,
             goto done;
     }
     if (dryrun){
-        if ((ret = device_config_write(h, dh, name, "dryrun", xt, cbret)) < 0)
+        if ((ret = device_config_write(h, name, "dryrun", xt, cbret)) < 0)
             goto done;
-        if (ret == 0)
+        if (ret == 0){
+            if (device_close_connection(dh, "%s", cbuf_get(cbret)) < 0)
+                goto done;
             goto closed;
+        }
         goto ok;
     }
     if ((ret = xmldb_put(h, "candidate", OP_NONE, xt, NULL, cbret)) < 0)
@@ -453,10 +411,13 @@ device_state_recv_config(clixon_handle h,
     else {
         device_handle_sync_time_set(dh, NULL);
     }
-    if ((ret = device_config_write(h, dh, name, NULL, xt, cbret)) < 0)
+    if ((ret = device_config_write(h, name, NULL, xt, cbret)) < 0)
         goto done;
-    if (ret == 0)
+    if (ret == 0){
+        if (device_close_connection(dh, "%s", cbuf_get(cbret)) < 0)
+            goto done;
         goto closed;
+    }
  ok:
     retval = 1;
  done:
@@ -628,15 +589,16 @@ device_state_recv_get_schema(device_handle dh,
 
 /*! Controller input wresp to open state handling, read rpc-reply
  *
- * @param[in] dh         Clixon client handle.
- * @param[in] xmsg       XML tree of incoming message
- * @param[in] yspec      Yang top-level spec
- * @param[in] rpcname    Name of RPC, only "rpc-reply" expected here
- * @param[in] conn_state Device connection state
- * @param[out] cberr     Error returned as cb, free with cbuf_err
- * @retval    1          OK
- * @retval    0          Failed (cberr may be set if NOT closed)
- * @retval   -1          Error
+ * @param[in]  dh         Clixon client handle.
+ * @param[in]  xmsg       XML tree of incoming message
+ * @param[in]  yspec      Yang top-level spec
+ * @param[in]  rpcname    Name of RPC, only "rpc-reply" expected here
+ * @param[in]  conn_state Device connection state
+ * @param[out] cberr      Error, free with cbuf_err (retval = 0)
+ * @retval     2          OK
+ * @retval     1          Closed
+ * @retval     0          Failed: receivced rpc-error or not <ok> (not closed)
+ * @retval    -1          Error
  */
 int
 device_state_recv_ok(device_handle dh,
@@ -654,7 +616,7 @@ device_state_recv_ok(device_handle dh,
     if ((ret = rpc_reply_sanity(dh, xmsg, rpcname, conn_state)) < 0)
         goto done;
     if (ret == 0)
-        goto failed;
+        goto closed;
     if ((xerr = xpath_first(xmsg, NULL, "rpc-error")) != NULL){
         x = xpath_first(xerr, NULL, "error-message");
         if ((cb = cbuf_new()) == NULL){
@@ -685,13 +647,16 @@ device_state_recv_ok(device_handle dh,
         }
         goto failed;
     }
-    retval = 1;
+    retval = 2;
  done:
     if (cb)
         cbuf_free(cb);
     return retval;
  failed:
     retval = 0;
+    goto done;
+ closed:
+    retval = 1;
     goto done;
 }
 

@@ -243,7 +243,6 @@ transaction_notification_poll(clicon_handle h,
         goto done;
     }
     while (!match){
-        clicon_debug(1, "%s A", __FUNCTION__);
         if (transaction_notification_handler(s, tidstr, &match, &result, &eof) < 0){
             if (eof)
                 goto done;
@@ -532,6 +531,7 @@ cli_connection_change(clixon_handle h,
  * @param[in]  h        Clixon handle 
  * @param[in]  name     Name of device
  * @param[in]  extended Extended name used as postfix: device-<name>-<extended>
+ * @param[out] xp       XML tree reply
  * @retval     0        OK
  * @retval    -1        Error
  */
@@ -546,7 +546,6 @@ get_device_config(clicon_handle h,
     cxobj           *xrpc = NULL;
     cxobj           *xret = NULL;
     cxobj           *xerr = NULL;
-    cxobj           *xc;
 
     if ((cb = cbuf_new()) == NULL){
         clicon_err(OE_PLUGIN, errno, "cbuf_new");
@@ -574,13 +573,9 @@ get_device_config(clicon_handle h,
         clixon_netconf_error(xerr, "Get configuration", NULL);
         goto done;
     }
-    if ((xc = xpath_first(xret, NULL, "rpc-reply/config/root")) == NULL){
-        clicon_err(OE_CFG, 0, "No synced device config");
-        goto done;
-    }
     if (xp){
-        xml_rm(xc);
-        *xp = xc;
+        *xp = xret;
+        xret = NULL;
     }
     retval = 0;
  done:
@@ -590,65 +585,6 @@ get_device_config(clicon_handle h,
         xml_free(xrpc);
     if (xret)
         xml_free(xret);
-    return retval;
-}
-
-/*! Compare device two dbs using XML. Write to file and run diff
- * @param[in]   h     Clicon handle
- * @param[in]   cvv  
- * @param[in]   argv  arg: 0 as xml, 1: as text
- * @retval      0     OK
- * @retval     -1     Error
- */
-int
-compare_device_dbs(clicon_handle h, 
-                   cvec         *cvv, 
-                   cvec         *argv)
-{
-    int              retval = -1;
-    cxobj           *xc1 = NULL; /* running xml */
-    cxobj           *xc2 = NULL; /* candidate xml */
-    cxobj           *xret = NULL;
-    cxobj           *xerr = NULL;
-    enum format_enum format;
-    cg_var          *cv;
-    char            *name;
-    cbuf            *cb = NULL;
-
-    if (cvec_len(argv) > 1){
-        clicon_err(OE_PLUGIN, EINVAL, "Requires 0 or 1 element. If given: astext flag 0|1");
-        goto done;
-    }
-    if (cvec_len(argv) && cv_int32_get(cvec_i(argv, 0)) == 1)
-        format = FORMAT_TEXT;
-    else
-        format = FORMAT_XML;
-    if ((cv = cvec_find(cvv, "name")) == NULL)
-        goto ok;
-    name = cv_string_get(cv);
-    if (clicon_rpc_get_config(h, NULL, "running", "/", NULL, NULL, &xret) < 0)
-        goto done;
-    if ((xerr = xpath_first(xret, NULL, "/rpc-error")) != NULL){
-        clixon_netconf_error(xerr, "Get configuration", NULL);
-        goto done;
-    }
-    if ((xc1 = xpath_first(xret, NULL, "devices/device/root")) == NULL){
-        clicon_err(OE_CFG, 0, "No device config in running");
-        goto done;
-    }
-    if (get_device_config(h, name, NULL, &xc2) < 0)
-        goto done;
-    if (clixon_compare_xmls(xc2, xc1, format, cligen_output) < 0) /* astext? */
-        goto done;
- ok:
-    retval = 0;
- done:
-    if (cb)
-        cbuf_free(cb);
-    if (xret)
-        xml_free(xret);
-    if (xc2)
-        xml_free(xc2);
     return retval;
 }
 
@@ -894,28 +830,36 @@ send_pull_dryrun(clicon_handle h,
     return retval;
 }
 
-/*! Show compare with device 
- * @param[in] h
- * @param[in] cvv  : name pattern
- * @param[in] argv  arg: 0 as xml, 1: as text
- * @retval    0    OK
- * @retval   -1    Error
+/*! Compare device dbs: running with last saved synced or current device (dryrun)
+ *
+ * @param[in]   h     Clicon handle
+ * @param[in]   cvv  
+ * @param[in]   argv  arg: 0 as xml, 1: as text
+ * @param[in]   dryrun 0: synced db, 1:device
+ * @retval      0     OK
+ * @retval     -1     Error
  */
 int
-cli_sync_compare(clixon_handle h,
-                 cvec         *cvv,
-                 cvec         *argv)
+compare_device_dbs(clicon_handle h, 
+                   cvec         *cvv, 
+                   cvec         *argv,
+                   int           dryrun)
 {
     int              retval = -1;
-    char            *name = "*";
-    cg_var          *cv;
-    char            *tidstr = NULL;
-    cxobj           *xc1 = NULL; /* running xml */
-    cxobj           *xc2 = NULL; /* candidate xml */
-    cxobj           *xret = NULL;
+    cxobj           *xt1 = NULL;
+    cxobj           *xt2 = NULL;
     cxobj           *xerr = NULL;
     enum format_enum format;
-    
+    cg_var          *cv;
+    char            *pattern = "*";
+    cxobj          **vec1 = NULL;
+    size_t           veclen1;
+    cxobj          **vec2 = NULL;
+    size_t           veclen2;
+    cvec            *nsc = NULL;
+    char            *tidstr = NULL;
+    int              i;
+
     if (cvec_len(argv) > 1){
         clicon_err(OE_PLUGIN, EINVAL, "Requires 0 or 1 element. If given: astext flag 0|1");
         goto done;
@@ -925,33 +869,82 @@ cli_sync_compare(clixon_handle h,
     else
         format = FORMAT_XML;
     if ((cv = cvec_find(cvv, "name")) != NULL)
-        name = cv_string_get(cv);
-    if (clicon_rpc_get_config(h, NULL, "running", "/", NULL, NULL, &xret) < 0)
+        pattern = cv_string_get(cv);
+    if (clicon_rpc_get_config(h, NULL, "running", "/", NULL, NULL, &xt1) < 0)
         goto done;
-    if ((xerr = xpath_first(xret, NULL, "/rpc-error")) != NULL){
+    if ((xerr = xpath_first(xt1, NULL, "/rpc-error")) != NULL){
         clixon_netconf_error(xerr, "Get configuration", NULL);
         goto done;
     }
-    if ((xc1 = xpath_first(xret, NULL, "devices/device/root")) == NULL){
-        clicon_err(OE_CFG, 0, "No device config in running");
+    if (xpath_vec(xt1, nsc, "devices/device/root", &vec1, &veclen1) < 0) 
         goto done;
+    if (dryrun){
+        /* Send sync-pull <dryrun> */
+        if (send_pull_dryrun(h, pattern, &tidstr) < 0)
+            goto done;
+        /* Wait to complete transaction try ^C here */
+        if (transaction_notification_poll(h, tidstr) < 0)
+            goto done;
+        if (get_device_config(h, pattern, "dryrun", &xt2) < 0)
+            goto done;
     }
-    if (send_pull_dryrun(h, name, &tidstr) < 0)
+    else { /* Last synced */
+        if (get_device_config(h, pattern, NULL, &xt2) < 0)
+            goto done;
+    }
+    if (xpath_vec(xt2, nsc, "rpc-reply/config/root", &vec2, &veclen2) < 0) 
         goto done;
-    /* XXX try ^C here */
-    if (transaction_notification_poll(h, tidstr) < 0)
-        goto done;
-    if (get_device_config(h, name, "dryrun", &xc2) < 0)
-        goto done;
-    if (clixon_compare_xmls(xc2, xc1, format, cligen_output) < 0)
-        goto done;
+    for (i=0; i<veclen1; i++){
+        if (i>=veclen2)
+            break;
+        if (clixon_compare_xmls(vec2[i], vec1[i], format, cligen_output) < 0)
+            goto done;
+    }
     retval = 0;
  done:
-    if (xret)
-        xml_free(xret);
+    if (vec1)
+        free(vec1);
+    if (vec2)
+        free(vec2);
+    if (xt1)
+        xml_free(xt1);
+    if (xt2)
+        xml_free(xt2);
     if (tidstr)
         free(tidstr);
     return retval;
+}
+
+/*! Compare device dbs: running with (last) synced db
+ *
+ * @param[in]   h     Clicon handle
+ * @param[in]   cvv  
+ * @param[in]   argv  arg: 0 as xml, 1: as text
+ * @retval      0     OK
+ * @retval     -1     Error
+ */
+int
+compare_device_db_sync(clicon_handle h, 
+                       cvec         *cvv, 
+                       cvec         *argv)
+{
+    return compare_device_dbs(h, cvv, argv, 0);
+}
+
+/*! Compare device dbs: running with current device (dryrun)
+ *
+ * @param[in] h     Clicon handle
+ * @param[in] cvv  : name pattern or NULL
+ * @param[in] argv  arg: 0 as xml, 1: as text
+ * @retval    0     OK
+ * @retval   -1     Error
+ */
+int
+compare_device_db_dev(clicon_handle h, 
+                      cvec         *cvv,
+                      cvec         *argv)
+{
+    return compare_device_dbs(h, cvv, argv, 1);
 }
 
 /*! Check if device(s) is in sync
@@ -966,7 +959,8 @@ cli_check_sync(clixon_handle h,
                  cvec         *cvv,
                  cvec         *argv)
 {
-    return cli_sync_compare(h, cvv, argv);
+    // XXX just show true/false
+    return compare_device_dbs(h, cvv, argv, 1);
 }
 
 int
@@ -1158,7 +1152,7 @@ create_autocli_mount_tree(clicon_handle h,
 
     clicon_debug(1, "%s", __FUNCTION__);
     yspec0 = clicon_dbspec_yang(h);
-    if ((ymod = yang_find(yspec0,Y_MODULE,"clixon-controller")) == NULL){
+    if ((ymod = yang_find(yspec0, Y_MODULE, "clixon-controller")) == NULL){
         clicon_err(OE_YANG, 0, "module clixon-controller not found");
         goto done;
     }
@@ -1174,7 +1168,7 @@ create_autocli_mount_tree(clicon_handle h,
         goto done;
     }
     /* 2. Create xpath to specific mountpoint given by devname */
-    cprintf(cb, "devices/device[name='%s']/root", devname);
+    cprintf(cb, "/ctrl:devices/ctrl:device[ctrl:name='%s']/ctrl:root", devname);
     xpath = cbuf_get(cb);
     /* 3. Check if yspec associated to that mountpoint exists */
     if (yang_mount_get(yu, xpath, &yspec1) < 0)

@@ -90,6 +90,7 @@ struct controller_device_handle{
     char              *cdh_schema_name; /* Pending schema name */
     char              *cdh_schema_rev;  /* Pending schema revision */
     char              *cdh_logmsg;      /* Error log message / reason of failed open */
+    cbuf              *cdh_outmsg;      /* Pending outgoing netconf message for delayed output */
 };
 
 /*! Check struct magic number for sanity checks
@@ -166,6 +167,8 @@ device_handle_handle_free(struct controller_device_handle *cdh)
         free(cdh->cdh_schema_name);
     if (cdh->cdh_schema_rev)
         free(cdh->cdh_schema_rev);
+    if (cdh->cdh_outmsg)
+        cbuf_free(cdh->cdh_outmsg);
     free(cdh);
     return 0;
 }
@@ -846,6 +849,39 @@ device_handle_logmsg_set(device_handle dh,
     if (cdh->cdh_logmsg)
         free(cdh->cdh_logmsg);
     cdh->cdh_logmsg = logmsg;
+    return 0;
+}
+
+/*! Get pending netconf outmsg
+ *
+ * @param[in]  dh     Device handle
+ * @retval     msg
+ * @retval     NULL
+ */
+cbuf*
+device_handle_outmsg_get(device_handle dh)
+{
+    struct controller_device_handle *cdh = devhandle(dh);
+
+    return cdh->cdh_outmsg;
+}
+
+/*! Set pending netconf outmsg
+ *
+ * @param[in]  dh   Device handle
+ * @param[in]  cb   Netconf msg
+ */
+int
+device_handle_outmsg_set(device_handle dh,
+                         cbuf         *cb)
+{
+    struct controller_device_handle *cdh = devhandle(dh);
+
+    if (cdh->cdh_outmsg){
+        cbuf_free(cdh->cdh_outmsg);
+        cdh->cdh_outmsg = NULL;
+    }
+    cdh->cdh_outmsg = cb;
     return 0;
 }
 

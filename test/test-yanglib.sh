@@ -15,8 +15,8 @@ s="$_" ; . ./lib.sh || if [ "$s" = $0 ]; then exit 0; else return 0; fi
 # Check backend is running
 wait_backend
 
-# Reset backend  
-. ./reset-backend.sh
+# Reset controller
+. ./reset-controller.sh
 
 # Query top-level schema-mount
 ret=$(${PREFIX} ${clixon_netconf} -0 -f $CFG <<EOF

@@ -45,14 +45,14 @@ DEMSLEEP=0.2
 
 : ${clixon_snmp:=$(type -p clixon_snmp)}
 
+# If set to false, override starting of clixon_backend in test (you bring your own) 
+: ${BE:=true}
+
 if $INIT; then
     # Start devices
     nr=$nr ./stop-devices.sh
     sleep $sleep
     nr=$nr ./start-devices.sh
-
-    # If set to false, override starting of clixon_backend in test (you bring your own) 
-    : ${BE:=true}
 
     if $BE; then
         echo "Kill old backend"

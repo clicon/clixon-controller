@@ -34,7 +34,6 @@
 #include <syslog.h>
 #include <fcntl.h>
 #include <fnmatch.h>
-#include <assert.h>
 #include <sys/time.h>
 
 /* clicon */
@@ -263,7 +262,7 @@ device_send_get_schema_list(clixon_handle h,
     return retval;
 }
 
-/*! Send edit-config to a device given a diff between two XML trees x0 and x1
+/*! Create edit-config to a device given a diff between two XML trees x0 and x1
  *
  * Used for sync push
  * @param[in]  h       Clixon handle.
@@ -278,27 +277,30 @@ device_send_get_schema_list(clixon_handle h,
  * @param[in]  chvec0  Source changed xml vector
  * @param[in]  chvec1  Target changed xml vector
  * @param[in]  chlen   Changed xml vector length 
+ * @param[out] cbret   Cligen  buf containing the whole message (not sent)
+ * @retval     0       OK
+ * @retval    -1       Error
  * XXX Lots of xml and cbuf handling, try to contain some parts in sub-functions
  * XXX validation
  */
 int
-device_send_edit_config_diff(clixon_handle h,
-                             device_handle dh,
-                             cxobj        *x0,
-                             cxobj        *x1,
-                             yang_stmt    *yspec,
-                             cxobj       **dvec,
-                             int           dlen,
-                             cxobj       **avec,
-                             int           alen,
-                             cxobj       **chvec0,
-                             cxobj       **chvec1,
-                             int           chlen)
+device_create_edit_config_diff(clixon_handle h,
+                               device_handle dh,
+                               cxobj        *x0,
+                               cxobj        *x1,
+                               yang_stmt    *yspec,
+                               cxobj       **dvec,
+                               int           dlen,
+                               cxobj       **avec,
+                               int           alen,
+                               cxobj       **chvec0,
+                               cxobj       **chvec1,
+                               int           chlen,
+                               cbuf        **cbret)
 {
     int    retval = -1;
     cbuf  *cb = NULL;
     int    encap;
-    int    s;
     int    i;
     cxobj *xt = NULL;
     cxobj *xn;
@@ -309,6 +311,10 @@ device_send_edit_config_diff(clixon_handle h,
     cvec  *nsc = NULL;
     
     clicon_debug(1, "%s", __FUNCTION__);
+    if (cbret == NULL){
+        clicon_err(OE_UNIX, EINVAL, "cbret is NULL");
+        goto done;
+    }
     /* Most of this could probably be generic */
     /* Miss a level ? */
     for (i=0; i<dlen; i++){
@@ -376,9 +382,8 @@ device_send_edit_config_diff(clixon_handle h,
     encap = clicon_data_int_get(h, "netconf-framing");
     if (netconf_output_encap(encap, cb) < 0)
         goto done;
-    s = device_handle_socket_get(dh);
-    if (clicon_msg_send1(s, cb) < 0)
-        goto done;
+    *cbret = cb;
+    cb = NULL;
     retval = 0;
  done:
     if (reason)
@@ -456,4 +461,3 @@ device_send_discard_changes(clixon_handle h,
 {
     return device_send_rpc(h, dh, "<discard-changes/>");
 }
-

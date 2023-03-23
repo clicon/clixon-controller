@@ -182,9 +182,9 @@ controller_commit_device(clixon_handle h,
     }
     /* No device started, close transaction */
     if (ct && controller_transaction_devices(h, ct->ct_id) == 0){
-        if (controller_transaction_notify(h, ct, TR_SUCCESS) < 0)
+        if (controller_transaction_notify(h, ct) < 0)
             goto done;
-        controller_transaction_state_set(ct, TS_CLOSED, TR_SUCCESS);
+        controller_transaction_state_set(ct, TS_DONE, TR_SUCCESS);
     }
     retval = 0;
  done:
