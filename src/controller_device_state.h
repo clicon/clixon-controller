@@ -74,6 +74,7 @@ enum conn_state_t {
     CS_SCHEMA_ONE,    /* Connection established and Hello sent to device (nr substate) */
     CS_DEVICE_SYNC,   /* Get all config (dryrun+merge are sub-state parameters) */
     CS_OPEN,          /* Connection established and Hello sent to device. */
+    CS_PUSH_CHECK,    /* sync device dryrun to check if device is unchanged */
     CS_PUSH_EDIT,     /* edit-config sent, waiting for reply */
     CS_PUSH_VALIDATE, /* validate sent, waiting for reply  */
     CS_PUSH_WAIT,     /* Waiting for other devices to validate */
@@ -113,6 +114,8 @@ int          device_state_mount_point_get(char *devicename, yang_stmt *yspec,
 int          device_state_timeout_register(device_handle ch);
 int          device_state_timeout_unregister(device_handle ch);
 int          device_state_set(device_handle dh, conn_state state);
+int          device_config_read(clicon_handle h, char *devname, char *extended, cxobj **xrootp, cbuf *cbret);
+int          device_config_write(clixon_handle h, char *name, char *extended, cxobj *xdata, cbuf *cbret);
 int          device_state_handler(clixon_handle h, device_handle ch, int s, cxobj *xmsg);
 int          devices_statedata(clixon_handle h, cvec *nsc, char *xpath, cxobj *xstate);
     

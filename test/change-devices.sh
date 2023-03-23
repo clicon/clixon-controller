@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
-# Reset running example container devices and initiate with config x=11, y=22
+# Change device config: Remove x, change y, and add z
 set -eux
 
-echo "reset-devices"
+echo "change-devices"
 
 # Number of device containers to start
 : ${nr:=2}
@@ -16,7 +16,7 @@ echo "reset-devices"
 
 sudo test -f $SSHKEY || sudo ssh-keygen -t rsa -N "" -f /root/.ssh/id_rsa
 
-# Add parameters x and y
+# Remove x, change y, and add z directly on devices
 for i in $(seq 1 $nr); do
     NAME=$IMG$i
     ip=$(sudo docker inspect $NAME -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}')
@@ -31,27 +31,26 @@ for i in $(seq 1 $nr); do
      xmlns:nc="urn:ietf:params:xml:ns:netconf:base:1.0" 
      message-id="42">
   <edit-config>
-    <target>
-      <candidate/>
-    </target>
+    <target><candidate/></target>
     <default-operation>none</default-operation>
     <config>
-      <table xmlns="urn:example:clixon" nc:operation="replace">
-        <parameter>
+      <table xmlns="urn:example:clixon">
+        <parameter nc:operation="remove">
           <name>x</name>
-          <value>11</value>
         </parameter>
         <parameter>
           <name>y</name>
-          <value>22</value>
+          <value nc:operation="replace">122</value>
+        </parameter>
+        <parameter nc:operation="merge">>
+          <name>z</name>
+          <value>99</value>
         </parameter>
       </table>
     </config>
   </edit-config>
 </rpc>]]>]]>
-<rpc xmlns="urn:ietf:params:xml:ns:netconf:base:1.0" message-id="42">
-  <commit/>
-</rpc>]]>]]>
+<rpc xmlns="urn:ietf:params:xml:ns:netconf:base:1.0" message-id="42"><commit/></rpc>]]>]]>
 EOF
        )
     match=$(echo $ret | grep --null -Eo "<rpc-error>") || true
@@ -60,4 +59,5 @@ EOF
         exit 1
     fi
 done
-echo "reset-devices OK"
+
+echo "change-devices OK"

@@ -16,52 +16,11 @@ s="$_" ; . ./lib.sh || if [ "$s" = $0 ]; then exit 0; else return 0; fi
 # Check backend is running
 wait_backend
 
-# Reset backend with 
-. ./reset-backend.sh
+# Reset controller 
+. ./reset-controller.sh
 
-# Add parameters x and y directly on devices
-for i in $(seq 1 $nr); do
-    NAME=$IMG$i
-    ip=$(sudo docker inspect $NAME -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}')
-    ret=$(sudo ssh $ip -o StrictHostKeyChecking=no -o PasswordAuthentication=no -s netconf <<EOF
-<?xml version="1.0" encoding="UTF-8"?>
-<hello xmlns="urn:ietf:params:xml:ns:netconf:base:1.0">
-   <capabilities>
-      <capability>urn:ietf:params:netconf:base:1.0</capability>
-   </capabilities>
-</hello>]]>]]>
-<rpc xmlns="urn:ietf:params:xml:ns:netconf:base:1.0" 
-     xmlns:nc="urn:ietf:params:xml:ns:netconf:base:1.0" 
-     message-id="42">
-  <edit-config>
-    <target><candidate/></target>
-    <default-operation>none</default-operation>
-    <config>
-      <table xmlns="urn:example:clixon">
-        <parameter nc:operation="remove">
-          <name>x</name>
-        </parameter>
-        <parameter>
-          <name>y</name>
-          <value nc:operation="replace">122</value>
-        </parameter>
-        <parameter nc:operation="merge">>
-          <name>z</name>
-          <value>99</value>
-        </parameter>
-      </table>
-    </config>
-  </edit-config>
-</rpc>]]>]]>
-<rpc xmlns="urn:ietf:params:xml:ns:netconf:base:1.0" message-id="42"><commit/></rpc>]]>]]>
-EOF
-       )
-    match=$(echo $ret | grep --null -Eo "<rpc-error>") || true
-    if [ -n "$match" ]; then
-        echo "netconf rpc-error detected"
-        exit 1
-    fi
-done
+# Change device configs on devices (not controller)
+. ./change-devices.sh
 
 echo "trigger sync-pull dryrun"
 ret=$(${PREFIX} ${clixon_netconf} -q0 -f $CFG <<EOF

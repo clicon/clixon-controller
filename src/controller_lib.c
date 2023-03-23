@@ -47,12 +47,12 @@
 #include "controller_lib.h"
 
 /*! Mapping between enum transaction_state and yang transaction-state
- * @see clixon-controller@2023-01-01.yang transaction-state
+ * @see clixon-controller@2023-01-01.yang transaction-state 
  */
 static const map_str2int tsmap[] = {
     {"INIT",      TS_INIT},
     {"RESOLVED",  TS_RESOLVED},
-    {"CLOSED",    TS_CLOSED},
+    {"DONE",      TS_DONE},
     {NULL,        -1}
 };
 

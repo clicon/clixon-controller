@@ -84,6 +84,7 @@ static const map_str2int csmap[] = {
     {"SCHEMA_ONE",   CS_SCHEMA_ONE}, /* substate is schema-nr */
     {"DEVICE-SYNC",  CS_DEVICE_SYNC},
     {"OPEN",         CS_OPEN},
+    {"PUSH_CHECK",   CS_PUSH_CHECK},
     {"PUSH_EDIT",    CS_PUSH_EDIT},
     {"PUSH_VALIDATE",CS_PUSH_VALIDATE},
     {"PUSH_WAIT",    CS_PUSH_WAIT},
@@ -106,6 +107,7 @@ static const map_str2int yfmap[] = {
 };
 
 /*! Map controller device connection state from int to string 
+ *
  * @param[in]  state  Device state as int
  * @retval     str    Device state as string
  */
@@ -116,6 +118,7 @@ device_state_int2str(conn_state state)
 }
 
 /*! Map controller device connection state from string to int 
+ *
  * @param[in]  str    Device state as string
  * @retval     state  Device state as int
  */
@@ -126,6 +129,7 @@ device_state_str2int(char *str)
 }
 
 /*! Map yang config from string to int
+ *
  * @param[in]  str    Yang config as string
  * @retval     yf     Yang config as int
  */
@@ -138,7 +142,7 @@ yang_config_str2int(char *str)
 /*! Close connection, unregister events and timers
  *
  * @param[in]  dh      Clixon client handle.
- * @param[in]  format  Format string for Log message
+ * @param[in]  format  Format string for Log message or NULL
  * @retval     0       OK
  * @retval    -1       Error
  */
@@ -162,6 +166,7 @@ device_close_connection(device_handle dh,
     device_handle_yang_lib_set(dh, NULL);
     if (device_state_set(dh, CS_CLOSED) < 0)
         goto done;
+    device_handle_outmsg_set(dh, NULL);
     if (format == NULL)
         device_handle_logmsg_set(dh, NULL);
     else {
@@ -231,9 +236,9 @@ device_input_cb(int   s,
     if (eof){         /* Close connection, unregister events, free mem */
         clicon_debug(1, "%s %s: eom:%d eof:%d len:%lu Remote socket endpoint closed", __FUNCTION__,
                      name, eom, eof, cbuf_len(cb));
-        device_close_connection(dh, "Remote socket endpoint closed");
-        if (ct &&
-            controller_transaction_failed(h, tid, ct, dh, 0, name, NULL) < 0)
+        if (ct==NULL)
+            device_close_connection(dh, "Remote socket endpoint closed");
+        else if (controller_transaction_failed(h, tid, ct, dh, 1, name, "Remote socket endpoint closed") < 0)
             goto done;
         goto ok;
     }
@@ -255,7 +260,7 @@ device_input_cb(int   s,
     if (ret==0){
         device_close_connection(dh, "Invalid frame");
         if (ct &&
-            controller_transaction_failed(h, tid, ct, dh, 0, name, NULL) < 0)
+            controller_transaction_failed(h, tid, ct, dh, 1, name, "Invalid frame") < 0)
             goto done;
         goto ok;
     }
@@ -399,7 +404,7 @@ device_state_timeout(int   s,
     if ((tid = device_handle_tid_get(dh)) != 0)
         ct = controller_transaction_find(h, tid);
     if (ct){
-        if (controller_transaction_failed(device_handle_handle_get(dh), tid, ct, dh, 0, name, "Timeout") < 0)
+        if (controller_transaction_failed(device_handle_handle_get(dh), tid, ct, dh, 1, name, "Timeout waiting for remote peer") < 0)
             goto done;
     }
     else if (device_close_connection(dh, "Timeout waiting for remote peer") < 0)
@@ -431,7 +436,7 @@ device_state_timeout_register(device_handle dh)
     if (d != -1)
         t1.tv_sec = d;
     else
-        t1.tv_sec = 10; // XXX should be 60
+        t1.tv_sec = 60;
     t1.tv_usec = 0;
     clicon_debug(1, "%s timeout:%ld s", __FUNCTION__, t1.tv_sec);
     timeradd(&t, &t1, &t);
@@ -513,6 +518,196 @@ device_state_set(device_handle dh,
     return retval;
 }
 
+/*! Get a config from device, write to db file without sanity of yang checks
+ *
+ * @param[in] h          Clixon handle.
+ * @param[in] dh         Device handle
+ * @retval    1          OK
+ * @retval    0          Fail
+ * @retval   -1          Error
+ */
+int
+device_config_write(clixon_handle h,
+                    char         *name,
+                    char         *extended,
+                    cxobj        *xdata,
+                    cbuf         *cbret)
+{
+    int    retval = -1;
+    cbuf  *cbdb = NULL;
+    char  *db;
+
+    if ((cbdb = cbuf_new()) == NULL){
+        clicon_err(OE_UNIX, errno, "cbuf_new");
+        goto done;
+    }   
+    if (extended)
+        cprintf(cbdb, "device-%s-%s", name, extended);
+    else
+        cprintf(cbdb, "device-%s", name);
+    db = cbuf_get(cbdb);
+    if (xmldb_db_reset(h, db) < 0)
+        goto done;
+    retval = xmldb_put(h, db, OP_REPLACE, xdata, clicon_username_get(h), cbret);
+ done:
+    if (cbdb)
+        cbuf_free(cbdb);
+    return retval;
+}
+
+/*! Get local (cached) device datastore
+ *
+ * @param[in]  h        Clixon handle
+ * @param[in]  devname  Name of device
+ * @param[in]  extended Extended name
+ * @param[out] xrootp   Device config XML (if retval=1)
+ * @param[out] cbret    Error message (if retval=0)
+ * @retval     1        OK
+ * @retval     0        Failed (No such device tree)
+ * @retval    -1        Error
+ */
+int
+device_config_read(clicon_handle h,
+                   char         *devname,
+                   char         *extended,
+                   cxobj       **xrootp,
+                   cbuf         *cbret)
+{
+    int    retval = -1;
+    cbuf  *cbdb = NULL;
+    char  *db;
+    cxobj *xt = NULL;
+    cxobj *xroot;
+    
+    if ((cbdb = cbuf_new()) == NULL){
+        clicon_err(OE_UNIX, errno, "cbuf_new");
+        goto done;
+    }   
+    if (extended)
+        cprintf(cbdb, "device-%s-%s", devname, extended);
+    else
+        cprintf(cbdb, "device-%s", devname);
+    db = cbuf_get(cbdb);
+    if (xmldb_get(h, db, NULL, NULL, &xt) < 0)
+        goto done;
+    if ((xroot = xpath_first(xt, NULL, "devices/device/root")) == NULL){
+        if (netconf_operation_failed(cbret, "application", "No such device tree")< 0)
+            goto done;
+        goto failed;
+    }
+    if (xrootp){
+        xml_rm(xroot);
+        *xrootp = xroot;
+    }
+    retval = 1;
+ done:
+    if (cbdb)
+        cbuf_free(cbdb);
+    if (xt)
+        xml_free(xt);
+    return retval;
+ failed:
+    retval = 0;
+    goto done;
+}
+
+/*! Get local (cached) device datastore
+ *
+ * @param[in]  h        Clixon handle
+ * @param[in]  devname  Name of device
+ * @param[in]  from     NULL or extended name
+ * @param[in]  to       NULL or extended name
+ * @retval     0        OK
+ * @retval    -1        Error
+ */
+int
+device_config_copy(clicon_handle h,
+                   char         *devname,
+                   char         *from,
+                   char         *to)
+{
+    int    retval = -1;
+    cbuf  *db0 = NULL;
+    cbuf  *db1 = NULL;
+    
+    if ((db0 = cbuf_new()) == NULL){
+        clicon_err(OE_UNIX, errno, "cbuf_new");
+        goto done;
+    }
+    if ((db1 = cbuf_new()) == NULL){
+        clicon_err(OE_UNIX, errno, "cbuf_new");
+        goto done;
+    }   
+    if (from)
+        cprintf(db0, "device-%s-%s", devname, from);
+    else
+        cprintf(db0, "device-%s", devname);
+    if (to)
+        cprintf(db1, "device-%s-%s", devname, to);
+    else
+        cprintf(db1, "device-%s", devname);
+    if (xmldb_copy(h, cbuf_get(db0), cbuf_get(db1)) < 0)
+        goto done;
+    retval = 0;
+ done:
+    if (db0)
+        cbuf_free(db0);
+    if (db1)
+        cbuf_free(db1);
+    return retval;
+}
+
+/*! Compare dryrun and last synced
+ *
+ * @param[in]  h      Clixon handle.
+ * @param[in]  dh     Device handle.
+ * @param[in]  name   Device name
+ * @param[out] eq     If equal==0
+ * @retval     1      OK
+ * @retval     0      Closed
+ * @retval    -1      Error
+ */
+static int
+device_config_compare(clicon_handle           h,
+                      device_handle           dh,
+                      char                   *name,
+                      controller_transaction *ct,
+                      int                    *eq)
+{
+    int    retval = -1;
+    cxobj *x0 = NULL;
+    cxobj *x1 = NULL;
+    cbuf  *cbret = NULL;
+    int    ret;
+            
+    if ((cbret = cbuf_new()) == NULL){
+        clicon_err(OE_UNIX, errno, "cbuf_new");
+        goto done;
+    }   
+    if ((ret = device_config_read(h, name, NULL, &x0, cbret)) < 0)
+        goto done;
+    if (ret && (ret = device_config_read(h, name, "dryrun", &x1, cbret)) < 0)
+        goto done;
+    if (ret == 0){
+        if (device_close_connection(dh, "%s", cbuf_get(cbret)) < 0)
+            goto done;
+        goto closed;
+    }
+    *eq = xml_tree_equal(x0, x1);
+    retval = 1;
+ done:
+    if (cbret)
+        cbuf_free(cbret);
+    if (x0)
+        xml_free(x0);
+    if (x1)
+        xml_free(x1);
+    return retval;
+ closed:
+    retval = 0;
+    goto done;
+}
+
 /*! Handle controller device state machine
  *
  * @param[in]  h       Clixon handle
@@ -539,6 +734,8 @@ device_state_handler(clixon_handle h,
     uint64_t    tid;
     controller_transaction *ct = NULL;
     cbuf       *cberr = NULL;
+    cbuf       *cbmsg;
+    int         eq = 0;
 
     rpcname = xml_name(xmsg);
     conn_state = device_handle_conn_state_get(dh);
@@ -557,7 +754,7 @@ device_state_handler(clixon_handle h,
         if ((ret = device_state_recv_hello(h, dh, s, xmsg, rpcname, conn_state)) < 0)
             goto done;
         if (ret == 0){ /* closed */
-            if (controller_transaction_failed(h, tid, ct, dh, 0, name, NULL) < 0)
+            if (controller_transaction_failed(h, tid, ct, dh, 0, name, device_handle_logmsg_get(dh)) < 0)
                 goto done;
             break;
         }
@@ -591,7 +788,7 @@ device_state_handler(clixon_handle h,
         if ((ret = device_state_recv_schema_list(dh, xmsg, rpcname, conn_state)) < 0)
             goto done;
         if (ret == 0){ /* closed */
-            if (controller_transaction_failed(h, tid, ct, dh, 0, name, NULL) < 0)
+            if (controller_transaction_failed(h, tid, ct, dh, 0, name, device_handle_logmsg_get(dh)) < 0)
                 goto done;
             break;
         }
@@ -632,7 +829,7 @@ device_state_handler(clixon_handle h,
         if ((ret = device_state_recv_get_schema(dh, xmsg, rpcname, conn_state)) < 0)
             goto done;
         if (ret == 0){ /* closed */
-            if (controller_transaction_failed(h, tid, ct, dh, 0, name, NULL) < 0)
+            if (controller_transaction_failed(h, tid, ct, dh, 0, name, device_handle_logmsg_get(dh)) < 0)
                 goto done;
             break;
         }
@@ -676,8 +873,8 @@ device_state_handler(clixon_handle h,
         /* Receive config data from device and add config to mount-point */
         if ((ret = device_state_recv_config(h, dh, xmsg, yspec0, rpcname, conn_state)) < 0)
             goto done;
-        if (ret == 0){ /* failed */
-            if (controller_transaction_failed(h, tid, ct, dh, 0, name, NULL) < 0)
+        if (ret == 0){ /* closed */
+            if (controller_transaction_failed(h, tid, ct, dh, 0, name, device_handle_logmsg_get(dh)) < 0)
                 goto done;
             break;
         }
@@ -694,12 +891,59 @@ device_state_handler(clixon_handle h,
         if (controller_transaction_devices(h, tid) == 0){
             if (ct->ct_state != TS_RESOLVED){
                 controller_transaction_state_set(ct, TS_RESOLVED, TR_SUCCESS);
-                if (controller_transaction_notify(h, ct, TR_SUCCESS) < 0)
+                if (controller_transaction_notify(h, ct) < 0)
                     goto done;
             }
-            controller_transaction_state_set(ct, TS_CLOSED, TR_SUCCESS);
+            controller_transaction_state_set(ct, TS_DONE, TR_SUCCESS);
         }
         break;
+    case CS_PUSH_CHECK:
+        if (tid == 0 || ct == NULL){
+            device_close_connection(dh, "Device %s not associated with transaction in state %s",
+                                    name, device_state_int2str(conn_state));
+            break;
+        }
+        /* Receive dryrun config data */
+        if ((ret = device_state_recv_config(h, dh, xmsg, yspec0, rpcname, conn_state)) < 0)
+            goto done;
+         /* Compare dryrun with last sync*/
+        if (ret && (ret = device_config_compare(h, dh, name, ct, &eq)) < 0)
+            goto done;
+        if (ret == 0){ /* closed */
+            if (controller_transaction_failed(h, tid, ct, dh, 0, name, device_handle_logmsg_get(dh)) < 0)
+                goto done;
+            break;
+        }
+        if (eq != 0){
+            if (controller_transaction_failed(h, tid, ct, dh, 0, name, "Device changed config") < 0)
+                goto done;
+            if (device_state_set(dh, CS_OPEN) < 0)
+                goto done;
+            /* 2.2.2.1 Leave transaction */
+            device_handle_tid_set(dh, 0);
+            /* 2.2.2.2 If no devices in transaction, mark as OK and close it*/
+            if (controller_transaction_devices(h, tid) == 0){
+                controller_transaction_state_set(ct, TS_DONE, TR_FAILED);
+            }
+            break;
+        }
+        /* 2. The device is OK */
+        if (ct->ct_state == TS_RESOLVED){ 
+            /* 2.1 But transaction is in error state */
+            assert(ct->ct_result != TR_SUCCESS);
+        }
+        /* 2.2 The transaction is OK 
+           Proceed to next step: get saved edit-msg and send it */
+        if ((cbmsg = device_handle_outmsg_get(dh)) == NULL){
+            device_close_connection(dh, "Device %s no edit-msg in state %s",
+                                    name, device_state_int2str(conn_state));
+            break;
+        }
+        if (clicon_msg_send1(s, cbmsg) < 0)
+            goto done;
+        if (device_state_set(dh, CS_PUSH_EDIT) < 0)
+            goto done;        
+        break;  
     case CS_PUSH_EDIT:
         if (tid == 0 || ct == NULL){
             device_close_connection(dh, "Device %s not associated with transaction in state %s",
@@ -708,9 +952,19 @@ device_state_handler(clixon_handle h,
         }
         if ((ret = device_state_recv_ok(dh, xmsg, rpcname, conn_state, &cberr)) < 0)
             goto done;
-        /* 1. The device has failed */
-        if (ret == 0){
+        if (ret == 0){      /* 1. The device has failed: received rpc-error/not <ok>  */
             if (controller_transaction_failed(h, tid, ct, dh, 0, name, cbuf_get(cberr)) < 0)
+                goto done;
+            /* 1.1 The error is "recoverable" (eg validate fail) */
+            /* --> 1.1.1 Trigger DISCARD of the device */
+            if (device_send_discard_changes(h, dh) < 0)
+                goto done;
+            if (device_state_set(dh, CS_PUSH_DISCARD) < 0)
+                goto done;            
+            break;
+        }
+        else if (ret == 1){ /* 1. The device has failed and is closed */
+            if (controller_transaction_failed(h, tid, ct, dh, 0, name, NULL) < 0)
                 goto done;
             break;
         }
@@ -740,9 +994,19 @@ device_state_handler(clixon_handle h,
         }
         if ((ret = device_state_recv_ok(dh, xmsg, rpcname, conn_state, &cberr)) < 0)
             goto done;
-        /* 1. The device has failed */
-        if (ret == 0){
-            if (controller_transaction_failed(h, tid, ct, dh, 1, name, cbuf_get(cberr)) < 0)
+        if (ret == 0){      /* 1. The device has failed: received rpc-error/not <ok>  */
+            if (controller_transaction_failed(h, tid, ct, dh, 0, name, cbuf_get(cberr)) < 0)
+                goto done;
+            /* 1.1 The error is "recoverable" (eg validate fail) */
+            /* --> 1.1.1 Trigger DISCARD of the device */
+            if (device_send_discard_changes(h, dh) < 0)
+                goto done;
+            if (device_state_set(dh, CS_PUSH_DISCARD) < 0)
+                goto done;            
+            break;
+        }
+        else if (ret == 1){ /* 1. The device has failed and is closed */
+            if (controller_transaction_failed(h, tid, ct, dh, 0, name, NULL) < 0)
                 goto done;
             break;
         }
@@ -786,8 +1050,13 @@ device_state_handler(clixon_handle h,
         }
         if ((ret = device_state_recv_ok(dh, xmsg, rpcname, conn_state, &cberr)) < 0)
             goto done;
-        if (ret == 0){
-            if (controller_transaction_failed(h, tid, ct, dh, 0, name, cbuf_get(cberr)) < 0)
+        if (ret == 0){      /* 1. The device has failed: received rpc-error/not <ok>  */
+            if (controller_transaction_failed(h, tid, ct, dh, 1, name, cbuf_get(cberr)) < 0)
+                goto done;
+            break;
+        }
+        else if (ret == 1){ /* 1. The device has failed and is closed */
+            if (controller_transaction_failed(h, tid, ct, dh, 0, name, NULL) < 0)
                 goto done;
             break;
         }
@@ -804,10 +1073,13 @@ device_state_handler(clixon_handle h,
         if (controller_transaction_devices(h, tid) == 0){
             if (ct->ct_state != TS_RESOLVED){
                 controller_transaction_state_set(ct, TS_RESOLVED, TR_SUCCESS);
-                if (controller_transaction_notify(h, ct, 1) < 0)
+                if (controller_transaction_notify(h, ct) < 0)
                     goto done;
             }
-            controller_transaction_state_set(ct, TS_CLOSED, TR_SUCCESS);
+            controller_transaction_state_set(ct, TS_DONE, TR_SUCCESS);
+            /* Copy dryrun to device config (last sync) */
+            if (device_config_copy(h, name, "dryrun", NULL) < 0)
+                goto done;
         }
         break;
     case CS_PUSH_WAIT:

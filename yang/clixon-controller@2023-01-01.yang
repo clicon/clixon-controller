@@ -89,6 +89,9 @@ module clixon-controller {
             /* From here down PUSH process. All these timeout to OPEN,
              * unless a un-recoverable error which timeouts to CLOSED
              */
+            enum PUSH-CHECK {
+                description  "Sync device dryrun to check if device is unchanged";
+            }
             enum PUSH-EDIT {
                 description  "Edit-config sent, waiting for reply";
             }
@@ -132,8 +135,8 @@ module clixon-controller {
                  Note that successful transactions are not in this state, they pass directly to closed,
                  while failed transactions use this state for error handling.";
             }
-            enum CLOSED {
-                description "Terminated, inactive transaction";
+            enum DONE {
+                description "Terminated, inactive transaction, with result";
             }
         }
     }
@@ -198,6 +201,10 @@ module clixon-controller {
             leaf description{
                 description
                     "Description of node";
+                type string;
+            }
+            leaf device-type{
+                description "Type of device";
                 type string;
             }
             leaf enabled {
