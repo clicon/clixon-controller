@@ -380,7 +380,7 @@ device_state_recv_config(clixon_handle h,
             goto done;
     }
     if (dryrun){
-        if ((ret = device_config_write(h, name, "dryrun", xt, cbret)) < 0)
+        if ((ret = device_config_write(h, name, "REMOTE", xt, cbret)) < 0)
             goto done;
         if (ret == 0){
             if (device_close_connection(dh, "%s", cbuf_get(cbret)) < 0)
@@ -411,7 +411,7 @@ device_state_recv_config(clixon_handle h,
     else {
         device_handle_sync_time_set(dh, NULL);
     }
-    if ((ret = device_config_write(h, name, NULL, xt, cbret)) < 0)
+    if ((ret = device_config_write(h, name, "SYNCED", xt, cbret)) < 0)
         goto done;
     if (ret == 0){
         if (device_close_connection(dh, "%s", cbuf_get(cbret)) < 0)

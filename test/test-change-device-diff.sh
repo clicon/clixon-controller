@@ -46,7 +46,7 @@ for i in $(seq 1 $nr); do
 <rpc xmlns="urn:ietf:params:xml:ns:netconf:base:1.0" message-id="43">
   <get-device-config xmlns="http://clicon.org/controller">
     <devname>$NAME</devname>
-    <extended>dryrun</extended>
+    <config-type>REMOTE</config-type>
   </get-device-config>
 </rpc>]]>]]>
 EOF

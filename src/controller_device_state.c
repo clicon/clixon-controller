@@ -520,16 +520,19 @@ device_state_set(device_handle dh,
 
 /*! Get a config from device, write to db file without sanity of yang checks
  *
- * @param[in] h          Clixon handle.
- * @param[in] dh         Device handle
- * @retval    1          OK
- * @retval    0          Fail
- * @retval   -1          Error
+ * @param[in]  h           Clixon handle.
+ * @param[in]  devname     Device name
+ * @param[in]  config_type Device config tyoe
+ * @param[in]  xdata       XML tree to write
+ * @param[out] cbret       Initialized cligen buffer. On exit contains XML if retval == 0
+ * @retval    1            OK
+ * @retval    0            Fail (cbret set)
+ * @retval   -1            Error
  */
 int
 device_config_write(clixon_handle h,
-                    char         *name,
-                    char         *extended,
+                    char         *devname,
+                    char         *config_type,
                     cxobj        *xdata,
                     cbuf         *cbret)
 {
@@ -537,14 +540,15 @@ device_config_write(clixon_handle h,
     cbuf  *cbdb = NULL;
     char  *db;
 
+    if (devname == NULL || config_type == NULL){
+        clicon_err(OE_UNIX, EINVAL, "devname or config_type is NULL");
+        goto done;
+    }
     if ((cbdb = cbuf_new()) == NULL){
         clicon_err(OE_UNIX, errno, "cbuf_new");
         goto done;
     }   
-    if (extended)
-        cprintf(cbdb, "device-%s-%s", name, extended);
-    else
-        cprintf(cbdb, "device-%s", name);
+    cprintf(cbdb, "device-%s-%s", devname, config_type);
     db = cbuf_get(cbdb);
     if (xmldb_db_reset(h, db) < 0)
         goto done;
@@ -557,20 +561,20 @@ device_config_write(clixon_handle h,
 
 /*! Get local (cached) device datastore
  *
- * @param[in]  h        Clixon handle
- * @param[in]  devname  Name of device
- * @param[in]  extended Extended name
- * @param[out] xrootp   Device config XML (if retval=1)
- * @param[out] cbret    Error message (if retval=0)
- * @retval     1        OK
- * @retval     0        Failed (No such device tree)
- * @retval    -1        Error
+ * @param[in]  h           Clixon handle
+ * @param[in]  name        Device name
+ * @param[in]  config_type Device config tyoe
+ * @param[out] xdatap      Device config XML (if retval=1) 
+ * @param[out] cbret       Error message (if retval=0)
+ * @retval     1           OK
+ * @retval     0           Failed (No such device tree)
+ * @retval    -1           Error
  */
 int
 device_config_read(clicon_handle h,
                    char         *devname,
-                   char         *extended,
-                   cxobj       **xrootp,
+                   char         *config_type,
+                   cxobj       **xdatap,
                    cbuf         *cbret)
 {
     int    retval = -1;
@@ -579,14 +583,15 @@ device_config_read(clicon_handle h,
     cxobj *xt = NULL;
     cxobj *xroot;
     
+    if (devname == NULL || config_type == NULL){
+        clicon_err(OE_UNIX, EINVAL, "devname or config_type is NULL");
+        goto done;
+    }
     if ((cbdb = cbuf_new()) == NULL){
         clicon_err(OE_UNIX, errno, "cbuf_new");
         goto done;
     }   
-    if (extended)
-        cprintf(cbdb, "device-%s-%s", devname, extended);
-    else
-        cprintf(cbdb, "device-%s", devname);
+    cprintf(cbdb, "device-%s-%s", devname, config_type);
     db = cbuf_get(cbdb);
     if (xmldb_get(h, db, NULL, NULL, &xt) < 0)
         goto done;
@@ -595,9 +600,9 @@ device_config_read(clicon_handle h,
             goto done;
         goto failed;
     }
-    if (xrootp){
+    if (xdatap){
         xml_rm(xroot);
-        *xrootp = xroot;
+        *xdatap = xroot;
     }
     retval = 1;
  done:
@@ -615,8 +620,8 @@ device_config_read(clicon_handle h,
  *
  * @param[in]  h        Clixon handle
  * @param[in]  devname  Name of device
- * @param[in]  from     NULL or extended name
- * @param[in]  to       NULL or extended name
+ * @param[in]  from     from config-type
+ * @param[in]  to       to config-type
  * @retval     0        OK
  * @retval    -1        Error
  */
@@ -630,6 +635,10 @@ device_config_copy(clicon_handle h,
     cbuf  *db0 = NULL;
     cbuf  *db1 = NULL;
     
+    if (devname == NULL || from == NULL || to == NULL){
+        clicon_err(OE_UNIX, EINVAL, "devname, from or to is NULL");
+        goto done;
+    }
     if ((db0 = cbuf_new()) == NULL){
         clicon_err(OE_UNIX, errno, "cbuf_new");
         goto done;
@@ -638,14 +647,8 @@ device_config_copy(clicon_handle h,
         clicon_err(OE_UNIX, errno, "cbuf_new");
         goto done;
     }   
-    if (from)
-        cprintf(db0, "device-%s-%s", devname, from);
-    else
-        cprintf(db0, "device-%s", devname);
-    if (to)
-        cprintf(db1, "device-%s-%s", devname, to);
-    else
-        cprintf(db1, "device-%s", devname);
+    cprintf(db0, "device-%s-%s", devname, from);
+    cprintf(db1, "device-%s-%s", devname, to);
     if (xmldb_copy(h, cbuf_get(db0), cbuf_get(db1)) < 0)
         goto done;
     retval = 0;
@@ -684,9 +687,9 @@ device_config_compare(clicon_handle           h,
         clicon_err(OE_UNIX, errno, "cbuf_new");
         goto done;
     }   
-    if ((ret = device_config_read(h, name, NULL, &x0, cbret)) < 0)
+    if ((ret = device_config_read(h, name, "SYNCED", &x0, cbret)) < 0)
         goto done;
-    if (ret && (ret = device_config_read(h, name, "dryrun", &x1, cbret)) < 0)
+    if (ret && (ret = device_config_read(h, name, "REMOTE", &x1, cbret)) < 0)
         goto done;
     if (ret == 0){
         if (device_close_connection(dh, "%s", cbuf_get(cbret)) < 0)
@@ -1078,7 +1081,7 @@ device_state_handler(clixon_handle h,
             }
             controller_transaction_state_set(ct, TS_DONE, TR_SUCCESS);
             /* Copy dryrun to device config (last sync) */
-            if (device_config_copy(h, name, "dryrun", NULL) < 0)
+            if (device_config_copy(h, name, "REMOTE", "SYNCED") < 0)
                 goto done;
         }
         break;

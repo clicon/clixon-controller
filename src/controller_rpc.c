@@ -209,7 +209,7 @@ push_device_one(clixon_handle           h,
 
     /* 1) get previous device synced xml */
     name = device_handle_name_get(dh);
-    if (device_config_read(h, name, NULL, &x0, cbret) < 0)
+    if (device_config_read(h, name, "SYNCED", &x0, cbret) < 0)
         goto done;
     /* 2) get current and compute diff with previous */
     if ((cb = cbuf_new()) == NULL){
@@ -351,7 +351,7 @@ rpc_sync_pull(clixon_handle h,
         ct->ct_dryrun = strcmp(str, "true") == 0;
     if ((str = xml_find_body(xe, "merge")) != NULL)
         ct->ct_merge = strcmp(str, "true") == 0;
-    if (xmldb_get(h, "running", nsc, "devices", &xret) < 0)
+    if (xmldb_get(h, "running", nsc, "devices/device", &xret) < 0)
         goto done;
     if (xpath_vec(xret, nsc, "devices/device", &vec, &veclen) < 0) 
         goto done;
@@ -375,9 +375,9 @@ rpc_sync_pull(clixon_handle h,
     cprintf(cbret, "</rpc-reply>");
     /* No device started, close transaction */
     if (controller_transaction_devices(h, ct->ct_id) == 0){
+        controller_transaction_state_set(ct, TS_DONE, TR_SUCCESS);
         if (controller_transaction_notify(h, ct) < 0)
             goto done;
-        controller_transaction_state_set(ct, TS_DONE, TR_SUCCESS);
     } 
  ok:
     retval = 0;
@@ -459,9 +459,9 @@ rpc_sync_push(clixon_handle h,
     cprintf(cbret, "</rpc-reply>");
     /* No device started, close transaction */
     if (controller_transaction_devices(h, ct->ct_id) == 0){
+        controller_transaction_state_set(ct, TS_DONE, TR_SUCCESS);
         if (controller_transaction_notify(h, ct) < 0)
             goto done;
-        controller_transaction_state_set(ct, TS_DONE, TR_SUCCESS);
     }
     retval = 0;
  done:
@@ -495,33 +495,42 @@ rpc_get_device_config(clixon_handle h,
                       void         *arg,
                       void         *regarg)
 {
-    int           retval = -1;
-    char         *pattern;
-    char         *devname;
-    cxobj        *xroot = NULL;
-    char         *extended;
-    cvec         *nsc = NULL;
-    cxobj        *xret = NULL;
-    cxobj       **vec = NULL;
-    size_t        veclen;
-    cxobj        *xn;
-    device_handle dh;
-    int           ret;
-    int           i;
-    cbuf         *cb = NULL;
+    int                retval = -1;
+    char              *pattern;
+    char              *devname;
+    cxobj             *xroot = NULL;
+    cxobj             *xroot1; /* dont free */
+    char              *config_type;
+    cvec              *nsc = NULL;
+    cxobj             *xret = NULL;
+    cxobj            **vec = NULL;
+    size_t             veclen;
+    cxobj             *xn;
+    device_handle      dh;
+    int                ret;
+    int                i;
+    cbuf              *cb = NULL;
+    device_config_type dt;
     
     pattern = xml_find_body(xe, "devname");
-    extended = xml_find_body(xe, "extended");
+    config_type = xml_find_body(xe, "config-type");
+    dt = device_config_type_str2int(config_type);
+    if (dt == DT_CANDIDATE){
+        if (xmldb_get(h, "candidate", nsc, "devices/device", &xret) < 0)
+            goto done;
+    }
+    else{
+        if (xmldb_get(h, "running", nsc, "devices/device", &xret) < 0)
+            goto done;
+    }
+    if (xpath_vec(xret, nsc, "devices/device", &vec, &veclen) < 0) 
+        goto done;
     if ((cb = cbuf_new()) == NULL){
         clicon_err(OE_UNIX, errno, "cbuf_new");
         goto done;
     }
     cprintf(cb, "<rpc-reply xmlns=\"%s\">", NETCONF_BASE_NAMESPACE);
     cprintf(cb, "<config xmlns=\"%s\">", CONTROLLER_NAMESPACE);
-    if (xmldb_get(h, "running", nsc, "devices", &xret) < 0)
-        goto done;
-    if (xpath_vec(xret, nsc, "devices/device", &vec, &veclen) < 0) 
-        goto done;
     for (i=0; i<veclen; i++){
         xn = vec[i];
         if ((devname = xml_find_body(xn, "name")) == NULL)
@@ -530,15 +539,26 @@ rpc_get_device_config(clixon_handle h,
             continue;
         if (pattern != NULL && fnmatch(pattern, devname, 0) != 0)
             continue;
-        if ((ret = device_config_read(h, devname, extended, &xroot, cbret)) < 0)
-            goto done;
-        if (ret == 0)
-            goto ok;
-        if (clixon_xml2cbuf(cb, xroot, 0, 0, -1, 0) < 0)
-            goto done;
-        if (xroot){
-            xml_free(xroot);
-            xroot = NULL;
+        switch (dt){
+        case DT_RUNNING:
+        case DT_CANDIDATE:
+            xroot1 = xpath_first(xn, nsc, "root");
+            if (clixon_xml2cbuf(cb, xroot1, 0, 0, -1, 0) < 0)
+                goto done;
+            break;
+        case DT_SYNCED:
+        case DT_REMOTE:
+            if ((ret = device_config_read(h, devname, config_type, &xroot, cbret)) < 0)
+                goto done;
+            if (ret == 0)
+                goto ok;
+            if (clixon_xml2cbuf(cb, xroot, 0, 0, -1, 0) < 0)
+                goto done;
+            if (xroot){
+                xml_free(xroot);
+                xroot = NULL;
+            }
+            break;
         }
     }
     cprintf(cb, "</config>");
@@ -636,9 +656,9 @@ rpc_connection_change(clixon_handle h,
     cprintf(cbret, "</rpc-reply>");
     /* No device started, close transaction */
     if (controller_transaction_devices(h, ct->ct_id) == 0){
+        controller_transaction_state_set(ct, TS_DONE, TR_SUCCESS);
         if (controller_transaction_notify(h, ct) < 0)
             goto done;
-        controller_transaction_state_set(ct, TS_DONE, TR_SUCCESS);
     } 
  ok:
     retval = 0;

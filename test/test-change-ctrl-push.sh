@@ -140,16 +140,14 @@ fi
 
 sleep $sleep
 
-# Verify controller
+echo "Verify controller"
 res=$(${PREFIX} ${clixon_cli} -1f $CFG show devices | grep OPEN | wc -l)
-if [ "$res" = "$nr" ]; then
-   echo OK
-else
+if [ "$res" != "$nr" ]; then
    echo Error
    exit -1;
 fi
 
-# Verify containers
+echo "Verify containers"
 for i in $(seq 1 $nr); do
     NAME=$IMG$i
     ip=$(sudo docker inspect $NAME -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}')
@@ -159,6 +157,16 @@ xmlns:nc="urn:ietf:params:xml:ns:netconf:base:1.0"
 message-id="42">
   <get-config>
     <source><running/></source>
+    <filter type='subtree'>
+      <devices xmlns="http://clicon.org/controller">
+        <device>
+          <name>$NAME</name>
+          <root>
+            <table xmlns="urn:example:clixon"/>
+          </root>
+        </device>
+      </devices>
+    </filter>
   </get-config>
 </rpc>]]>]]>
 EOF
@@ -169,7 +177,7 @@ EOF
         echo "netconf rpc-error detected"
         exit 1
     fi
-    match=$(echo $ret | grep --null -Eo '<root><table xmlns="urn:example:clixon"><parameter><name>y</name><value>122</value></parameter><parameter><name>z</name><value>99</value></parameter></table></root></device><device><name>clixon-example2</name><description>Clixon example container</description><enabled>true</enabled><conn-type>NETCONF_SSH</conn-type><user>root</user><addr>172.17.0.3</addr><yang-config>VALIDATE</yang-config><root><table xmlns="urn:example:clixon"><parameter><name>y</name><value>122</value></parameter><parameter><name>z</name><value>99</value></parameter></table></root>') || true
+    match=$(echo $ret | grep --null -Eo '<root><table xmlns="urn:example:clixon"><parameter><name>y</name><value>122</value></parameter><parameter><name>z</name><value>99</value></parameter></table></root>') || true
     if [ -z "$match" ]; then
         echo "netconf rpc get-config failed"
         exit 1
