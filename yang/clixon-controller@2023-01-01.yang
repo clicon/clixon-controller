@@ -155,6 +155,24 @@ module clixon-controller {
             }
         }
     }
+    typedef device-config-type{
+        description
+            "Transaction configuration type.";
+        type enumeration{
+            enum RUNNING {
+                description "Device config that the controller has in its running config";
+            }
+            enum CANDIDATE {
+                description "Device config that the controller has in its candidate config";
+            }
+            enum SYNCED {
+                description "Device config from last sync pull. A successful sync push also updates this config";
+            }
+            enum REMOTE {
+                description "The actual configuration of the remote device.";
+            }
+        }
+    }
     container services {
         description "Placeholder for services";
         container properties{
@@ -443,9 +461,10 @@ module clixon-controller {
                 description "Name of device";
                 type string;
             }
-            leaf extended{
-                description "Extended name, eg 'dryrun', see sync-pull";
-                type string;
+            leaf config-type{
+                description "Devie config type";
+                type device-config-type;
+                mandatory true;
             }
         }
         output {

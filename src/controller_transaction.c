@@ -94,7 +94,7 @@
  *
  * @param[in]  ct     Transaction
  * @param[in]  state  New state
- * @param[in]  result New result
+ * @param[in]  result New result (-1 is dont care, dont set)
  */
 int
 controller_transaction_state_set(controller_transaction *ct,
@@ -109,6 +109,7 @@ controller_transaction_state_set(controller_transaction *ct,
                      transaction_state_int2str(state));
         break;
     case TS_RESOLVED:
+        assert(result != -1);
         assert(state != ct->ct_state);
         clicon_debug(1, "%s %" PRIu64 " : %s -> %s result: %s",
                      __FUNCTION__,
@@ -119,14 +120,23 @@ controller_transaction_state_set(controller_transaction *ct,
         break;
     case TS_DONE:
         assert(state != ct->ct_state);
-        clicon_debug(1, "%s %" PRIu64 " : %s -> %s",
-                     __FUNCTION__,
-                     ct->ct_id,
-                     transaction_state_int2str(ct->ct_state),
-                     transaction_state_int2str(state));
+        if (result != -1 && result != ct->ct_result)
+            clicon_debug(1, "%s %" PRIu64 " : %s -> %s result: %s",
+                         __FUNCTION__,
+                         ct->ct_id,
+                         transaction_state_int2str(ct->ct_state),
+                         transaction_state_int2str(state),
+                         transaction_result_int2str(result));
+        else
+            clicon_debug(1, "%s %" PRIu64 " : %s -> %s",
+                         __FUNCTION__,
+                         ct->ct_id,
+                         transaction_state_int2str(ct->ct_state),
+                         transaction_state_int2str(state));
     }
     ct->ct_state = state;
-    if (state == TS_RESOLVED)
+    if (result != -1 &&
+        (state == TS_RESOLVED || state == TS_DONE))
         ct->ct_result = result;
     gettimeofday(&ct->ct_timestamp, NULL);
     return 0;
@@ -146,6 +156,10 @@ controller_transaction_notify(clixon_handle           h,
     cbuf *cb = NULL;
 
     clicon_debug(1, "%s %" PRIu64, __FUNCTION__, ct->ct_id);
+    if (ct->ct_state == TS_INIT){
+        clicon_err(OE_CFG, EINVAL, "Transaction notify sent in state INIT");
+        goto done;
+    }
     if ((cb = cbuf_new()) == NULL){
         clicon_err(OE_UNIX, errno, "cbuf_new");
         goto done;
@@ -385,8 +399,9 @@ controller_transaction_failed(clicon_handle           h,
         if (controller_transaction_wait_trigger(h, tid, 0) < 0)
             goto done;
     }
-    else
-        assert(ct->ct_result != TR_SUCCESS); /* Sanity: may not be in resolved OK state */
+    else if (ct->ct_result == TR_SUCCESS){
+        clicon_err(OE_XML, 0, "Sanity: may not be in resolved OK state");
+    }
     retval = 0;
  done:
     clicon_debug(1, "%s retval:%d", __FUNCTION__, retval);    

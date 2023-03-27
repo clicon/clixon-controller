@@ -45,12 +45,12 @@ show("Show a particular state of the system"){
        [<ns:string>("Namespace")], show_conf_xpath("running");
     version("Show version"), cli_show_version("running", "text", "/");
     options("Show clixon options"), cli_show_options();
-    compare("Compare candidate and running databases"), compare_dbs((int32)1);{
-          xml("Show comparison in xml"), compare_dbs((int32)0);
-	  text("Show comparison in text"), compare_dbs((int32)1);
-          device("Compare device sync with running") [(<name:string>("device pattern")|<name:string expand_dbvar("running","/clixon-controller:devices/device/name")>("device pattern"))], compare_device_db_sync((int32)1);{
-    		         xml("Show comparison in xml"), compare_device_db_sync((int32)0);
-		         text("Show comparison in text"), compare_device_db_sync((int32)1);
+    compare("Compare candidate and running databases"), compare_dbs("text");{
+          xml("Show comparison in xml"), compare_dbs("xml");
+	  text("Show comparison in text"), compare_dbs("text");
+          device("Compare device sync with running") [(<name:string>("device pattern")|<name:string expand_dbvar("running","/clixon-controller:devices/device/name")>("device pattern"))], compare_device_db_sync("text");{
+    		         xml("Show comparison in xml"), compare_device_db_sync("xml");
+		         text("Show comparison in text"), compare_device_db_sync("text");
                      }
     }
     devices("Show state of devices")[
@@ -60,8 +60,8 @@ show("Show a particular state of the system"){
                  sync("Check if device is in sync"), cli_check_sync();
                  detail("Show detailed state"), cli_show_devices("detail");
                  }
-    transactions("Show state of transactions"), cli_show_transactions("all");{
-         active("Active transactions"), cli_show_transactions("active");
+    transactions("Show state of las t transaction"), cli_show_transactions("last");{
+         last("Last most recent transactions"), cli_show_transactions("last");
          all("All transactions"), cli_show_transactions("all");
     }
     state("Show configuration and state"), cli_show_auto_mode("running", "text", true, true); {
@@ -95,8 +95,8 @@ sync("Read the config of one or several devices.") {
                   <name:string expand_dbvar("running","/clixon-controller:devices/device/name")>("device pattern"))
                  ], cli_rpc_sync_pull("replace");{
                     compare, compare_device_db_dev((int32)1);{
-    		         xml("Show comparison in xml"), compare_device_db_dev((int32)0);
-		         text("Show comparison in text"), compare_device_db_dev((int32)1);
+    		         xml("Show comparison in xml"), compare_device_db_dev("xml");
+		         text("Show comparison in text"), compare_device_db_dev("text");
                     }
                     replace, cli_rpc_sync_pull("replace");
                     merge, cli_rpc_sync_pull("merge");

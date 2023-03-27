@@ -26,10 +26,11 @@ delete("Delete a configuration item") {
       all("Delete whole candidate configuration"), delete_all("candidate");
 }
 
-commit("Commit the changes, trigger services scripts"), cli_commit(), cli_services_apply();{
-    local("Local commit, do not trigger scripts"), cli_commit();
-    service("Trigger service scripts"), cli_commit(), cli_services_apply();
-}
+commit("Commit the changes, trigger services scripts"), cli_commit();
+#{
+#    local("Local commit, do not trigger scripts"), cli_commit();
+#    service("Trigger service scripts"), cli_commit();
+#}
 
 startup("Store running as startup config"), db_copy("running", "startup");
 no("Negate or remove") debug("Debugging parts of the system"), cli_debug_cli((int32)0);

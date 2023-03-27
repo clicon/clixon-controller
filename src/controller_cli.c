@@ -528,17 +528,17 @@ cli_connection_change(clixon_handle h,
 
 /*! Get device config
  *
- * @param[in]  h        Clixon handle 
- * @param[in]  name     Name of device
- * @param[in]  extended Extended name used as postfix: device-<name>-<extended>
- * @param[out] xp       XML tree reply
- * @retval     0        OK
- * @retval    -1        Error
+ * @param[in]  h           Clixon handle 
+ * @param[in]  name        Name of device
+ * @param[in]  config_type variant, eg RUNNING/REMOTE/SYNCED
+ * @param[out] xp          XML tree reply
+ * @retval     0           OK
+ * @retval    -1           Error
  */
 static int
 get_device_config(clicon_handle h,
                   char         *name,
-                  char         *extended,
+                  char         *config_type,
                   cxobj       **xp)
 {
     int              retval = -1;
@@ -557,8 +557,7 @@ get_device_config(clicon_handle h,
             NETCONF_MESSAGE_ID_ATTR);
     cprintf(cb, "<get-device-config xmlns=\"%s\">", CONTROLLER_NAMESPACE);
     cprintf(cb, "<devname>%s</devname>", name);
-    if (extended)
-        cprintf(cb, "<extended>%s</extended>", extended);
+    cprintf(cb, "<config-type>%s</config-type>", config_type);
     cprintf(cb, "</get-device-config>");
     cprintf(cb, "</rpc>");
     if (clixon_xml_parse_string(cbuf_get(cb), YB_NONE, NULL, &xrpc, NULL) < 0)
@@ -687,7 +686,7 @@ cli_show_devices(clixon_handle h,
 /*! Show controller device states
  * @param[in] h
  * @param[in] cvv  
- * @param[in] argv : 0: active, 1: all
+ * @param[in] argv : "last" or "all"
  * @retval    0    OK
  * @retval   -1    Error
  */
@@ -702,7 +701,6 @@ cli_show_transactions(clixon_handle h,
     cxobj             *xerr;
     cbuf              *cb = NULL;
     cxobj             *xn = NULL; /* XML of senders */
-    char              *state;
     cg_var            *cv;
     int                all = 0;
     
@@ -714,7 +712,7 @@ cli_show_transactions(clixon_handle h,
         clicon_err(OE_PLUGIN, 0, "Error when accessing argument <all>");
         goto done;
     }
-    all = strcmp(cv_string_get(cv),"all")==0;
+    all = strcmp(cv_string_get(cv), "all")==0;
     if ((cb = cbuf_new()) == NULL){
         clicon_err(OE_PLUGIN, errno, "cbuf_new");
         goto done;
@@ -733,13 +731,19 @@ cli_show_transactions(clixon_handle h,
         if (xml_rootchild_node(xn, xc) < 0)
             goto done;
         xn = xc;
-        xc = NULL;
-        while ((xc = xml_child_each(xn, xc, CX_ELMNT)) != NULL) {
-            state = xml_find_body(xc, "state");
-            if (!all && strcmp(state, "CLOSED") == 0)
-                continue;
-            if (clixon_xml2file(stdout, xc, 0, 1, cligen_output, 0, 1) < 0)
-                goto done;
+        if (all){
+            xn = xc;
+            xc = NULL;
+            while ((xc = xml_child_each(xn, xc, CX_ELMNT)) != NULL) {
+                if (clixon_xml2file(stdout, xc, 0, 1, cligen_output, 0, 1) < 0)
+                    goto done;
+            }
+        }
+        else{
+            if ((xc = xml_child_i(xn, xml_child_nr(xn) - 1)) != NULL){
+                if (clixon_xml2file(stdout, xc, 0, 1, cligen_output, 0, 1) < 0)
+                    goto done;
+            }
         }
     }
     retval = 0;
@@ -830,25 +834,26 @@ send_pull_dryrun(clicon_handle h,
     return retval;
 }
 
-/*! Compare device dbs: running with last saved synced or current device (dryrun)
+/*! Compare device config types: running with last saved synced or current device (dryrun)
  *
- * @param[in]   h     Clicon handle
- * @param[in]   cvv  
- * @param[in]   argv  arg: 0 as xml, 1: as text
- * @param[in]   dryrun 0: synced db, 1:device
- * @retval      0     OK
- * @retval     -1     Error
+ * @param[in]   h             Clicon handle
+ * @param[in]   cvv           name: device pattern
+ * @param[in]   argv          <format>        "text"|"xml"|"json"|"cli"|"netconf" (see format_enum)
+ * @param[in]   config_type0  First device config config 
+ * @param[in]   config_type1  Second device config config
+ * @retval      0             OK
+ * @retval     -1             Error
  */
 int
-compare_device_dbs(clicon_handle h, 
-                   cvec         *cvv, 
-                   cvec         *argv,
-                   int           dryrun)
+compare_device_config_type(clicon_handle h, 
+                           cvec         *cvv, 
+                           cvec         *argv,
+                           device_config_type dt0,
+                           device_config_type dt1)
 {
     int              retval = -1;
     cxobj           *xt1 = NULL;
     cxobj           *xt2 = NULL;
-    cxobj           *xerr = NULL;
     enum format_enum format;
     cg_var          *cv;
     char            *pattern = "*";
@@ -858,40 +863,42 @@ compare_device_dbs(clicon_handle h,
     size_t           veclen2;
     cvec            *nsc = NULL;
     char            *tidstr = NULL;
+    char            *formatstr;
+    char            *device_type = NULL;
     int              i;
-
+    
     if (cvec_len(argv) > 1){
-        clicon_err(OE_PLUGIN, EINVAL, "Requires 0 or 1 element. If given: astext flag 0|1");
+        clicon_err(OE_PLUGIN, EINVAL, "Received %d arguments. Expected: <format>]", cvec_len(argv));
         goto done;
     }
-    if (cvec_len(argv) && cv_int32_get(cvec_i(argv, 0)) == 1)
-        format = FORMAT_TEXT;
-    else
-        format = FORMAT_XML;
+    formatstr = cv_string_get(cvec_i(argv, 0));
+    if ((int)(format = format_str2int(formatstr)) < 0){
+        clicon_err(OE_PLUGIN, 0, "Not valid format: %s", formatstr);
+        goto done;
+    }
     if ((cv = cvec_find(cvv, "name")) != NULL)
         pattern = cv_string_get(cv);
-    if (clicon_rpc_get_config(h, NULL, "running", "/", NULL, NULL, &xt1) < 0)
-        goto done;
-    if ((xerr = xpath_first(xt1, NULL, "/rpc-error")) != NULL){
-        clixon_netconf_error(xerr, "Get configuration", NULL);
-        goto done;
-    }
-    if (xpath_vec(xt1, nsc, "devices/device/root", &vec1, &veclen1) < 0) 
-        goto done;
-    if (dryrun){
+    /* If remote, start with requesting it asynchrously */
+    if (dt0 == DT_REMOTE || dt1 == DT_REMOTE){
         /* Send sync-pull <dryrun> */
         if (send_pull_dryrun(h, pattern, &tidstr) < 0)
             goto done;
         /* Wait to complete transaction try ^C here */
         if (transaction_notification_poll(h, tidstr) < 0)
             goto done;
-        if (get_device_config(h, pattern, "dryrun", &xt2) < 0)
-            goto done;
+        if (get_device_config(h, pattern, "REMOTE", &xt2) < 0)
+            goto done;        
     }
-    else { /* Last synced */
-        if (get_device_config(h, pattern, NULL, &xt2) < 0)
-            goto done;
-    }
+    /* Get first config */
+    device_type = device_config_type_int2str(dt0);
+    if (get_device_config(h, pattern, device_type, &xt1) < 0)
+        goto done;
+    if (xpath_vec(xt1, nsc, "rpc-reply/config/root", &vec1, &veclen1) < 0) 
+        goto done;
+    /* Get second config */
+    device_type = device_config_type_int2str(dt1);
+    if (get_device_config(h, pattern, device_type, &xt2) < 0)
+        goto done;
     if (xpath_vec(xt2, nsc, "rpc-reply/config/root", &vec2, &veclen2) < 0) 
         goto done;
     for (i=0; i<veclen1; i++){
@@ -928,7 +935,7 @@ compare_device_db_sync(clicon_handle h,
                        cvec         *cvv, 
                        cvec         *argv)
 {
-    return compare_device_dbs(h, cvv, argv, 0);
+    return compare_device_config_type(h, cvv, argv, DT_RUNNING, DT_SYNCED);
 }
 
 /*! Compare device dbs: running with current device (dryrun)
@@ -944,7 +951,7 @@ compare_device_db_dev(clicon_handle h,
                       cvec         *cvv,
                       cvec         *argv)
 {
-    return compare_device_dbs(h, cvv, argv, 1);
+    return compare_device_config_type(h, cvv, argv, DT_RUNNING, DT_REMOTE);
 }
 
 /*! Check if device(s) is in sync
@@ -956,11 +963,11 @@ compare_device_db_dev(clicon_handle h,
  */
 int
 cli_check_sync(clixon_handle h,
-                 cvec         *cvv,
-                 cvec         *argv)
+               cvec         *cvv,
+               cvec         *argv)
 {
     // XXX just show true/false
-    return compare_device_dbs(h, cvv, argv, 1);
+    return compare_device_config_type(h, cvv, argv, DT_RUNNING, DT_REMOTE);
 }
 
 int
