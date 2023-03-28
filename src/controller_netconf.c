@@ -127,7 +127,7 @@ clixon_client_connect_ssh(clixon_handle  h,
     struct stat st = {0,};
 
     clicon_debug(1, "%s %s", __FUNCTION__, dest);
-    nr = 10;  /* NOTE this is hardcoded */
+    nr = 12;  /* NOTE this is hardcoded */
     if ((argv = calloc(nr, sizeof(char *))) == NULL){
         clicon_err(OE_UNIX, errno, "calloc");
         goto done;
@@ -144,6 +144,8 @@ clixon_client_connect_ssh(clixon_handle  h,
     argv[i++] = "StrictHostKeyChecking=yes"; // dont ask
     argv[i++] = "-o";
     argv[i++] = "PasswordAuthentication=no"; // dont query
+    argv[i++] = "-o";
+    argv[i++] = "BatchMode=yes"; // user interaction disabled
     argv[i++] = "-s";
     argv[i++] = "netconf";
     argv[i++] = NULL;

@@ -391,20 +391,27 @@ device_state_recv_config(clixon_handle h,
     }
     if ((ret = xmldb_put(h, "candidate", OP_NONE, xt, NULL, cbret)) < 0)
         goto done;
-    if (ret && (ret = candidate_commit(h, NULL, "candidate", 0, 0, cbret)) < 0)
-        goto done;
+    if (ret == 1){
+        /* XXX trigger plugin which starts a commit transaction */
+        if ((ret = candidate_commit(h, NULL, "candidate", 0, 0, cbret)) < 0){
+            /* Handle that candidate_commit can return < 0 if transaction ongoing */        
+            cprintf(cbret, "%s", clicon_err_reason);
+            ret = 0;
+        }
+        if (ret == 0){
+            /* Manoever to get some errinfo from cberr */
+            if (clixon_xml_parse_string(cbuf_get(cbret), YB_NONE, NULL, &xerr, NULL) != -1){
+                cbuf_reset(cbret);
+                if (netconf_err2cb(xerr, cbret) < 0)
+                    goto done;
+            }
+        }
+    }
     if (ret == 0){ /* discard */
         xmldb_copy(h, "running", "candidate");            
         xmldb_modified_set(h, "candidate", 0); /* reset dirty bit */
         clicon_debug(CLIXON_DBG_DEFAULT, "%s", cbuf_get(cbret));
-        if (device_close_connection(dh, 
-#if 0
-                                    /* XXX cbret is XML and looks ugly in logmsg (at least encode it?)*/
-                                    "Failed to commit: %s", cbuf_get(cbret)
-#else
-                                    "Failed to commit"
-#endif
-                                    ) < 0)
+        if (device_close_connection(dh, "Failed to commit: %s", cbuf_get(cbret)) < 0)
             goto done;
         goto closed;
     }

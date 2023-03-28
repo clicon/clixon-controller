@@ -350,12 +350,15 @@ controller_transaction_devices(clicon_handle h,
  * @param[in]  h      Clixon handle
  * @param[in]  tid    Transaction id
  * @param[in]  dh     Device handler (or NULL)
- * @param[in]  devclose 0: dont close, 1: Error is not recoverable, close device if present
+ * @param[in]  devclose 0: dont close, 
+ *                      1: dont close and leave transaction
+ *                      2: close device and leave transaction
  * @param[in]  origin Originator of error
  * @param[in]  reason Reason for terminating transaction. If set && !recover -> close device
  * @retval     0      OK
  * @retval    -1      Error
  * @note devclose=0 means either that the device is already closed or is handled by the caller
+ *       It also means that the caller must ensure the device leaves the transaction and marks it done if last
  */
 int
 controller_transaction_failed(clicon_handle           h,
@@ -369,18 +372,18 @@ controller_transaction_failed(clicon_handle           h,
     int retval = -1;
 
     clicon_debug(1, "%s", __FUNCTION__);
-    if (dh != NULL){
-        if (devclose == 1){
+    if (dh != NULL && devclose){
+        if (devclose == 2){
             /* 1.2 The error is not recoverable */
             /* 1.2.1 close the device */
             if (device_close_connection(dh, "%s", reason) < 0)
                 goto done;
-            /* 1.2.2 Leave transaction */
-            device_handle_tid_set(dh, 0);
-            /* 1.2.3 If no devices left in transaction, close it */
-            if (controller_transaction_devices(h, tid) == 0)
-                controller_transaction_state_set(ct, TS_DONE, TR_FAILED);
         }
+        /* 1.2.2 Leave transaction */
+        device_handle_tid_set(dh, 0);
+        /* 1.2.3 If no devices left in transaction, mark it as done */
+        if (controller_transaction_devices(h, tid) == 0)
+            controller_transaction_state_set(ct, TS_DONE, TR_FAILED);
     }
     if (ct->ct_state == TS_INIT){ /* 1.3 The transition is not in an error state */
         /* 1.3.1 Set transition in error state */
@@ -530,8 +533,11 @@ controller_transactions_statedata(clixon_handle   h,
                 cprintf(cb, "<description>%s</description>", ct->ct_description);
             if (ct->ct_origin)
                 cprintf(cb, "<origin>%s</origin>", ct->ct_origin);
-            if (ct->ct_reason)
-                cprintf(cb, "<reason>%s</reason>", ct->ct_reason);
+            if (ct->ct_reason){
+                cprintf(cb, "<reason>");
+                xml_chardata_cbuf_append(cb, ct->ct_reason);
+                cprintf(cb, "</reason>");
+            }
             if (ct->ct_state != TS_INIT)
                 cprintf(cb, "<result>%s</result>", transaction_result_int2str(ct->ct_result));
             tv = &ct->ct_timestamp;
