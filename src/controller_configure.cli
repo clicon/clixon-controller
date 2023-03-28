@@ -18,7 +18,7 @@ delete("Delete a configuration item") {
       all("Delete whole candidate configuration"), delete_all("candidate");
 }
 
-validate("Validate changes"), cli_validate();
+
 
 quit("Quit"), cli_quit();
 delete("Delete a configuration item") {
@@ -26,11 +26,15 @@ delete("Delete a configuration item") {
       all("Delete whole candidate configuration"), delete_all("candidate");
 }
 
-commit("Commit the changes, trigger services scripts"), cli_commit();
-#{
-#    local("Local commit, do not trigger scripts"), cli_commit();
-#    service("Trigger service scripts"), cli_commit();
-#}
+commit("Commit the changes, trigger services scripts"), cli_commit();{
+    diff("Show the result of running the services but do not commit"); # NYI
+    push("Run services and push to devices"); # NYI
+    local("Local commit, do not push to devices"), cli_commit();
+}
+validate("Validate changes"), cli_validate();{
+    push("Run services and push to devices"); # NYI
+    local("Local commit, trigger scripts but do not "), cli_validate();
+}
 
 startup("Store running as startup config"), db_copy("running", "startup");
 no("Negate or remove") debug("Debugging parts of the system"), cli_debug_cli((int32)0);

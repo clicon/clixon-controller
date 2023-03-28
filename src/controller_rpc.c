@@ -392,7 +392,8 @@ rpc_sync_pull(clixon_handle h,
     return retval;
 }
 
-/*! Push the config to one or several devices
+
+/*! Extended commit: trigger actions and device push
  *
  * @param[in]  h       Clicon handle 
  * @param[in]  xe      Request: <rpc><xn></rpc> 
@@ -401,33 +402,68 @@ rpc_sync_pull(clixon_handle h,
  * @param[in]  regarg  User argument given at rpc_callback_register() 
  * @retval     0       OK
  * @retval    -1       Error
+ * TODO: device-groups
  */
 static int 
-rpc_sync_push(clixon_handle h,
-              cxobj        *xe,
-              cbuf         *cbret,
-              void         *arg,  
-              void         *regarg)
+rpc_controller_commit(clixon_handle h,
+                      cxobj        *xe,
+                      cbuf         *cbret,
+                      void         *arg,  
+                      void         *regarg)
 {
     client_entry           *ce = (client_entry *)arg;
     int                     retval = -1;
-    char                   *pattern = NULL;
     controller_transaction *ct = NULL;
     char                   *str;
     cxobj                  *xn;
     cvec                   *nsc = NULL;
     device_handle           dh;
-    char                   *devname;
+    char                   *device;
+    char                   *device_group;
+    int                     actions = 0;
+    char                   *datastore;
+    push_type               pusht = PT_NONE;
     cxobj                 **vec = NULL;
     size_t                  veclen;
     cxobj                  *xret = NULL;
     int                     i;
+    char                   *name;
     int                     ret;
     cbuf                   *cberr = NULL;
     
     clicon_debug(1, "%s", __FUNCTION__);
+    device = xml_find_body(xe, "device");
+    if ((device_group = xml_find_body(xe, "device-group")) != NULL){
+        if (netconf_operation_failed(cbret, "application", "Device-groups NYI")< 0)
+            goto done;
+        goto failed;
+    }
+    if ((str = xml_find_body(xe, "actions")) != NULL)
+        actions = strcmp(str, "true") == 0;
+    if (actions){
+        if (netconf_operation_failed(cbret, "application", "Actions NYI")< 0)
+            goto done;
+        goto failed;
+    }
+    datastore = xml_find_body(xe, "datastore");
+    fprintf(stderr, "%s %s\n", __FUNCTION__, datastore);
+    if (datastore == NULL || (
+                              //                              strcmp(datastore, "running") &&
+         strcmp(datastore, "ds:running"))){
+
+        if (netconf_operation_failed(cbret, "application", "datastore!=running NYI")< 0)
+            goto done;
+        goto failed;
+    }
+    if ((str = xml_find_body(xe, "push")) != NULL)
+        pusht = push_type_str2int(str);
+    if (pusht == PT_NONE){
+        if (netconf_operation_failed(cbret, "application", "Push NONE NYI")< 0)
+            goto done;
+        goto failed;
+    }
     /* Initiate new transaction */
-    if ((ret = controller_transaction_new(h, "sync push", &ct, &cberr)) < 0)
+    if ((ret = controller_transaction_new(h, "controller commit", &ct, &cberr)) < 0)
         goto done;
     if (ret == 0){
         if (netconf_operation_failed(cbret, "application", cbuf_get(cberr))< 0)
@@ -435,23 +471,33 @@ rpc_sync_push(clixon_handle h,
         goto failed;
     }
     ct->ct_client_id = ce->ce_id;
-    pattern = xml_find_body(xe, "devname");
-    if ((str = xml_find_body(xe, "validate")) != NULL)
-        ct->ct_push_validate = strcmp(str, "true") == 0;
+    ct->ct_push_validate = (pusht == PT_VALIDATE);
     if (xmldb_get(h, "running", nsc, "devices", &xret) < 0)
         goto done;
     if (xpath_vec(xret, nsc, "devices/device", &vec, &veclen) < 0) 
         goto done;
+#ifdef NOTYET
+    if (xpath_vec(xret, nsc, "devices/device-group", &vec, &veclen) < 0) 
+        goto done;
+#endif
     for (i=0; i<veclen; i++){
         xn = vec[i];
-        if ((devname = xml_find_body(xn, "name")) == NULL)
+        /* Name of device or device-group */
+        if ((name = xml_find_body(xn, "name")) == NULL)
             continue;
-        if ((dh = device_handle_find(h, devname)) == NULL)
+        if (device != NULL && fnmatch(device, name, 0) != 0)
             continue;
-        if (device_handle_conn_state_get(dh) != CS_OPEN)
+        if ((dh = device_handle_find(h, name)) == NULL)
             continue;
-        if (pattern != NULL && fnmatch(pattern, devname, 0) != 0)
+        if (device_handle_conn_state_get(dh) != CS_OPEN){
+            if (netconf_operation_failed(cbret, "application", "Device closed")< 0)
+                goto done;
+            goto failed;
+        }
+#ifdef NOTYET            
+        if (device_group_match(device_group, name) != 1)
             continue;
+#endif
         if ((ret = push_device_one(h, dh, ct, cbret)) < 0)
             goto done;
         if (ret == 0)  /* Failed but cbret set */
@@ -808,10 +854,10 @@ controller_rpc_init(clicon_handle h)
                               "sync-pull"
                               ) < 0)
         goto done;
-    if (rpc_callback_register(h, rpc_sync_push,
+    if (rpc_callback_register(h, rpc_controller_commit,
                               NULL, 
                               CONTROLLER_NAMESPACE,
-                              "sync-push"
+                              "controller-commit"
                               ) < 0)
         goto done;
     if (rpc_callback_register(h, rpc_connection_change,

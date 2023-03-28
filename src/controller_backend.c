@@ -157,7 +157,7 @@ controller_commit_device(clixon_handle h,
                     if ((ret = controller_transaction_new(h, "commit", &ct, &cberr)) < 0)
                         goto done;
                     if (ret == 0){
-                        clicon_err(OE_XML, 0, cbuf_get(cberr));
+                        clicon_err(OE_XML, 0, "%s", cbuf_get(cberr));
                         goto done;
                     }
                 }
@@ -180,7 +180,7 @@ controller_commit_device(clixon_handle h,
             if ((ret = controller_transaction_new(h, "commit", &ct, &cberr)) < 0)
                 goto done;
             if (ret == 0){
-                clicon_err(OE_XML, 0, cbuf_get(cberr));
+                clicon_err(OE_XML, 0, "%s", cbuf_get(cberr));
                 goto done;
             }
         }

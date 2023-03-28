@@ -107,5 +107,3 @@ fi
 
 echo "test-change-both"
 echo OK
-
-
