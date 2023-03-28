@@ -95,7 +95,7 @@ controller_disconnect(clixon_handle h,
     return 0;
 }
 
-/*! Commit generic part of controller yang
+/*! Commit device config
  *
  * @param[in] h    Clixon handle
  * @param[in] nsc  Namespace context
@@ -155,7 +155,7 @@ controller_commit_device(clixon_handle h,
                         goto done;
                 }
                 if (ret == 0){
-                    clicon_err(OE_XML, 0, "Transaction is ongoing");
+                    clicon_err(OE_XML, 0, "Transaction is ongoing 1");
                     goto done;
                 }
                 if (controller_connect(h, xml_parent(vec2[i]), ct) < 0)
@@ -173,7 +173,8 @@ controller_commit_device(clixon_handle h,
             if ((ret = controller_transaction_new(h, "commit", &ct)) < 0)
                 goto done;
             if (ret == 0){
-                clicon_err(OE_XML, 0, "Transaction is ongoing");
+                // XXX Here gives memory error
+                clicon_err(OE_XML, 0, "Transaction is ongoing 2");
                 goto done;
             }
         }
@@ -422,6 +423,7 @@ controller_yang_patch(clicon_handle h,
 #ifdef CONTROLLER_JUNOS_ADD_COMMAND_FORWARDING
     char       *modname;
     yang_stmt  *ygr;
+    char       *arg = NULL;
 
     if (ymod == NULL){
         clicon_err(OE_PLUGIN, EINVAL, "ymod is NULL");
@@ -432,7 +434,11 @@ controller_yang_patch(clicon_handle h,
         if (yang_find(ymod, Y_GROUPING, "command-forwarding") == NULL){
             if ((ygr = ys_new(Y_GROUPING)) == NULL)
                 goto done;
-            if (yang_argument_set(ygr, "command-forwarding") < 0)
+            if ((arg = strdup("command-forwarding")) == NULL){
+                clicon_err(OE_UNIX, errno, "strdup");
+                goto done;
+            }
+            if (yang_argument_set(ygr, arg) < 0)
                 goto done;
             if (yn_insert(ymod, ygr) < 0)
                 goto done;

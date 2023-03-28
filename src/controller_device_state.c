@@ -238,7 +238,7 @@ device_input_cb(int   s,
                      name, eom, eof, cbuf_len(cb));
         if (ct==NULL)
             device_close_connection(dh, "Remote socket endpoint closed");
-        else if (controller_transaction_failed(h, tid, ct, dh, 1, name, "Remote socket endpoint closed") < 0)
+        else if (controller_transaction_failed(h, tid, ct, dh, 2, name, "Remote socket endpoint closed") < 0)
             goto done;
         goto ok;
     }
@@ -260,7 +260,7 @@ device_input_cb(int   s,
     if (ret==0){
         device_close_connection(dh, "Invalid frame");
         if (ct &&
-            controller_transaction_failed(h, tid, ct, dh, 1, name, "Invalid frame") < 0)
+            controller_transaction_failed(h, tid, ct, dh, 2, name, "Invalid frame") < 0)
             goto done;
         goto ok;
     }
@@ -404,7 +404,7 @@ device_state_timeout(int   s,
     if ((tid = device_handle_tid_get(dh)) != 0)
         ct = controller_transaction_find(h, tid);
     if (ct){
-        if (controller_transaction_failed(device_handle_handle_get(dh), tid, ct, dh, 1, name, "Timeout waiting for remote peer") < 0)
+        if (controller_transaction_failed(device_handle_handle_get(dh), tid, ct, dh, 2, name, "Timeout waiting for remote peer") < 0)
             goto done;
     }
     else if (device_close_connection(dh, "Timeout waiting for remote peer") < 0)
@@ -757,7 +757,7 @@ device_state_handler(clixon_handle h,
         if ((ret = device_state_recv_hello(h, dh, s, xmsg, rpcname, conn_state)) < 0)
             goto done;
         if (ret == 0){ /* closed */
-            if (controller_transaction_failed(h, tid, ct, dh, 0, name, device_handle_logmsg_get(dh)) < 0)
+            if (controller_transaction_failed(h, tid, ct, dh, 1, name, device_handle_logmsg_get(dh)) < 0)
                 goto done;
             break;
         }
@@ -791,7 +791,7 @@ device_state_handler(clixon_handle h,
         if ((ret = device_state_recv_schema_list(dh, xmsg, rpcname, conn_state)) < 0)
             goto done;
         if (ret == 0){ /* closed */
-            if (controller_transaction_failed(h, tid, ct, dh, 0, name, device_handle_logmsg_get(dh)) < 0)
+            if (controller_transaction_failed(h, tid, ct, dh, 1, name, device_handle_logmsg_get(dh)) < 0)
                 goto done;
             break;
         }
@@ -832,7 +832,7 @@ device_state_handler(clixon_handle h,
         if ((ret = device_state_recv_get_schema(dh, xmsg, rpcname, conn_state)) < 0)
             goto done;
         if (ret == 0){ /* closed */
-            if (controller_transaction_failed(h, tid, ct, dh, 0, name, device_handle_logmsg_get(dh)) < 0)
+            if (controller_transaction_failed(h, tid, ct, dh, 1, name, device_handle_logmsg_get(dh)) < 0)
                 goto done;
             break;
         }
@@ -877,7 +877,7 @@ device_state_handler(clixon_handle h,
         if ((ret = device_state_recv_config(h, dh, xmsg, yspec0, rpcname, conn_state)) < 0)
             goto done;
         if (ret == 0){ /* closed */
-            if (controller_transaction_failed(h, tid, ct, dh, 0, name, device_handle_logmsg_get(dh)) < 0)
+            if (controller_transaction_failed(h, tid, ct, dh, 1, name, device_handle_logmsg_get(dh)) < 0)
                 goto done;
             break;
         }
@@ -913,7 +913,7 @@ device_state_handler(clixon_handle h,
         if (ret && (ret = device_config_compare(h, dh, name, ct, &eq)) < 0)
             goto done;
         if (ret == 0){ /* closed */
-            if (controller_transaction_failed(h, tid, ct, dh, 0, name, device_handle_logmsg_get(dh)) < 0)
+            if (controller_transaction_failed(h, tid, ct, dh, 1, name, device_handle_logmsg_get(dh)) < 0)
                 goto done;
             break;
         }
@@ -967,7 +967,7 @@ device_state_handler(clixon_handle h,
             break;
         }
         else if (ret == 1){ /* 1. The device has failed and is closed */
-            if (controller_transaction_failed(h, tid, ct, dh, 0, name, NULL) < 0)
+            if (controller_transaction_failed(h, tid, ct, dh, 1, name, NULL) < 0)
                 goto done;
             break;
         }
@@ -1009,7 +1009,7 @@ device_state_handler(clixon_handle h,
             break;
         }
         else if (ret == 1){ /* 1. The device has failed and is closed */
-            if (controller_transaction_failed(h, tid, ct, dh, 0, name, NULL) < 0)
+            if (controller_transaction_failed(h, tid, ct, dh, 1, name, NULL) < 0)
                 goto done;
             break;
         }
@@ -1054,12 +1054,12 @@ device_state_handler(clixon_handle h,
         if ((ret = device_state_recv_ok(dh, xmsg, rpcname, conn_state, &cberr)) < 0)
             goto done;
         if (ret == 0){      /* 1. The device has failed: received rpc-error/not <ok>  */
-            if (controller_transaction_failed(h, tid, ct, dh, 1, name, cbuf_get(cberr)) < 0)
+            if (controller_transaction_failed(h, tid, ct, dh, 2, name, cbuf_get(cberr)) < 0)
                 goto done;
             break;
         }
         else if (ret == 1){ /* 1. The device has failed and is closed */
-            if (controller_transaction_failed(h, tid, ct, dh, 0, name, NULL) < 0)
+            if (controller_transaction_failed(h, tid, ct, dh, 1, name, NULL) < 0)
                 goto done;
             break;
         }
@@ -1131,6 +1131,9 @@ devices_statedata(clixon_handle   h,
     conn_state     state;
     char          *logmsg;
     struct timeval tv;
+    cxobj         *xcaps;
+    cxobj         *x;
+    char          *xb;
 
     if ((cb = cbuf_new()) == NULL){
         clicon_err(OE_UNIX, errno, "cbuf_new");
@@ -1151,24 +1154,18 @@ devices_statedata(clixon_handle   h,
                 name);
         state = device_handle_conn_state_get(dh);
         cprintf(cb, "<conn-state>%s</conn-state>", device_state_int2str(state));
-#ifdef NOTYET // something with encoding
-        {
-            cxobj *xcaps;
-            cxobj *x;
-
-            if ((xcaps = device_handle_capabilities_get(dh)) != NULL){
-                cprintf(cb, "<capabilities>");
-                x = NULL;
-                while ((x = xml_child_each(xcaps, x, -1)) != NULL) {
-                    if (xml_body(x) == NULL)
-                        continue;
-                    // XXX need encoding?
-                    cprintf(cb, "<capability>%s</capability>", xml_body(x));
-                }
-                cprintf(cb, "</capabilities>");
+        if ((xcaps = device_handle_capabilities_get(dh)) != NULL){
+            cprintf(cb, "<capabilities>");
+            x = NULL;
+            while ((x = xml_child_each(xcaps, x, -1)) != NULL) {
+                if ((xb = xml_body(x)) == NULL)
+                    continue;
+                cprintf(cb, "<capability>");
+                xml_chardata_cbuf_append(cb, xb);
+                cprintf(cb, "</capability>");
             }
+            cprintf(cb, "</capabilities>");
         }
-#endif
         device_handle_conn_time_get(dh, &tv);
         if (tv.tv_sec != 0){
             char timestr[28];            
@@ -1183,8 +1180,11 @@ devices_statedata(clixon_handle   h,
                 goto done;
             cprintf(cb, "<sync-timestamp>%s</sync-timestamp>", timestr);
         }
-        if ((logmsg = device_handle_logmsg_get(dh)) != NULL)
-            cprintf(cb, "<logmsg>%s</logmsg>", logmsg);
+        if ((logmsg = device_handle_logmsg_get(dh)) != NULL){
+            cprintf(cb, "<logmsg>");
+            xml_chardata_cbuf_append(cb, logmsg);
+            cprintf(cb, "</logmsg>");
+        }
         cprintf(cb, "</device></devices>");
         if (clixon_xml_parse_string(cbuf_get(cb), YB_NONE, NULL, &xstate, NULL) < 0)
             goto done;

@@ -650,10 +650,12 @@ cli_show_devices(clixon_handle h,
         }
         else {
             cligen_output(stdout, "%-23s %-10s %-22s %-30s\n", "Name", "State", "Time", "Logmsg");
-            cligen_output(stdout, "========================================================================\n");
+            cligen_output(stdout, "=======================================================================================\n");
             xc = NULL;
             while ((xc = xml_child_each(xn, xc, CX_ELMNT)) != NULL) {
                 char *p;
+                char logstr[30];
+
                 name = xml_find_body(xc, "name");
                 if (pattern != NULL && fnmatch(pattern, name, 0) != 0)
                     continue;
@@ -666,8 +668,11 @@ cli_show_devices(clixon_handle h,
                         *p = '\0';
                 }
                 cligen_output(stdout, "%-23s", timestamp?timestamp:"");
-                logmsg = xml_find_body(xc, "logmsg");
-                cligen_output(stdout, "%-31s",  logmsg?logmsg:"");
+                if ((logmsg = xml_find_body(xc, "logmsg")) != NULL){
+                    strncpy(logstr, logmsg, 30);
+                    logstr[29] = '\0';
+                    cligen_output(stdout, "%s",  logstr);
+                }
                 cligen_output(stdout, "\n");
             }
         }
@@ -1283,10 +1288,59 @@ controller_cligen_treeref_wrap(cligen_handle ch,
     return retval; 
 }
 
+/*! YANG module patch
+ *
+ * Given a parsed YANG module, give the ability to patch it before import recursion,
+ * grouping/uses checks, augments, etc
+ * Can be useful if YANG in some way needs modification.
+ * Deviations could be used as alternative (probably better)
+ * @param[in]  h       Clixon handle
+ * @param[in]  ymod    YANG module
+ * @retval     0       OK
+ * @retval    -1       Error
+ */
+int
+controller_yang_patch(clicon_handle h,
+                      yang_stmt    *ymod)
+{
+    int         retval = -1;
+#ifdef CONTROLLER_JUNOS_ADD_COMMAND_FORWARDING
+    char       *modname;
+    yang_stmt  *ygr;
+    char       *arg = NULL;
+
+    if (ymod == NULL){
+        clicon_err(OE_PLUGIN, EINVAL, "ymod is NULL");
+        goto done;
+    }
+    modname = yang_argument_get(ymod);
+    if (strncmp(modname, "junos-rpc", strlen("junos-rpc")) == 0){
+        if (yang_find(ymod, Y_GROUPING, "command-forwarding") == NULL){
+            if ((ygr = ys_new(Y_GROUPING)) == NULL)
+                goto done;
+            if ((arg = strdup("command-forwarding")) == NULL){
+                clicon_err(OE_UNIX, errno, "strdup");
+                goto done;
+            }
+            if (yang_argument_set(ygr, arg) < 0)
+                goto done;
+            if (yn_insert(ymod, ygr) < 0)
+                goto done;
+        }
+    }
+    retval = 0;
+ done:
+#else
+    retval = 0;
+#endif
+    return retval;
+}
+
 static clixon_plugin_api api = {
     "controller",       /* name */
     clixon_plugin_init,
     controller_cli_start,
+    .ca_yang_patch   = controller_yang_patch,
 };
 
 /*! CLI plugin initialization

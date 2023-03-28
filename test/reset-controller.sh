@@ -14,18 +14,32 @@ echo "reset-controller"
 # Sleep delay in seconds between each step                                      
 : ${sleep:=2}
 
+# Default container name, postfixed with 1,2,..,<nr>
 : ${IMG:=clixon-example}
 
 : ${clixon_cli:=clixon_cli}
 
 : ${clixon_netconf:=$(which clixon_netconf)}
 
+# Set if delete old config
+: ${delete:=true}
+
+# Set if also check, which only works for clixon-example
+: ${check:=true}
+
+# Default values for controller device settings
+: ${description:="Clixon example container"}
+: ${yang_config:=VALIDATE}
+: ${user:=root}
+
 # Prefix to add in front of all client commands.
 # Eg to force all client to run as root if there is problem with group assignment (see github actions)
 : ${PREFIX:=}
 
-echo "Delete device config"
-ret=$(${PREFIX} ${clixon_netconf} -qe0 -f $CFG <<EOF
+if $delete ; then
+
+    echo "Delete device config"
+    ret=$(${PREFIX} ${clixon_netconf} -qe0 -f $CFG <<EOF
 <rpc xmlns="urn:ietf:params:xml:ns:netconf:base:1.0" 
   xmlns:nc="urn:ietf:params:xml:ns:netconf:base:1.0" 
   message-id="42">
@@ -41,14 +55,15 @@ ret=$(${PREFIX} ${clixon_netconf} -qe0 -f $CFG <<EOF
   </edit-config>
 </rpc>]]>]]>
 EOF
-)
-match=$(echo "$ret" | grep --null -Eo "<rpc-error>") || true
-if [ -n "$match" ]; then
-    echo "netconf rpc-error detected"
-    exit 1
-fi      
+       )
+    match=$(echo "$ret" | grep --null -Eo "<rpc-error>") || true
+    if [ -n "$match" ]; then
+        echo "netconf rpc-error detected"
+        exit 1
+    fi
+fi # delete
 
-# This script adds deletes x, modifies y, and adds z
+# Loop adding top-level device meta info
 for i in $(seq 1 $nr); do
     NAME=$IMG$i
     ip=$(sudo docker inspect $NAME -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}')
@@ -68,11 +83,11 @@ for i in $(seq 1 $nr); do
         <device nc:operation="replace">
           <name>$NAME</name>
           <enabled>true</enabled>
-          <description>Clixon example container</description>
+          <description>$description</description>
           <conn-type>NETCONF_SSH</conn-type>
-          <user>root</user>
+          <user>$user</user>
           <addr>$ip</addr>
-          <yang-config>VALIDATE</yang-config>
+          <yang-config>${yang_config}</yang-config>
           <root/>
         </device>
       </devices>
@@ -103,6 +118,12 @@ if [ -n "$match" ]; then
     exit 1
 fi
 sleep $sleep
+
+if ! $check ; then
+    echo "Stop before sync pull check"
+    echo OK
+    exit 0
+fi
 
 echo "sync pull"
 ${PREFIX} ${clixon_cli} -1f $CFG sync pull
