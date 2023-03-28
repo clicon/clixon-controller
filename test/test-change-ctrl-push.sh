@@ -97,9 +97,9 @@ fi
 echo "push sync validate"
 ret=$(${PREFIX} ${clixon_netconf} -q0 -f $CFG <<EOF
 <rpc xmlns="urn:ietf:params:xml:ns:netconf:base:1.0" message-id="43">
-  <sync-push xmlns="http://clicon.org/controller">
-    <validate>true</validate>
-  </sync-push>
+  <controller-commit xmlns="http://clicon.org/controller">
+    <push>VALIDATE</push>
+  </controller-commit>
 </rpc>]]>]]>
 EOF
       )
@@ -118,9 +118,9 @@ sleep $sleep
 echo "push sync commit"
 ret=$(${PREFIX} ${clixon_netconf} -q0 -f $CFG <<EOF
 <rpc xmlns="urn:ietf:params:xml:ns:netconf:base:1.0" message-id="43">
-  <sync-push xmlns="http://clicon.org/controller">
-    <validate>false</validate>
-  </sync-push>
+  <controller-commit xmlns="http://clicon.org/controller">
+    <push>COMMIT</push>
+  </controller-commit>
 </rpc>]]>]]>
 EOF
       )

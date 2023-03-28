@@ -11,6 +11,9 @@ module clixon-controller {
     import ietf-yang-schema-mount {
         prefix yangmnt;
     }
+    import ietf-datastores {
+        prefix ds;
+    }
     description
         "Clixon controller";
     revision 2023-01-01 {
@@ -175,12 +178,33 @@ module clixon-controller {
             }
         }
     }
-    container services {
-        description "Placeholder for services";
-        container properties{
+    typedef push-type {
+        description
+            "How to push configuration to devices.";
+        type enumeration{
+            enum NONE {
+                description "Do not push to devices";
+            }
+            enum VALIDATE {
+                description "Push to devices, validate and then discard on devices";
+            }
+            enum COMMIT {
+                description "Push to devices, and commit on devices.";
+            }
         }
     }
+    container services {
+        description
+            "Placeholder for services. 
+             This is typically augmented by an application, such as:
+               import clixon-controller { prefix ctrl; }
+               augment '/ctrl:services' {
+               list myservice {
+                    ...
+             ";
+    }
     container generic{
+        description "Generic controller settings";
         leaf device-timeout{
             description
                 "Device transient state timeout in seconds";
@@ -191,6 +215,7 @@ module clixon-controller {
     }
     /* Generic config data */
     container devices{
+        description "Device configurations";
         list device-group{
             description "Groups of devices, NOTE: device-name/-group unclear semantics?";
             key name;
@@ -263,7 +288,7 @@ module clixon-controller {
                 description
                     "State of connection";
                 config false;
-                type connection-type;
+                type connection-state;
                 default CLOSED;
             }
             container capabilities {
@@ -402,18 +427,58 @@ module clixon-controller {
             }
         }
     }
-    rpc sync-push {
-        description "Push the config to one or several devices.";
+    rpc controller-commit {
+        description "Extended commit: trigger actions and device push.";
         input {
-            leaf devname {
-                description
-                    "Name of device to push to, can use wildchars for several.";
-                type string;
+            choice devices {
+                description "Specify devices with either name or group. None means all.";
+                leaf device {
+                    description
+                        "Name of device to push to, can use wildchars for several";
+                    type leafref {
+                        path "/devices/device/name";
+                        require-instance false;
+                    }
+                }
+                leaf device-group {
+                    description
+                        "Name of device-group, can use wildchars for several";
+                    type leafref {
+                        path "/devices/device-group/name";
+                        require-instance false;
+                    }
+                }
             }
-            leaf validate {
-                description "Validate on device, but do not commit";
+            leaf actions {
+                description
+                    "Trigger actions from candidate into action-db";
                 type boolean;
                 default false;
+            }
+            leaf datastore {
+                description
+                    "Source datastore for controller commit
+                     If actions is enabled, it is the source of actions
+                     Otherwise it is the source for push
+                     The latter is the reason default is running
+                    ";
+                type ds:datastore-ref;
+                default ds:running;
+            }
+            leaf push {
+                description
+                    "How to push configuration diffs to devices.
+                     Diffs are computed from the last SYNCED device datastore. 
+                     If actions is enabled the source datastore of push is action-db
+                     Otherwise the source is the value of datastore.
+                     If push is COMMIT and the push is successful, 
+                     a local controller commit is made as follows:
+                     - if actions, commit is made from action-db
+                     - otherwise if datastore is candidate, commit is made from candidate
+                     - otherwise, no commit is made
+                     ";
+                type push-type;
+                default NONE;
             }
         }
         output {

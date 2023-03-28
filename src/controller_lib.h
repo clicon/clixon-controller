@@ -71,6 +71,17 @@ enum device_config_type_t{
 };
 typedef enum device_config_type_t device_config_type;
 
+/*! Device push operation type
+ * @see clixon-controller@2023-01-01.yang push-operation
+ * @see ptmap translation table
+ */
+enum push_type_t{
+    PT_NONE = 0,     /* Do not push to devices" */
+    PT_VALIDATE,     /* Push to devices, validate and then discard on devices */
+    PT_COMMIT,       /* Push to devices, and commit on devices. */
+};
+typedef enum push_type_t push_type;
+
 /*
  * Prototypes
  */
@@ -84,6 +95,8 @@ char *transaction_result_int2str(transaction_result result);
 transaction_result transaction_result_str2int(char *str);
 char *device_config_type_int2str(device_config_type t);
 device_config_type device_config_type_str2int(char *str);
+char *push_type_int2str(push_type t);
+push_type push_type_str2int(char *str);
 int yang_lib2yspec_junos_patch(clicon_handle h, cxobj *yanglib, yang_stmt *yspec);
     
 #ifdef __cplusplus

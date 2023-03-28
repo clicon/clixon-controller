@@ -66,7 +66,7 @@ static const map_str2int trmap[] = {
     {NULL,      -1}
 };
 
-/*! Mapping between enum device_config_type and yang device-config-type
+/*! Mapping between enum device_config_type_t and yang device-config-type
  * @see clixon-controller@2023-01-01.yang
  */
 static const map_str2int dtmap[] = {
@@ -75,6 +75,16 @@ static const map_str2int dtmap[] = {
     {"SYNCED",    DT_SYNCED},
     {"TRANSIENT", DT_TRANSIENT},
     {NULL,        -1}
+};
+
+/*! Mapping between enum push_type_t and yang push-type
+ * @see clixon-controller@2023-01-01.yang
+ */
+static const map_str2int ptmap[] = {
+    {"NONE",     PT_NONE},
+    {"VALIDATE", PT_VALIDATE},
+    {"COMMIT",   PT_COMMIT},
+    {NULL,       -1}
 };
 
 /*! Map controller transaction state from int to string 
@@ -123,7 +133,7 @@ transaction_result_str2int(char *str)
 
 /*! Map device config type from int to string 
  *
- * @param[in]  typ    Device config typeas int
+ * @param[in]  typ    Device config type as int
  * @retval     str    Device config type as string
  */
 char *
@@ -141,6 +151,28 @@ device_config_type
 device_config_type_str2int(char *str)
 {
     return clicon_str2int(dtmap, str);
+}
+
+/*! Map device push type from int to string 
+ *
+ * @param[in]  typ    Push type as int
+ * @retval     str    Push type as string
+ */
+char *
+push_type_int2str(push_type t)
+{
+    return (char*)clicon_int2str(ptmap, t);
+}
+
+/*! Map device push type from string to int 
+ *
+ * @param[in]  str    Push type as string
+ * @retval     type   Push type as int
+ */
+push_type
+push_type_str2int(char *str)
+{
+    return clicon_str2int(ptmap, str);
 }
 
 #ifdef CONTROLLER_JUNOS_ADD_COMMAND_FORWARDING

@@ -366,7 +366,7 @@ cli_rpc_sync_pull(clixon_handle h,
 /*! Read the config of one or several devices
  * @param[in] h
  * @param[in] cvv  : name pattern
- * @param[in] argv : "push" validate/commit
+ * @param[in] argv : validate/commit
  * @retval    0      OK
  * @retval   -1      Error
  */
@@ -383,23 +383,23 @@ cli_rpc_sync_push(clixon_handle h,
     cxobj     *xret = NULL;
     cxobj     *xreply;
     cxobj     *xerr;
-    char      *op;
+    char      *push_type;
     char      *name = "*";
     cxobj     *xid;
     char      *tidstr;
     uint64_t   tid = 0;
 
     if (argv == NULL || cvec_len(argv) != 1){
-        clicon_err(OE_PLUGIN, EINVAL, "requires argument: validate/commit");
+        clicon_err(OE_PLUGIN, EINVAL, "requires argument: VALIDATE/COMMIT");
         goto done;
     }
     if ((cv = cvec_i(argv, 0)) == NULL){
         clicon_err(OE_PLUGIN, 0, "Error when accessing argument <push>");
         goto done;
     }
-    op = cv_string_get(cv);
-    if (strcmp(op, "validate") != 0 && strcmp(op, "commit") != 0){
-        clicon_err(OE_PLUGIN, EINVAL, "<push> argument is %s, expected \"validate\" or \"commit\"", op);
+    push_type = cv_string_get(cv);
+    if (strcmp(push_type, "VALIDATE") != 0 && strcmp(push_type, "COMMIT") != 0){
+        clicon_err(OE_PLUGIN, EINVAL, "<push> argument is %s, expected \"VALIDATE\" or \"COMMIT\"", push_type);
         goto done;
     }
     if ((cv = cvec_find(cvv, "name")) != NULL)
@@ -412,11 +412,12 @@ cli_rpc_sync_push(clixon_handle h,
             NETCONF_BASE_NAMESPACE,
             clicon_username_get(h),
             NETCONF_MESSAGE_ID_ATTR);
-    cprintf(cb, "<sync-push xmlns=\"%s\">", CONTROLLER_NAMESPACE);
-    cprintf(cb, "<devname>%s</devname>", name);
-    if (strcmp(op, "validate") == 0)
-        cprintf(cb, "<validate>true</validate>");
-    cprintf(cb, "</sync-push>");
+    cprintf(cb, "<controller-commit xmlns=\"%s\">", CONTROLLER_NAMESPACE);
+    cprintf(cb, "<device>%s</device>", name);
+    cprintf(cb, "<push>%s</push>", push_type);
+    cprintf(cb, "<actions>false</actions>");
+    cprintf(cb, "<datastore>ds:running</datastore>");
+    cprintf(cb, "</controller-commit>");
     cprintf(cb, "</rpc>");
     if (clixon_xml_parse_string(cbuf_get(cb), YB_NONE, NULL, &xtop, NULL) < 0)
         goto done;
