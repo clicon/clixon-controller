@@ -126,7 +126,9 @@ controller_commit_device(clixon_handle h,
     int                     i;
     char                   *body;
     controller_transaction *ct = NULL; /* created lazy/on-demand */
+    cxobj                  *xn;
     int                     ret;
+    char                   *enablestr;
     
     /* 1) if device removed, disconnect */
     if (xpath_vec_flag(src, nsc, "devices/device",
@@ -153,10 +155,10 @@ controller_commit_device(clixon_handle h,
                 if (ct == NULL){
                     if ((ret = controller_transaction_new(h, "commit", &ct)) < 0)
                         goto done;
-                }
-                if (ret == 0){
-                    clicon_err(OE_XML, 0, "Transaction is ongoing 1");
-                    goto done;
+                    if (ret == 0){
+                        clicon_err(OE_XML, 0, "Transaction is ongoing 1");
+                        goto done;
+                    }
                 }
                 if (controller_connect(h, xml_parent(vec2[i]), ct) < 0)
                     goto done;
@@ -169,16 +171,19 @@ controller_commit_device(clixon_handle h,
                        &vec3, &veclen3) < 0)
         goto done;
     for (i=0; i<veclen3; i++){
+        xn = vec3[i];
+        if ((enablestr = xml_find_body(xn, "enabled")) != NULL &&
+            strcmp(enablestr, "false") == 0)
+            continue;
         if (ct == NULL){
             if ((ret = controller_transaction_new(h, "commit", &ct)) < 0)
                 goto done;
             if (ret == 0){
-                // XXX Here gives memory error
                 clicon_err(OE_XML, 0, "Transaction is ongoing 2");
                 goto done;
             }
         }
-        if (controller_connect(h, vec3[i], ct) < 0)
+        if (controller_connect(h, xn, ct) < 0)
             goto done;
     }
     /* No device started, close transaction */
@@ -278,7 +283,7 @@ controller_commit_services(clixon_handle h,
                        XML_FLAG_ADD,
                        &vec3, &veclen3) < 0)
         goto done;
-#ifdef OBSOLETE // Moved to explicit rpc services-apply rpc
+#if 1
     if (veclen1 || veclen2 || veclen3)
         services_commit_notify(h);
 #endif
