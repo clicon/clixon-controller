@@ -94,7 +94,7 @@ sync("Read the config of one or several devices.") {
                  (<name:string>("device pattern")|
                   <name:string expand_dbvar("running","/clixon-controller:devices/device/name")>("device pattern"))
                  ], cli_rpc_sync_pull("replace");{
-                    compare, compare_device_db_dev((int32)1);{
+                    compare, compare_device_db_dev("text");{
     		         xml("Show comparison in xml"), compare_device_db_dev("xml");
 		         text("Show comparison in text"), compare_device_db_dev("text");
                     }

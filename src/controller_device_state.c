@@ -660,7 +660,7 @@ device_config_copy(clicon_handle h,
     return retval;
 }
 
-/*! Compare dryrun and last synced
+/*! Compare transient and last synced
  *
  * @param[in]  h      Clixon handle.
  * @param[in]  dh     Device handle.
@@ -689,7 +689,7 @@ device_config_compare(clicon_handle           h,
     }   
     if ((ret = device_config_read(h, name, "SYNCED", &x0, cbret)) < 0)
         goto done;
-    if (ret && (ret = device_config_read(h, name, "REMOTE", &x1, cbret)) < 0)
+    if (ret && (ret = device_config_read(h, name, "TRANSIENT", &x1, cbret)) < 0)
         goto done;
     if (ret == 0){
         if (device_close_connection(dh, "%s", cbuf_get(cbret)) < 0)
@@ -906,10 +906,12 @@ device_state_handler(clixon_handle h,
                                     name, device_state_int2str(conn_state));
             break;
         }
-        /* Receive dryrun config data */
+        /* Receive config data, force transient, ie do not commit */
+        ct->ct_pull_transient = 1;
         if ((ret = device_state_recv_config(h, dh, xmsg, yspec0, rpcname, conn_state)) < 0)
             goto done;
-         /* Compare dryrun with last sync*/
+
+         /* Compare transient with last sync*/
         if (ret && (ret = device_config_compare(h, dh, name, ct, &eq)) < 0)
             goto done;
         if (ret == 0){ /* closed */
@@ -1013,7 +1015,7 @@ device_state_handler(clixon_handle h,
                 goto done;
             break;
         }
-        if (ct->ct_dryrun){
+        if (ct->ct_push_validate){
             if (device_send_discard_changes(h, dh) < 0)
                 goto done;
             if (device_state_set(dh, CS_PUSH_DISCARD) < 0)
@@ -1080,8 +1082,8 @@ device_state_handler(clixon_handle h,
                     goto done;
             }
             controller_transaction_state_set(ct, TS_DONE, TR_SUCCESS);
-            /* Copy dryrun to device config (last sync) */
-            if (device_config_copy(h, name, "REMOTE", "SYNCED") < 0)
+            /* Copy transient to device config (last sync) */
+            if (device_config_copy(h, name, "TRANSIENT", "SYNCED") < 0)
                 goto done;
         }
         break;

@@ -294,7 +294,7 @@ device_state_recv_config(clixon_handle h,
     uint64_t                tid;
     controller_transaction *ct;
     int                     merge = 0;
-    int                     dryrun = 0;
+    int                     transient = 0;
 
     clicon_debug(1, "%s", __FUNCTION__);
     //    clicon_debug(CLIXON_DBG_DETAIL, "%s", __FUNCTION__);
@@ -368,8 +368,8 @@ device_state_recv_config(clixon_handle h,
     /* Special handling if part of transaction. XXX: currently not activated */
     if ((tid = device_handle_tid_get(dh)) != 0 &&
         (ct = controller_transaction_find(h, tid)) != NULL){
-        merge = ct->ct_merge;
-        dryrun = ct->ct_dryrun;
+        merge = ct->ct_pull_merge;
+        transient = ct->ct_pull_transient;
     }
     if (merge){
         if (xml_value_set(xa, xml_operation2str(OP_MERGE)) < 0)
@@ -379,8 +379,8 @@ device_state_recv_config(clixon_handle h,
         if (xml_value_set(xa, xml_operation2str(OP_REPLACE)) < 0)
             goto done;
     }
-    if (dryrun){
-        if ((ret = device_config_write(h, name, "REMOTE", xt, cbret)) < 0)
+    if (transient){
+        if ((ret = device_config_write(h, name, "TRANSIENT", xt, cbret)) < 0)
             goto done;
         if (ret == 0){
             if (device_close_connection(dh, "%s", cbuf_get(cbret)) < 0)
