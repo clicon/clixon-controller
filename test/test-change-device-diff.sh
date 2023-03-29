@@ -2,7 +2,7 @@
 # Assume backend and devics running
 # Reset devices and backend
 # Commit a change to _devices_ remove x, change y, and add z
-# Make a sync-pull dryrun
+# Make a sync-pull transient
 # Check the diff between controller and devices
 
 set -eux
@@ -22,12 +22,12 @@ wait_backend
 # Change device configs on devices (not controller)
 . ./change-devices.sh
 
-echo "trigger sync-pull dryrun"
+echo "trigger sync-pull transient"
 ret=$(${PREFIX} ${clixon_netconf} -q0 -f $CFG <<EOF
 <rpc xmlns="urn:ietf:params:xml:ns:netconf:base:1.0" message-id="43">
   <sync-pull xmlns="http://clicon.org/controller">
     <devname>*</devname>
-    <dryrun>true</dryrun>
+    <transient>true</transient>
   </sync-pull>
 </rpc>]]>]]>
 EOF
@@ -41,12 +41,12 @@ fi
 for i in $(seq 1 $nr); do
     NAME=$IMG$i
     # verify controller 
-    echo "get and check dryrun device db"
+    echo "get and check transient device db"
     ret=$(${PREFIX} ${clixon_netconf} -q0 -f $CFG <<EOF
 <rpc xmlns="urn:ietf:params:xml:ns:netconf:base:1.0" message-id="43">
   <get-device-config xmlns="http://clicon.org/controller">
     <devname>$NAME</devname>
-    <config-type>REMOTE</config-type>
+    <config-type>TRANSIENT</config-type>
   </get-device-config>
 </rpc>]]>]]>
 EOF

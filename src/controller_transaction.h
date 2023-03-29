@@ -40,17 +40,18 @@
 /*! Clixon controller meta transactions spanning device operation
  */
 struct controller_transaction_t{
-    qelem_t  ct_qelem;      /* List header */
-    uint64_t ct_id;         /* transaction-id */
+    qelem_t  ct_qelem;           /* List header */
+    uint64_t ct_id;              /* transaction-id */
     transaction_state  ct_state; /* Transaction state */
-    transaction_result ct_result; /* Transaction result */
-    void    *ct_h;          /* Back-pointer to clixon handle (for convenience in timeout callbacks) */
-    uint32_t ct_client_id;  /* Client id of originator */
-    int      ct_dryrun;     /* Validate on device dont commit (push) */
-    int      ct_merge;      /* Merge instead of replace (pull) */
-    char    *ct_description; /* Description of transaction */
-    char    *ct_origin;     /* Originator of error (if result=0) */
-    char    *ct_reason;     /* Reason of error (if result=0) */
+    transaction_result ct_result;/* Transaction result */
+    void    *ct_h;               /* Back-pointer to clixon handle (for convenience in timeout callbacks) */
+    uint32_t ct_client_id;       /* Client id of originator */
+    int      ct_pull_transient;  /* pull: dont commit locally */
+    int      ct_pull_merge;      /* pull: Merge instead of replace */
+    int      ct_push_validate;   /* push: Validate on remote device dont commit */
+    char    *ct_description;     /* Description of transaction */
+    char    *ct_origin;          /* Originator of error (if result=0) */
+    char    *ct_reason;          /* Reason of error (if result=0) */
     struct timeval ct_timestamp; /* Timestamp when entering current state */
 };
 typedef struct controller_transaction_t controller_transaction;

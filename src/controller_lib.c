@@ -73,7 +73,7 @@ static const map_str2int dtmap[] = {
     {"RUNNING",   DT_RUNNING},
     {"CANDIDATE", DT_CANDIDATE},
     {"SYNCED",    DT_SYNCED},
-    {"REMOTE",    DT_REMOTE},
+    {"TRANSIENT", DT_TRANSIENT},
     {NULL,        -1}
 };
 

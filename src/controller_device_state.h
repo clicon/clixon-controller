@@ -72,9 +72,9 @@ enum conn_state_t {
                          May fail due to (1) connect fails or (2) hello not receivd */
     CS_SCHEMA_LIST,   /* Get ietf-netconf-monitor schema state */
     CS_SCHEMA_ONE,    /* Connection established and Hello sent to device (nr substate) */
-    CS_DEVICE_SYNC,   /* Get all config (dryrun+merge are sub-state parameters) */
+    CS_DEVICE_SYNC,   /* Get all config (transient+merge are sub-state parameters) */
     CS_OPEN,          /* Connection established and Hello sent to device. */
-    CS_PUSH_CHECK,    /* sync device dryrun to check if device is unchanged */
+    CS_PUSH_CHECK,    /* sync device transient to check if device is unchanged */
     CS_PUSH_EDIT,     /* edit-config sent, waiting for reply */
     CS_PUSH_VALIDATE, /* validate sent, waiting for reply  */
     CS_PUSH_WAIT,     /* Waiting for other devices to validate */

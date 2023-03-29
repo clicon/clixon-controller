@@ -244,7 +244,6 @@ push_device_one(clixon_handle           h,
                                            &cbmsg) < 0)
             goto done;
         device_handle_outmsg_set(dh, cbmsg);
-        ct->ct_dryrun = 1;
         s = device_handle_socket_get(dh);
         if (device_send_sync(h, dh, s) < 0)
             goto done;
@@ -347,10 +346,10 @@ rpc_sync_pull(clixon_handle h,
     }
     ct->ct_client_id = ce->ce_id;
     pattern = xml_find_body(xe, "devname");
-    if ((str = xml_find_body(xe, "dryrun")) != NULL)
-        ct->ct_dryrun = strcmp(str, "true") == 0;
+    if ((str = xml_find_body(xe, "transient")) != NULL)
+        ct->ct_pull_transient = strcmp(str, "true") == 0;
     if ((str = xml_find_body(xe, "merge")) != NULL)
-        ct->ct_merge = strcmp(str, "true") == 0;
+        ct->ct_pull_merge = strcmp(str, "true") == 0;
     if (xmldb_get(h, "running", nsc, "devices/device", &xret) < 0)
         goto done;
     if (xpath_vec(xret, nsc, "devices/device", &vec, &veclen) < 0) 
@@ -433,7 +432,7 @@ rpc_sync_push(clixon_handle h,
     ct->ct_client_id = ce->ce_id;
     pattern = xml_find_body(xe, "devname");
     if ((str = xml_find_body(xe, "validate")) != NULL)
-        ct->ct_dryrun = strcmp(str, "true") == 0;
+        ct->ct_push_validate = strcmp(str, "true") == 0;
     if (xmldb_get(h, "running", nsc, "devices", &xret) < 0)
         goto done;
     if (xpath_vec(xret, nsc, "devices/device", &vec, &veclen) < 0) 
@@ -547,7 +546,7 @@ rpc_get_device_config(clixon_handle h,
                 goto done;
             break;
         case DT_SYNCED:
-        case DT_REMOTE:
+        case DT_TRANSIENT:
             if ((ret = device_config_read(h, devname, config_type, &xroot, cbret)) < 0)
                 goto done;
             if (ret == 0)

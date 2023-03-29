@@ -276,7 +276,7 @@ transaction_notification_poll(clicon_handle h,
  *
  * @param[in] h
  * @param[in] cvv  : name pattern
- * @param[in] argv : replace/merge , dryrun
+ * @param[in] argv : replace/merge
  * @retval    0      OK
  * @retval   -1      Error
  */
@@ -530,7 +530,7 @@ cli_connection_change(clixon_handle h,
  *
  * @param[in]  h           Clixon handle 
  * @param[in]  name        Name of device
- * @param[in]  config_type variant, eg RUNNING/REMOTE/SYNCED
+ * @param[in]  config_type variant, eg RUNNING/TRANSIENT/SYNCED
  * @param[out] xp          XML tree reply
  * @retval     0           OK
  * @retval    -1           Error
@@ -762,16 +762,17 @@ cli_show_transactions(clixon_handle h,
     return retval;
 }
 
-/*! Send a sync-pull dryrun
+/*! Send a sync-pull transient
+ *
  * @param[in]   h    Clixon handle
  * @param[out]  tid  Transaction id
  * @retval      0    OK
  * @retval     -1    Error
  */
 static int
-send_pull_dryrun(clicon_handle h,
-                 char         *name,
-                 char        **tidstrp)
+send_pull_transient(clicon_handle h,
+                    char         *name,
+                    char        **tidstrp)
 {
     int        retval = -1;
     cbuf      *cb = NULL;
@@ -794,7 +795,7 @@ send_pull_dryrun(clicon_handle h,
             NETCONF_MESSAGE_ID_ATTR);
     cprintf(cb, "<sync-pull xmlns=\"%s\">", CONTROLLER_NAMESPACE);
     cprintf(cb, "<devname>%s</devname>", name);
-    cprintf(cb, "<dryrun>true</dryrun>>");
+    cprintf(cb, "<transient>true</transient>>");
     cprintf(cb, "</sync-pull>");
     cprintf(cb, "</rpc>");
     if (clixon_xml_parse_string(cbuf_get(cb), YB_NONE, NULL, &xtop, NULL) < 0)
@@ -839,7 +840,7 @@ send_pull_dryrun(clicon_handle h,
     return retval;
 }
 
-/*! Compare device config types: running with last saved synced or current device (dryrun)
+/*! Compare device config types: running with last saved synced or current device (transient)
  *
  * @param[in]   h             Clicon handle
  * @param[in]   cvv           name: device pattern
@@ -876,7 +877,8 @@ compare_device_config_type(clicon_handle h,
         clicon_err(OE_PLUGIN, EINVAL, "Received %d arguments. Expected: <format>]", cvec_len(argv));
         goto done;
     }
-    formatstr = cv_string_get(cvec_i(argv, 0));
+    cv = cvec_i(argv, 0);
+    formatstr = cv_string_get(cv);
     if ((int)(format = format_str2int(formatstr)) < 0){
         clicon_err(OE_PLUGIN, 0, "Not valid format: %s", formatstr);
         goto done;
@@ -884,14 +886,14 @@ compare_device_config_type(clicon_handle h,
     if ((cv = cvec_find(cvv, "name")) != NULL)
         pattern = cv_string_get(cv);
     /* If remote, start with requesting it asynchrously */
-    if (dt0 == DT_REMOTE || dt1 == DT_REMOTE){
-        /* Send sync-pull <dryrun> */
-        if (send_pull_dryrun(h, pattern, &tidstr) < 0)
+    if (dt0 == DT_TRANSIENT || dt1 == DT_TRANSIENT){
+        /* Send sync-pull <transient> */
+        if (send_pull_transient(h, pattern, &tidstr) < 0)
             goto done;
         /* Wait to complete transaction try ^C here */
         if (transaction_notification_poll(h, tidstr) < 0)
             goto done;
-        if (get_device_config(h, pattern, "REMOTE", &xt2) < 0)
+        if (get_device_config(h, pattern, "TRANSIENT", &xt2) < 0)
             goto done;        
     }
     /* Get first config */
@@ -943,7 +945,7 @@ compare_device_db_sync(clicon_handle h,
     return compare_device_config_type(h, cvv, argv, DT_RUNNING, DT_SYNCED);
 }
 
-/*! Compare device dbs: running with current device (dryrun)
+/*! Compare device dbs: running with current device (transient)
  *
  * @param[in] h     Clicon handle
  * @param[in] cvv  : name pattern or NULL
@@ -956,7 +958,7 @@ compare_device_db_dev(clicon_handle h,
                       cvec         *cvv,
                       cvec         *argv)
 {
-    return compare_device_config_type(h, cvv, argv, DT_RUNNING, DT_REMOTE);
+    return compare_device_config_type(h, cvv, argv, DT_RUNNING, DT_TRANSIENT);
 }
 
 /*! Check if device(s) is in sync
@@ -972,7 +974,7 @@ cli_check_sync(clixon_handle h,
                cvec         *argv)
 {
     // XXX just show true/false
-    return compare_device_config_type(h, cvv, argv, DT_RUNNING, DT_REMOTE);
+    return compare_device_config_type(h, cvv, argv, DT_RUNNING, DT_TRANSIENT);
 }
 
 int

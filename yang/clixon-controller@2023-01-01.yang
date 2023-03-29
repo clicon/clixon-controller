@@ -90,7 +90,7 @@ module clixon-controller {
              * unless a un-recoverable error which timeouts to CLOSED
              */
             enum PUSH-CHECK {
-                description  "Sync device dryrun to check if device is unchanged";
+                description  "Sync device transient to check if device is unchanged";
             }
             enum PUSH-EDIT {
                 description  "Edit-config sent, waiting for reply";
@@ -168,8 +168,10 @@ module clixon-controller {
             enum SYNCED {
                 description "Device config from last sync pull. A successful sync push also updates this config";
             }
-            enum REMOTE {
-                description "The actual configuration of the remote device.";
+            enum TRANSIENT {
+                description
+                   "The current configuration of the remote device. 
+                    Not saved on controller and only valid to the next device edit.";
             }
         }
     }
@@ -368,8 +370,8 @@ module clixon-controller {
         description
             "Read(pull) the config of one or several devices.
              The pulled config is either:
-             - cached as device-<devname>.xml and committed as master OR
-             - cached as device-<devname>-dryrun.xml (not installed)
+             - cached as device-<devname>-SYNCED.xml and committed as master OR
+             - cached as device-<devname>-TRANSIENT.xml (not installed)
              And potentially ";
         input {
             leaf devname {
@@ -386,7 +388,7 @@ module clixon-controller {
                 type boolean;
                 default false;
             }
-            leaf dryrun {
+            leaf transient {
                 description
                     "Get the device config but do not install it";
                 type boolean;
