@@ -36,6 +36,41 @@ echo "reset-controller"
 # Eg to force all client to run as root if there is problem with group assignment (see github actions)
 : ${PREFIX:=}
 
+# Send edit-config to controller with initial device meta-config
+function init_device_config()
+{
+    NAME=$1
+    ip=$2
+
+    ret=$(${PREFIX} ${clixon_netconf} -qe0 -f $CFG <<EOF
+<rpc xmlns="urn:ietf:params:xml:ns:netconf:base:1.0" 
+  xmlns:nc="urn:ietf:params:xml:ns:netconf:base:1.0" 
+  message-id="42">
+  <edit-config>
+    <target>
+      <candidate/>
+    </target>
+    <default-operation>none</default-operation>
+    <config>
+      <devices xmlns="http://clicon.org/controller">
+        <device nc:operation="replace">
+          <name>$NAME</name>
+          <enabled>true</enabled>
+          <description>$description</description>
+          <conn-type>NETCONF_SSH</conn-type>
+          <user>$user</user>
+          <addr>$ip</addr>
+          <yang-config>${yang_config}</yang-config>
+          <root/>
+        </device>
+      </devices>
+    </config>
+  </edit-config>
+</rpc>]]>]]>
+EOF
+       )
+}
+
 if $delete ; then
 
     echo "Delete device config"
@@ -67,41 +102,21 @@ fi # delete
 for i in $(seq 1 $nr); do
     NAME=$IMG$i
     ip=$(sudo docker inspect $NAME -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}')
-    
-    echo "Init config for device$i edit-config"
-    ret=$(${PREFIX} ${clixon_netconf} -qe0 -f $CFG <<EOF
-<rpc xmlns="urn:ietf:params:xml:ns:netconf:base:1.0" 
-  xmlns:nc="urn:ietf:params:xml:ns:netconf:base:1.0" 
-  message-id="42">
-  <edit-config>
-    <target>
-      <candidate/>
-    </target>
-    <default-operation>none</default-operation>
-    <config>
-      <devices xmlns="http://clicon.org/controller">
-        <device nc:operation="replace">
-          <name>$NAME</name>
-          <enabled>true</enabled>
-          <description>$description</description>
-          <conn-type>NETCONF_SSH</conn-type>
-          <user>$user</user>
-          <addr>$ip</addr>
-          <yang-config>${yang_config}</yang-config>
-          <root/>
-        </device>
-      </devices>
-    </config>
-  </edit-config>
-</rpc>]]>]]>
-EOF
-       )
-    echo "$ret"
-    match=$(echo "$ret" | grep --null -Eo "<rpc-error>") || true
-    if [ -n "$match" ]; then
-        echo "netconf rpc-error detected"
-        exit 1
-    fi
+
+    for j in $(seq 1 5); do    
+        init_device_config $NAME $ip
+        echo "$ret"
+        match=$(echo "$ret" | grep --null -Eo "<rpc-error>") || true
+        if [ -z "$match" ]; then
+            break
+        fi
+        match=$(echo "$ret" | grep --null -Eo "<error-tag>lock-denied</error-tag") || true
+        if [ -z "$match" ]; then
+            echo "netconf rpc-error detected"
+            exit 1
+        fi
+        sleep 1
+    done
 done
 
 echo "controller commit"

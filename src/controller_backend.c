@@ -129,6 +129,7 @@ controller_commit_device(clixon_handle h,
     cxobj                  *xn;
     int                     ret;
     char                   *enablestr;
+    cbuf                   *cberr = NULL;
     
     /* 1) if device removed, disconnect */
     if (xpath_vec_flag(src, nsc, "devices/device",
@@ -153,10 +154,10 @@ controller_commit_device(clixon_handle h,
             }
             else{
                 if (ct == NULL){
-                    if ((ret = controller_transaction_new(h, "commit", &ct)) < 0)
+                    if ((ret = controller_transaction_new(h, "commit", &ct, &cberr)) < 0)
                         goto done;
                     if (ret == 0){
-                        clicon_err(OE_XML, 0, "Transaction is ongoing 1");
+                        clicon_err(OE_XML, 0, cbuf_get(cberr));
                         goto done;
                     }
                 }
@@ -176,10 +177,10 @@ controller_commit_device(clixon_handle h,
             strcmp(enablestr, "false") == 0)
             continue;
         if (ct == NULL){
-            if ((ret = controller_transaction_new(h, "commit", &ct)) < 0)
+            if ((ret = controller_transaction_new(h, "commit", &ct, &cberr)) < 0)
                 goto done;
             if (ret == 0){
-                clicon_err(OE_XML, 0, "Transaction is ongoing 2");
+                clicon_err(OE_XML, 0, cbuf_get(cberr));
                 goto done;
             }
         }
@@ -188,12 +189,15 @@ controller_commit_device(clixon_handle h,
     }
     /* No device started, close transaction */
     if (ct && controller_transaction_devices(h, ct->ct_id) == 0){
-        controller_transaction_state_set(ct, TS_DONE, TR_SUCCESS);
+        if (controller_transaction_done(h, ct, TR_SUCCESS) < 0)
+            goto done;
         if (controller_transaction_notify(h, ct) < 0)
             goto done;
     }
     retval = 0;
  done:
+    if (cberr)
+        cbuf_free(cberr);
     if (vec1)
         free(vec1);
     if (vec2)
