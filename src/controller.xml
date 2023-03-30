@@ -38,11 +38,16 @@
        <module-name>junos-conf-root</module-name>
        <operation>enable</operation>
      </rule>
-     
      <rule>
-       <name>include arista</name>
-       <module-name>http://openconfig.net/yang/system</module-name>
+       <name>include arista system</name>
+       <module-name>openconfig-system</module-name>
        <operation>enable</operation>
      </rule>
+     <rule>
+       <name>include arista interfaces</name>
+       <module-name>openconfig-interfaces</module-name>
+       <operation>enable</operation>
+     </rule>
+     <!-- there are many more arista/openconfig top-level modules -->
   </autocli>
 </clixon-config>

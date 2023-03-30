@@ -37,6 +37,9 @@
 #ifndef _CONTROLLER_TRANSACTION_H
 #define _CONTROLLER_TRANSACTION_H
 
+/* Controller transaction id beyond 16-bit to != pid? */
+#define TRANSACTION_CLIENT_ID 0x199999
+
 /*! Clixon controller meta transactions spanning device operation
  */
 struct controller_transaction_t{
@@ -65,8 +68,10 @@ extern "C" {
 
 int   controller_transaction_state_set(controller_transaction *ct, transaction_state state, transaction_result result);
 int   controller_transaction_notify(clixon_handle h, controller_transaction *ct);
-int   controller_transaction_new(clicon_handle h, char *description, controller_transaction **ct);
+int   controller_transaction_new(clicon_handle h, char *description, controller_transaction **ct, cbuf **cberr);
 int   controller_transaction_free(clicon_handle h, controller_transaction *ct);
+int   controller_transaction_done(clicon_handle h, controller_transaction *ct, transaction_result result);
+
 controller_transaction *controller_transaction_find(clixon_handle h, const uint64_t id);
 int   controller_transaction_devices(clicon_handle h, uint64_t tid);
 int   controller_transaction_failed(clicon_handle h, uint64_t tid, controller_transaction *ct, device_handle dh,

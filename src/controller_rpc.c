@@ -334,13 +334,14 @@ rpc_sync_pull(clixon_handle h,
     int                     ret;
     controller_transaction *ct = NULL;
     char                   *str;
+    cbuf                   *cberr = NULL;
     
     clicon_debug(1, "%s", __FUNCTION__);
     /* Initiate new transaction */
-    if ((ret = controller_transaction_new(h, "sync pull", &ct)) < 0)
+    if ((ret = controller_transaction_new(h, "sync pull", &ct, &cberr)) < 0)
         goto done;
     if (ret == 0){
-        if (netconf_operation_failed(cbret, "application", "Transaction is ongoing")< 0)
+        if (netconf_operation_failed(cbret, "application", cbuf_get(cberr))< 0)
             goto done;
         goto ok;
     }
@@ -374,13 +375,16 @@ rpc_sync_pull(clixon_handle h,
     cprintf(cbret, "</rpc-reply>");
     /* No device started, close transaction */
     if (controller_transaction_devices(h, ct->ct_id) == 0){
-        controller_transaction_state_set(ct, TS_DONE, TR_SUCCESS);
+        if (controller_transaction_done(h, ct, TR_SUCCESS) < 0)
+            goto done;
         if (controller_transaction_notify(h, ct) < 0)
             goto done;
     } 
  ok:
     retval = 0;
  done:
+    if (cberr)
+        cbuf_free(cberr);
     if (vec)
         free(vec);
     if (xret)
@@ -419,13 +423,14 @@ rpc_sync_push(clixon_handle h,
     cxobj                  *xret = NULL;
     int                     i;
     int                     ret;
+    cbuf                   *cberr = NULL;
     
     clicon_debug(1, "%s", __FUNCTION__);
     /* Initiate new transaction */
-    if ((ret = controller_transaction_new(h, "sync push", &ct)) < 0)
+    if ((ret = controller_transaction_new(h, "sync push", &ct, &cberr)) < 0)
         goto done;
     if (ret == 0){
-        if (netconf_operation_failed(cbret, "application", "Transaction is ongoing")< 0)
+        if (netconf_operation_failed(cbret, "application", cbuf_get(cberr))< 0)
             goto done;
         goto failed;
     }
@@ -458,7 +463,8 @@ rpc_sync_push(clixon_handle h,
     cprintf(cbret, "</rpc-reply>");
     /* No device started, close transaction */
     if (controller_transaction_devices(h, ct->ct_id) == 0){
-        controller_transaction_state_set(ct, TS_DONE, TR_SUCCESS);
+        if (controller_transaction_done(h, ct, TR_SUCCESS) < 0)
+            goto done;
         if (controller_transaction_notify(h, ct) < 0)
             goto done;
     }
@@ -609,13 +615,14 @@ rpc_connection_change(clixon_handle h,
     client_entry           *ce;
     char                   *operation;
     int                     ret;
+    cbuf                   *cberr = NULL;
     
     clicon_debug(1, "%s", __FUNCTION__);
     ce = (client_entry *)arg;
-    if ((ret = controller_transaction_new(h, "connection change", &ct)) < 0)
+    if ((ret = controller_transaction_new(h, "connection change", &ct, &cberr)) < 0)
         goto done;
     if (ret == 0){
-        if (netconf_operation_failed(cbret, "application", "Transaction is ongoing")< 0)
+        if (netconf_operation_failed(cbret, "application", cbuf_get(cberr))< 0)
             goto done;
         goto ok;
     }
@@ -634,34 +641,44 @@ rpc_connection_change(clixon_handle h,
             continue;
         if (pattern != NULL && fnmatch(pattern, devname, 0) != 0)
             continue;
-        if (strcmp(operation, "close") == 0){
+        /* @see clixon-controller.yang connection-operation */
+        if (strcmp(operation, "CLOSE") == 0){
             if (device_handle_conn_state_get(dh) != CS_OPEN)
                 continue;
             device_close_connection(dh, "User request");
         }
-        else if (strcmp(operation, "open") == 0){
+        else if (strcmp(operation, "OPEN") == 0){
             if (device_handle_conn_state_get(dh) != CS_CLOSED)
                 continue;
+            if (controller_connect(h, xn, ct) < 0)
+                goto done;
         }
-        else if (strcmp(operation, "reconnect") == 0){
+        else if (strcmp(operation, "RECONNECT") == 0){
             if (device_handle_conn_state_get(dh) != CS_CLOSED)
                 device_close_connection(dh, "User request");
+            if (controller_connect(h, xn, ct) < 0)
+                goto done;
         }
-        if (controller_connect(h, xn, ct) < 0)
+        else {
+            clicon_err(OE_NETCONF, 0, "%s is not a conenction-operation", operation);
             goto done;
+        }
     } /* for */
     cprintf(cbret, "<rpc-reply xmlns=\"%s\">", NETCONF_BASE_NAMESPACE);
     cprintf(cbret, "<tid xmlns=\"%s\">%" PRIu64"</tid>", CONTROLLER_NAMESPACE, ct->ct_id);
     cprintf(cbret, "</rpc-reply>");
     /* No device started, close transaction */
     if (controller_transaction_devices(h, ct->ct_id) == 0){
-        controller_transaction_state_set(ct, TS_DONE, TR_SUCCESS);
+        if (controller_transaction_done(h, ct, TR_SUCCESS) < 0)
+            goto done;
         if (controller_transaction_notify(h, ct) < 0)
             goto done;
     } 
  ok:
     retval = 0;
  done:
+    if (cberr)
+        cbuf_free(cberr);
     if (vec)
         free(vec);
     if (xret)

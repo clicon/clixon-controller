@@ -897,7 +897,8 @@ device_state_handler(clixon_handle h,
                 if (controller_transaction_notify(h, ct) < 0)
                     goto done;
             }
-            controller_transaction_state_set(ct, TS_DONE, TR_SUCCESS);
+            if (controller_transaction_done(h, ct, TR_SUCCESS) < 0)
+                goto done;
         }
         break;
     case CS_PUSH_CHECK:
@@ -928,7 +929,8 @@ device_state_handler(clixon_handle h,
             device_handle_tid_set(dh, 0);
             /* 2.2.2.2 If no devices in transaction, mark as OK and close it*/
             if (controller_transaction_devices(h, tid) == 0){
-                controller_transaction_state_set(ct, TS_DONE, TR_FAILED);
+            if (controller_transaction_done(h, ct, TR_FAILED) < 0)
+                goto done;
             }
             break;
         }
@@ -1081,7 +1083,8 @@ device_state_handler(clixon_handle h,
                 if (controller_transaction_notify(h, ct) < 0)
                     goto done;
             }
-            controller_transaction_state_set(ct, TS_DONE, TR_SUCCESS);
+            if (controller_transaction_done(h, ct, TR_SUCCESS) < 0)
+                goto done;
             /* Copy transient to device config (last sync) */
             if (device_config_copy(h, name, "TRANSIENT", "SYNCED") < 0)
                 goto done;
