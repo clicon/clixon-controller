@@ -66,20 +66,22 @@ typedef void *device_handle; // duplicated from controller_device_handle.h
  * @see clixon-controller@2023-01-01.yang connection-state
  * @see csmap translation table
  */
-enum conn_state{
-    CS_CLOSED = 0,  /* Closed, also "closed" if handle non-existent but then no state */
-    CS_CONNECTING,  /* Connect() called, expect to receive hello from device
-                       May fail due to (1) connect fails or (2) hello not receivd */
-    CS_SCHEMA_LIST, /* Get ietf-netconf-monitor schema state */
-    CS_SCHEMA_ONE,  /* Connection established and Hello sent to device (nr substate) */
-    CS_DEVICE_SYNC, /* Get all config (dryrun+merge are sub-state parameters) */
-    CS_OPEN,        /* Connection established and Hello sent to device. */
-    CS_PUSH_EDIT,   /* edit-config sent, waiting for reply */
+enum conn_state_t {
+    CS_CLOSED = 0,    /* Closed, also "closed" if handle non-existent but then no state */
+    CS_CONNECTING,    /* Connect() called, expect to receive hello from device
+                         May fail due to (1) connect fails or (2) hello not receivd */
+    CS_SCHEMA_LIST,   /* Get ietf-netconf-monitor schema state */
+    CS_SCHEMA_ONE,    /* Connection established and Hello sent to device (nr substate) */
+    CS_DEVICE_SYNC,   /* Get all config (transient+merge are sub-state parameters) */
+    CS_OPEN,          /* Connection established and Hello sent to device. */
+    CS_PUSH_CHECK,    /* sync device transient to check if device is unchanged */
+    CS_PUSH_EDIT,     /* edit-config sent, waiting for reply */
     CS_PUSH_VALIDATE, /* validate sent, waiting for reply  */
-    CS_PUSH_WAIT,   /* Waiting for other devices to validate */
-    CS_PUSH_COMMIT  /* commit sent, waiting for reply (push) */
+    CS_PUSH_WAIT,     /* Waiting for other devices to validate */
+    CS_PUSH_COMMIT,   /* commit sent, waiting for reply ok */
+    CS_PUSH_DISCARD,  /* discard sent, waiting for reply ok */
 };
-typedef enum conn_state conn_state_t;
+typedef enum conn_state_t conn_state;
 
 /*! How to bind device configuration to YANG
  * @see clixon-controller@2023-01-01.yang yang-config
@@ -87,12 +89,12 @@ typedef enum conn_state conn_state_t;
  * @see validate_level  
  * XXX Could this be same as validate_level?
  */
-enum yang_config {
+enum yang_config_t {
     YF_NONE,     /* Do not bind YANG to config */
     YF_BIND,     /* Bind YANG model to config, but do not fully validate */
     YF_VALIDATE, /* Fully validate device config */
 };
-typedef enum yang_config yang_config_t;
+typedef enum yang_config_t yang_config_t;
 
 /*
  * Prototypes
@@ -101,9 +103,9 @@ typedef enum yang_config yang_config_t;
 extern "C" {
 #endif
     
-char        *device_state_int2str(conn_state_t state);
-conn_state_t device_state_str2int(char *str);
-yang_config_t yang_config_str2int(char *str);
+char        *device_state_int2str(conn_state state);
+conn_state   device_state_str2int(char *str);
+yang_config_t  yang_config_str2int(char *str);
 int          device_close_connection(device_handle ch, const char *format, ...) __attribute__ ((format (printf, 2, 3)));
 int          device_input_cb(int s, void *arg);
 int          device_send_sync(clixon_handle h, device_handle ch, int s);
@@ -111,8 +113,11 @@ int          device_state_mount_point_get(char *devicename, yang_stmt *yspec,
                                           cxobj **xtp, cxobj **xrootp);
 int          device_state_timeout_register(device_handle ch);
 int          device_state_timeout_unregister(device_handle ch);
-int          device_state_set(device_handle dh, conn_state_t state);
+int          device_state_set(device_handle dh, conn_state state);
+int          device_config_read(clicon_handle h, char *devname, char *config_type, cxobj **xrootp, cbuf *cbret);
+int          device_config_write(clixon_handle h, char *name, char *config_type, cxobj *xdata, cbuf *cbret);
 int          device_state_handler(clixon_handle h, device_handle ch, int s, cxobj *xmsg);
+int          devices_statedata(clixon_handle h, cvec *nsc, char *xpath, cxobj *xstate);
     
 #ifdef __cplusplus
 }

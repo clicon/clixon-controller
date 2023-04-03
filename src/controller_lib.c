@@ -46,6 +46,103 @@
 #include "controller.h"
 #include "controller_lib.h"
 
+/*! Mapping between enum transaction_state and yang transaction-state
+ * @see clixon-controller@2023-01-01.yang
+ */
+static const map_str2int tsmap[] = {
+    {"INIT",      TS_INIT},
+    {"RESOLVED",  TS_RESOLVED},
+    {"DONE",      TS_DONE},
+    {NULL,        -1}
+};
+
+/*! Mapping between enum transaction_result and yang transaction-result
+ * @see clixon-controller@2023-01-01.yang
+ */
+static const map_str2int trmap[] = {
+    {"ERROR",   TR_ERROR},
+    {"FAILED",  TR_FAILED},
+    {"SUCCESS", TR_SUCCESS},
+    {NULL,      -1}
+};
+
+/*! Mapping between enum device_config_type and yang device-config-type
+ * @see clixon-controller@2023-01-01.yang
+ */
+static const map_str2int dtmap[] = {
+    {"RUNNING",   DT_RUNNING},
+    {"CANDIDATE", DT_CANDIDATE},
+    {"SYNCED",    DT_SYNCED},
+    {"TRANSIENT", DT_TRANSIENT},
+    {NULL,        -1}
+};
+
+/*! Map controller transaction state from int to string 
+ *
+ * @param[in]  state  Transaction state as int
+ * @retval     str    Transaction state as string
+ */
+char *
+transaction_state_int2str(transaction_state state)
+{
+    return (char*)clicon_int2str(tsmap, state);
+}
+
+/*! Map controller transaction state from string to int 
+ *
+ * @param[in]  str    Transaction state as string
+ * @retval     state  Transaction state as int
+ */
+transaction_state
+transaction_state_str2int(char *str)
+{
+    return clicon_str2int(tsmap, str);
+}
+
+/*! Map controller transaction result from int to string 
+ *
+ * @param[in]  result Transaction result as int
+ * @retval     str    Transaction result as string
+ */
+char *
+transaction_result_int2str(transaction_result result)
+{
+    return (char*)clicon_int2str(trmap, result);
+}
+
+/*! Map controller transaction result from string to int 
+ *
+ * @param[in]  str    Transaction result as string
+ * @retval     result Transaction result as int
+ */
+transaction_result
+transaction_result_str2int(char *str)
+{
+    return clicon_str2int(trmap, str);
+}
+
+/*! Map device config type from int to string 
+ *
+ * @param[in]  typ    Device config typeas int
+ * @retval     str    Device config type as string
+ */
+char *
+device_config_type_int2str(device_config_type t)
+{
+    return (char*)clicon_int2str(dtmap, t);
+}
+
+/*! Map device config type from string to int 
+ *
+ * @param[in]  str    Device config type as string
+ * @retval     type   Device config type as int
+ */
+device_config_type
+device_config_type_str2int(char *str)
+{
+    return clicon_str2int(dtmap, str);
+}
+
 #ifdef CONTROLLER_JUNOS_ADD_COMMAND_FORWARDING
 /*! Rewrite of junos YANGs after parsing
  *

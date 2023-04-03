@@ -46,15 +46,15 @@ extern "C" {
 #endif
     
 int device_state_recv_hello(clixon_handle h, device_handle dh, int s, cxobj *xmsg,
-                            char *rpcname, conn_state_t  conn_state);
+                            char *rpcname, conn_state  conn_state);
 int device_state_recv_config(clixon_handle h, device_handle dh, cxobj *xmsg,
-                             yang_stmt *yspec0, char *rpcname, conn_state_t conn_state);
+                             yang_stmt *yspec0, char *rpcname, conn_state conn_state);
 int device_state_recv_schema_list(device_handle dh, cxobj *xmsg, char *rpcname,
-                                  conn_state_t conn_state);
+                                  conn_state conn_state);
 int device_state_recv_get_schema(device_handle dh, cxobj *xmsg, char *rpcname,
-                                 conn_state_t conn_state);
+                                 conn_state conn_state);
 int device_state_recv_ok(device_handle dh, cxobj *xmsg, char *rpcname,
-                         conn_state_t conn_state);
+                         conn_state conn_state, cbuf **cberr);
     
 #ifdef __cplusplus
 }

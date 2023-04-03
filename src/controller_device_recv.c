@@ -47,6 +47,7 @@
 
 /* Controller includes */
 #include "controller.h"
+#include "controller_lib.h"
 #include "controller_netconf.h"
 #include "controller_device_state.h"
 #include "controller_device_handle.h"
@@ -67,13 +68,13 @@ static int
 rpc_reply_sanity(device_handle dh,
                  cxobj        *xmsg,
                  char         *rpcname,
-                 conn_state_t  conn_state)
+                 conn_state    conn_state)
 {
     int   retval = -1;
     cvec *nsc = NULL;
     char *rpcprefix;
     char *namespace;
-
+    
     if (strcmp(rpcname, "rpc-reply") != 0){
         device_close_connection(dh, "Unexpected msg %s in state %s",
                                 rpcname, device_state_int2str(conn_state));
@@ -197,7 +198,7 @@ device_state_recv_hello(clixon_handle h,
                         int           s,
                         cxobj        *xmsg,
                         char         *rpcname,
-                        conn_state_t  conn_state)
+                        conn_state    conn_state)
 {
     int     retval = -1;
     char   *rpcprefix;
@@ -216,7 +217,7 @@ device_state_recv_hello(clixon_handle h,
         goto closed;
     }
     if (namespace == NULL || strcmp(namespace, NETCONF_BASE_NAMESPACE) != 0){
-        device_close_connection(dh,  "No appropriate namespace associated with %s",
+        device_close_connection(dh, "No appropriate namespace associated with %s",
                    namespace);
         goto closed;
     }
@@ -237,7 +238,7 @@ device_state_recv_hello(clixon_handle h,
     else if (device_handle_capabilities_find(dh, NETCONF_BASE_CAPABILITY_1_0))
         version = 0;
     else{
-        device_close_connection(dh,  "No base netconf capability found");
+        device_close_connection(dh, "No base netconf capability found");
         goto closed;
     }
     clicon_debug(1, "%s version: %d", __FUNCTION__, version);
@@ -250,51 +251,6 @@ device_state_recv_hello(clixon_handle h,
  done:
    if (nsc)
        cvec_free(nsc);
-    return retval;
- closed:
-    retval = 0;
-    goto done;
-}
-
-/*! Get a config from device, write to db file without sanity of yang checks
- *
- * @param[in] h          Clixon handle.
- */
-static int
-device_config_write(clixon_handle h,
-                    device_handle dh,
-                    char         *name,
-                    char         *extended,
-                    cxobj        *xdata,
-                    cbuf         *cbret)
-{
-    int    retval = -1;
-    cbuf  *cbdb = NULL;
-    char  *db;
-    int    ret;
-
-    if ((cbdb = cbuf_new()) == NULL){
-        clicon_err(OE_UNIX, errno, "cbuf_new");
-        goto done;
-    }   
-    if (extended)
-        cprintf(cbdb, "device-%s-%s", name, extended);
-    else
-        cprintf(cbdb, "device-%s", name);
-    db = cbuf_get(cbdb);
-    if (xmldb_db_reset(h, db) < 0)
-        goto done;
-    if ((ret = xmldb_put(h, db, OP_REPLACE, xdata, clicon_username_get(h), cbret)) < 0)
-        goto done;
-    if (ret == 0){
-        if (device_close_connection(dh, "Failed to sync db: %s", cbuf_get(cbret)) < 0)
-            goto done;
-        goto closed;
-    }
-    retval = 1;
- done:
-    if (cbdb)
-        cbuf_free(cbdb);
     return retval;
  closed:
     retval = 0;
@@ -319,7 +275,7 @@ device_state_recv_config(clixon_handle h,
                          cxobj        *xmsg,
                          yang_stmt    *yspec0,
                          char         *rpcname,
-                         conn_state_t  conn_state)
+                         conn_state    conn_state)
 {
     int                     retval = -1;
     cxobj                  *xdata;
@@ -338,7 +294,7 @@ device_state_recv_config(clixon_handle h,
     uint64_t                tid;
     controller_transaction *ct;
     int                     merge = 0;
-    int                     dryrun = 0;
+    int                     transient = 0;
 
     clicon_debug(1, "%s", __FUNCTION__);
     //    clicon_debug(CLIXON_DBG_DETAIL, "%s", __FUNCTION__);
@@ -359,7 +315,6 @@ device_state_recv_config(clixon_handle h,
         clicon_err(OE_UNIX, errno, "cbuf_new");
         goto done;
     }
-
     /* Create config tree (xt) and device mount-point (xroot) */
     if (device_state_mount_point_get(name, yspec0, &xt, &xroot) < 0)
         goto done;
@@ -410,10 +365,11 @@ device_state_recv_config(clixon_handle h,
         goto done;
     if (xml_prefix_set(xa, NETCONF_BASE_PREFIX) < 0)
         goto done;
+    /* Special handling if part of transaction. XXX: currently not activated */
     if ((tid = device_handle_tid_get(dh)) != 0 &&
         (ct = controller_transaction_find(h, tid)) != NULL){
-        merge = ct->ct_merge;
-        dryrun = ct->ct_dryrun;
+        merge = ct->ct_pull_merge;
+        transient = ct->ct_pull_transient;
     }
     if (merge){
         if (xml_value_set(xa, xml_operation2str(OP_MERGE)) < 0)
@@ -423,39 +379,52 @@ device_state_recv_config(clixon_handle h,
         if (xml_value_set(xa, xml_operation2str(OP_REPLACE)) < 0)
             goto done;
     }
-    if (dryrun){
-        if ((ret = device_config_write(h, dh, name, "dryrun", xt, cbret)) < 0)
+    if (transient){
+        if ((ret = device_config_write(h, name, "TRANSIENT", xt, cbret)) < 0)
             goto done;
-        if (ret == 0)
+        if (ret == 0){
+            if (device_close_connection(dh, "%s", cbuf_get(cbret)) < 0)
+                goto done;
             goto closed;
+        }
         goto ok;
     }
     if ((ret = xmldb_put(h, "candidate", OP_NONE, xt, NULL, cbret)) < 0)
         goto done;
-    if (ret && (ret = candidate_commit(h, NULL, "candidate", 0, 0, cbret)) < 0)
-        goto done;
+    if (ret == 1){
+        /* XXX trigger plugin which starts a commit transaction */
+        if ((ret = candidate_commit(h, NULL, "candidate", 0, 0, cbret)) < 0){
+            /* Handle that candidate_commit can return < 0 if transaction ongoing */        
+            cprintf(cbret, "%s", clicon_err_reason);
+            ret = 0;
+        }
+        if (ret == 0){
+            /* Manoever to get some errinfo from cberr */
+            if (clixon_xml_parse_string(cbuf_get(cbret), YB_NONE, NULL, &xerr, NULL) != -1){
+                cbuf_reset(cbret);
+                if (netconf_err2cb(xerr, cbret) < 0)
+                    goto done;
+            }
+        }
+    }
     if (ret == 0){ /* discard */
         xmldb_copy(h, "running", "candidate");            
         xmldb_modified_set(h, "candidate", 0); /* reset dirty bit */
         clicon_debug(CLIXON_DBG_DEFAULT, "%s", cbuf_get(cbret));
-        if (device_close_connection(dh, 
-#if 0
-                                    /* XXX cbret is XML and looks ugly in logmsg (at least encode it?)*/
-                                    "Failed to commit: %s", cbuf_get(cbret)
-#else
-                                    "Failed to commit"
-#endif
-                                    ) < 0)
+        if (device_close_connection(dh, "Failed to commit: %s", cbuf_get(cbret)) < 0)
             goto done;
         goto closed;
     }
     else {
         device_handle_sync_time_set(dh, NULL);
     }
-    if ((ret = device_config_write(h, dh, name, NULL, xt, cbret)) < 0)
+    if ((ret = device_config_write(h, name, "SYNCED", xt, cbret)) < 0)
         goto done;
-    if (ret == 0)
+    if (ret == 0){
+        if (device_close_connection(dh, "%s", cbuf_get(cbret)) < 0)
+            goto done;
         goto closed;
+    }
  ok:
     retval = 1;
  done:
@@ -489,7 +458,7 @@ int
 device_state_recv_schema_list(device_handle dh,
                               cxobj        *xmsg,
                               char         *rpcname,
-                              conn_state_t  conn_state)
+                              conn_state    conn_state)
 {
     int    retval = -1;
     cxobj *xschemas = NULL;
@@ -563,7 +532,7 @@ int
 device_state_recv_get_schema(device_handle dh,
                              cxobj        *xmsg,
                              char         *rpcname,
-                             conn_state_t  conn_state)
+                             conn_state    conn_state)
 {
     int         retval = -1;
     char       *ystr;
@@ -627,25 +596,29 @@ device_state_recv_get_schema(device_handle dh,
 
 /*! Controller input wresp to open state handling, read rpc-reply
  *
- * @param[in] dh         Clixon client handle.
- * @param[in] xmsg       XML tree of incoming message
- * @param[in] yspec      Yang top-level spec
- * @param[in] rpcname    Name of RPC, only "rpc-reply" expected here
- * @param[in] conn_state Device connection state
- * @retval    1          OK
- * @retval    0          Closed
- * @retval   -1          Error
+ * @param[in]  dh         Clixon client handle.
+ * @param[in]  xmsg       XML tree of incoming message
+ * @param[in]  yspec      Yang top-level spec
+ * @param[in]  rpcname    Name of RPC, only "rpc-reply" expected here
+ * @param[in]  conn_state Device connection state
+ * @param[out] cberr      Error, free with cbuf_err (retval = 0)
+ * @retval     2          OK
+ * @retval     1          Closed
+ * @retval     0          Failed: receivced rpc-error or not <ok> (not closed)
+ * @retval    -1          Error
  */
 int
 device_state_recv_ok(device_handle dh,
                      cxobj        *xmsg,
                      char         *rpcname,
-                     conn_state_t  conn_state)
+                     conn_state    conn_state,
+                     cbuf        **cberr)
 {
     int    retval = -1;
     int    ret;
     cxobj *xerr;
     cxobj *x;
+    cbuf  *cb = NULL;
 
     if ((ret = rpc_reply_sanity(dh, xmsg, rpcname, conn_state)) < 0)
         goto done;
@@ -653,21 +626,44 @@ device_state_recv_ok(device_handle dh,
         goto closed;
     if ((xerr = xpath_first(xmsg, NULL, "rpc-error")) != NULL){
         x = xpath_first(xerr, NULL, "error-message");
-        device_close_connection(dh, "Error %s in state %s",
-                                x?xml_body(x):"reply",
-                                device_state_int2str(conn_state));
-        goto closed;
+        if ((cb = cbuf_new()) == NULL){
+            clicon_err(OE_UNIX, errno, "cbuf_new");
+            goto done;
+        }
+        cprintf(cb, "Error %s in state %s of device %s",
+                x?xml_body(x):"reply",
+                device_state_int2str(conn_state),
+                device_handle_name_get(dh));
+        if (cberr){
+            *cberr = cb;
+            cb = NULL;
+        }
+        goto failed;
     }
     if (xml_find_type(xmsg, NULL, "ok", CX_ELMNT) == NULL){
-        device_close_connection(dh, "No ok in reply in state %s",
-                                device_state_int2str(conn_state));
-        goto closed;
+        if ((cb = cbuf_new()) == NULL){
+            clicon_err(OE_UNIX, errno, "cbuf_new");
+            goto done;
+        }
+        cprintf(cb, "No ok in reply in state %s of device %s",
+                device_state_int2str(conn_state),
+                device_handle_name_get(dh));
+        if (cberr){
+            *cberr = cb;
+            cb = NULL;
+        }
+        goto failed;
     }
-    retval = 1;
+    retval = 2;
  done:
+    if (cb)
+        cbuf_free(cb);
     return retval;
- closed:
+ failed:
     retval = 0;
+    goto done;
+ closed:
+    retval = 1;
     goto done;
 }
 

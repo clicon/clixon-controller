@@ -56,6 +56,10 @@ module clixon-controller {
                 "Not connected
                  Implicitly if no state exists for device, it is in CLOSED state";
             }
+            enum OPEN {
+                description  "Connection is open";
+            }
+            /* From here down INIT process */
             enum CONNECTING {
                 description
                 "Connection initiated: connect called
@@ -82,15 +86,92 @@ module clixon-controller {
                      is sent.
                     Transient state that timeout to CLOSED.";
             }
-            enum OPEN {
-                description
-                "Connection is open";
+            /* From here down PUSH process. All these timeout to OPEN,
+             * unless a un-recoverable error which timeouts to CLOSED
+             */
+            enum PUSH-CHECK {
+                description  "Sync device transient to check if device is unchanged";
             }
-            enum WRESP {
+            enum PUSH-EDIT {
+                description  "Edit-config sent, waiting for reply";
+            }
+            enum PUSH-VALIDATE{
+                description  "Validate sent, waiting for reply";
+            }
+            enum PUSH-COMMIT{
+                description  "Commit sent, waiting for reply ok";
+            }
+            enum PUSH-DISCARD{
+                description  "Discard sent, waiting for reply";
+            }
+        }
+    }
+    typedef connection-operation{
+        description
+            "Device connection state. 
+             The controller holds this connection state per device.";
+        type enumeration{
+            enum CLOSE {
+                description "Close connection";
+            }
+            enum OPEN {
+                description "Open connection";
+            }
+            enum RECONNECT {
+                description "Reconnect connection";
+            }
+        }
+    }
+    typedef transaction-state{
+        description
+            "Transaction state.";
+        type enumeration{
+            enum INIT {
+                description "Started transaction";
+            }
+            enum RESOLVED {
                 description
-                "Netconf reuest is sent, waiting for response.
-                 Transient state that timeout to CLOSED.
-                Currently not used, OBSOLETE?";
+                "The result of the transaction resolved.
+                 Note that successful transactions are not in this state, they pass directly to closed,
+                 while failed transactions use this state for error handling.";
+            }
+            enum DONE {
+                description "Terminated, inactive transaction, with result";
+            }
+        }
+    }
+    typedef transaction-result{
+        description
+            "Transaction result as set in resolved and closed state.";
+        type enumeration{
+            enum ERROR {
+                description "Transaction failed in an inconsistent state, not recoverable";
+            }
+            enum FAILED {
+                description "Transaction failed but reverted successfully";
+            }
+            enum SUCCESS {
+                description "Transaction completed successfully";
+            }
+        }
+    }
+    typedef device-config-type{
+        description
+            "Transaction configuration type.";
+        type enumeration{
+            enum RUNNING {
+                description "Device config that the controller has in its running config";
+            }
+            enum CANDIDATE {
+                description "Device config that the controller has in its candidate config";
+            }
+            enum SYNCED {
+                description "Device config from last sync pull. A successful sync push also updates this config";
+            }
+            enum TRANSIENT {
+                description
+                   "The current configuration of the remote device. 
+                    Not saved on controller and only valid to the next device edit.";
             }
         }
     }
@@ -140,6 +221,10 @@ module clixon-controller {
             leaf description{
                 description
                     "Description of node";
+                type string;
+            }
+            leaf device-type{
+                description "Type of device";
                 type string;
             }
             leaf enabled {
@@ -192,7 +277,7 @@ module clixon-controller {
                 }
             }
             leaf conn-state-timestamp {
-                description "Timestamp of when entering current state";
+                description "Timestamp when entering current state";
                 config false;
                 type yang:date-and-time;
             }
@@ -216,6 +301,45 @@ module clixon-controller {
             }
         }
     }
+    container transactions {
+        config false;
+        description
+            "Info about clixon controller device transaction.
+             A controller transaction spans commits on the controller as well as device actions,
+             such as pushing edits, validate, and commit of device configs.";
+        list transaction {
+            description "Transaction info";
+            key tid;
+            leaf tid{
+                description "Transaction id";
+                type uint64;
+            }
+            leaf state {
+                description "Transaction state";
+                type transaction-state;
+            }
+            leaf result {
+                description "Transaction result";
+                type transaction-result;
+            }
+            leaf description {
+                description "Description of transacttion";
+                type string;
+            }
+            leaf origin {
+                description "Originator of error";
+                type string;
+            }
+            leaf reason {
+                description "Reason for terminating transaction";
+                type string;
+            }
+            leaf timestamp {
+                description "Timestamp when entering current state";
+                type yang:date-and-time;
+            }
+        }
+    }
     notification services-commit {
         description
             "A commit has been made that changes the services declaration and
@@ -232,9 +356,9 @@ module clixon-controller {
             description "Transaction id";
             mandatory true;
         }
-        leaf status {
-            type boolean;
-            description "Status of transaction termination: true: ok, false; error.";
+        leaf result {
+            type transaction-result;
+            description "Status at transaction termination";
             mandatory true;
         }
         leaf reason {
@@ -246,8 +370,8 @@ module clixon-controller {
         description
             "Read(pull) the config of one or several devices.
              The pulled config is either:
-             - cached as device-<devname>.xml and committed as master OR
-             - cached as device-<devname>-dryrun.xml (not installed)
+             - cached as device-<devname>-SYNCED.xml and committed as master OR
+             - cached as device-<devname>-TRANSIENT.xml (not installed)
              And potentially ";
         input {
             leaf devname {
@@ -264,7 +388,7 @@ module clixon-controller {
                 type boolean;
                 default false;
             }
-            leaf dryrun {
+            leaf transient {
                 description
                     "Get the device config but do not install it";
                 type boolean;
@@ -286,7 +410,7 @@ module clixon-controller {
                     "Name of device to push to, can use wildchars for several.";
                 type string;
             }
-            leaf dryrun {
+            leaf validate {
                 description "Validate on device, but do not commit";
                 type boolean;
                 default false;
@@ -304,14 +428,8 @@ module clixon-controller {
             "Apply service scripts: trigger services-commit notification, 
              typically together with a commit.
              XXX: no way to terminate this transaction?";
-        output {
-            leaf tid {
-                description "Id of allocated transaction, can be used for notification";
-                type uint64;
-            }
-        }
     }
-    rpc reconnect {
+    rpc connection-change {
         description
             "(Re)connect try an enabled device in CLOSED state.
              If closed due to error it may need to be cleared and reconnected.";
@@ -320,6 +438,11 @@ module clixon-controller {
                 description
                     "Name of device or pattern of devices to reconnect.";
                 type string;
+            }
+            leaf operation {
+                description "close, open, reconnect";
+                type connection-operation;
+                default 0;
             }
         }
         output {
@@ -340,9 +463,10 @@ module clixon-controller {
                 description "Name of device";
                 type string;
             }
-            leaf extended{
-                description "Extended name, eg 'dryrun', see sync-pull";
-                type string;
+            leaf config-type{
+                description "Devie config type";
+                type device-config-type;
+                mandatory true;
             }
         }
         output {

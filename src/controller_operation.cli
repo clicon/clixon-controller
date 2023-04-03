@@ -45,20 +45,25 @@ show("Show a particular state of the system"){
        [<ns:string>("Namespace")], show_conf_xpath("running");
     version("Show version"), cli_show_version("running", "text", "/");
     options("Show clixon options"), cli_show_options();
-    compare("Compare candidate and running databases"), compare_dbs((int32)1);{
-          xml("Show comparison in xml"), compare_dbs((int32)0);
-	  text("Show comparison in text"), compare_dbs((int32)1);
-          device("Compare device sync with running") (<name:string>("device pattern")|<name:string expand_dbvar("running","/clixon-controller:devices/device/name")>("device pattern")), compare_device_dbs((int32)1);{
-    		         xml("Show comparison in xml"), compare_device_dbs((int32)0);
-		         text("Show comparison in text"), compare_device_dbs((int32)1);
+    compare("Compare candidate and running databases"), compare_dbs("text");{
+          xml("Show comparison in xml"), compare_dbs("xml");
+	  text("Show comparison in text"), compare_dbs("text");
+          device("Compare device sync with running") [(<name:string>("device pattern")|<name:string expand_dbvar("running","/clixon-controller:devices/device/name")>("device pattern"))], compare_device_db_sync("text");{
+    		         xml("Show comparison in xml"), compare_device_db_sync("xml");
+		         text("Show comparison in text"), compare_device_db_sync("text");
                      }
     }
     devices("Show state of devices")[
                  (<name:string>("device pattern")|
                   <name:string expand_dbvar("running","/clixon-controller:devices/device/name")>("device pattern"))
                  ], cli_show_devices();{
-                 sync("Check if device is in sync"), cli_check_sync(); # XXX
+                 sync("Check if device is in sync"), cli_check_sync();
+                 detail("Show detailed state"), cli_show_devices("detail");
                  }
+    transactions("Show state of las t transaction"), cli_show_transactions("last");{
+         last("Last most recent transactions"), cli_show_transactions("last");
+         all("All transactions"), cli_show_transactions("all");
+    }
     state("Show configuration and state"), cli_show_auto_mode("running", "text", true, true); {
     	    xml("Show configuration and state as XML"), cli_show_auto_mode("running", "xml", true, true);{
 	    default("With-default mode"){
@@ -88,23 +93,29 @@ sync("Read the config of one or several devices.") {
     pull("sync config from one or multiple devices")[
                  (<name:string>("device pattern")|
                   <name:string expand_dbvar("running","/clixon-controller:devices/device/name")>("device pattern"))
-                 ], cli_sync_rpc("pull", "replace");{
-                    compare, cli_sync_compare();
-                    replace, cli_sync_rpc("pull", "replace");
-                    merge, cli_sync_rpc("pull", "merge");
+                 ], cli_rpc_sync_pull("replace");{
+                    compare, compare_device_db_dev("text");{
+    		         xml("Show comparison in xml"), compare_device_db_dev("xml");
+		         text("Show comparison in text"), compare_device_db_dev("text");
+                    }
+                    replace, cli_rpc_sync_pull("replace");
+                    merge, cli_rpc_sync_pull("merge");
                  }
     push("sync config to one or multiple devices")[
                  (<name:string>("device pattern")|
                   <name:string expand_dbvar("running","/clixon-controller:devices/device/name")>("device pattern"))
-                 ], cli_sync_rpc("push", "commit");{
-                    dryrun("Push to devices and validate"), cli_sync_rpc("push", "dryrun");
-                    commit("Push to devices and commit"), cli_sync_rpc("push", "commit");
+                 ], cli_rpc_sync_push("commit");{
+                    validate("Push to devices and validate"), cli_rpc_sync_push("validate");
+                    commit("Push to devices and commit"), cli_rpc_sync_push("commit");
                  }
-
 }
 
-reconnect("Reconnect one or several devices in closed state")  [<name:string>("device pattern")|
-                  <name:string expand_dbvar("running","/clixon-controller:devices/device/name")>("device pattern")], cli_reconnect();
+connection("Reconnect one or several devices in closed state")  [<name:string>("device pattern")|
+              <name:string expand_dbvar("running","/clixon-controller:devices/device/name")>("device pattern")]{
+              close("Close open connections"), cli_connection_change("CLOSE");
+              open("Open closed connections"), cli_connection_change("OPEN");
+              reconnect("Close all open connections and open all connections"), cli_connection_change("RECONNECT");
+              }
 
-services("Services operation") apply("(re)apply services scripts"), cli_services_apply();
+services("Services operation") reapply("(re)apply services scripts"), cli_services_apply();
 
