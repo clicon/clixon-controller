@@ -71,7 +71,7 @@ struct controller_device_handle{
     uint32_t           cdh_magic;      /* Magic number */
     char              *cdh_name;       /* Connection name */
     yang_config_t      cdh_yang_config; /* Yang config (shadow of config) */
-    conn_state_t       cdh_conn_state; /* Connection state */
+    conn_state         cdh_conn_state; /* Connection state */
     struct timeval     cdh_conn_time;  /* Time when entering last connection state */
     clixon_handle      cdh_h;          /* Clixon handle */ 
     clixon_client_type cdh_type;       /* Clixon socket type */
@@ -90,6 +90,7 @@ struct controller_device_handle{
     char              *cdh_schema_name; /* Pending schema name */
     char              *cdh_schema_rev;  /* Pending schema revision */
     char              *cdh_logmsg;      /* Error log message / reason of failed open */
+    cbuf              *cdh_outmsg;      /* Pending outgoing netconf message for delayed output */
 };
 
 /*! Check struct magic number for sanity checks
@@ -166,6 +167,8 @@ device_handle_handle_free(struct controller_device_handle *cdh)
         free(cdh->cdh_schema_name);
     if (cdh->cdh_schema_rev)
         free(cdh->cdh_schema_rev);
+    if (cdh->cdh_outmsg)
+        cbuf_free(cdh->cdh_outmsg);
     free(cdh);
     return 0;
 }
@@ -242,13 +245,18 @@ device_handle_find(clixon_handle h,
 }
 
 /*! Iterator over device-handles
+ * @code
+ *    device_handle dh = NULL;
+ *    while ((dh = device_handle_each(h, dh)) != NULL){
+ *       dh...
+ * @endcode
  */
 device_handle 
 device_handle_each(clixon_handle h,
                    device_handle dhprev)
 {
     struct controller_device_handle *cdh = (struct controller_device_handle *)dhprev;
-    struct controller_device_handle *cdh0;
+    struct controller_device_handle *cdh0 = NULL;
 
     clicon_ptr_get(h, "client-list", (void**)&cdh0);
     if (cdh == NULL)
@@ -324,7 +332,7 @@ device_handle_disconnect(device_handle dh)
     int                              retval = -1;
     struct controller_device_handle *cdh = devhandle(dh);
     
-    clicon_debug(1, "%s", __FUNCTION__);
+    clicon_debug(1, "%s %s", __FUNCTION__, cdh->cdh_name);
     if (cdh == NULL){
         clicon_err(OE_XML, EINVAL, "Expected cdh handle");
         goto done;
@@ -336,6 +344,7 @@ device_handle_disconnect(device_handle dh)
         break;
     case CLIXON_CLIENT_SSH:
     case CLIXON_CLIENT_NETCONF:
+        assert(cdh->cdh_pid && cdh->cdh_socket != -1);
         if (clixon_proc_socket_close(cdh->cdh_pid,
                                      cdh->cdh_socket) < 0)
             goto done;
@@ -345,6 +354,7 @@ device_handle_disconnect(device_handle dh)
     }
     retval = 0;
  done:
+    clicon_debug(1, "%s retval:%d", __FUNCTION__, retval);
     return retval;
 }
 
@@ -458,7 +468,7 @@ device_handle_yang_config_set(device_handle dh,
  * @param[in]  dh     Device handle
  * @retval     state
  */
-conn_state_t
+conn_state
 device_handle_conn_state_get(device_handle dh)
 {
     struct controller_device_handle *cdh = devhandle(dh);
@@ -473,10 +483,11 @@ device_handle_conn_state_get(device_handle dh)
  */
 int
 device_handle_conn_state_set(device_handle dh,
-                             conn_state_t  state)
+                             conn_state    state)
 {
     struct controller_device_handle *cdh = devhandle(dh);
 
+    assert(device_state_int2str(state)!=NULL);
     clicon_debug(1, "%s %s: %s -> %s",
                  __FUNCTION__,
                  device_handle_name_get(dh),
@@ -488,9 +499,7 @@ device_handle_conn_state_set(device_handle dh,
         free(cdh->cdh_logmsg);
         cdh->cdh_logmsg = NULL;
     }
-
     cdh->cdh_conn_state = state;
-
     device_handle_conn_time_set(dh, NULL);
     return 0;
 }
@@ -518,6 +527,7 @@ device_handle_conn_time_set(device_handle   dh,
                             struct timeval *t)
 {
     struct controller_device_handle *cdh = devhandle(dh);
+
     if (t == NULL)
         gettimeofday(&cdh->cdh_conn_time, NULL);
     else
@@ -839,6 +849,39 @@ device_handle_logmsg_set(device_handle dh,
     if (cdh->cdh_logmsg)
         free(cdh->cdh_logmsg);
     cdh->cdh_logmsg = logmsg;
+    return 0;
+}
+
+/*! Get pending netconf outmsg
+ *
+ * @param[in]  dh     Device handle
+ * @retval     msg
+ * @retval     NULL
+ */
+cbuf*
+device_handle_outmsg_get(device_handle dh)
+{
+    struct controller_device_handle *cdh = devhandle(dh);
+
+    return cdh->cdh_outmsg;
+}
+
+/*! Set pending netconf outmsg
+ *
+ * @param[in]  dh   Device handle
+ * @param[in]  cb   Netconf msg
+ */
+int
+device_handle_outmsg_set(device_handle dh,
+                         cbuf         *cb)
+{
+    struct controller_device_handle *cdh = devhandle(dh);
+
+    if (cdh->cdh_outmsg){
+        cbuf_free(cdh->cdh_outmsg);
+        cdh->cdh_outmsg = NULL;
+    }
+    cdh->cdh_outmsg = cb;
     return 0;
 }
 

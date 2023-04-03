@@ -32,5 +32,6 @@ jobs:
     - name: Start controller
       run: sudo clixon_backend -f /usr/local/etc/controller.xml
     - name: Run all tests
+    # Note PREFIX=sudo because cannot get clicon group correct
       run: (cd test; PREFIX=sudo ./all.sh)
 
