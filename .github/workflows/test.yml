@@ -2,9 +2,9 @@ name: Clixon Controller CI
 
 on:
   push:
-    branches: [ main ]
+    branches: [ actions_pyapi ]
   pull_request:
-    branches: [ main ]
+    branches: [ actions_pyapi ]
 
 jobs:
   build:
@@ -24,8 +24,22 @@ jobs:
       run: sudo usermod -a -G clicon runner
     - name: install clixon native
       run: (git clone https://github.com/clicon/clixon.git && cd clixon && ./configure && make && sudo make install)
+    - name: fix lib links
+      run: sudo ldconfig
+    - name: install clixon controller
+      run: (git clone https://github.com/clicon/clixon-controller.git && cd clixon-controller && git checkout actions_pyapi && ./configure && make && sudo make install)
+    - name: fix lib links
+      run: sudo ldconfig
+    - name: install test yang specs
+      run: sudo cp clixon-controller/test/yang/* /usr/local/share/clixon/controller/
     - name: install clixon-pyapi
-      run: (git clone https://github.com/clicon/clixon-pyapi.git && cd clixon-pyapi && sudo python3 setup.py install && sudo cp clixon_server.py /usr/local/bin/)
+      run: (git clone https://github.com/clicon/clixon-pyapi.git && cd clixon-pyapi && sudo python3 setup.py install)
+    - name: install PyAPI dependencies
+      run: (cd clixon-pyapi && pip3 install -r requirements.txt)
+    - name: install PyAPI server
+      run: sudo cp clixon-pyapi/clixon_server.py /usr/local/bin/
+    - name: start PyAPI server
+      run: python3 /usr/local/bin/clixon_server.py -m clixon-controller/test/py/
 # 2)  Run tests
     - name: Start devices
       run: (cd test; ./start-devices.sh)
@@ -34,4 +48,3 @@ jobs:
     - name: Run all tests
     # Note PREFIX=sudo because cannot get clicon group correct
       run: (cd test; PREFIX=sudo ./all.sh)
-
