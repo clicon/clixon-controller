@@ -24,14 +24,8 @@ jobs:
       run: sudo usermod -a -G clicon runner
     - name: install clixon native
       run: (git clone https://github.com/clicon/clixon.git && cd clixon && ./configure && make && sudo make install)
-    - name: configure
-      run: ./configure
-    - name: make
-      run: make
-    - name: make install
-      run: sudo make install
-    - name: fix lib links
-      run: sudo ldconfig
+    - name: install clixon-pyapi
+      run: (git clone https://github.com/clicon/clixon-pyapi.git && cd clixon-pyapi && sudo python3 setup.py install && sudo cp clixon_server.py /usr/local/bin/)
 # 2)  Run tests
     - name: Start devices
       run: (cd test; ./start-devices.sh)
