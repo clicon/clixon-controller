@@ -1,10 +1,9 @@
 name: Clixon Controller CI
 
 on:
-  push:
-    branches: [ actions_pyapi ]
+    branches: [ main ]
   pull_request:
-    branches: [ actions_pyapi ]
+    branches: [ main ]
 
 jobs:
   build:
