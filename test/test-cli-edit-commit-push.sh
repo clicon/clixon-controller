@@ -18,6 +18,7 @@ wait_backend
 # Reset controller
 . ./reset-controller.sh
 
+# Tests
 new "CLI: Sync devices"
 expectpart "$(${PREFIX} $clixon_cli -1 -f $CFG sync pull)" 0 ""
 
