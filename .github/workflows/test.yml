@@ -1,6 +1,7 @@
 name: Clixon Controller CI
 
 on:
+  push:
     branches: [ main ]
   pull_request:
     branches: [ main ]
