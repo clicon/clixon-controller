@@ -1,43 +1,35 @@
 module clicon-test {
     namespace "http://clicon.org/test";
     prefix test;
-    
+
     import ietf-inet-types { prefix inet; }
     import clixon-controller { prefix ctrl; }
-    
+
     revision 2023-03-22{
-	description "Initial prototype";
+        description "Initial prototype";
     }
-    
+
     augment "/ctrl:services" {
-	list test {
-	    key service-name;
-	    
-	    leaf service-name {
-		type string;
-	    }
-	    
-	    description "Test service";
-	    
-	    container table{
-		list parameter{
-		    key name;
-		    
-		    leaf name{
-			type string;
-		    }
-		    
-		    leaf value{
-			type inet:ipv4-address;
-		    }
-		    
-		    leaf stat{
-			description "Inline state data for example application";
-			config false;
-			type int32;
-		    }
-		}
-	    }
-	}
+        list test {
+            key service-name;
+
+            leaf service-name {
+                type string;
+            }
+
+            description "Test service";
+
+            list parameter {
+                key name;
+
+                leaf name{
+                    type string;
+                }
+
+                leaf value{
+                    type inet:ipv4-address;
+                }
+            }
+        }
     }
 }
