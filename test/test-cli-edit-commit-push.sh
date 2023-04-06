@@ -26,16 +26,16 @@ new "CLI: Configure service"
 expectpart "$(${PREFIX} $clixon_cli -1 -f $CFG -m configure set services test cli_test)" 0 ""
 
 new "CLI: Set invalid value type"
-expectpart "$(${PREFIX} $clixon_cli -1 -f $CFG -l o -m configure set services test cli_test table parameter XXX value YYY)" 255 "CLI syntax error: \"set services test cli_test table parameter XXX value YYY\": \"YYY\" is invalid input for cli command: value"
+expectpart "$(${PREFIX} $clixon_cli -1 -f $CFG -l o -m configure set services test cli_test parameter XXX value YYY)" 255 "CLI syntax error: \"set services test cli_test parameter XXX value YYY\": \"YYY\" is invalid input for cli command: value"
 
 new "CLI: Set valid value type"
-expectpart "$(${PREFIX} $clixon_cli -1 -f $CFG -m configure set services test cli_test table parameter XXX value 1.2.3.4)" 0 ""
+expectpart "$(${PREFIX} $clixon_cli -1 -f $CFG -m configure set services test cli_test parameter XXX value 1.2.3.4)" 0 ""
 
 new "CLI: Commit"
 expectpart "$(${PREFIX} $clixon_cli -1 -f $CFG -m configure commit)" 0 ""
 
 new "CLI: Show configuration"
-expectpart "$(${PREFIX} $clixon_cli -1 -f $CFG show configuration cli)" 0 "^services test cli_test" "^services test cli_test table parameter XXX" "^services test cli_test table parameter XXX value 1.2.3.4"
+expectpart "$(${PREFIX} $clixon_cli -1 -f $CFG show configuration cli)" 0 "^services test cli_test" "^services test cli_test parameter XXX" "^services test cli_test parameter XXX value 1.2.3.4"
 
 sleep 5
 
