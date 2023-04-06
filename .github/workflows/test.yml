@@ -8,9 +8,7 @@ on:
 
 jobs:
   build:
-
     runs-on: ubuntu-latest
-
     steps:
     - uses: actions/checkout@v3
 # 1) checkout and compile natively
@@ -27,7 +25,7 @@ jobs:
     - name: fix lib links
       run: sudo ldconfig
     - name: install clixon controller
-      run: (git clone https://github.com/clicon/clixon-controller.git && cd clixon-controller && git checkout actions_pyapi && ./configure && make && sudo make install)
+      run: (git clone https://github.com/clicon/clixon-controller.git && cd clixon-controller && ./configure && make && sudo make install)
     - name: fix lib links
       run: sudo ldconfig
     - name: install test yang specs
