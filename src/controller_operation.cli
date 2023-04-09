@@ -103,9 +103,9 @@ sync("Read the config of one or several devices.") {
     push("sync config to one or multiple devices")[
                  (<name:string>("device pattern")|
                   <name:string expand_dbvar("running","/clixon-controller:devices/device/name")>("device pattern"))
-                 ], cli_rpc_sync_push("COMMIT");{
-                    validate("Push to devices and validate"), cli_rpc_sync_push("VALIDATE");
-                    commit("Push to devices and commit"), cli_rpc_sync_push("COMMIT");
+                 ], cli_rpc_controller_commit("running", "NONE", "COMMIT");{
+                    validate("Push to devices and validate"), cli_rpc_controller_commit("running", "NONE", "VALIDATE");
+                    commit("Push to devices and commit"), cli_rpc_controller_commit("running", "NONE", "COMMIT");
                  }
 }
 
@@ -116,5 +116,5 @@ connection("Reconnect one or several devices in closed state")  [<name:string>("
               reconnect("Close all open connections and open all connections"), cli_connection_change("RECONNECT");
               }
 
-services("Services operation") reapply("(re)apply services scripts"), cli_services_apply();
+services("Services operation") reapply("(re)apply services scripts"), cli_rpc_controller_commit("running", "FORCE", "COMMIT");
 

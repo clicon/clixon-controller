@@ -8,6 +8,9 @@ module clixon-controller {
     import ietf-inet-types {
         prefix inet;
     }
+    import ietf-netconf {
+        prefix "nc";
+    }
     import ietf-yang-schema-mount {
         prefix yangmnt;
     }
@@ -19,6 +22,21 @@ module clixon-controller {
     revision 2023-01-01 {
         description "Initial version";
     }
+    augment '/nc:get-config/input/source/config-source' {
+        description
+            "The actions database is used by service actions";
+        leaf actions {
+            type empty;
+        }
+    }
+    augment '/nc:edit-config/input/target/config-target' {
+        description
+            "The actions database is used by service actions";
+        leaf actions {
+            type empty;
+        }
+    }
+    /* augment: copy-config, delete-config */
     typedef connection-type{
         description
             "Which connection method to connect frm the controller to a device.
@@ -132,6 +150,9 @@ module clixon-controller {
             enum INIT {
                 description "Started transaction";
             }
+            enum ACTIONS {
+                description "Notified and waiting for actions";
+            }
             enum RESOLVED {
                 description
                 "The result of the transaction resolved.
@@ -193,6 +214,25 @@ module clixon-controller {
             }
         }
     }
+    typedef actions-type {
+        description
+            "How to trigger service-commit notifications, and thereby action scripts.";
+        type enumeration{
+            enum NONE {
+                description "Do not trigger actions";
+            }
+            enum CHANGE {
+                description
+                "Trigger actions if service configuration has changed.
+                 That is, if configuration of service A0 has changed, but not A1, then trigger
+                 services-commit for service A0, but not A1";
+            }
+            enum FORCE {
+                description
+                "Unconditionally trigger services-commit notification for all services.";
+            }
+        }
+    }
     container services {
         description
             "Placeholder for services. 
@@ -201,13 +241,18 @@ module clixon-controller {
                augment '/ctrl:services' {
                list myservice {
                     ...
+               Note that the alternatate design: 
+                  services { list service { key name;
+               does not work since augments would then act under service, and you want different
+               services in different trees not in the same service branch.
              ";
     }
     container generic{
         description "Generic controller settings";
         leaf device-timeout{
             description
-                "Device transient state timeout in seconds";
+                "Device transient state timeout in seconds.
+                 Also used for actions timeout";
             type uint32;
             default 60;
             units s;
@@ -373,6 +418,13 @@ module clixon-controller {
             description "Transaction id that this commit is a part of";
             type uint64;
         }
+        leaf-list service {
+            type string;
+            description
+                "Names of services that have changed configuration.
+                 Or should be reapplied.
+                 None means all (eg reapply unconditionally)";
+        }
     }
     notification controller-transaction {
         description "A transaction has been completed.";
@@ -449,21 +501,22 @@ module clixon-controller {
                     }
                 }
             }
-            leaf actions {
-                description
-                    "Trigger actions from candidate into action-db";
-                type boolean;
-                default false;
-            }
-            leaf datastore {
+            leaf source {
                 description
                     "Source datastore for controller commit
                      If actions is enabled, it is the source of actions
-                     Otherwise it is the source for push
-                     The latter is the reason default is running
-                    ";
+                     Otherwise it is the source for push which is candidate or running
+                     If candidate a controller commit is made at end of operation";
                 type ds:datastore-ref;
                 default ds:running;
+            }
+            leaf actions {
+                description
+                    "Trigger actions from candidate into action-db.
+                     Normally actions are triggered only if service configs have changed.
+                     However, this can be overriden by setting force-actions to true.";
+                type actions-type;
+                default NONE;
             }
             leaf push {
                 description
@@ -487,12 +540,6 @@ module clixon-controller {
                 type uint64;
             }
         }
-    }
-    rpc services-apply {
-        description
-            "Apply service scripts: trigger services-commit notification, 
-             typically together with a commit.
-             XXX: no way to terminate this transaction?";
     }
     rpc connection-change {
         description
@@ -556,6 +603,17 @@ module clixon-controller {
             leaf reason {
                 description "Reason for terminating transaction";
                 type string;
+                mandatory true;
+            }
+        }
+    }
+    rpc transaction-actions-done {
+        description
+            "Action scripts signal to backend that all actions are completed";
+        input {
+            leaf tid {
+                description "Transaction id used in notification";
+                type uint64;
                 mandatory true;
             }
         }

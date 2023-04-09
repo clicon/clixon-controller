@@ -17,9 +17,6 @@ delete("Delete a configuration item") {
       @datamodel, cli_auto_del(); 
       all("Delete whole candidate configuration"), delete_all("candidate");
 }
-
-
-
 quit("Quit"), cli_quit();
 delete("Delete a configuration item") {
       @datamodel, cli_auto_del(); 
@@ -27,12 +24,12 @@ delete("Delete a configuration item") {
 }
 
 commit("Commit the changes, trigger services scripts"), cli_commit();{
-    diff("Show the result of running the services but do not commit"); # NYI
-    push("Run services and push to devices"); # NYI
+    diff("Show the result of running the services but do not commit"), cli_rpc_controller_commit("candidate", "CHANGE", "NONE");
+    push("Run services and push to devices"), cli_rpc_controller_commit("candidate", "CHANGE", "COMMIT"); 
     local("Local commit, do not push to devices"), cli_commit();
 }
 validate("Validate changes"), cli_validate();{
-    push("Run services and push to devices"); # NYI
+    push("Run services and push to devices"), cli_rpc_controller_commit("candidate", "CHANGE", "VALIDATE");
     local("Local commit, trigger scripts but do not "), cli_validate();
 }
 

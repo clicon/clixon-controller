@@ -4353,7 +4353,7 @@ if test "${enable_nls+set}" = set; then :
 fi
 
 
-ac_config_files="$ac_config_files Makefile src/Makefile yang/Makefile docker/Makefile"
+ac_config_files="$ac_config_files Makefile src/Makefile yang/Makefile util/Makefile docker/Makefile"
 
 cat >confcache <<\_ACEOF
 # This file is a shell script that caches the results of configure
@@ -5064,6 +5064,7 @@ do
     "Makefile") CONFIG_FILES="$CONFIG_FILES Makefile" ;;
     "src/Makefile") CONFIG_FILES="$CONFIG_FILES src/Makefile" ;;
     "yang/Makefile") CONFIG_FILES="$CONFIG_FILES yang/Makefile" ;;
+    "util/Makefile") CONFIG_FILES="$CONFIG_FILES util/Makefile" ;;
     "docker/Makefile") CONFIG_FILES="$CONFIG_FILES docker/Makefile" ;;
 
   *) as_fn_error $? "invalid argument: \`$ac_config_target'" "$LINENO" 5;;

@@ -455,20 +455,18 @@ device_state_timeout_register(device_handle dh)
     return retval;
 }
 
-/*! Cancel timeout of transiet device state
+/*! Cancel timeout of transient device state
  * @param[in] dh  Device handle
  */
 int
 device_state_timeout_unregister(device_handle dh)
 {
-    int retval = -1;
-    char                   *name;
+    char *name;
     
     name = device_handle_name_get(dh);
     clicon_debug(1, "%s %s", __FUNCTION__, name);
     (void)clixon_event_unreg_timeout(device_state_timeout, dh);
-    retval = 0;
-    return retval;
+    return 0;
 }
     
 /*! Restart timer (stop; start)
@@ -565,7 +563,7 @@ device_config_write(clixon_handle h,
  * @param[in]  name        Device name
  * @param[in]  config_type Device config tyoe
  * @param[out] xdatap      Device config XML (if retval=1) 
- * @param[out] cbret       Error message (if retval=0)
+ * @param[out] cberr       Error message (if retval=0)
  * @retval     1           OK
  * @retval     0           Failed (No such device tree)
  * @retval    -1           Error
@@ -575,7 +573,7 @@ device_config_read(clicon_handle h,
                    char         *devname,
                    char         *config_type,
                    cxobj       **xdatap,
-                   cbuf         *cbret)
+                   cbuf        **cberr)
 {
     int    retval = -1;
     cbuf  *cbdb = NULL;
@@ -596,8 +594,11 @@ device_config_read(clicon_handle h,
     if (xmldb_get(h, db, NULL, NULL, &xt) < 0)
         goto done;
     if ((xroot = xpath_first(xt, NULL, "devices/device/root")) == NULL){
-        if (netconf_operation_failed(cbret, "application", "No such device tree")< 0)
+        if ((*cberr = cbuf_new()) == NULL){
+            clicon_err(OE_UNIX, errno, "cbuf_new");
             goto done;
+        }   
+        cprintf(*cberr, "No such device tree");
         goto failed;
     }
     if (xdatap){
@@ -680,27 +681,23 @@ device_config_compare(clicon_handle           h,
     int    retval = -1;
     cxobj *x0 = NULL;
     cxobj *x1 = NULL;
-    cbuf  *cbret = NULL;
+    cbuf  *cberr = NULL;
     int    ret;
             
-    if ((cbret = cbuf_new()) == NULL){
-        clicon_err(OE_UNIX, errno, "cbuf_new");
+    if ((ret = device_config_read(h, name, "SYNCED", &x0, &cberr)) < 0)
         goto done;
-    }   
-    if ((ret = device_config_read(h, name, "SYNCED", &x0, cbret)) < 0)
-        goto done;
-    if (ret && (ret = device_config_read(h, name, "TRANSIENT", &x1, cbret)) < 0)
+    if (ret && (ret = device_config_read(h, name, "TRANSIENT", &x1, &cberr)) < 0)
         goto done;
     if (ret == 0){
-        if (device_close_connection(dh, "%s", cbuf_get(cbret)) < 0)
+        if (device_close_connection(dh, "%s", cbuf_get(cberr)) < 0)
             goto done;
         goto closed;
     }
     *eq = xml_tree_equal(x0, x1);
     retval = 1;
  done:
-    if (cbret)
-        cbuf_free(cbret);
+    if (cberr)
+        cbuf_free(cberr);
     if (x0)
         xml_free(x0);
     if (x1)
@@ -1017,7 +1014,7 @@ device_state_handler(clixon_handle h,
                 goto done;
             break;
         }
-        if (ct->ct_push_validate){
+        if (ct->ct_push_type == PT_VALIDATE){
             if (device_send_discard_changes(h, dh) < 0)
                 goto done;
             if (device_state_set(dh, CS_PUSH_DISCARD) < 0)
@@ -1078,6 +1075,28 @@ device_state_handler(clixon_handle h,
         device_handle_tid_set(dh, 0);
         /* 2.2.2.2 If no devices in transaction, mark as OK and close it*/
         if (controller_transaction_devices(h, tid) == 0){
+            /* If source datastore is candidate, then commit (from actions) 
+             * - if actions=AT_COMMIT, commit is made from action-db
+             * - otherwise if datastore is candidate, commit is made from candidate
+             */
+            if (ct->ct_actions_type != AT_NONE && strcmp(ct->ct_sourcedb, "ds_candidate")){
+                if ((cberr = cbuf_new()) == NULL){
+                    clicon_err(OE_UNIX, errno, "cbuf_new");
+                    goto done;
+                }
+                if (xmldb_copy(h, "actions", "candidate") < 0)
+                    goto done;
+                if ((ret = candidate_commit(h, NULL, "candidate", 0, 0, cberr)) < 0){
+                    /* Handle that candidate_commit can return < 0 if transaction ongoing */        
+                    cprintf(cberr, "%s", clicon_err_reason);
+                    ret = 0;
+                }
+                if (ret == 0){
+                    if (controller_transaction_failed(h, ct->ct_id, ct, dh, 1, name, cbuf_get(cberr)) < 0)
+                        goto done;
+                    break;
+                }
+            }
             if (ct->ct_state != TS_RESOLVED){
                 controller_transaction_state_set(ct, TS_RESOLVED, TR_SUCCESS);
                 if (controller_transaction_notify(h, ct) < 0)
@@ -1088,6 +1107,7 @@ device_state_handler(clixon_handle h,
             /* Copy transient to device config (last sync) */
             if (device_config_copy(h, name, "TRANSIENT", "SYNCED") < 0)
                 goto done;
+
         }
         break;
     case CS_PUSH_WAIT:

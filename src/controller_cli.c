@@ -366,40 +366,57 @@ cli_rpc_sync_pull(clixon_handle h,
 /*! Read the config of one or several devices
  * @param[in] h
  * @param[in] cvv  : name pattern
- * @param[in] argv : validate/commit
- * @retval    0      OK
+ * @param[in] argv : source:running/candidate, actions:NONE/CHANGE/FORCE, push:NONE/VALIDATE/COMMIT, 
+ * @RETVAL    0      OK
  * @retval   -1      Error
+ * @see controller-commit in clixon-controller.yang
  */
 int
-cli_rpc_sync_push(clixon_handle h, 
-                  cvec         *cvv, 
-                  cvec         *argv)
+cli_rpc_controller_commit(clixon_handle h, 
+                          cvec         *cvv, 
+                          cvec         *argv)
 {
-    int        retval = -1;
-    cbuf      *cb = NULL;
-    cg_var    *cv;
-    cxobj     *xtop = NULL;
-    cxobj     *xrpc;
-    cxobj     *xret = NULL;
-    cxobj     *xreply;
-    cxobj     *xerr;
-    char      *push_type;
-    char      *name = "*";
-    cxobj     *xid;
-    char      *tidstr;
-    uint64_t   tid = 0;
+    int          retval = -1;
+    cbuf        *cb = NULL;
+    cg_var      *cv;
+    cxobj       *xtop = NULL;
+    cxobj       *xrpc;
+    cxobj       *xret = NULL;
+    cxobj       *xreply;
+    cxobj       *xerr;
+    char        *push_type;
+    char        *name = "*";
+    cxobj       *xid;
+    char        *tidstr;
+    uint64_t     tid = 0;
+    char        *actions_type;
+    char        *source;
 
-    if (argv == NULL || cvec_len(argv) != 1){
-        clicon_err(OE_PLUGIN, EINVAL, "requires argument: VALIDATE/COMMIT");
+    if (argv == NULL || cvec_len(argv) != 3){
+        clicon_err(OE_PLUGIN, EINVAL, "requires arguments: <datastore> <actions-type> <push-type>");
         goto done;
     }
     if ((cv = cvec_i(argv, 0)) == NULL){
-        clicon_err(OE_PLUGIN, 0, "Error when accessing argument <push>");
+        clicon_err(OE_PLUGIN, 0, "Error when accessing argument <datastore>");
+        goto done;
+    }
+    source = cv_string_get(cv);
+    if ((cv = cvec_i(argv, 1)) == NULL){
+        clicon_err(OE_PLUGIN, 0, "Error when accessing argument <actions-type>");
+        goto done;
+    }
+    actions_type = cv_string_get(cv);
+    if (actions_type_str2int(actions_type) == -1){
+        clicon_err(OE_PLUGIN, EINVAL, "<actions-type> argument is %s, expected NONE/CHANGE/FORCE", actions_type);
+        goto done;
+    }
+    if ((cv = cvec_i(argv, 2)) == NULL){
+        clicon_err(OE_PLUGIN, 0, "Error when accessing argument <push-type>");
         goto done;
     }
     push_type = cv_string_get(cv);
-    if (strcmp(push_type, "VALIDATE") != 0 && strcmp(push_type, "COMMIT") != 0){
-        clicon_err(OE_PLUGIN, EINVAL, "<push> argument is %s, expected \"VALIDATE\" or \"COMMIT\"", push_type);
+    if (push_type_str2int(push_type) == -1){
+        clicon_err(OE_PLUGIN, EINVAL, "<push-type> argument is %s, expected NONE/VALIDATE/COMMIT", push_type);
         goto done;
     }
     if ((cv = cvec_find(cvv, "name")) != NULL)
@@ -415,8 +432,8 @@ cli_rpc_sync_push(clixon_handle h,
     cprintf(cb, "<controller-commit xmlns=\"%s\">", CONTROLLER_NAMESPACE);
     cprintf(cb, "<device>%s</device>", name);
     cprintf(cb, "<push>%s</push>", push_type);
-    cprintf(cb, "<actions>false</actions>");
-    cprintf(cb, "<datastore>ds:running</datastore>");
+    cprintf(cb, "<actions>%s</actions>", actions_type);
+    cprintf(cb, "<source>ds:%s</source>", source);
     cprintf(cb, "</controller-commit>");
     cprintf(cb, "</rpc>");
     if (clixon_xml_parse_string(cbuf_get(cb), YB_NONE, NULL, &xtop, NULL) < 0)
@@ -443,6 +460,12 @@ cli_rpc_sync_push(clixon_handle h,
         goto done;
     if (transaction_notification_poll(h, tidstr) < 0)
         goto done;
+    /* Use actions and no push as diff */
+    if (actions_type_str2int(actions_type) != AT_NONE &&
+        push_type_str2int(push_type) == PT_NONE){ 
+        if (compare_db_names(h, FORMAT_TEXT, "candidate", "actions xmlns=\"http://clicon.org/controller\"") < 0)
+            goto done;
+    }
     retval = 0;
  done:
     if (cb)
@@ -978,6 +1001,7 @@ cli_check_sync(clixon_handle h,
     return compare_device_config_type(h, cvv, argv, DT_RUNNING, DT_TRANSIENT);
 }
 
+#ifdef NOTUSED
 int
 cli_services_apply(clixon_handle h, 
                    cvec         *cvv, 
@@ -1039,6 +1063,7 @@ cli_services_apply(clixon_handle h,
         xml_free(xtop);
     return retval;
 }
+#endif
 
 /* Called when application is "started", (almost) all initialization is complete 
  *
