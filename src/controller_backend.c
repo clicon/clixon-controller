@@ -245,62 +245,6 @@ controller_commit_generic(clixon_handle h,
         free(vec);
     return retval;
 }
-                  
-/*! Commit services part: detect any change then trigger a services-commit notification
- *
- * @param[in] h      Clixon handle
- * @param[in] nsc    Namespace context
- * @param[in] src  pre-existing xml tree
- * @param[in] target Post target xml tree
- * @retval   -1      Error
- * @retval    0      OK
- */
-static int
-controller_commit_services(clixon_handle h,
-                           cvec         *nsc,
-                           cxobj        *src,
-                           cxobj        *target)
-{
-    int     retval = -1;
-    cxobj **vec1 = NULL;
-    cxobj **vec2 = NULL;
-    cxobj **vec3 = NULL;
-    size_t  veclen1;
-    size_t  veclen2;
-    size_t  veclen3;
-    
-    /* 1) check deleted
-     */
-    if (xpath_vec_flag(src, nsc, "services",
-                       XML_FLAG_DEL,
-                       &vec1, &veclen1) < 0)
-        goto done;
-    /* 2) Check changed
-     */
-    if (xpath_vec_flag(target, nsc, "services",
-                       XML_FLAG_CHANGE,
-                       &vec2, &veclen2) < 0)
-        goto done;
-    /* 3) Check added
-     */
-    if (xpath_vec_flag(target, nsc, "services",
-                       XML_FLAG_ADD,
-                       &vec3, &veclen3) < 0)
-        goto done;
-#if 1
-    if (veclen1 || veclen2 || veclen3)
-        services_commit_notify(h);
-#endif
-    retval = 0;
- done:
-    if (vec1)
-        free(vec1);
-    if (vec2)
-        free(vec2);
-    if (vec3)
-        free(vec3);
-    return retval;
-}
 
 /*! Transaction commit
  */
@@ -321,8 +265,6 @@ controller_commit(clixon_handle    h,
     if (controller_commit_generic(h, nsc, target) < 0)
         goto done;
     if (controller_commit_device(h, nsc, src, target) < 0)
-        goto done;
-    if (controller_commit_services(h, nsc, src, target) < 0)
         goto done;
     retval = 0;
  done:

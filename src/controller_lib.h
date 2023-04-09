@@ -43,6 +43,7 @@
  */
 enum transaction_state_t{
     TS_INIT = 0,  /* Started transaction */
+    TS_ACTIONS,   /* Notified and waiting for actions */
     TS_RESOLVED,  /* The result of the transaction is set (if result == 0, this is same as CLOSED) */
     TS_DONE,      /* Terminated, inactive transaction */
 };
@@ -71,16 +72,27 @@ enum device_config_type_t{
 };
 typedef enum device_config_type_t device_config_type;
 
-/*! Device push operation type
- * @see clixon-controller@2023-01-01.yang push-operation
+/*! Device push type
+ * @see clixon-controller@2023-01-01.yang push-type
  * @see ptmap translation table
  */
 enum push_type_t{
-    PT_NONE = 0,     /* Do not push to devices" */
+    PT_NONE = 0,     /* Do not push to devices */
     PT_VALIDATE,     /* Push to devices, validate and then discard on devices */
     PT_COMMIT,       /* Push to devices, and commit on devices. */
 };
 typedef enum push_type_t push_type;
+
+/*! Actions trigger type
+ * @see clixon-controller@2023-01-01.yang actions-type
+ * @see atmap translation table
+ */
+enum actions_type_t{
+    AT_NONE = 0,    /* Do not trigger actions */
+    AT_CHANGE,      /* Trigger actions if service configuration has changed. */
+    AT_FORCE,       /* Unconditionally trigger services-commit notification for all services */
+};
+typedef enum actions_type_t actions_type;
 
 /*
  * Prototypes
@@ -97,6 +109,8 @@ char *device_config_type_int2str(device_config_type t);
 device_config_type device_config_type_str2int(char *str);
 char *push_type_int2str(push_type t);
 push_type push_type_str2int(char *str);
+char *actions_type_int2str(actions_type t);
+actions_type actions_type_str2int(char *str);
 int yang_lib2yspec_junos_patch(clicon_handle h, cxobj *yanglib, yang_stmt *yspec);
     
 #ifdef __cplusplus

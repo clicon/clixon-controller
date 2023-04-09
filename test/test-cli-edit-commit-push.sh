@@ -12,6 +12,14 @@ s="$_" ; . ./lib.sh || if [ "$s" = $0 ]; then exit 0; else return 0; fi
 # Reset devices with initial config
 . ./reset-devices.sh
 
+if $BE; then
+    echo "Kill old backend"
+    sudo clixon_backend -s init -f $CFG -z
+
+    echo "Start new backend -s init  -f $CFG -D $DBG"
+    sudo clixon_backend -s init  -f $CFG -D $DBG
+fi
+
 # Check backend is running
 wait_backend
 
@@ -39,3 +47,8 @@ expectpart "$(${PREFIX} $clixon_cli -1 -f $CFG show configuration cli)" 0 "^serv
 
 new "CLI: Push configuration"
 expectpart "$(${PREFIX} $clixon_cli -1 -f $CFG sync push)" 0 ""
+
+if $BE; then
+    echo "Kill old backend"
+    sudo clixon_backend -s init -f $CFG -z
+fi

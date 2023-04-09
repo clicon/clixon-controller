@@ -72,14 +72,6 @@ if $INIT; then
     nr=$nr ./stop-devices.sh
     sleep $sleep
     nr=$nr ./start-devices.sh
-
-    if $BE; then
-	echo "Kill old backend"
-	sudo clixon_backend -s init -f $CFG -z
-
-	echo "Start new backend"
-	sudo clixon_backend -s init  -f $CFG -D $DBG
-    fi
 fi
 
 #----------------------- Functions

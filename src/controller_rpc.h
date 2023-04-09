@@ -44,7 +44,6 @@
 extern "C" {
 #endif
 
-int services_commit_notify(clixon_handle h);
 int controller_connect(clixon_handle h, cxobj *xn, controller_transaction *ct);
 int controller_rpc_init(clicon_handle h);
     

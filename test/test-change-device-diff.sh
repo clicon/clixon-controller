@@ -13,6 +13,14 @@ s="$_" ; . ./lib.sh || if [ "$s" = $0 ]; then exit 0; else return 0; fi
 # Reset devices with initial config
 . ./reset-devices.sh
 
+if $BE; then
+    echo "Kill old backend"
+    sudo clixon_backend -s init -f $CFG -z
+
+    echo "Start new backend"
+    sudo clixon_backend -s init  -f $CFG -D $DBG
+fi
+
 # Check backend is running
 wait_backend
 
@@ -63,7 +71,10 @@ EOF
     fi
 done
 
-echo "device-diff"
+if $BE; then
+    echo "Kill old backend"
+    sudo clixon_backend -s init -f $CFG -z
+fi
+
+echo "test-device-diff"
 echo OK
-
-

@@ -51,6 +51,7 @@
  */
 static const map_str2int tsmap[] = {
     {"INIT",      TS_INIT},
+    {"ACTIONS",   TS_ACTIONS},
     {"RESOLVED",  TS_RESOLVED},
     {"DONE",      TS_DONE},
     {NULL,        -1}
@@ -85,6 +86,16 @@ static const map_str2int ptmap[] = {
     {"VALIDATE", PT_VALIDATE},
     {"COMMIT",   PT_COMMIT},
     {NULL,       -1}
+};
+
+/*! Mapping between enum actions_type_t and yang actions-type
+ * @see clixon-controller@2023-01-01.yang
+ */
+static const map_str2int atmap[] = {
+    {"NONE",    AT_NONE},
+    {"CHANGE",  AT_CHANGE},
+    {"FORCE",   AT_FORCE},
+    {NULL,      -1}
 };
 
 /*! Map controller transaction state from int to string 
@@ -173,6 +184,28 @@ push_type
 push_type_str2int(char *str)
 {
     return clicon_str2int(ptmap, str);
+}
+
+/*! Map actions type from int to string 
+ *
+ * @param[in]  typ    Actions type as int
+ * @retval     str    Actions type as string
+ */
+char *
+actions_type_int2str(actions_type t)
+{
+    return (char*)clicon_int2str(atmap, t);
+}
+
+/*! Map actions type from string to int 
+ *
+ * @param[in]  str    Actions type as string
+ * @retval     type   Actions type as int
+ */
+actions_type
+actions_type_str2int(char *str)
+{
+    return clicon_str2int(atmap, str);
 }
 
 #ifdef CONTROLLER_JUNOS_ADD_COMMAND_FORWARDING

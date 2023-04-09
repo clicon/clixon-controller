@@ -109,6 +109,13 @@ controller_transaction_state_set(controller_transaction *ct,
                      ct->ct_id,
                      transaction_state_int2str(state));
         break;
+    case TS_ACTIONS:
+        clicon_debug(1, "%s %" PRIu64 " : %s -> %s",
+                     __FUNCTION__,
+                     ct->ct_id,
+                     transaction_state_int2str(ct->ct_state),
+                     transaction_state_int2str(state));
+        break;
     case TS_RESOLVED:
         assert(result != -1);
         assert(state != ct->ct_state);
@@ -275,6 +282,7 @@ controller_transaction_new(clicon_handle            h,
         goto done;
     }
     memset(ct, 0, sz);
+    ct->ct_h = h;
     if (transaction_new_id(h, &ct->ct_id) < 0)
         goto done;
     if (description &&
@@ -318,6 +326,8 @@ controller_transaction_free(clicon_handle           h,
         free(ct->ct_origin);
     if (ct->ct_reason)
         free(ct->ct_reason);
+    if (ct->ct_sourcedb)
+        free(ct->ct_sourcedb);
     free(ct);
     return 0;
 }

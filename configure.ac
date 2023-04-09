@@ -137,5 +137,6 @@ AC_ARG_ENABLE(nls)
 AC_OUTPUT([Makefile
   	  src/Makefile
 	  yang/Makefile
+    	  util/Makefile
     	  docker/Makefile
 ])

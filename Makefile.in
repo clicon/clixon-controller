@@ -43,6 +43,7 @@ SHELL		= /bin/sh
 
 SUBDIRS  = src
 SUBDIRS += yang
+SUBDIRS += util
 #SUBDIRS += docker
 
 .PHONY:	all clean $(SUBDIRS) install uninstall docker push TAGS .config.status
