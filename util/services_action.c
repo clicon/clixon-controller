@@ -28,6 +28,7 @@
 #include <stdio.h>
 #include <stdint.h>
 #include <syslog.h>
+#include <fnmatch.h>
 #include <errno.h>
 
 #include <cligen/cligen.h>
@@ -36,20 +37,20 @@
 #define CONTROLLER_NAMESPACE "http://clicon.org/controller"
 
 /* Command line options to be passed to getopt(3) */
-#define SERVICE_ACTION_OPTS "hD:f:l:"
+#define SERVICE_ACTION_OPTS "hD:f:l:s:"
 
 /*! Read services definition, write and mark a table/param for each param in the service
  * 
- * @param[in] h       Clixon handle
- * @param[in] s       Socket
- * @param[in] devname Devicen ame
- * @param[in] xsc     XML service tree
- * @retval    0       OK
- * @retval   -1       Error
+ * @param[in] h        Clixon handle
+ * @param[in] tidstr   Transaction id
+ * @param[in] servstr  String of XML containing list of processed services
+ * @retval    0        OK
+ * @retval   -1        Error
  */
 static int
 send_transaction_actions_done(clicon_handle h,
-                              char         *tidstr)
+                              char         *tidstr,
+                              char         *servstr)
 {
     int                retval = -1;
     cbuf              *cb = NULL;
@@ -69,6 +70,7 @@ send_transaction_actions_done(clicon_handle h,
     cprintf(cb, "<transaction-actions-done xmlns=\"%s\">", 
             CONTROLLER_NAMESPACE);
     cprintf(cb, "<tid>%s</tid>", tidstr);
+    cprintf(cb, "%s", servstr);
     cprintf(cb, "</transaction-actions-done>");
     cprintf(cb, "</rpc>");
     if ((msg = clicon_msg_encode(0, "%s", cbuf_get(cb))) == NULL)
@@ -94,8 +96,9 @@ send_transaction_actions_done(clicon_handle h,
  * 
  * @param[in] h       Clixon handle
  * @param[in] s       Socket
- * @param[in] devname Devicen ame
+ * @param[in] devname Device name
  * @param[in] xsc     XML service tree
+ * @param[in] db      Target datastore
  * @retval    0       OK
  * @retval   -1       Error
  */
@@ -103,14 +106,20 @@ static int
 do_service(clicon_handle h,
            int           s,
            char         *devname,
-           cxobj        *xsc)
+           cxobj        *xsc,
+           char         *db,
+           char         *service_name)
 {
     int   retval = -1;
     cbuf  *cb = NULL;
     cxobj *x;
     char  *p;
 
-   /* Write and mark a table/param for each param in the service */
+    if (strcmp(db, "actions") != 0){
+        clicon_err(OE_CFG, 0, "Unexpected datastore: %s (expected actions)", db);
+        goto done;
+    }
+    /* Write and mark a table/param for each param in the service */
     if ((cb = cbuf_new()) == NULL){
         clicon_err(OE_XML, errno, "cbuf_new");
         goto done;
@@ -120,14 +129,16 @@ do_service(clicon_handle h,
     cprintf(cb, "<device>");
     cprintf(cb, "<name>%s</name>", devname);
     cprintf(cb, "<root>");
-    cprintf(cb, "<table xmlns=\"%s\">", "urn:example:clixon");
+    cprintf(cb, "<table xmlns=\"%s\" nc:operation=\"merge\"", "urn:example:clixon");
+    cprintf(cb, " xmlns:%s=\"%s\">", CLIXON_LIB_PREFIX, CLIXON_LIB_NS);
+    cprintf(cb, ">");
     x = NULL;
     while ((x = xml_child_each(xsc, x,  CX_ELMNT)) != NULL){
         if (strcmp(xml_name(x), "params") != 0)
             continue;
         if ((p = xml_body(x)) == NULL)
             continue;        
-        cprintf(cb, "<parameter>");
+        cprintf(cb, "<parameter %s:creator=\"%s\">", CLIXON_LIB_PREFIX, service_name);
         cprintf(cb, "<name>%s</name>", p);
         cprintf(cb, "</parameter>");
     }
@@ -274,7 +285,8 @@ read_devices(clicon_handle h,
 static int
 service_action_handler(clicon_handle      h,
                        int                s,
-                       struct clicon_msg *notification)
+                       struct clicon_msg *notification,
+                       char              *pattern)
 {
     int     retval = -1;
     cxobj  *xt = NULL;
@@ -285,9 +297,12 @@ service_action_handler(clicon_handle      h,
     cxobj  *xdevs = NULL;
     cxobj  *xsc;
     char   *tidstr;
-    char   *sername;
+    char   *service_name;
     char   *devname;
     int     ret;
+    cbuf   *cbs = NULL;
+    char   *sourcedb = NULL;
+    char   *targetdb = NULL;
 
     clicon_debug(1, "%s", __FUNCTION__);
     if ((ret = clicon_msg_decode(notification, NULL, NULL, &xt, NULL)) < 0) 
@@ -303,34 +318,49 @@ service_action_handler(clicon_handle      h,
     if ((tidstr = xml_find_body(xn, "tid")) == NULL){
         clicon_err(OE_NETCONF, EFAULT, "Notification malformed: no tid");
         goto done;
+    }
+    if ((sourcedb = xml_find_body(xn, "source")) == NULL){
+        clicon_err(OE_NETCONF, EFAULT, "Notification malformed: no source");
+        goto done;
+    }
+    if ((targetdb = xml_find_body(xn, "target")) == NULL){
+        clicon_err(OE_NETCONF, EFAULT, "Notification malformed: no source");
+        goto done;
     }    
     /* Read services and devices definition */
-    if (read_services(h, "candidate", &xservices) < 0)
+    if (read_services(h, sourcedb, &xservices) < 0)
         goto done;
-    if (read_devices(h, "candidate", &xdevs) < 0)
+    if (read_devices(h, sourcedb, &xdevs) < 0)
         goto done;
+    if ((cbs = cbuf_new()) == NULL){
+        clicon_err(OE_UNIX, errno, "cbuf_new");
+        goto done;
+    }
     xs = NULL;
     while ((xs = xml_child_each(xn, xs,  CX_ELMNT)) != NULL){
         if (strcmp(xml_name(xs), "service") != 0)
             continue;
-        if ((sername = xml_body(xs)) == NULL)
+        if ((service_name = xml_body(xs)) == NULL)
             continue;
-        if (strncmp(sername, "test", 4) != 0)
+        if (pattern != NULL && fnmatch(pattern, service_name, 0) != 0)
             continue;
-        if ((xsc = xpath_first(xservices, NULL, "%s", sername)) != NULL){
+        if ((xsc = xpath_first(xservices, NULL, "%s", service_name)) != NULL){
+            cprintf(cbs, "<service>%s</service>", service_name);
             /* Loop over all devices */
             xd = NULL;
             while ((xd = xml_child_each(xdevs, xd,  CX_ELMNT)) != NULL){
                 devname = xml_find_body(xd, "name");
-                if (do_service(h, s, devname, xsc) < 0)
+                if (do_service(h, s, devname, xsc, targetdb, service_name) < 0)
                     goto done;
             }
         }
     }
-    if (send_transaction_actions_done(h, tidstr) < 0)
+    if (send_transaction_actions_done(h, tidstr, cbuf_get(cbs)) < 0)
         goto done;
     retval = 0;
  done:
+    if (cbs)
+        cbuf_free(cbs);
     if (xservices)
         xml_free(xservices);
     if (xdevs)
@@ -378,7 +408,8 @@ usage(clicon_handle h,
             "\t-h\t\tHelp\n"
             "\t-D <level>\tDebug level\n"
             "\t-f <file> \tConfig-file (mandatory)\n"
-            "\t-l <s|e|o|n|f<file>> \tLog on (s)yslog, std(e)rr, std(o)ut, (n)one or (f)ile (syslog is default)\n",
+            "\t-l <s|e|o|n|f<file>> \tLog on (s)yslog, std(e)rr, std(o)ut, (n)one or (f)ile (syslog is default)\n"
+            "\t-s <pattern> \tGlob pattern of services served, (default *)\n",
             argv0
             );
     exit(-1);
@@ -397,6 +428,7 @@ main(int    argc,
     int                  s = -1;
     struct clicon_msg   *notification = NULL;
     int                  eof = 0;
+    char                *service_pattern = "*";
 
     clicon_log_init(__PROGRAM__, LOG_INFO, logdst);
     if ((h = clicon_handle_init()) == NULL)
@@ -428,6 +460,11 @@ main(int    argc,
                 clicon_log_file(optarg+1) < 0)
                 goto done;
             break;
+        case 's': /* service pattern */
+            if (!strlen(optarg))
+                usage(h, argv[0]);
+            service_pattern = optarg;
+            break;
         }
     clicon_log_init(__PROGRAM__, dbg?LOG_DEBUG:LOG_INFO, logdst);
     clicon_debug_init(dbg, NULL);
@@ -445,7 +482,7 @@ main(int    argc,
     while (clicon_msg_rcv(s, 1, &notification, &eof) == 0){
         if (eof)
             break;
-        if (service_action_handler(h, s, notification) < 0)
+        if (service_action_handler(h, s, notification, service_pattern) < 0)
             goto done;
         if (notification){
             free(notification);

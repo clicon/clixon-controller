@@ -41,8 +41,20 @@ jobs:
 # 2)  Run tests
     - name: Start devices
       run: (cd test; ./start-devices.sh)
-#    - name: Start controller
-#      run: sudo clixon_backend -f /usr/local/etc/controller.xml
-    - name: Run all tests
-      # Note PREFIX=sudo because cannot get clicon group correct
-      run: (cd test; PREFIX=sudo ./all.sh)
+#    - name: Run all tests
+#      # Note PREFIX=sudo because cannot get clicon group correct
+#      run: (cd test; PREFIX=sudo ./all.sh)
+    - name: Run test-change-both
+      (cd test; ./test-change-both.sh)
+    - name: Run test-change-ctrl-push
+      (cd test; ./test-change-ctrl-push.sh)
+    - name: Run test-change-device-diff
+      (cd test; ./test-change-device-diff.sh)
+# Changed pyapi protocol
+#    - name: Run test-cli-edit-commit-push
+#      (cd test; ./test-cli-edit-commit-push.sh)
+    - name: Run test-service
+      (cd test; ./test-service.sh)
+    - name: Run test-yanglib
+      (cd test; ./test-yanglib.sh)
+

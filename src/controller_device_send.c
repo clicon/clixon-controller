@@ -377,7 +377,7 @@ device_create_edit_config_diff(clixon_handle h,
     if (xml_addsub(xroot, x0) < 0)
         goto done;
     cbuf_reset(cb);
-    if (clixon_xml2cbuf(cb, xt, 0, 0, -1, 1) < 0)
+    if (clixon_xml2cbuf(cb, xt, 0, 0, NULL, -1, 1) < 0)
         goto done;
     encap = clicon_data_int_get(h, "netconf-framing");
     if (netconf_output_encap(encap, cb) < 0)

@@ -22,16 +22,21 @@ module clixon-controller {
     revision 2023-01-01 {
         description "Initial version";
     }
+    identity actions {
+        base ds:datastore;
+        description
+            "The actions datastore is used by service actions";
+    }
     augment '/nc:get-config/input/source/config-source' {
         description
-            "The actions database is used by service actions";
+            "The actions datastore is used by service actions";
         leaf actions {
             type empty;
         }
     }
     augment '/nc:edit-config/input/target/config-target' {
         description
-            "The actions database is used by service actions";
+            "The actions datastore is used by service actions";
         leaf actions {
             type empty;
         }
@@ -418,6 +423,18 @@ module clixon-controller {
             description "Transaction id that this commit is a part of";
             type uint64;
         }
+        leaf source {
+            description
+                "Source datastore for actions, where to read configurations of services and devices";
+            type ds:datastore-ref;
+            default ds:candidate;
+        }
+        leaf target {
+            description
+                "target datastore for actions, where to write configurations of devices";
+            type ds:datastore-ref;
+            default actions;
+        }
         leaf-list service {
             type string;
             description
@@ -441,7 +458,7 @@ module clixon-controller {
         leaf reason {
             description "Reason for terminating transaction (if ok=false)";
             type string;
-        }        
+        }
     }
     rpc sync-pull {
         description
@@ -576,7 +593,7 @@ module clixon-controller {
                 type string;
             }
             leaf config-type{
-                description "Devie config type";
+                description "Device config type";
                 type device-config-type;
                 mandatory true;
             }
@@ -612,9 +629,72 @@ module clixon-controller {
             "Action scripts signal to backend that all actions are completed";
         input {
             leaf tid {
-                description "Transaction id used in notification";
+                description "Transaction is used in notification";
                 type uint64;
                 mandatory true;
+            }
+        leaf-list service {
+            type string;
+            description
+                "Names of services that have been processed/served by this action (S1).
+                 This should be a subset of the services list in the services-commit notification S0.
+                 In case the S0 was NULL, it meant all services, and this list contains the list
+                 that were actually served.
+                 The operation of an action is:
+                   Remove all services in S0 that are not served by this action: -> S1
+                   For all S in S1:
+                     Process service actions for S resulting in a set of edit-configs (possibly none)
+                   Append S1 to transactions-actions-done rpc";
+            }
+        }
+    }
+    rpc datastore-diff {
+        description
+            "Compare two data-storesby returning a diff-list in XML";
+        input {
+            leaf xpath {
+                description
+                    "XPath to part of XML to compare";
+                type string;
+            }
+            choice datastore {
+                description
+                    "First datastore to compare";
+                case reference{
+                    leaf dsref1 {
+                        description
+                            "First datastore to compare";
+                        type ds:datastore-ref;
+                    }
+                    leaf dsref2 {
+                        description
+                            "Second datastore to compare";
+                        type ds:datastore-ref;
+                    }
+                }
+                case device{
+                    leaf devname {
+                        description "Name of device";
+                        type string;
+                    }
+                    leaf config-type1{
+                        description "Device config type";
+                        type device-config-type;
+                    }
+                    leaf config-type2{
+                        description "Device config type";
+                        type device-config-type;
+                    }
+                }
+                mandatory true;
+            }
+
+        }
+        output {
+            leaf diff {
+                description
+                    "Pretty-printed diff string";
+                type string;
             }
         }
     }
