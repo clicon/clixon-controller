@@ -128,7 +128,7 @@ do_service(clicon_handle h,
     cprintf(cb, "<devices xmlns=\"%s\">", CONTROLLER_NAMESPACE);
     cprintf(cb, "<device>");
     cprintf(cb, "<name>%s</name>", devname);
-    cprintf(cb, "<root>");
+    cprintf(cb, "<config>");
     cprintf(cb, "<table xmlns=\"%s\" nc:operation=\"merge\"", "urn:example:clixon");
     cprintf(cb, " xmlns:%s=\"%s\">", CLIXON_LIB_PREFIX, CLIXON_LIB_NS);
     cprintf(cb, ">");
@@ -143,7 +143,7 @@ do_service(clicon_handle h,
         cprintf(cb, "</parameter>");
     }
     cprintf(cb, "</table>");
-    cprintf(cb, "</root>");
+    cprintf(cb, "</config>");
     cprintf(cb, "</device>");
     cprintf(cb, "</devices>");
     cprintf(cb, "</config>");

@@ -55,7 +55,7 @@ for i in $(seq 1 $nr); do
       <devices xmlns="http://clicon.org/controller">
         <device>
           <name>$NAME</name>
-          <root>
+          <config>
             <table xmlns="urn:example:clixon">
               <parameter nc:operation="remove">
                 <name>x</name>
@@ -69,7 +69,7 @@ for i in $(seq 1 $nr); do
                  <value>399</value>
                </parameter>
             </table>
-          </root>
+          </config>
         </device>
       </devices>
     </config>

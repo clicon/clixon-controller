@@ -303,14 +303,14 @@ device_state_mount_point_get(char      *devicename,
             CONTROLLER_NAMESPACE,
             NETCONF_BASE_NAMESPACE, /* needed for nc:op below */
             devicename);
-    cprintf(cb, "<root/>");
+    cprintf(cb, "<config/>");
     cprintf(cb, "</device></devices>");
     if ((ret = clixon_xml_parse_string(cbuf_get(cb), YB_MODULE, yspec, &xt, NULL)) < 0)
         goto done;
     if (xml_name_set(xt, "config") < 0)
         goto done;
-    if ((xroot = xpath_first(xt, NULL, "devices/device/root")) == NULL){
-        clicon_err(OE_XML, 0, "device/root mountpoint not found");
+    if ((xroot = xpath_first(xt, NULL, "devices/device/config")) == NULL){
+        clicon_err(OE_XML, 0, "device/config mountpoint not found");
         goto done;
     }
     *xtp = xt;
@@ -593,7 +593,7 @@ device_config_read(clicon_handle h,
     db = cbuf_get(cbdb);
     if (xmldb_get(h, db, NULL, NULL, &xt) < 0)
         goto done;
-    if ((xroot = xpath_first(xt, NULL, "devices/device/root")) == NULL){
+    if ((xroot = xpath_first(xt, NULL, "devices/device/config")) == NULL){
         if ((*cberr = cbuf_new()) == NULL){
             clicon_err(OE_UNIX, errno, "cbuf_new");
             goto done;

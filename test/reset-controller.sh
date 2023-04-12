@@ -61,7 +61,7 @@ function init_device_config()
           <user>$user</user>
           <addr>$ip</addr>
           <yang-config>${yang_config}</yang-config>
-          <root/>
+          <config/>
         </device>
       </devices>
     </config>
@@ -170,9 +170,9 @@ for i in $(seq 1 $nr); do
       <devices xmlns="http://clicon.org/controller">
         <device>
           <name>clixon-example1</name>
-          <root>
+          <config>
             <table xmlns="urn:example:clixon"/>
-          </root>
+          </config>
         </device>
       </devices>
     </filter>

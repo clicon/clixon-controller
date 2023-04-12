@@ -331,7 +331,7 @@ device_state_recv_config(clixon_handle h,
         goto closed;
     }
     /*
-     * <root>  clixon-controller:root
+     * <config> clixon-controller:root
      * <data>  ietf-netconf:data (dont bother to bind this node, its just a placeholder)
      * <x>     bind to yspec1
      */

@@ -962,7 +962,7 @@ compare_device_config_type(clicon_handle      h,
             clicon_username_get(h),
             NETCONF_MESSAGE_ID_ATTR);
     cprintf(cb, "<datastore-diff xmlns=\"%s\">", CONTROLLER_NAMESPACE);
-    cprintf(cb, "<xpath>root</xpath>");
+    cprintf(cb, "<xpath>config</xpath>");
     device_type = device_config_type_int2str(dt1);
     cprintf(cb, "<devname>%s</devname>", pattern);
     cprintf(cb, "<config-type1>%s</config-type1>", device_type);
@@ -1175,7 +1175,7 @@ rpc_get_yanglib_mount(clicon_handle h,
             clicon_username_get(h),
             NETCONF_MESSAGE_ID_ATTR);
     cprintf(cb, "<get>");
-    cprintf(cb, "<filter type=\"xpath\" select=\"ctrl:devices/ctrl:device[ctrl:name='%s']/ctrl:root/yanglib:yang-library/yanglib:module-set\" xmlns:ctrl=\"%s\" xmlns:yanglib=\"urn:ietf:params:xml:ns:yang:ietf-yang-library\">",
+    cprintf(cb, "<filter type=\"xpath\" select=\"ctrl:devices/ctrl:device[ctrl:name='%s']/ctrl:config/yanglib:yang-library/yanglib:module-set\" xmlns:ctrl=\"%s\" xmlns:yanglib=\"urn:ietf:params:xml:ns:yang:ietf-yang-library\">",
             devname,
             CONTROLLER_NAMESPACE);
     cprintf(cb, "</filter>");
@@ -1198,7 +1198,7 @@ rpc_get_yanglib_mount(clicon_handle h,
         goto done;
     }
     if (yanglib){
-        *yanglib = xpath_first(xreply, 0, "data/devices/device/root/yang-library");
+        *yanglib = xpath_first(xreply, 0, "data/devices/device/config/yang-library");
         xml_rm(*yanglib);
     }
     retval = 0;
@@ -1249,10 +1249,10 @@ create_autocli_mount_tree(clicon_handle h,
         goto done;
     }
     /* 1. Check if yang controller extension/unknwon mount-pint exists (yu) */
-    if (yang_path_arg(ymod, "/devices/device/root", &yu) < 0)
+    if (yang_path_arg(ymod, "/devices/device/config", &yu) < 0)
         goto done;
     if (yu == NULL){
-        clicon_err(OE_YANG, 0, "Mountpoint devices/device/root not found");
+        clicon_err(OE_YANG, 0, "Mountpoint devices/device/config not found");
         goto done;
     }
     if ((cb = cbuf_new()) == NULL){
@@ -1260,7 +1260,7 @@ create_autocli_mount_tree(clicon_handle h,
         goto done;
     }
     /* 2. Create xpath to specific mountpoint given by devname */
-    cprintf(cb, "/ctrl:devices/ctrl:device[ctrl:name='%s']/ctrl:root", devname);
+    cprintf(cb, "/ctrl:devices/ctrl:device[ctrl:name='%s']/ctrl:config", devname);
     xpath = cbuf_get(cb);
     /* 3. Check if yspec associated to that mountpoint exists */
     if (yang_mount_get(yu, xpath, &yspec1) < 0)

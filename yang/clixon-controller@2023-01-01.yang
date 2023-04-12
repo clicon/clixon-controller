@@ -365,7 +365,7 @@ module clixon-controller {
                 config false;
                 type string;
             }
-            container root{
+            container config {
                 presence "Otherwise root is not visible";
                 description
                     "Mount-point for device configs";
