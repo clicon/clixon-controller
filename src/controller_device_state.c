@@ -1076,14 +1076,15 @@ device_state_handler(clixon_handle h,
         /* 2.2.2.2 If no devices in transaction, mark as OK and close it*/
         if (controller_transaction_devices(h, tid) == 0){
             /* If source datastore is candidate, then commit (from actions) 
-             * - if actions=AT_COMMIT, commit is made from action-db
+             * - if actions=AT_COMMIT, commit is made from actions-db
              * - otherwise if datastore is candidate, commit is made from candidate
              */
-            if (ct->ct_actions_type != AT_NONE && strcmp(ct->ct_sourcedb, "ds_candidate")){
+            if (ct->ct_actions_type != AT_NONE && strcmp(ct->ct_sourcedb, "ds:candidate")==0){
                 if ((cberr = cbuf_new()) == NULL){
                     clicon_err(OE_UNIX, errno, "cbuf_new");
                     goto done;
                 }
+                /* What to copy to candidate and commit to running? */
                 if (xmldb_copy(h, "actions", "candidate") < 0)
                     goto done;
                 if ((ret = candidate_commit(h, NULL, "candidate", 0, 0, cberr)) < 0){
