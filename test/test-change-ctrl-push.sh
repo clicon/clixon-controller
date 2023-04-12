@@ -54,7 +54,7 @@ for i in $(seq 1 $nr); do
       <devices xmlns="http://clicon.org/controller">
         <device>
           <name>$NAME</name>
-          <root>
+          <config>
             <table xmlns="urn:example:clixon">
               <parameter nc:operation="remove">
                 <name>x</name>
@@ -68,7 +68,7 @@ for i in $(seq 1 $nr); do
                  <value>99</value>
                </parameter>
             </table>
-          </root>
+          </config>
         </device>
       </devices>
     </config>
@@ -169,9 +169,9 @@ message-id="42">
       <devices xmlns="http://clicon.org/controller">
         <device>
           <name>$NAME</name>
-          <root>
+          <config>
             <table xmlns="urn:example:clixon"/>
-          </root>
+          </config>
         </device>
       </devices>
     </filter>
@@ -185,7 +185,7 @@ EOF
         echo "netconf rpc-error detected"
         exit 1
     fi
-    match=$(echo $ret | grep --null -Eo '<root><table xmlns="urn:example:clixon"><parameter><name>y</name><value>122</value></parameter><parameter><name>z</name><value>99</value></parameter></table></root>') || true
+    match=$(echo $ret | grep --null -Eo '<config><table xmlns="urn:example:clixon"><parameter><name>y</name><value>122</value></parameter><parameter><name>z</name><value>99</value></parameter></table></config>') || true
     if [ -z "$match" ]; then
         echo "netconf rpc get-config failed"
         exit 1

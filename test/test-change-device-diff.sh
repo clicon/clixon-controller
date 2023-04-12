@@ -64,7 +64,8 @@ EOF
         echo "netconf rpc-error detected"
         exit 1
     fi
-    match=$(echo $ret | grep --null -Eo '<rpc-reply xmlns="urn:ietf:params:xml:ns:netconf:base:1.0" message-id="43"><config xmlns="http://clicon.org/controller"><root><table xmlns="urn:example:clixon"><parameter><name>y</name><value>122</value></parameter><parameter><name>z</name><value>99</value></parameter></table></root></config></rpc-reply>') || true
+    # XXX should it really be double: config/config?
+    match=$(echo $ret | grep --null -Eo '<rpc-reply xmlns="urn:ietf:params:xml:ns:netconf:base:1.0" message-id="43"><config xmlns="http://clicon.org/controller"><config><table xmlns="urn:example:clixon"><parameter><name>y</name><value>122</value></parameter><parameter><name>z</name><value>99</value></parameter></table></config></config></rpc-reply>') || true
     if [ -z "$match" ]; then
         echo "netconf rpc get-device-config failed"
         exit 1

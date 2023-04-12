@@ -221,7 +221,7 @@ push_device_one(clixon_handle           h,
         clicon_err(OE_UNIX, errno, "cbuf_new");
         goto done;
     }
-    cprintf(cb, "devices/device[name='%s']/root", name);
+    cprintf(cb, "devices/device[name='%s']/config", name);
     if (xmldb_get0(h, db, YB_MODULE, nsc, cbuf_get(cb), 1, WITHDEFAULTS_EXPLICIT, &x1t, NULL, NULL) < 0)
         goto done;
     if ((x1 = xpath_first(x1t, nsc, "%s", cbuf_get(cb))) == NULL){
@@ -626,7 +626,7 @@ datastore_strip_devices(clixon_handle h,
 
     if (xmldb_get0(h, db, YB_NONE, NULL, "devices", 1, WITHDEFAULTS_EXPLICIT, &xt, NULL, NULL) < 0)
         goto done;
-    if (xpath_vec(xt, NULL, "devices/device/root", &vec, &veclen) < 0) 
+    if (xpath_vec(xt, NULL, "devices/device/config", &vec, &veclen) < 0) 
         goto done;
     for (i=0; i<veclen; i++){
         xd = vec[i];
@@ -1018,7 +1018,7 @@ rpc_get_device_config(clixon_handle h,
         switch (dt){
         case DT_RUNNING:
         case DT_CANDIDATE:
-            xroot1 = xpath_first(xn, nsc, "root");
+            xroot1 = xpath_first(xn, nsc, "config");
             if (clixon_xml2cbuf(cb, xroot1, 0, 0, NULL, -1, 0) < 0)
                 goto done;
             break;
@@ -1423,7 +1423,7 @@ datastore_diff_device(clixon_handle      h,
         switch (dt1){
         case DT_RUNNING:
         case DT_CANDIDATE:
-            x1 = xpath_first(xn, nsc, "root");
+            x1 = xpath_first(xn, nsc, "config");
             break;
         case DT_SYNCED:
         case DT_TRANSIENT:
@@ -1442,7 +1442,7 @@ datastore_diff_device(clixon_handle      h,
         switch (dt2){
         case DT_RUNNING:
         case DT_CANDIDATE:
-            x2 = xpath_first(xn, nsc, "root");
+            x2 = xpath_first(xn, nsc, "config");
             break;
         case DT_SYNCED:
         case DT_TRANSIENT:
