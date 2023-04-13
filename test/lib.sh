@@ -34,6 +34,7 @@ DEFAULTNS="$DEFAULTONLY message-id=\"42\""
 
 # Multiplication factor to sleep less than whole seconds
 DEMSLEEP=0.2
+DEMLOOP=5
 
 : ${clixon_cli:=clixon_cli}
 
@@ -90,19 +91,19 @@ function chunked_framing()
 # Wait for restconf to stop sending  502 Bad Gateway
 function wait_backend(){
     freq=$(chunked_framing "<rpc $DEFAULTNS><ping $LIBNS/></rpc>")
-    reply=$(echo "$freq" | $PREFIX ${clixon_netconf} -q1ef $CFG)
+    reply=$(echo "$freq" | $PREFIX ${clixon_netconf} -q1ef $CFG) || true
     #    freply=$(chunked_framing "<rpc-reply $DEFAULTNS><ok/></rpc-reply>")
     #    chunked_equal "$reply" "$freply"
     let i=0 || true
     while [[ $reply != *"<rpc-reply"* ]]; do
 	echo "sleep $DEMSLEEP"
 	sleep $DEMSLEEP
-	reply=$(echo "<rpc $ÐEFAULTSNS $LIBNS><ping/></rpc>]]>]]>" | $PREFIX ${clixon_netconf} -qef $CFG 2> /dev/null)
-	echo "reply:$reply"
-	let i++;
+        freq=$(chunked_framing "<rpc $DEFAULTNS><ping $LIBNS/></rpc>")
+        reply=$(echo "$freq" | $PREFIX ${clixon_netconf} -q1ef $CFG) || true
+	let i++ || true
 	echo "wait_backend  $i"
 	if [ $i -ge $DEMLOOP ]; then
-	    err "backend timeout $DEMWAIT seconds"
+	    err "backend timeout $DEMLOOP loops"
 	fi
     done
 }

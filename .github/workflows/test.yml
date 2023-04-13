@@ -41,20 +41,17 @@ jobs:
 # 2)  Run tests
     - name: Start devices
       run: (cd test; ./start-devices.sh)
-#    - name: Run all tests
-#      # Note PREFIX=sudo because cannot get clicon group correct
-#      run: (cd test; PREFIX=sudo ./all.sh)
     - name: Run test-change-both
-      run: (cd test; ./test-change-both.sh)
+      run: (cd test; PREFIX=sudo ./test-change-both.sh)
     - name: Run test-change-ctrl-push
-      run: (cd test; ./test-change-ctrl-push.sh)
+      run: (cd test; PREFIX=sudo ./test-change-ctrl-push.sh)
     - name: Run test-change-device-diff
-      run: (cd test; ./test-change-device-diff.sh)
+      run: (cd test; PREFIX=sudo ./test-change-device-diff.sh)
 # Changed pyapi protocol
 #    - name: Run test-cli-edit-commit-push
 #      run: (cd test; ./test-cli-edit-commit-push.sh)
-    - name: Run test-service
-      run: (cd test; ./test-service.sh)
+# Hangs on commit push
+#    - name: Run test-service
+#      run: (cd test; PREFIX=sudo ./test-service.sh)
     - name: Run test-yanglib
-      run: (cd test; ./test-yanglib.sh)
-
+      run: (cd test; PREFIX=sudo ./test-yanglib.sh)
