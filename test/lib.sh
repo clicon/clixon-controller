@@ -103,7 +103,7 @@ function wait_backend(){
 	let i++ || true
 	echo "wait_backend  $i"
 	if [ $i -ge $DEMLOOP ]; then
-	    err "backend timeout $DEMLOOP loops"
+	    err "backend timeout $DEMLOOP loops" ""
 	fi
     done
 }

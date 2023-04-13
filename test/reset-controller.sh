@@ -146,7 +146,6 @@ for j in $(seq 1 5); do
     fi
 done
 
-
 echo "check open"
 res=$(${PREFIX} ${clixon_cli} -1f $CFG show devices | grep OPEN | grep "$IMG" | wc -l)
 if [ "$res" != "$nr" ]; then

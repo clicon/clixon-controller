@@ -178,7 +178,7 @@ controller_connect(clixon_handle           h,
  * @param[in]  h       Clicon handle 
  * @param[in]  xe      Request: <rpc><xn></rpc> 
  * @param[in]  ct      Transaction 
- * @param[in]  cb       From where to compute diffs and push
+ * @param[in]  cb      From where to compute diffs and push
  * @param[out] cbmsg   Error message
  * @retval     1       OK
  * @retval     0       Failed, cbret set

@@ -1143,6 +1143,53 @@ controller_cli_start(clicon_handle h)
     return retval;
 }
 
+/* Called just before plugin unloaded. 
+ *
+ * @param[in] h    Clixon handle
+ */
+int
+controller_cli_exit(clicon_handle h)
+{
+    int                retval = -1;
+    int                s;
+    cbuf              *cb = NULL;
+    char              *username;
+    struct clicon_msg *msg = NULL;
+    uint32_t           session_id = 0;
+
+    if ((s = clicon_data_int_get(h, "controller-transaction-notify-socket")) > 0){
+        /* Inline of clicon_rpc_close_session() w other socket */
+        if ((cb = cbuf_new()) == NULL){
+            clicon_err(OE_XML, errno, "cbuf_new");
+            goto done;
+        }
+        clicon_session_id_get(h, &session_id);
+        cprintf(cb, "<rpc xmlns=\"%s\"", NETCONF_BASE_NAMESPACE);
+        cprintf(cb, " xmlns:%s=\"%s\"", NETCONF_BASE_PREFIX, NETCONF_BASE_NAMESPACE);
+        if ((username = clicon_username_get(h)) != NULL){
+            cprintf(cb, " %s:username=\"%s\"", CLIXON_LIB_PREFIX, username);
+            cprintf(cb, " xmlns:%s=\"%s\"", CLIXON_LIB_PREFIX, CLIXON_LIB_NS);
+        }
+        cprintf(cb, " %s", NETCONF_MESSAGE_ID_ATTR); /* XXX: use incrementing sequence */
+        cprintf(cb, ">");
+        cprintf(cb, "<close-session/>");
+        cprintf(cb, "</rpc>");
+        if ((msg = clicon_msg_encode(session_id, "%s", cbuf_get(cb))) == NULL)
+            goto done;
+        if (clicon_rpc_msg(h, msg, NULL) < 0)
+            goto done;        
+        close(s);
+        clicon_data_int_del(h, "controller-transaction-notify-socket");
+    }
+    retval = 0;
+ done:
+    if (cb)
+        cbuf_free(cb);
+    if (msg)
+        free(msg);
+    return retval;
+}
+
 /*! Send get yanglib of mountpount to backend
  *
  * @param[in]  h       Clixon handle
@@ -1420,6 +1467,7 @@ static clixon_plugin_api api = {
     "controller",       /* name */
     clixon_plugin_init,
     controller_cli_start,
+    controller_cli_exit,
     .ca_yang_patch   = controller_yang_patch,
 };
 
