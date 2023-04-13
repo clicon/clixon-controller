@@ -72,7 +72,6 @@ EOF
 }
 
 if $delete ; then
-
     echo "Delete device config"
     ret=$(${PREFIX} ${clixon_netconf} -qe0 -f $CFG <<EOF
 <rpc xmlns="urn:ietf:params:xml:ns:netconf:base:1.0" 
@@ -115,6 +114,7 @@ for i in $(seq 1 $nr); do
             echo "netconf rpc-error detected"
             exit 1
         fi
+        echo "retry after sleep"
         sleep 1
     done
 done
@@ -132,26 +132,36 @@ if [ -n "$match" ]; then
     echo "netconf rpc-error detected"
     exit 1
 fi
-sleep $sleep
 
-if ! $check ; then
-    echo "Stop before sync pull check"
-    echo OK
-    exit 0
-fi
+# try 5 times if fail
+for j in $(seq 1 5); do    
+    echo "sync pull"
+    fail=false
+    ret=$(${PREFIX} ${clixon_cli} -1f $CFG sync pull)||fail=true||true
+    echo "myfail:$fail"
+    if $fail; then
+        sleep 1
+    else
+        break
+    fi
+done
 
-echo "sync pull"
-${PREFIX} ${clixon_cli} -1f $CFG sync pull
-
-sleep $sleep
 
 echo "check open"
-res=$(${PREFIX} ${clixon_cli} -1f $CFG show devices | grep OPEN | wc -l)
+res=$(${PREFIX} ${clixon_cli} -1f $CFG show devices | grep OPEN | grep "$IMG" | wc -l)
 if [ "$res" != "$nr" ]; then
    echo "Error: $res"
    exit -1;
 fi
 
+# Early exit point, do not check pulled config
+if ! $check ; then
+    echo "reset-controller early exit: do not check result"
+    echo OK
+    exit 0
+fi
+
+# Only works for clixon-example, others should set check=false
 echo "check config"
 for i in $(seq 1 $nr); do
     NAME=$IMG$i
