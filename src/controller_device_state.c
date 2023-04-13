@@ -322,7 +322,6 @@ device_state_mount_point_get(char      *devicename,
     return retval;
 }
 
-
 /*! All schemas ready from one device, parse the locally
  *
  * @param[in] h          Clixon handle.
