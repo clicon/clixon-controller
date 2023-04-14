@@ -257,11 +257,14 @@ push_device_one(clixon_handle           h,
             goto done;
         device_handle_outmsg_set(dh, cbmsg);
         s = device_handle_socket_get(dh);
-        if (device_send_sync(h, dh, s) < 0)
+        if (device_send_get_config(h, dh, s) < 0)
             goto done;
         device_handle_tid_set(dh, ct->ct_id);
         if (device_state_set(dh, CS_PUSH_CHECK) < 0)
             goto done;
+    }
+    else{
+        device_handle_tid_set(dh, 0);
     }
     retval = 1;
  done:
@@ -306,7 +309,7 @@ pull_device_one(clixon_handle h,
 
     clicon_debug(1, "%s", __FUNCTION__);
     s = device_handle_socket_get(dh);
-    if (device_send_sync(h, dh, s) < 0)
+    if (device_send_get_config(h, dh, s) < 0)
         goto done;
     if (device_state_set(dh, CS_DEVICE_SYNC) < 0)
         goto done;
@@ -483,6 +486,7 @@ actions_timeout_unregister(controller_transaction *ct)
  *
  * @param[in]  h       Clixon handle
  * @param[in]  ct      Transaction
+ * @param[out] services 0: There are no service configuration
  * @param[out] cvv     Vector of services that have been changed.
  * @retval     0       OK, cb including notify msg (or not)
  * @retval    -1       Error
@@ -490,6 +494,7 @@ actions_timeout_unregister(controller_transaction *ct)
 static int
 controller_actions_diff(clixon_handle           h,
                         controller_transaction *ct,
+                        int                    *services,
                         cvec                   *cvv)
 {
     int     retval = -1;
@@ -514,6 +519,11 @@ controller_actions_diff(clixon_handle           h,
         goto done;
     x0s = xpath_first(x0t, nsc, "services");
     x1s = xpath_first(x1t, nsc, "services");
+    if (x0s == NULL && x1s == NULL){
+        *services = 0;
+        goto ok;
+    }
+    *services = 1;
     if (xml_diff(x0t, x1t,
                  &dvec, &dlen,
                  &avec, &alen,
@@ -557,6 +567,7 @@ controller_actions_diff(clixon_handle           h,
             cvec_add_string(cvv, xml_name(xn), NULL);
         }
     }
+ ok:
     retval = 0;
  done:
     if (x0t)
@@ -581,8 +592,8 @@ controller_actions_diff(clixon_handle           h,
  * 3. Should set a flag and remove later
  */
 static int
-service_strip_device(cxobj *x,
-                     void  *arg)
+strip_device(cxobj *x,
+             void  *arg)
 {
     cvec   *cvv = (cvec*)arg;
     cg_var *cv = NULL;
@@ -608,12 +619,15 @@ service_strip_device(cxobj *x,
    return 0;
 }
 
-/*!
+/*! Strip all service data in device config
+ * 
+ * Read a datastore, for each device in the datastore, strip data created by services 
+ * as defined by the services vector cvv. Write back the changed datasrtore
  */
 static int
-datastore_strip_devices(clixon_handle h,
-                        char         *db,
-                        cvec         *cvv)
+strip_service_data_from_device_config(clixon_handle h,
+                                      char         *db,
+                                      cvec         *cvv)
 {
     int     retval = -1;
     cxobj  *xt = NULL;
@@ -630,7 +644,7 @@ datastore_strip_devices(clixon_handle h,
         goto done;
     for (i=0; i<veclen; i++){
         xd = vec[i];
-        if (xml_apply(xd, CX_ELMNT, service_strip_device, cvv) < 0)
+        if (xml_apply(xd, CX_ELMNT, strip_device, cvv) < 0)
             goto done;
         if (xml_tree_prune_flags(xd, XML_FLAG_MARK, XML_FLAG_MARK) < 0)
             goto done;
@@ -655,74 +669,6 @@ datastore_strip_devices(clixon_handle h,
         cbuf_free(cbret);
     if (xt)
         xml_free(xt);
-    return retval;
-}
-
-/*! Compute diff of candidate + commit and trigger service-commit notify
- *
- * @param[in]  h         Clicon handle 
- * @param[in]  ct        Transaction
- * @param[in]  actions   How to trigger service-commit notifications
- * @retval     0         OK
- * @retval    -1         Error
- */
-static int 
-controller_commit_actions(clixon_handle           h,
-                          controller_transaction *ct,
-                          actions_type            actions)
-{
-    int   retval = -1;
-    cbuf *notifycb = NULL;
-    cvec *cvv = NULL;
-
-    if ((notifycb = cbuf_new()) == NULL){
-        clicon_err(OE_UNIX, errno, "cbuf_new");
-        goto done;
-    }
-    if ((cvv = cvec_new(0)) == NULL){
-        clicon_err(OE_UNIX, errno, "cvec_new");
-        goto done;
-    }
-    if (actions != AT_FORCE){
-        /* Get candidate and running, compute diff and get notification msg in return */
-        if (controller_actions_diff(h, ct, cvv) < 0)
-            goto done;
-    }
-    if (actions == AT_FORCE || cvec_len(cvv) > 0){     /* There are service changes */
-        cg_var *cv = NULL;
-        cprintf(notifycb, "<services-commit xmlns=\"%s\">", CONTROLLER_NAMESPACE);
-        cprintf(notifycb, "<tid>%" PRIu64"</tid>", ct->ct_id);
-        cprintf(notifycb, "<source>candidate</source>");
-        cprintf(notifycb, "<target>actions</target>");
-        while ((cv = cvec_each(cvv, cv)) != NULL){
-            cprintf(notifycb, "<service>%s</service>", cv_name_get(cv));
-        }
-        cprintf(notifycb, "</services-commit>");
-
-        /* 1) copy candidate to actions but remove all device config tagged with services */
-        if (xmldb_copy(h, "candidate", "actions") < 0)
-            goto done;
-        if (datastore_strip_devices(h, "actions", cvv) < 0)
-            goto done;
-        clicon_debug(1, "%s stream_notify: services-commit: %" PRIu64, __FUNCTION__, ct->ct_id);
-        if (stream_notify(h, "services-commit", "%s", cbuf_get(notifycb)) < 0)
-            goto done;
-        controller_transaction_state_set(ct, TS_ACTIONS, -1);
-        if (actions_timeout_register(ct) < 0)
-            goto done;
-    }
-    else { /* No service changes, close transaction */
-        if (controller_transaction_done(h, ct, TR_SUCCESS) < 0)
-            goto done;
-        if (controller_transaction_notify(h, ct) < 0)
-            goto done;
-    }
-    retval = 0;
- done:
-    if (cvv)
-        cvec_free(cvv);
-    if (notifycb)
-        cbuf_free(notifycb);
     return retval;
 }
 
@@ -761,6 +707,142 @@ controller_commit_push(clixon_handle           h,
     retval = 0;
     goto done;
 }
+
+/*! Push commit after actions completed, potentially start device push process
+ *
+ * @param[in]  h    Clixon handle
+ * @param[in]  ct   Transaction
+ */
+static int
+commit_push_after_actions(clixon_handle           h,
+                          controller_transaction *ct)
+{
+    int           retval = -1;
+    device_handle dh;
+    cbuf         *cberr = NULL;
+    int           ret;
+
+    if (ct->ct_push_type == PT_NONE){
+        if (controller_transaction_done(h, ct, TR_SUCCESS) < 0)
+            goto done;
+        if (controller_transaction_notify(h, ct) < 0)
+            goto done;
+    }
+    else{
+        if ((ret = controller_commit_push(h, ct, "actions", &cberr)) < 0)
+            goto done;
+        if (ret == 0){
+            dh = NULL; /* unmark devices */
+            while ((dh = device_handle_each(h, dh)) != NULL){
+                if (device_handle_tid_get(dh) == ct->ct_id)
+                    device_handle_tid_set(dh, 0);
+            }
+            if ((ct->ct_origin = strdup("controller")) == NULL){
+                clicon_err(OE_UNIX, errno, "strdup");
+                goto done;
+            }
+            if ((ct->ct_reason = strdup(cbuf_get(cberr))) == NULL){
+                clicon_err(OE_UNIX, errno, "strdup");
+                goto done;
+            }
+            if (controller_transaction_done(h, ct, TR_FAILED) < 0)
+                goto done;
+            if (controller_transaction_notify(ct->ct_h, ct) < 0)
+                goto done;                
+        }
+        /* No device started, close transaction */
+        else if (controller_transaction_devices(h, ct->ct_id) == 0){
+            if (controller_transaction_done(h, ct, TR_SUCCESS) < 0)
+                goto done;
+            if (controller_transaction_notify(h, ct) < 0)
+                goto done;
+        }        
+        else{
+            /* Some or all started */
+        }
+    }
+    retval = 0;
+ done:
+    if (cberr)
+        cbuf_free(cberr);
+    return retval;
+}
+
+/*! Compute diff of candidate + commit and trigger service-commit notify
+ *
+ * @param[in]  h         Clicon handle 
+ * @param[in]  ct        Transaction
+ * @param[in]  actions   How to trigger service-commit notifications
+ * @retval     0         OK
+ * @retval    -1         Error
+ */
+static int 
+controller_commit_actions(clixon_handle           h,
+                          controller_transaction *ct,
+                          actions_type            actions)
+{
+    int     retval = -1;
+    cbuf   *notifycb = NULL;
+    cvec   *cvv = NULL;
+    int     services = 0;
+    cg_var *cv = NULL;
+
+    if ((cvv = cvec_new(0)) == NULL){
+        clicon_err(OE_UNIX, errno, "cvec_new");
+        goto done;
+    }
+    /* Get candidate and running, compute diff and get notification msg in return */
+    if (controller_actions_diff(h, ct, &services, cvv) < 0)
+        goto done;
+    if (actions == AT_FORCE)
+        cvec_reset(cvv);
+    /* 1) copy candidate to actions and remove all device config tagged with services */
+    if (xmldb_copy(h, "candidate", "actions") < 0)
+        goto done;
+    if (strip_service_data_from_device_config(h, "actions", cvv) < 0)
+        goto done;
+    if (services){
+        if (actions == AT_FORCE || cvec_len(cvv) > 0){     /* There are service changes */
+            if ((notifycb = cbuf_new()) == NULL){
+                clicon_err(OE_UNIX, errno, "cbuf_new");
+                goto done;
+            }
+            cprintf(notifycb, "<services-commit xmlns=\"%s\">", CONTROLLER_NAMESPACE);
+            cprintf(notifycb, "<tid>%" PRIu64"</tid>", ct->ct_id);
+            cprintf(notifycb, "<source>candidate</source>");
+            cprintf(notifycb, "<target>actions</target>");
+            while ((cv = cvec_each(cvv, cv)) != NULL){
+                cprintf(notifycb, "<service>%s</service>", cv_name_get(cv));
+            }
+            cprintf(notifycb, "</services-commit>");
+
+            clicon_debug(1, "%s stream_notify: services-commit: %" PRIu64, __FUNCTION__, ct->ct_id);
+            if (stream_notify(h, "services-commit", "%s", cbuf_get(notifycb)) < 0)
+                goto done;
+            controller_transaction_state_set(ct, TS_ACTIONS, -1);
+            if (actions_timeout_register(ct) < 0)
+                goto done;
+        }
+        else { /* There are services, but no service changes, close transaction */
+            if (controller_transaction_done(h, ct, TR_SUCCESS) < 0)
+                goto done;
+            if (controller_transaction_notify(h, ct) < 0)
+                goto done;
+        }
+    }
+    else{ /* No services, proceed to next step */
+        if (commit_push_after_actions(h, ct) < 0)
+            goto done;
+    }
+    retval = 0;
+ done:
+    if (cvv)
+        cvec_free(cvv);
+    if (notifycb)
+        cbuf_free(notifycb);
+    return retval;
+}
+
 
 /*! Mark devices based on its name matching device glob field AND its state is OPEN
  *
@@ -1250,8 +1332,6 @@ rpc_transactions_actions_done(clixon_handle h,
     uint64_t                tid;
     int                     ret;
     controller_transaction *ct;
-    cbuf                   *cberr = NULL;
-    device_handle           dh;
     
     clicon_debug(1, "%s", __FUNCTION__);
     if ((tidstr = xml_find_body(xe, "tid")) == NULL){
@@ -1282,42 +1362,8 @@ rpc_transactions_actions_done(clixon_handle h,
         cprintf(cbret, "<rpc-reply xmlns=\"%s\">", NETCONF_BASE_NAMESPACE);
         cprintf(cbret, "<ok/>");
         cprintf(cbret, "</rpc-reply>");
-        if (ct->ct_push_type == PT_NONE){
-            if (controller_transaction_done(h, ct, TR_SUCCESS) < 0)
-                goto done;
-            if (controller_transaction_notify(h, ct) < 0)
-                goto done;
-        }
-        else{
-            if ((ret = controller_commit_push(h, ct, "actions", &cberr)) < 0)
-                goto done;
-            if (ret == 0){
-                dh = NULL; /* unmark devices */
-                while ((dh = device_handle_each(h, dh)) != NULL){
-                    if (device_handle_tid_get(dh) == ct->ct_id)
-                        device_handle_tid_set(dh, 0);
-                }
-                if ((ct->ct_origin = strdup("controller")) == NULL){
-                    clicon_err(OE_UNIX, errno, "strdup");
-                    goto done;
-                }
-                if ((ct->ct_reason = strdup(cbuf_get(cberr))) == NULL){
-                    clicon_err(OE_UNIX, errno, "strdup");
-                    goto done;
-                }
-                if (controller_transaction_done(h, ct, TR_FAILED) < 0)
-                    goto done;
-                if (controller_transaction_notify(ct->ct_h, ct) < 0)
-                    goto done;                
-            }
-            /* No device started, close transaction */
-            else if (controller_transaction_devices(h, ct->ct_id) == 0){
-                if (controller_transaction_done(h, ct, TR_SUCCESS) < 0)
-                    goto done;
-                if (controller_transaction_notify(h, ct) < 0)
-                    goto done;
-            }        
-        }
+        if (commit_push_after_actions(h, ct) < 0)
+            goto done;
         break;
     case TS_DONE:
         if (netconf_operation_failed(cbret, "application", "Transaction already completed(timeout?)") < 0)
@@ -1327,8 +1373,6 @@ rpc_transactions_actions_done(clixon_handle h,
  ok:
     retval = 0;
  done:
-    if (cberr)
-        cbuf_free(cberr);
     return retval;
 }
 
@@ -1407,7 +1451,7 @@ datastore_diff_device(clixon_handle      h,
         clicon_err(OE_UNIX, errno, "cbuf_new");
         goto done;
     }
-    if (xmldb_get(h, "running", nsc, "devices/device", &xret) < 0)
+    if (xmldb_get0(h, "running", Y_MODULE, nsc, "devices/device", 1, WITHDEFAULTS_EXPLICIT, &xret, NULL, NULL) < 0)
         goto done;
     if (xpath_vec(xret, nsc, "devices/device", &vec, &veclen) < 0) 
         goto done;

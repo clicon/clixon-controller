@@ -262,7 +262,6 @@ transaction_notification_poll(clicon_handle h,
             cligen_output(stderr, "Failed\n");
             break;
         case TR_SUCCESS:
-            cligen_output(stderr, "OK\n");
             break;
         }
     }
@@ -352,6 +351,7 @@ cli_rpc_sync_pull(clixon_handle h,
         goto done;
     if (transaction_notification_poll(h, tidstr) < 0)
         goto done;
+    cligen_output(stderr, "OK\n");
     retval = 0;
  done:
     if (cb)
@@ -392,6 +392,7 @@ cli_rpc_controller_commit(clixon_handle h,
     char        *actions_type;
     char        *source;
     cxobj       *xdiff;
+    char        *diff;
 
     if (argv == NULL || cvec_len(argv) != 3){
         clicon_err(OE_PLUGIN, EINVAL, "requires arguments: <datastore> <actions-type> <push-type>");
@@ -461,7 +462,7 @@ cli_rpc_controller_commit(clixon_handle h,
         goto done;
     if (transaction_notification_poll(h, tidstr) < 0)
         goto done;
-    /* Use actions and no push as diff */
+    /* Interpret actions and no push as diff */
     if (actions_type_str2int(actions_type) != AT_NONE &&
         push_type_str2int(push_type) == PT_NONE){ 
         cbuf_reset(cb);
@@ -471,7 +472,7 @@ cli_rpc_controller_commit(clixon_handle h,
             NETCONF_MESSAGE_ID_ATTR);
         cprintf(cb, "<datastore-diff xmlns=\"%s\">", CONTROLLER_NAMESPACE);
         cprintf(cb, "<xpath>devices</xpath>");
-        cprintf(cb, "<dsref1>ds:candidate</dsref1>");
+        cprintf(cb, "<dsref1>ds:running</dsref1>");
         cprintf(cb, "<dsref2>actions</dsref2>");
         cprintf(cb, "</datastore-diff>");
         cprintf(cb, "</rpc>");
@@ -497,8 +498,10 @@ cli_rpc_controller_commit(clixon_handle h,
             clicon_err(OE_CFG, 0, "No returned diff");
             goto done;
         }
-        fprintf(stdout, "%s", xml_body(xdiff));
+        if ((diff = xml_body(xdiff)) != NULL)
+            cligen_output(stdout, "%s", diff);
     }
+    cligen_output(stderr, "OK\n");
     retval = 0;
  done:
     if (cb)
@@ -906,6 +909,7 @@ send_pull_transient(clicon_handle h,
  * @param[in]   argv    <format>        "text"|"xml"|"json"|"cli"|"netconf" (see format_enum)
  * @param[in]   dt1     First device config config 
  * @param[in]   dt2     Second device config config
+ * @param[out]  diffp   Allocated diff string
  * @retval      0       OK
  * @retval     -1       Error
  */
@@ -914,7 +918,8 @@ compare_device_config_type(clicon_handle      h,
                            cvec              *cvv, 
                            cvec              *argv,
                            device_config_type dt1,
-                           device_config_type dt2)
+                           device_config_type dt2,
+                           char             **diffp)
 {
     int              retval = -1;
     enum format_enum format;
@@ -992,8 +997,12 @@ compare_device_config_type(clicon_handle      h,
         clicon_err(OE_CFG, 0, "No returned diff");
         goto done;
     }
-    if ((diff = xml_body(xdiff)) != NULL)
-        fprintf(stdout, "%s", diff);
+    if ((diff = xml_body(xdiff)) != NULL && diffp){
+        if ((*diffp = strdup(diff)) == NULL){
+            clicon_err(OE_UNIX, errno, "strdup");
+            goto done;
+        }
+    }
     retval = 0;
  done:
     if (xret)
@@ -1018,7 +1027,18 @@ compare_device_db_sync(clicon_handle h,
                        cvec         *cvv, 
                        cvec         *argv)
 {
-    return compare_device_config_type(h, cvv, argv, DT_SYNCED, DT_RUNNING);
+    int   retval = -1;
+    char *diff = NULL;
+
+    if (compare_device_config_type(h, cvv, argv, DT_SYNCED, DT_RUNNING, &diff) < 0)
+        goto done;
+    if (diff)
+        cligen_output(stdout, "%s", diff);
+    retval = 0;
+ done:
+    if (diff)
+        free(diff);
+    return retval;
 }
 
 /*! Compare device dbs: running with current device (transient)
@@ -1034,7 +1054,18 @@ compare_device_db_dev(clicon_handle h,
                       cvec         *cvv,
                       cvec         *argv)
 {
-    return compare_device_config_type(h, cvv, argv, DT_TRANSIENT, DT_RUNNING);
+    int   retval = -1;
+    char *diff = NULL;
+
+    if (compare_device_config_type(h, cvv, argv, DT_TRANSIENT, DT_RUNNING, &diff) < 0)
+        goto done;
+    if (diff)
+        cligen_output(stdout, "%s", diff);
+    retval = 0;
+ done:
+    if (diff)
+        free(diff);
+    return retval;
 }
 
 /*! Check if device(s) is in sync
@@ -1045,77 +1076,25 @@ compare_device_db_dev(clicon_handle h,
  * @retval   -1    Error
  */
 int
-cli_check_sync(clixon_handle h,
-               cvec         *cvv,
-               cvec         *argv)
+check_device_db(clixon_handle h,
+                cvec         *cvv,
+                cvec         *argv)
 {
-    // XXX just show true/false
-    return compare_device_config_type(h, cvv, argv, DT_RUNNING, DT_TRANSIENT);
-}
-
-#ifdef NOTUSED
-int
-cli_services_apply(clixon_handle h, 
-                   cvec         *cvv, 
-                   cvec         *argv)
-{
-    int        retval = -1;
-    cbuf      *cb = NULL;
-    cxobj     *xtop = NULL;
-    cxobj     *xrpc;
-    cxobj     *xret = NULL;
-    cxobj     *xreply;
-    cxobj     *xerr;
-    cxobj     *xid;
-    char      *tidstr;
-    uint64_t   tid = 0;
-
-    if ((cb = cbuf_new()) == NULL){
-        clicon_err(OE_PLUGIN, errno, "cbuf_new");
+    int   retval = -1;
+    char *diff = NULL;
+    
+    if (compare_device_config_type(h, cvv, argv, DT_RUNNING, DT_TRANSIENT, &diff) < 0)
         goto done;
-    }
-    cprintf(cb, "<rpc xmlns=\"%s\" username=\"%s\" %s>",
-            NETCONF_BASE_NAMESPACE,
-            clicon_username_get(h),
-            NETCONF_MESSAGE_ID_ATTR);
-    cprintf(cb, "<services-apply xmlns=\"%s\">", CONTROLLER_NAMESPACE);
-    cprintf(cb, "</services-apply>");
-    cprintf(cb, "</rpc>");
-    if (clixon_xml_parse_string(cbuf_get(cb), YB_NONE, NULL, &xtop, NULL) < 0)
-        goto done;
-    /* Skip top-level */
-    xrpc = xml_child_i(xtop, 0);
-    /* Send to backend */
-    if (clicon_rpc_netconf_xml(h, xrpc, &xret, NULL) < 0)
-        goto done;
-    if ((xreply = xpath_first(xret, NULL, "rpc-reply")) == NULL){
-        clicon_err(OE_CFG, 0, "Malformed rpc reply");
-        goto done;
-    }
-    if ((xerr = xpath_first(xreply, NULL, "rpc-error")) != NULL){
-        clixon_netconf_error(xerr, "Get configuration", NULL);
-        goto done;
-    }
-    if ((xid = xpath_first(xreply, NULL, "tid")) == NULL){
-        clicon_err(OE_CFG, 0, "No returned id");
-        goto done;
-    }
-    tidstr = xml_body(xid);
-    if (tidstr && parse_uint64(tidstr, &tid, NULL) <= 0)
-        goto done;
-    if (0 && transaction_notification_poll(h, tidstr) < 0) // NOTYET
-        goto done;
+    if (diff && strlen(diff))
+        cligen_output(stdout, "device out-of-sync\n");
+    else
+        cligen_output(stdout, "OK\n");
     retval = 0;
  done:
-    if (cb)
-        cbuf_free(cb);
-    if (xret)
-        xml_free(xret);
-    if (xtop)
-        xml_free(xtop);
-    return retval;
+    if (diff)
+        free(diff);
+    return retval;    
 }
-#endif
 
 /* Called when application is "started", (almost) all initialization is complete 
  *

@@ -579,7 +579,8 @@ device_config_read(clicon_handle h,
     char  *db;
     cxobj *xt = NULL;
     cxobj *xroot;
-    
+    cvec  *nsc = NULL;
+        
     if (devname == NULL || config_type == NULL){
         clicon_err(OE_UNIX, EINVAL, "devname or config_type is NULL");
         goto done;
@@ -590,7 +591,7 @@ device_config_read(clicon_handle h,
     }   
     cprintf(cbdb, "device-%s-%s", devname, config_type);
     db = cbuf_get(cbdb);
-    if (xmldb_get(h, db, NULL, NULL, &xt) < 0)
+    if (xmldb_get0(h, db, Y_MODULE, nsc, NULL, 1, WITHDEFAULTS_EXPLICIT, &xt, NULL, NULL) < 0)
         goto done;
     if ((xroot = xpath_first(xt, NULL, "devices/device/config")) == NULL){
         if ((*cberr = cbuf_new()) == NULL){
@@ -808,7 +809,7 @@ device_state_handler(clixon_handle h,
                 break;
             }
             /* Unconditionally sync */
-            if (device_send_sync(h, dh, s) < 0)
+            if (device_send_get_config(h, dh, s) < 0)
                 goto done;
             if (device_state_set(dh, CS_DEVICE_SYNC) < 0)
                 goto done;
@@ -850,7 +851,7 @@ device_state_handler(clixon_handle h,
                 break;
             }
             /* Unconditionally sync */
-            if (device_send_sync(h, dh, s) < 0)
+            if (device_send_get_config(h, dh, s) < 0)
                 goto done;
             if (device_state_set(dh, CS_DEVICE_SYNC) < 0)
                 goto done;
@@ -907,7 +908,6 @@ device_state_handler(clixon_handle h,
         ct->ct_pull_transient = 1;
         if ((ret = device_state_recv_config(h, dh, xmsg, yspec0, rpcname, conn_state)) < 0)
             goto done;
-
          /* Compare transient with last sync*/
         if (ret && (ret = device_config_compare(h, dh, name, ct, &eq)) < 0)
             goto done;
