@@ -47,16 +47,16 @@ show("Show a particular state of the system"){
     compare("Compare candidate and running databases"), compare_dbs("text");{
           xml("Show comparison in xml"), compare_dbs("xml");
 	  text("Show comparison in text"), compare_dbs("text");
-          device("Compare device sync with running") [(<name:string>("device pattern")|<name:string expand_dbvar("running","/clixon-controller:devices/device/name")>("device pattern"))], compare_device_db_sync("text");{
-    		         xml("Show comparison in xml"), compare_device_db_sync("xml");
-		         text("Show comparison in text"), compare_device_db_sync("text");
+          device("Compare device sync with running") [(<name:string>("device pattern")|<name:string expand_dbvar("running","/clixon-controller:devices/device/name")>("device pattern"))], compare_device_db_dev("text");{
+    		         xml("Show comparison in xml"), compare_device_db_dev("xml");
+		         text("Show comparison in text"), compare_device_db_dev("text");
                      }
     }
     devices("Show state of devices")[
                  (<name:string>("device pattern")|
                   <name:string expand_dbvar("running","/clixon-controller:devices/device/name")>("device pattern"))
                  ], cli_show_devices();{
-                 sync("Check if device is in sync"), cli_check_sync();
+                 check("Check if device is in sync"), check_device_db("text");
                  detail("Show detailed state"), cli_show_devices("detail");
                  }
     transactions("Show state of las t transaction"), cli_show_transactions("last");{
@@ -93,10 +93,6 @@ sync("Read the config of one or several devices.") {
                  (<name:string>("device pattern")|
                   <name:string expand_dbvar("running","/clixon-controller:devices/device/name")>("device pattern"))
                  ], cli_rpc_sync_pull("replace");{
-                    compare("Compare local device config with remote device"), compare_device_db_dev("text");{
-    		         xml("Show comparison in xml"), compare_device_db_dev("xml");
-		         text("Show comparison in text"), compare_device_db_dev("text");
-                    }
                     replace, cli_rpc_sync_pull("replace");
                     merge, cli_rpc_sync_pull("merge");
                  }
@@ -117,4 +113,7 @@ connection("Reconnect one or several devices in closed state")  [<name:string>("
               }
 
 services("Services operation") reapply("(re)apply services scripts"), cli_rpc_controller_commit("running", "FORCE", "COMMIT");
+check("Check if devices are out-of-sync"){
+          [(<name:string>("device pattern")|<name:string expand_dbvar("running","/clixon-controller:devices/device/name")>("device pattern"))], check_device_db("text");
+}
 

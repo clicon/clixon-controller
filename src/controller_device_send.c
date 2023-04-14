@@ -61,9 +61,9 @@
  * @retval    -1   Error
  */
 int
-device_send_sync(clixon_handle h,
-                 device_handle dh,
-                 int           s)
+device_send_get_config(clixon_handle h,
+                       device_handle dh,
+                       int           s)
 {
     int   retval = -1;
     cbuf *cb = NULL;

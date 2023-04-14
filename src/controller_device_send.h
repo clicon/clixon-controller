@@ -44,7 +44,7 @@
 extern "C" {
 #endif
     
-int device_send_sync(clixon_handle h, device_handle ch, int s);
+int device_send_get_config(clixon_handle h, device_handle ch, int s);
 int device_send_get_schema_next(clixon_handle h, device_handle dh, int s, int *nr);
 int device_send_get_schema_list(clixon_handle h, device_handle dh, int s);
 int device_create_edit_config_diff(clixon_handle h, device_handle dh,
