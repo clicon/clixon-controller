@@ -195,7 +195,6 @@ push_device_one(clixon_handle           h,
     cxobj     *x0 = NULL;
     cxobj     *x1;
     cxobj     *x1t = NULL;
-    cvec      *nsc = NULL;
     cbuf      *cb = NULL;
     char      *name;
     cxobj    **dvec = NULL;
@@ -209,6 +208,7 @@ push_device_one(clixon_handle           h,
     int        s;
     cbuf      *cbmsg = NULL;
     int        ret;
+    cvec      *nsc = NULL;
 
     /* 1) get previous device synced xml */
     name = device_handle_name_get(dh);
@@ -1001,8 +1001,8 @@ rpc_controller_commit(clixon_handle h,
                 goto done;
             goto ok;        
         }
-        /* No device started, close transaction */
         if (controller_transaction_devices(h, ct->ct_id) == 0){
+            /* No device started, close transaction */
             if (controller_transaction_done(h, ct, TR_SUCCESS) < 0)
                 goto done;
             if (controller_transaction_notify(h, ct) < 0)

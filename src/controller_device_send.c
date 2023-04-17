@@ -264,6 +264,11 @@ device_send_get_schema_list(clixon_handle h,
 
 /*! Create edit-config to a device given a diff between two XML trees x0 and x1
  *
+ * 1. Add netconf operation attributes to add/del/change nodes in x0 and x1 and mark
+ * 2. Remove all unmarked nodes, ie unchanged nodes
+ * 3. Merge deleted nodes in x0 with added/changed nods in x1 into x0
+ * 4. Create an edit-config message and parse it
+ * 5. Add diff-tree to an outgoing netconf edit-config
  * Used for sync push
  * @param[in]  h       Clixon handle.
  * @param[in]  dh      Clixon client handle.
@@ -315,8 +320,7 @@ device_create_edit_config_diff(clixon_handle h,
         clicon_err(OE_UNIX, EINVAL, "cbret is NULL");
         goto done;
     }
-    /* Most of this could probably be generic */
-    /* Miss a level ? */
+    /* 1. Add netconf operation attributes to add/del/change nodes in x0 and x1 and mark */
     for (i=0; i<dlen; i++){
         xn = dvec[i];
         if ((xa = xml_new("operation", xn, CX_ATTR)) == NULL)
@@ -347,14 +351,16 @@ device_create_edit_config_diff(clixon_handle h,
             goto done;
         xml_flag_set(xn, XML_FLAG_MARK);
     }
+    /* 2. Remove all unmarked nodes, ie unchanged nodes */
     if (xml_tree_prune_flagged_sub(x0, XML_FLAG_MARK, 1, NULL) < 0)
         goto done;
     if (xml_tree_prune_flagged_sub(x1, XML_FLAG_MARK, 1, NULL) < 0)
         goto done;
-    /* merge x1->x0 */
+    /* 3. Merge deleted nodes in x0 with added/changed nods in x1 (diff-tree)*/
     if ((ret = xml_merge(x0, x1, yspec, &reason)) < 0)
         goto done;
     // XXX validate
+    /* 4. Create an edit-config message and parse it */
     if ((cb = cbuf_new()) == NULL){
         clicon_err(OE_PLUGIN, errno, "cbuf_new");
         goto done;
@@ -374,6 +380,7 @@ device_create_edit_config_diff(clixon_handle h,
     xroot = xpath_first(xt, nsc, "rpc/edit-config");
     if (xml_name_set(x0, "config") < 0)
         goto done;
+    /* 5. Add diff-tree to an outgoing netconf edit-config */
     if (xml_addsub(xroot, x0) < 0)
         goto done;
     cbuf_reset(cb);
