@@ -76,6 +76,8 @@ int    device_handle_frame_state_set(device_handle dh, int state);
 size_t device_handle_frame_size_get(device_handle dh);
 int    device_handle_frame_size_set(device_handle dh, size_t size);
 cbuf  *device_handle_frame_buf_get(device_handle dh);
+netconf_framing_type device_handle_framing_type_get(device_handle dh);
+int    device_handle_framing_type_set(device_handle dh, netconf_framing_type ft);
 cxobj *device_handle_capabilities_get(device_handle dh);
 int    device_handle_capabilities_set(device_handle dh, cxobj *xcaps);
 int    device_handle_capabilities_find(clixon_handle ch, const char *name);

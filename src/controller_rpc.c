@@ -92,7 +92,7 @@ connect_netconf_ssh(clixon_handle h,
     if (device_state_set(dh, CS_CONNECTING) < 0)
         goto done;
     s = device_handle_socket_get(dh);    
-    clicon_data_int_set(h, "netconf-framing", NETCONF_SSH_EOM); /* Always start with EOM */
+    device_handle_framing_type_set(dh, NETCONF_SSH_EOM);
     if (clixon_event_reg_fd(s, device_input_cb, dh, "netconf socket") < 0)
         goto done;
     retval = 0;

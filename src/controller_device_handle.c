@@ -82,6 +82,7 @@ struct controller_device_handle{
     cbuf              *cdh_frame_buf;  /* Remaining expecting chunk bytes */
     int                cdh_frame_state;/* Framing state for detecting EOM */
     size_t             cdh_frame_size; /* Remaining expecting chunk bytes */
+    netconf_framing_type cdh_framing_type; /* Netconf framing type of device */
     cxobj             *cdh_xcaps;      /* Capabilities as XML tree */
     cxobj             *cdh_yang_lib;   /* RFC 8525 yang-library module list */
     struct timeval     cdh_sync_time;  /* Time when last sync (0 if unsynched) */
@@ -562,8 +563,9 @@ device_handle_frame_state_set(device_handle dh,
     return 0;
 }
 
-/*!
- * @param[in]  dh     Device handle
+/*! Get Netconf frame size, part of dynamic framing detection
+ * @param[in]  dh    Device handle
+ * @retval     fs    Frame size
  */
 size_t
 device_handle_frame_size_get(device_handle dh)
@@ -573,8 +575,10 @@ device_handle_frame_size_get(device_handle dh)
     return cdh->cdh_frame_size;
 }
 
-/*!
+/*! Set Netconf frame size, part of dynamic framing detection
+ *
  * @param[in]  dh     Device handle
+ * @param[in]  size   Frame size
  */
 int
 device_handle_frame_size_set(device_handle dh,
@@ -586,6 +590,7 @@ device_handle_frame_size_set(device_handle dh,
     return 0;
 }
 
+
 /*!
  * @param[in]  dh     Device handle
  */
@@ -595,6 +600,34 @@ device_handle_frame_buf_get(device_handle dh)
     struct controller_device_handle *cdh = devhandle(dh);
 
     return cdh->cdh_frame_buf;
+}
+
+/*! Set Netconf framing type of device
+ *
+ * @param[in]  dh   Device handle
+ * @retval     ft   Framing type
+ */
+netconf_framing_type
+device_handle_framing_type_get(device_handle dh)
+{
+    struct controller_device_handle *cdh = devhandle(dh);
+
+    return cdh->cdh_framing_type;
+}
+
+/*! Get Netconf framing type of device
+ *
+ * @param[in]  dh  Device handle
+ * @param[in]  ft  Framing type
+ */
+int
+device_handle_framing_type_set(device_handle        dh,
+                               netconf_framing_type ft)
+{
+    struct controller_device_handle *cdh = devhandle(dh);
+
+    cdh->cdh_framing_type = ft;
+    return 0;
 }
 
 /*! Get capabilities as xml tree

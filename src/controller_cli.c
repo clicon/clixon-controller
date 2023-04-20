@@ -256,7 +256,7 @@ transaction_notification_poll(clicon_handle h,
     if (match){
         switch (result){
         case TR_ERROR:
-            cligen_output(stderr, "Failed (not recoverable)\n");
+            cligen_output(stderr, "Error\n"); // XXX: Not recoverable??
             break;
         case TR_FAILED:
             cligen_output(stderr, "Failed\n");
