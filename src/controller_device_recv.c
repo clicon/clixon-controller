@@ -203,7 +203,7 @@ device_state_recv_hello(clixon_handle h,
     int     retval = -1;
     char   *rpcprefix;
     char   *namespace = NULL;
-    int     version;
+    netconf_framing_type version;
     cvec   *nsc = NULL;
     cxobj  *xcaps;
 
@@ -243,7 +243,7 @@ device_state_recv_hello(clixon_handle h,
     }
     clicon_debug(1, "%s version: %d", __FUNCTION__, version);
     version = 0; /* XXX hardcoded to 0 */
-    clicon_data_int_set(h, "netconf-framing", version);
+    device_handle_framing_type_set(dh, version);
     /* Send hello */
     if (clixon_client_hello(s, version) < 0)
         goto done;

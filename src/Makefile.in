@@ -34,6 +34,7 @@ APPNAME	        = controller
 
 CC		= @CC@
 CFLAGS  	= @CFLAGS@ -fPIC 
+LDFLAGS 	= @LDFLAGS@
 INSTALLFLAGS  	= @INSTALLFLAGS@ 
 
 INCLUDES 	= @INCLUDES@ 

@@ -86,7 +86,7 @@ device_send_get_config(clixon_handle h,
         cprintf(cb, "</get>");
     }
     cprintf(cb, "</rpc>");
-    encap = clicon_data_int_get(h, "netconf-framing");
+    encap = device_handle_framing_type_get(dh);
     if (netconf_output_encap(encap, cb) < 0)
         goto done;
     s = device_handle_socket_get(dh);
@@ -136,7 +136,7 @@ device_get_schema_sendit(clixon_handle h,
     cprintf(cb, "<format>yang</format>");
     cprintf(cb, "</get-schema>");
     cprintf(cb, "</rpc>");
-    encap = clicon_data_int_get(h, "netconf-framing");
+    encap = device_handle_framing_type_get(dh);
     if (netconf_output_encap(encap, cb) < 0)
         goto done;
     if (clicon_msg_send1(s, cb) < 0)
@@ -250,7 +250,7 @@ device_send_get_schema_list(clixon_handle h,
     cprintf(cb, "</filter>");
     cprintf(cb, "</get>");
     cprintf(cb, "</rpc>");
-    encap = clicon_data_int_get(h, "netconf-framing");
+    encap = device_handle_framing_type_get(dh);
     if (netconf_output_encap(encap, cb) < 0)
         goto done;
     if (clicon_msg_send1(s, cb) < 0)
@@ -380,13 +380,18 @@ device_create_edit_config_diff(clixon_handle h,
     xroot = xpath_first(xt, nsc, "rpc/edit-config");
     if (xml_name_set(x0, "config") < 0)
         goto done;
-    /* 5. Add diff-tree to an outgoing netconf edit-config */
+    /* 5. Add diff-tree to an outgoing netconf edit-config 
+     * Local tree xt and external tree x0 temporarily grafted, must be pruned directly after use
+     */
     if (xml_addsub(xroot, x0) < 0)
         goto done;
     cbuf_reset(cb);
-    if (clixon_xml2cbuf(cb, xt, 0, 0, NULL, -1, 1) < 0)
+    if (clixon_xml2cbuf(cb, xt, 0, 0, NULL, -1, 1) < 0){
+        xml_rm(x0);
         goto done;
-    encap = clicon_data_int_get(h, "netconf-framing");
+    }
+    xml_rm(x0);
+    encap = device_handle_framing_type_get(dh);
     if (netconf_output_encap(encap, cb) < 0)
         goto done;
     *cbret = cb;
@@ -397,6 +402,8 @@ device_create_edit_config_diff(clixon_handle h,
         free(reason);
     if (cb)
         cbuf_free(cb);
+    if (xt)
+        xml_free(xt);
     return retval;
 }
 
@@ -430,7 +437,7 @@ device_send_rpc(clixon_handle h,
             device_handle_msg_id_getinc(dh));
     cprintf(cb, "%s", msgbody);
     cprintf(cb, "</rpc>");
-    encap = clicon_data_int_get(h, "netconf-framing");
+    encap = device_handle_framing_type_get(dh);
     if (netconf_output_encap(encap, cb) < 0)
         goto done;
     if (clicon_msg_send1(s, cb) < 0)

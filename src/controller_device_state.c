@@ -201,79 +201,94 @@ int
 device_input_cb(int   s,
                 void *arg)
 {
-    device_handle dh = (device_handle)arg;
-    clixon_handle h;
-    int           retval = -1;
-    int           eom = 0;
-    int           eof = 0;
-    int           frame_state; /* only used for chunked framing not eom */
-    size_t        frame_size;
-    cbuf         *cb;
-    yang_stmt    *yspec;
-    cxobj        *xtop = NULL;
-    cxobj        *xmsg;
-    int           ret;
-    char         *name;
-    uint64_t      tid;
+    int                     retval = -1;
+    device_handle           dh = (device_handle)arg;
+    clixon_handle           h;
+    unsigned char           buf[BUFSIZ]; /* from stdio.h, typically 8K */
+    ssize_t                 buflen = sizeof(buf);
+    int                     eom = 0;
+    int                     eof = 0;
+    int                     frame_state; /* only used for chunked framing not eom */
+    size_t                  frame_size;
+    netconf_framing_type    framing_type;
+    cbuf                   *cbmsg;
+    cbuf                   *cberr = NULL;
+    cxobj                  *xtop = NULL;
+    cxobj                  *xmsg;
+    cxobj                  *xerr = NULL;
+    unsigned char          *p = buf;
+    ssize_t                 len;
+    size_t                  plen;
+    char                   *name;
+    uint64_t                tid;
     controller_transaction *ct = NULL;
-
+    int                     ret;
+    
     clicon_debug(CLIXON_DBG_DETAIL, "%s", __FUNCTION__);
     h = device_handle_handle_get(dh);
     frame_state = device_handle_frame_state_get(dh);
     frame_size = device_handle_frame_size_get(dh);
-    cb = device_handle_frame_buf_get(dh);
+    cbmsg = device_handle_frame_buf_get(dh);
     name = device_handle_name_get(dh);
     if ((tid = device_handle_tid_get(dh)) != 0)
         ct = controller_transaction_find(h, tid);
-    /* Read data, if eom set a frame is read
-     */
-    if (netconf_input_msg(s,
-                          clicon_data_int_get(h, "netconf-framing"),
-                          &frame_state, &frame_size,
-                          cb, &eom, &eof) < 0)
+    /* Read input data from socket and append to cbbuf */
+    if ((len = netconf_input_read2(s, buf, buflen, &eof)) < 0)
         goto done;
-
-    if (eof){         /* Close connection, unregister events, free mem */
-        clicon_debug(1, "%s %s: eom:%d eof:%d len:%lu Remote socket endpoint closed", __FUNCTION__,
-                     name, eom, eof, cbuf_len(cb));
-        if (ct==NULL)
-            device_close_connection(dh, "Remote socket endpoint closed");
-        else if (controller_transaction_failed(h, tid, ct, dh, 2, name, "Remote socket endpoint closed") < 0)
+    p = buf;
+    plen = len;
+    while (!eof && plen > 0){
+        framing_type = device_handle_framing_type_get(dh);
+        if (netconf_input_msg2(&p, &plen,
+                               cbmsg,
+                               framing_type,
+                               &frame_state,
+                               &frame_size,
+                               &eom) < 0)
             goto done;
-        goto ok;
-    }
+        if (eom == 0){ /* frame not complete */
+            clicon_debug(CLIXON_DBG_DETAIL, "%s: frame: %lu", __FUNCTION__, cbuf_len(cbmsg));
+            /* Extra data to read, save data and continue on next round */
+            break;
+        }
+        clicon_debug(CLIXON_DBG_MSG, "Recv dev %s: %s", name, cbuf_get(cbmsg));
+        if ((ret = netconf_input_frame2(cbmsg, YB_NONE, NULL, &xtop, &xerr)) < 0)
+            goto done;
+        clicon_debug(1, "%s ret:%d", __FUNCTION__, ret);
+        cbuf_reset(cbmsg);
+        if (ret == 0){
+            if ((cberr = cbuf_new()) == NULL){
+                clicon_err(OE_UNIX, errno, "cbuf_new");
+                goto done;
+            }
+            if (netconf_err2cb(xerr, cberr) < 0)
+                goto done;
+            if (ct){
+                // use XXX cberr but its XML
+                if (controller_transaction_failed(h, tid, ct, dh, 2, name, "Invalid frame") < 0)
+                    goto done;
+            }
+            else
+                device_close_connection(dh, "Invalid frame");
+            goto ok;
+        }
+        xmsg = xml_child_i_type(xtop, 0, CX_ELMNT);
+        if (xmsg && device_state_handler(h, dh, s, xmsg) < 0)
+            goto done;
+    } /* while */
     device_handle_frame_state_set(dh, frame_state);
     device_handle_frame_size_set(dh, frame_size);
-    if (eom == 0){ /* frame not complete */
-        clicon_debug(CLIXON_DBG_DETAIL, "%s %s: frame: %lu strlen:%lu", __FUNCTION__,
-                     name, cbuf_len(cb), strlen(cbuf_get(cb)));
-        goto ok;
-    }
-    clicon_debug(1, "%s %s: frame: %lu strlen:%lu", __FUNCTION__,
-                 name, cbuf_len(cb), strlen(cbuf_get(cb)));
-    cbuf_trunc(cb, cbuf_len(cb));
-    clicon_debug(CLIXON_DBG_MSG, "Recv dev: %s", cbuf_get(cb));
-    yspec = clicon_dbspec_yang(h);
-    if ((ret = netconf_input_frame(cb, yspec, &xtop)) < 0)
-        goto done;
-    cbuf_reset(cb);
-    if (ret==0){
-        device_close_connection(dh, "Invalid frame");
-        if (ct &&
-            controller_transaction_failed(h, tid, ct, dh, 2, name, "Invalid frame") < 0)
-            goto done;
-        goto ok;
-    }
-    xmsg = xml_child_i_type(xtop, 0, CX_ELMNT);
-    if (xmsg && device_state_handler(h, dh, s, xmsg) < 0)
-        goto done;
  ok:
     retval = 0;
  done:
     clicon_debug(CLIXON_DBG_DETAIL, "%s retval:%d", __FUNCTION__, retval);
+    if (cberr)
+        cbuf_free(cberr);
+    if (xerr)
+        xml_free(xerr);
     if (xtop)
         xml_free(xtop);
-    return retval;
+    return retval;    
 }
 
 /*! Given devicename and XML tree, create XML tree and device mount-point
