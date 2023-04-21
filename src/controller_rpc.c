@@ -602,7 +602,7 @@ strip_device(cxobj *x,
 
     if ((len = xml_creator_len(x)) == 0)
         return 0;
-    if (cvv == NULL){
+    if (cvec_len(cvv) == NULL){
         /* 1. cvv can be NULL, then any creator applies */
         xml_flag_set(x, XML_FLAG_MARK);
     }
@@ -612,10 +612,9 @@ strip_device(cxobj *x,
                 continue;
             if (len == 1)
                 xml_flag_set(x, XML_FLAG_MARK);
-            else {
+            else 
                 xml_creator_rm(x, name);
-            }
-    }
+        }
    return 0;
 }
 
@@ -638,7 +637,7 @@ strip_service_data_from_device_config(clixon_handle h,
     size_t  veclen;
     int     i;
 
-    if (xmldb_get0(h, db, YB_NONE, NULL, "devices", 1, WITHDEFAULTS_EXPLICIT, &xt, NULL, NULL) < 0)
+    if (xmldb_get0(h, db, YB_NONE, NULL, NULL, 1, WITHDEFAULTS_EXPLICIT, &xt, NULL, NULL) < 0)
         goto done;
     if (xpath_vec(xt, NULL, "devices/device/config", &vec, &veclen) < 0) 
         goto done;
@@ -649,7 +648,9 @@ strip_service_data_from_device_config(clixon_handle h,
         if (xml_tree_prune_flags(xd, XML_FLAG_MARK, XML_FLAG_MARK) < 0)
             goto done;
         if (xml_apply(xd, CX_ELMNT, (xml_applyfn_t*)xml_flag_reset, (void*)(XML_FLAG_MARK)) < 0)
-            goto done;
+        goto done;
+    }
+    if (veclen){
         if ((cbret = cbuf_new()) == NULL){
             clicon_err(OE_UNIX, errno, "cbuf_new");
             goto done;
@@ -794,6 +795,7 @@ controller_commit_actions(clixon_handle           h,
     /* Get candidate and running, compute diff and get notification msg in return */
     if (controller_actions_diff(h, ct, &services, cvv) < 0)
         goto done;
+    actions = AT_FORCE; // XXX
     if (actions == AT_FORCE)
         cvec_reset(cvv);
     /* 1) copy candidate to actions and remove all device config tagged with services */
