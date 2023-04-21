@@ -351,6 +351,7 @@ service_action_handler(clicon_handle      h,
     cbuf   *cbs = NULL;
     char   *sourcedb = NULL;
     char   *targetdb = NULL;
+    int     nr=0;
 
     clicon_debug(1, "%s", __FUNCTION__);
     if ((ret = clicon_msg_decode(notification, NULL, NULL, &xt, NULL)) < 0) 
@@ -395,16 +396,42 @@ service_action_handler(clicon_handle      h,
             continue;
         if ((service_name = xml_body(xs)) == NULL)
             continue;
-        if (pattern != NULL && fnmatch(pattern, service_name, 0) != 0)
-            continue;
-        if ((xsc = xpath_first(xservices, NULL, "%s", service_name)) != NULL){
+        nr++;
+    }
+    if (nr==0){ /* All services */
+        xs = NULL;
+        while ((xs = xml_child_each(xservices, xs,  CX_ELMNT)) != NULL){
+            service_name = xml_name(xs);
+            if (pattern != NULL && fnmatch(pattern, service_name, 0) != 0)
+                continue;
             cprintf(cbs, "<service>%s</service>", service_name);
             /* Loop over all devices */
             xd = NULL;
             while ((xd = xml_child_each(xdevs, xd,  CX_ELMNT)) != NULL){
                 devname = xml_find_body(xd, "name");
-                if (do_service(h, s, devname, xsc, targetdb, service_name) < 0)
+                if (do_service(h, s, devname, xs, targetdb, service_name) < 0)
                     goto done;
+            }
+        }
+    }
+    else {
+        xs = NULL;
+        while ((xs = xml_child_each(xn, xs,  CX_ELMNT)) != NULL){
+            if (strcmp(xml_name(xs), "service") != 0)
+                continue;
+            if ((service_name = xml_body(xs)) == NULL)
+                continue;
+            if (pattern != NULL && fnmatch(pattern, service_name, 0) != 0)
+                continue;
+            if ((xsc = xpath_first(xservices, NULL, "%s", service_name)) != NULL){
+                cprintf(cbs, "<service>%s</service>", service_name);
+                /* Loop over all devices */
+                xd = NULL;
+                while ((xd = xml_child_each(xdevs, xd,  CX_ELMNT)) != NULL){
+                    devname = xml_find_body(xd, "name");
+                    if (do_service(h, s, devname, xsc, targetdb, service_name) < 0)
+                        goto done;
+                }
             }
         }
     }
