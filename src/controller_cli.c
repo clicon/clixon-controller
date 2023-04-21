@@ -223,19 +223,20 @@ send_transaction_error(clicon_handle h,
  *
  * param[in]  h      Clicon handle
  * param[in]  tidstr Transaction identifier
+ * param[out] result
  * @retval    0      OK
  * @retval   -1      Error
  * @see transaction_notification_cb
  */
 static int
-transaction_notification_poll(clicon_handle h,
-                              char         *tidstr)
+transaction_notification_poll(clicon_handle       h,
+                              char               *tidstr,
+                              transaction_result *result)
 {
     int                retval = -1;
     int                eof = 0;
     int                s;
     int                match = 0;
-    transaction_result result = 0;
 
     clicon_debug(CLIXON_DBG_DEFAULT, "%s tid:%s", __FUNCTION__, tidstr);
     if ((s = clicon_data_int_get(h, "controller-transaction-notify-socket")) < 0){
@@ -243,7 +244,7 @@ transaction_notification_poll(clicon_handle h,
         goto done;
     }
     while (!match){
-        if (transaction_notification_handler(s, tidstr, &match, &result, &eof) < 0){
+        if (transaction_notification_handler(s, tidstr, &match, result, &eof) < 0){
             if (eof)
                 goto done;
             /* Interpret as user stop transaction: abort transaction */
@@ -254,7 +255,7 @@ transaction_notification_poll(clicon_handle h,
         }
     }
     if (match){
-        switch (result){
+        switch (*result){
         case TR_ERROR:
             cligen_output(stderr, "Error\n"); // XXX: Not recoverable??
             break;
@@ -297,6 +298,7 @@ cli_rpc_sync_pull(clixon_handle h,
     cxobj     *xid;
     char      *tidstr;
     uint64_t   tid = 0;
+    transaction_result result;
 
     if (argv == NULL || cvec_len(argv) != 1){
         clicon_err(OE_PLUGIN, EINVAL, "requires argument: replace/merge");
@@ -349,9 +351,10 @@ cli_rpc_sync_pull(clixon_handle h,
     tidstr = xml_body(xid);
     if (tidstr && parse_uint64(tidstr, &tid, NULL) <= 0)
         goto done;
-    if (transaction_notification_poll(h, tidstr) < 0)
+    if (transaction_notification_poll(h, tidstr, &result) < 0)
         goto done;
-    cligen_output(stderr, "OK\n");
+    if (result == TR_SUCCESS)
+        cligen_output(stderr, "OK\n");
     retval = 0;
  done:
     if (cb)
@@ -393,6 +396,7 @@ cli_rpc_controller_commit(clixon_handle h,
     char        *source;
     cxobj       *xdiff;
     char        *diff;
+    transaction_result result;
 
     if (argv == NULL || cvec_len(argv) != 3){
         clicon_err(OE_PLUGIN, EINVAL, "requires arguments: <datastore> <actions-type> <push-type>");
@@ -460,8 +464,10 @@ cli_rpc_controller_commit(clixon_handle h,
     tidstr = xml_body(xid);
     if (tidstr && parse_uint64(tidstr, &tid, NULL) <= 0)
         goto done;
-    if (transaction_notification_poll(h, tidstr) < 0)
+    if (transaction_notification_poll(h, tidstr, &result) < 0)
         goto done;
+    if (result != TR_SUCCESS)
+        goto ok;
     /* Interpret actions and no push as diff */
     if (actions_type_str2int(actions_type) != AT_NONE &&
         push_type_str2int(push_type) == PT_NONE){ 
@@ -502,6 +508,7 @@ cli_rpc_controller_commit(clixon_handle h,
             cligen_output(stdout, "%s", diff);
     }
     cligen_output(stderr, "OK\n");
+ ok:
     retval = 0;
  done:
     if (cb)
@@ -936,6 +943,7 @@ compare_device_config_type(clicon_handle      h,
     cbuf            *cb = NULL;
     char            *device_type = NULL;
     char            *diff;
+    transaction_result result;
     
     if (cvec_len(argv) > 1){
         clicon_err(OE_PLUGIN, EINVAL, "Received %d arguments. Expected: <format>]", cvec_len(argv));
@@ -955,8 +963,10 @@ compare_device_config_type(clicon_handle      h,
         if (send_pull_transient(h, pattern, &tidstr) < 0)
             goto done;
         /* Wait to complete transaction try ^C here */
-        if (transaction_notification_poll(h, tidstr) < 0)
+        if (transaction_notification_poll(h, tidstr, &result) < 0)
             goto done;
+        if (result == TR_SUCCESS)
+            goto ok;
     }
     if ((cb = cbuf_new()) == NULL){
         clicon_err(OE_PLUGIN, errno, "cbuf_new");
@@ -1003,6 +1013,7 @@ compare_device_config_type(clicon_handle      h,
             goto done;
         }
     }
+ ok:
     retval = 0;
  done:
     if (xret)

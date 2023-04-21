@@ -463,8 +463,9 @@ controller_transaction_failed(clicon_handle           h,
                 goto done;
         }
     }
-    if (ct->ct_state == TS_INIT){ /* 1.3 The transition is not in an error state */
-        /* 1.3.1 Set transition in error state */
+    if (ct->ct_state == TS_INIT || ct->ct_state == TS_ACTIONS){
+        /* 1.3 The transition is not in an error state 
+           1.3.1 Set transition in error state */
         controller_transaction_state_set(ct, TS_RESOLVED, TR_FAILED);
         if (origin && (ct->ct_origin = strdup(origin)) == NULL){
             clicon_err(OE_UNIX, errno, "strdup");

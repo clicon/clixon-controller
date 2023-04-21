@@ -37,7 +37,7 @@
 #define CONTROLLER_NAMESPACE "http://clicon.org/controller"
 
 /* Command line options to be passed to getopt(3) */
-#define SERVICE_ACTION_OPTS "hD:f:l:s:"
+#define SERVICE_ACTION_OPTS "hD:f:l:s:e"
 
 /*! Read services definition, write and mark a table/param for each param in the service
  * 
@@ -72,6 +72,51 @@ send_transaction_actions_done(clicon_handle h,
     cprintf(cb, "<tid>%s</tid>", tidstr);
     cprintf(cb, "%s", servstr);
     cprintf(cb, "</transaction-actions-done>");
+    cprintf(cb, "</rpc>");
+    if ((msg = clicon_msg_encode(0, "%s", cbuf_get(cb))) == NULL)
+        goto done;
+    if (clicon_rpc_msg(h, msg, &xt) < 0)
+        goto done;
+    if (xpath_first(xt,  NULL, "rpc-reply/rpc-error") != NULL){
+        clicon_err(OE_NETCONF, 0, "rpc-error");
+        goto done;
+    }
+    retval = 0;
+ done:
+    if (msg)
+        free(msg);
+    if (xt)
+        xml_free(xt);
+    if (cb)
+        cbuf_free(cb);
+    return retval;
+}
+
+static int
+send_transaction_error(clicon_handle h,
+                       char         *tidstr)
+{
+    int                retval = -1;
+    cbuf              *cb = NULL;
+    struct clicon_msg *msg = NULL;
+    cxobj             *xt = NULL;
+
+   /* Write and mark a table/param for each param in the service */
+    if ((cb = cbuf_new()) == NULL){
+        clicon_err(OE_XML, errno, "cbuf_new");
+        goto done;
+    }
+    cprintf(cb, "<rpc xmlns=\"%s\"", NETCONF_BASE_NAMESPACE);
+    cprintf(cb, " xmlns:%s=\"%s\"",
+            NETCONF_BASE_PREFIX, NETCONF_BASE_NAMESPACE);
+    cprintf(cb, " %s", NETCONF_MESSAGE_ID_ATTR); 
+    cprintf(cb, ">");
+    cprintf(cb, "<transaction-error xmlns=\"%s\">", 
+            CONTROLLER_NAMESPACE);
+    cprintf(cb, "<tid>%s</tid>", tidstr);
+    cprintf(cb, "<origin>service action</origin>");
+    cprintf(cb, "<reason>simulated error</reason>");
+    cprintf(cb, "</transaction-error>");
     cprintf(cb, "</rpc>");
     if ((msg = clicon_msg_encode(0, "%s", cbuf_get(cb))) == NULL)
         goto done;
@@ -279,6 +324,8 @@ read_devices(clicon_handle h,
  * @param[in]  h            Clixon handle
  * @param[in]  s            Socket
  * @param[in]  notification XML of notification
+ * @param[in]  pattern
+ * @param[in]  send_error   Send error instead of edit-config/done
  * @retval     0            OK
  * @retval    -1            Error
  */
@@ -286,7 +333,8 @@ static int
 service_action_handler(clicon_handle      h,
                        int                s,
                        struct clicon_msg *notification,
-                       char              *pattern)
+                       char              *pattern,
+                       int                send_error)
 {
     int     retval = -1;
     cxobj  *xt = NULL;
@@ -327,6 +375,11 @@ service_action_handler(clicon_handle      h,
         clicon_err(OE_NETCONF, EFAULT, "Notification malformed: no source");
         goto done;
     }    
+    if (send_error){
+        if (send_transaction_error(h, tidstr) < 0)
+            goto done;
+        goto ok;
+    }
     /* Read services and devices definition */
     if (read_services(h, sourcedb, &xservices) < 0)
         goto done;
@@ -357,6 +410,7 @@ service_action_handler(clicon_handle      h,
     }
     if (send_transaction_actions_done(h, tidstr, cbuf_get(cbs)) < 0)
         goto done;
+ ok:
     retval = 0;
  done:
     if (cbs)
@@ -409,7 +463,8 @@ usage(clicon_handle h,
             "\t-D <level>\tDebug level\n"
             "\t-f <file> \tConfig-file (mandatory)\n"
             "\t-l <s|e|o|n|f<file>> \tLog on (s)yslog, std(e)rr, std(o)ut, (n)one or (f)ile (syslog is default)\n"
-            "\t-s <pattern> \tGlob pattern of services served, (default *)\n",
+            "\t-s <pattern> \tGlob pattern of services served, (default *)\n"
+            "\t-e  \tSend an error instead of done\n",
             argv0
             );
     exit(-1);
@@ -429,6 +484,7 @@ main(int    argc,
     struct clicon_msg   *notification = NULL;
     int                  eof = 0;
     char                *service_pattern = "*";
+    int                  send_error = 0;
 
     clicon_log_init(__PROGRAM__, LOG_INFO, logdst);
     if ((h = clicon_handle_init()) == NULL)
@@ -465,6 +521,9 @@ main(int    argc,
                 usage(h, argv[0]);
             service_pattern = optarg;
             break;
+        case 'e': /* error */
+            send_error++;
+            break;
         }
     clicon_log_init(__PROGRAM__, dbg?LOG_DEBUG:LOG_INFO, logdst);
     clicon_debug_init(dbg, NULL);
@@ -482,7 +541,7 @@ main(int    argc,
     while (clicon_msg_rcv(s, 1, &notification, &eof) == 0){
         if (eof)
             break;
-        if (service_action_handler(h, s, notification, service_pattern) < 0)
+        if (service_action_handler(h, s, notification, service_pattern, send_error) < 0)
             goto done;
         if (notification){
             free(notification);
