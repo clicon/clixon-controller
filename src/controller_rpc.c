@@ -602,7 +602,7 @@ strip_device(cxobj *x,
 
     if ((len = xml_creator_len(x)) == 0)
         return 0;
-    if (cvec_len(cvv) == NULL){
+    if (cvec_len(cvv) == 0){
         /* 1. cvv can be NULL, then any creator applies */
         xml_flag_set(x, XML_FLAG_MARK);
     }
