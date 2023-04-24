@@ -811,7 +811,7 @@ controller_commit_actions(clixon_handle           h,
             }
             cprintf(notifycb, "<services-commit xmlns=\"%s\">", CONTROLLER_NAMESPACE);
             cprintf(notifycb, "<tid>%" PRIu64"</tid>", ct->ct_id);
-            cprintf(notifycb, "<source>candidate</source>");
+            cprintf(notifycb, "<source>actions</source>");
             cprintf(notifycb, "<target>actions</target>");
             while ((cv = cvec_each(cvv, cv)) != NULL){
                 cprintf(notifycb, "<service>%s</service>", cv_name_get(cv));
