@@ -104,7 +104,7 @@ if ! $push ; then
 fi
 
 echo "push sync validate"
-ret=$(${PREFIX} ${clixon_cli} -1f $CFG sync push validate 2>&1)
+ret=$(${PREFIX} ${clixon_cli} -1f $CFG push validate 2>&1)
 echo "ret:$ret"
 
 match=$(echo $ret | grep --null -Eo "failed Device changed config") || true

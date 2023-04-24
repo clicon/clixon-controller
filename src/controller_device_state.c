@@ -1087,6 +1087,37 @@ device_state_handler(clixon_handle h,
             goto done;
         /* 2.2.2.1 Leave transaction */
         device_handle_tid_set(dh, 0);
+        if (conn_state == CS_PUSH_COMMIT){
+            cxobj *xt = NULL;
+            cbuf  *cb = NULL;
+    
+            /* Copy transient to device config (last sync) 
+               XXXX in commit push
+             */
+            if ((cb = cbuf_new()) == NULL){
+                clicon_err(OE_UNIX, errno, "cbuf_new");
+                goto done;
+            }
+            if ((cberr = cbuf_new()) == NULL){
+                clicon_err(OE_UNIX, errno, "cbuf_new");
+                goto done;
+            }
+            cprintf(cb, "devices/device[name='%s']/config", name);
+            if (xmldb_get0(h, "actions", YB_MODULE, NULL, cbuf_get(cb), 1, WITHDEFAULTS_EXPLICIT, &xt, NULL, NULL) < 0)
+                goto done;
+            if (xt != NULL){
+                if ((ret = device_config_write(h, name, "SYNCED", xt, cberr)) < 0)
+                    goto done;
+                if (ret == 0){
+                    clicon_err(OE_XML, 0, "%s", cbuf_get(cberr));
+                    goto done;
+                }
+            }
+            if (cb)
+                cbuf_free(cb);
+            if (xt)
+                xml_free(xt);
+        }
         /* 2.2.2.2 If no devices in transaction, mark as OK and close it*/
         if (controller_transaction_devices(h, tid) == 0){
             /* If source datastore is candidate, then commit (from actions) 
@@ -1119,37 +1150,6 @@ device_state_handler(clixon_handle h,
             }
             if (controller_transaction_done(h, ct, TR_SUCCESS) < 0)
                 goto done;
-            /* Copy transient to device config (last sync) 
-               XXXX in commit push
-             */
-            {
-                cxobj *xt = NULL;
-                cbuf  *cb = NULL;
-    
-                if ((cb = cbuf_new()) == NULL){
-                    clicon_err(OE_UNIX, errno, "cbuf_new");
-                    goto done;
-                }
-                if ((cberr = cbuf_new()) == NULL){
-                    clicon_err(OE_UNIX, errno, "cbuf_new");
-                    goto done;
-                }
-                cprintf(cb, "devices/device[name='%s']/config", name);
-                if (xmldb_get0(h, "candidate", YB_MODULE, NULL, cbuf_get(cb), 1, WITHDEFAULTS_EXPLICIT, &xt, NULL, NULL) < 0)
-                    goto done;
-                if (xt != NULL){
-                    if ((ret = device_config_write(h, name, "SYNCED", xt, cberr)) < 0)
-                        goto done;
-                    if (ret == 0){
-                        clicon_err(OE_XML, 0, "%s", cbuf_get(cberr));
-                        goto done;
-                    }
-                }
-                if (cb)
-                    cbuf_free(cb);
-                if (xt)
-                    xml_free(xt);
-            }
         }
         break;
     case CS_PUSH_WAIT:

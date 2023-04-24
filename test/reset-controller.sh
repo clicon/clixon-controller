@@ -137,7 +137,7 @@ fi
 for j in $(seq 1 5); do    
     echo "sync pull"
     fail=false
-    ret=$(${PREFIX} ${clixon_cli} -1f $CFG sync pull)||fail=true||true
+    ret=$(${PREFIX} ${clixon_cli} -1f $CFG pull)||fail=true||true
     echo "myfail:$fail"
     if $fail; then
         sleep 1

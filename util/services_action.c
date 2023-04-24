@@ -232,7 +232,13 @@ read_services(clicon_handle      h,
             NETCONF_BASE_PREFIX, NETCONF_BASE_NAMESPACE);
     cprintf(cb, " %s", NETCONF_MESSAGE_ID_ATTR); /* XXX: use incrementing sequence */
     cprintf(cb, ">");
-    cprintf(cb, "<get-config><source><%s/></source>", db);
+    cprintf(cb, "<get-config>");
+    cprintf(cb, "<source>");
+    if (strcmp(db, "actions") == 0) /* XXX: Hardcoded namespace */
+        cprintf(cb, "<%s xmlns=\"%s\"/>", db, CONTROLLER_NAMESPACE);
+    else
+        cprintf(cb, "<%s/>", db);
+    cprintf(cb, "</source>");
     cprintf(cb, "<%s:filter %s:type=\"xpath\" %s:select=\"ctrl:services\" xmlns:ctrl=\"%s\"",
             NETCONF_BASE_PREFIX, NETCONF_BASE_PREFIX, NETCONF_BASE_PREFIX,
             CONTROLLER_NAMESPACE);
@@ -290,7 +296,12 @@ read_devices(clicon_handle h,
     cprintf(cb, " %s", NETCONF_MESSAGE_ID_ATTR); /* XXX: use incrementing sequence */
     cprintf(cb, ">"); 
     cprintf(cb, "<get-config nc:depth=\"4\">"); /* depth to include name, etc */
-    cprintf(cb, "<source><%s/></source>", db);
+    cprintf(cb, "<source>");
+    if (strcmp(db, "actions") == 0) /* XXX: Hardcoded namespace */
+        cprintf(cb, "<%s xmlns=\"%s\"/>", db, CONTROLLER_NAMESPACE);
+    else
+        cprintf(cb, "<%s/>", db);
+    cprintf(cb, "</source>");
     cprintf(cb, "<%s:filter %s:type=\"xpath\" %s:select=\"ctrl:devices\" xmlns:ctrl=\"%s\"",
             NETCONF_BASE_PREFIX, NETCONF_BASE_PREFIX, NETCONF_BASE_PREFIX,
             CONTROLLER_NAMESPACE);
