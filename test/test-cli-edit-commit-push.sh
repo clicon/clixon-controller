@@ -28,7 +28,7 @@ wait_backend
 
 # Tests
 new "CLI: Sync devices"
-expectpart "$(${PREFIX} $clixon_cli -1 -f $CFG sync pull)" 0 ""
+expectpart "$(${PREFIX} $clixon_cli -1 -f $CFG pull)" 0 ""
 
 new "CLI: Configure service"
 expectpart "$(${PREFIX} $clixon_cli -1 -f $CFG -m configure set services test cli_test)" 0 ""
@@ -46,7 +46,7 @@ new "CLI: Show configuration"
 expectpart "$(${PREFIX} $clixon_cli -1 -f $CFG show configuration cli)" 0 "^services test cli_test" "^services test cli_test parameter XXX" "^services test cli_test parameter XXX value 1.2.3.4"
 
 new "CLI: Push configuration"
-expectpart "$(${PREFIX} $clixon_cli -1 -f $CFG sync push)" 0 ""
+expectpart "$(${PREFIX} $clixon_cli -1 -f $CFG push)" 0 ""
 
 if $BE; then
     echo "Kill old backend"

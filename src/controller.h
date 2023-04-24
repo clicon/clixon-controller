@@ -40,6 +40,7 @@
 /*
  * Constants
  */
+#define CONTROLLER_PREFIX    "ctrl"
 #define CONTROLLER_NAMESPACE "http://clicon.org/controller"
 
 /*! Skip junos-configuration-metadata.yang
