@@ -39,6 +39,8 @@ expectpart "$(${PREFIX} $clixon_cli -1 -f $CFG -l o -m configure set services te
 new "CLI: Set valid value type"
 expectpart "$(${PREFIX} $clixon_cli -1 -f $CFG -m configure set services test cli_test parameter XXX value 1.2.3.4)" 0 ""
 
+sleep 2
+
 new "CLI: Commit"
 expectpart "$(${PREFIX} $clixon_cli -1 -f $CFG -m configure commit)" 0 ""
 
