@@ -88,21 +88,19 @@ save("Save running configuration to XML file") <filename:string>("Filename (loca
     netconf("Save configuration as NETCONF"), save_config_file("running","filename", "netconf");
 }
 
-sync("Read the config of one or several devices.") {
-    pull("sync config from one or multiple devices")[
+pull("sync config from one or multiple devices")[
                  (<name:string>("device pattern")|
                   <name:string expand_dbvar("running","/clixon-controller:devices/device/name")>("device pattern"))
                  ], cli_rpc_sync_pull("replace");{
                     replace, cli_rpc_sync_pull("replace");
                     merge, cli_rpc_sync_pull("merge");
-                 }
-    push("sync config to one or multiple devices")[
+}
+push("sync config to one or multiple devices")[
                  (<name:string>("device pattern")|
                   <name:string expand_dbvar("running","/clixon-controller:devices/device/name")>("device pattern"))
                  ], cli_rpc_controller_commit("running", "NONE", "COMMIT");{
                     validate("Push to devices and validate"), cli_rpc_controller_commit("running", "NONE", "VALIDATE");
                     commit("Push to devices and commit"), cli_rpc_controller_commit("running", "NONE", "COMMIT");
-                 }
 }
 
 connection("Reconnect one or several devices in closed state")  [<name:string>("device pattern")|
