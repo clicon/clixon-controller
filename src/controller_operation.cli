@@ -91,9 +91,9 @@ save("Save running configuration to XML file") <filename:string>("Filename (loca
 pull("sync config from one or multiple devices")[
                  (<name:string>("device pattern")|
                   <name:string expand_dbvar("running","/clixon-controller:devices/device/name")>("device pattern"))
-                 ], cli_rpc_sync_pull("replace");{
-                    replace, cli_rpc_sync_pull("replace");
-                    merge, cli_rpc_sync_pull("merge");
+                 ], cli_rpc_pull("replace");{
+                    replace, cli_rpc_pull("replace");
+                    merge, cli_rpc_pull("merge");
 }
 push("sync config to one or multiple devices")[
                  (<name:string>("device pattern")|
@@ -109,8 +109,6 @@ connection("Reconnect one or several devices in closed state")  [<name:string>("
               open("Open closed connections"), cli_connection_change("OPEN");
               reconnect("Close all open connections and open all connections"), cli_connection_change("RECONNECT");
               }
-
-services("Services operation") reapply("(re)apply services scripts"), cli_rpc_controller_commit("running", "FORCE", "COMMIT");
 check("Check if devices are out-of-sync"){
           [(<name:string>("device pattern")|<name:string expand_dbvar("running","/clixon-controller:devices/device/name")>("device pattern"))], check_device_db("text");
 }

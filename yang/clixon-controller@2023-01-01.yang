@@ -195,7 +195,7 @@ module clixon-controller {
                 description "Device config that the controller has in its candidate config";
             }
             enum SYNCED {
-                description "Device config from last sync pull. A successful sync push also updates this config";
+                description "Device config from last pull. A successful push also updates this config";
             }
             enum TRANSIENT {
                 description
@@ -460,7 +460,7 @@ module clixon-controller {
             type string;
         }
     }
-    rpc sync-pull {
+    rpc config-pull {
         description
             "Read(pull) the config of one or several devices.
              The pulled config is either:
@@ -584,7 +584,7 @@ module clixon-controller {
     rpc get-device-config {
         description
             "Get configuration db of a single device of name 'device-<devname>-<postfix>.xml'
-             Typically this db is retrieved by the sync-pull rpc
+             Typically this db is retrieved by the pull rpc
              Should probably be replaced by a more generic function.
              Possibly just extend get-config with device dbs?";
         input {

@@ -319,7 +319,8 @@ pull_device_one(clixon_handle h,
     return retval;
 }
 
-/*! Read the config of one or several devices
+/*! Read the config of one or several remote devices
+ *
  * @param[in]  h       Clicon handle 
  * @param[in]  xe      Request: <rpc><xn></rpc> 
  * @param[out] cbret   Return xml tree, eg <rpc-reply>..., <rpc-error.. 
@@ -329,11 +330,11 @@ pull_device_one(clixon_handle h,
  * @retval    -1       Error
  */
 static int 
-rpc_sync_pull(clixon_handle h,
-              cxobj        *xe,
-              cbuf         *cbret,
-              void         *arg,  
-              void         *regarg)
+rpc_config_pull(clixon_handle h,
+                cxobj        *xe,
+                cbuf         *cbret,
+                void         *arg,  
+                void         *regarg)
 {
     client_entry           *ce = (client_entry *)arg;
     int                     retval = -1;
@@ -353,7 +354,7 @@ rpc_sync_pull(clixon_handle h,
     
     clicon_debug(1, "%s", __FUNCTION__);
     /* Initiate new transaction */
-    if ((ret = controller_transaction_new(h, "sync pull", &ct, &cberr)) < 0)
+    if ((ret = controller_transaction_new(h, "pull", &ct, &cberr)) < 0)
         goto done;
     if (ret == 0){
         if (netconf_operation_failed(cbret, "application", cbuf_get(cberr))< 0)
@@ -973,7 +974,9 @@ rpc_controller_commit(clixon_handle h,
         pusht = push_type_str2int(str);
         cprintf(cbtr, " push:%s", str);
     }
-    /* Initiate new transaction */
+    /* Initiate new transaction. 
+     * NB: this locks candidate, which always needs to be unlocked, eg by controller_transaction_done
+     */
     if ((ret = controller_transaction_new(h, cbuf_get(cbtr), &ct, &cberr)) < 0)
         goto done;
     if (ret == 0){
@@ -993,6 +996,8 @@ rpc_controller_commit(clixon_handle h,
     if (ret == 0){
         if (netconf_operation_failed(cbret, "application", "Device closed")< 0)
             goto done;
+        if (controller_transaction_done(h, ct, TR_FAILED) < 0)
+            goto done;
         goto ok;
     }
     if (actions == AT_NONE){ /* Bypass actions, directly to push */
@@ -1000,6 +1005,8 @@ rpc_controller_commit(clixon_handle h,
             goto done;
         if (ret == 0){
             if (netconf_operation_failed(cbret, "application", cbuf_get(cberr))< 0)
+                goto done;
+            if (controller_transaction_done(h, ct, TR_FAILED) < 0)
                 goto done;
             goto ok;        
         }
@@ -1014,6 +1021,8 @@ rpc_controller_commit(clixon_handle h,
     else { /* Trigger actions */
         if (strcmp(sourcedb, "ds:candidate") != 0){
             if (netconf_operation_failed(cbret, "application", "Only candidates db supported if actions")< 0)
+                goto done;
+            if (controller_transaction_done(h, ct, TR_FAILED) < 0)
                 goto done;
             goto ok;
         }
@@ -1036,7 +1045,7 @@ rpc_controller_commit(clixon_handle h,
 
 /*! Get configuration db of a single device of name 'device-<devname>-<postfix>.xml'
  *
- * Typically this db is retrieved by the sync-pull rpc
+ * Typically this db is retrieved by the pull rpc
  * Should probably be replaced by a more generic function.
  * Possibly just extend get-config with device dbs?";
  * @param[in]  h       Clicon handle 
@@ -1626,10 +1635,10 @@ controller_rpc_init(clicon_handle h)
 {
     int retval = -1;
     
-    if (rpc_callback_register(h, rpc_sync_pull,
+    if (rpc_callback_register(h, rpc_config_pull,
                               NULL, 
                               CONTROLLER_NAMESPACE,
-                              "sync-pull"
+                              "config-pull"
                               ) < 0)
         goto done;
     if (rpc_callback_register(h, rpc_controller_commit,

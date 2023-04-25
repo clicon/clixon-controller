@@ -3,10 +3,10 @@ set -eux
 # Magic line must be first in script (see README.md)
 s="$_" ; . ./lib.sh || if [ "$s" = $0 ]; then exit 0; else return 0; fi
 
-# Set if also sync push, not only change (useful for manually doing push)
+# Set if also push, not only change (useful for manually doing push)
 : ${push:=true}
 
-# Set if also sync push commit, not only sync push validate
+# Set if also push commit, not only push validate
 : ${commit:=true}
 
 # Reset devices with initial config
@@ -27,7 +27,7 @@ wait_backend
 . ./reset-controller.sh
 
 # Tests
-new "CLI: Sync devices"
+new "CLI: syncronize devices"
 expectpart "$(${PREFIX} $clixon_cli -1 -f $CFG pull)" 0 ""
 
 new "CLI: Configure service"
