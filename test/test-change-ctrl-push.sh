@@ -10,10 +10,10 @@ set -eux
 # Magic line must be first in script (see README.md)
 s="$_" ; . ./lib.sh || if [ "$s" = $0 ]; then exit 0; else return 0; fi
 
-# Set if also sync push, not only change (useful for manually doing push)
+# Set if also push, not only change (useful for manually doing push)
 : ${push:=true}
 
-# Set if also sync push commit, not only sync push validate
+# Set if also push commit, not only push validate
 : ${commit:=true}
 
 # Reset devices with initial config
@@ -102,7 +102,7 @@ if ! $push ; then
     exit 0
 fi
 
-echo "push sync validate"
+echo "push validate"
 ret=$(${PREFIX} ${clixon_netconf} -q0 -f $CFG <<EOF
 <rpc xmlns="urn:ietf:params:xml:ns:netconf:base:1.0" message-id="43">
   <controller-commit xmlns="http://clicon.org/controller">
@@ -123,7 +123,7 @@ fi
 
 sleep $sleep
 
-echo "push sync commit"
+echo "push commit"
 ret=$(${PREFIX} ${clixon_netconf} -q0 -f $CFG <<EOF
 <rpc xmlns="urn:ietf:params:xml:ns:netconf:base:1.0" message-id="43">
   <controller-commit xmlns="http://clicon.org/controller">

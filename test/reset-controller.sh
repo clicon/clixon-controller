@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Reset controller by initiaiting with clixon-example devices and a sync pull
+# Reset controller by initiaiting with clixon-example devices and a pull
 
 set -eux
 
@@ -135,7 +135,7 @@ fi
 
 # try 5 times if fail
 for j in $(seq 1 5); do    
-    echo "sync pull"
+    echo "pull"
     fail=false
     ret=$(${PREFIX} ${clixon_cli} -1f $CFG pull)||fail=true||true
     echo "myfail:$fail"

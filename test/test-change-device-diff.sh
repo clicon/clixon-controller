@@ -2,7 +2,7 @@
 # Assume backend and devics running
 # Reset devices and backend
 # Commit a change to _devices_ remove x, change y, and add z
-# Make a sync-pull transient
+# Make a pull transient
 # Check the diff between controller and devices
 
 set -eux
@@ -30,13 +30,13 @@ wait_backend
 # Change device configs on devices (not controller)
 . ./change-devices.sh
 
-echo "trigger sync-pull transient"
+echo "trigger pull transient"
 ret=$(${PREFIX} ${clixon_netconf} -q0 -f $CFG <<EOF
 <rpc xmlns="urn:ietf:params:xml:ns:netconf:base:1.0" message-id="43">
-  <sync-pull xmlns="http://clicon.org/controller">
+  <config-pull xmlns="http://clicon.org/controller">
     <devname>*</devname>
     <transient>true</transient>
-  </sync-pull>
+  </config-pull>
 </rpc>]]>]]>
 EOF
       )

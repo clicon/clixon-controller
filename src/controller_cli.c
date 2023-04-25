@@ -281,9 +281,9 @@ transaction_notification_poll(clicon_handle       h,
  * @retval   -1      Error
  */
 int
-cli_rpc_sync_pull(clixon_handle h, 
-                  cvec         *cvv, 
-                  cvec         *argv)
+cli_rpc_pull(clixon_handle h, 
+             cvec         *cvv, 
+             cvec         *argv)
 {
     int        retval = -1;
     cbuf      *cb = NULL;
@@ -310,7 +310,7 @@ cli_rpc_sync_pull(clixon_handle h,
     }
     op = cv_string_get(cv);
     if (strcmp(op, "replace") != 0 && strcmp(op, "merge") != 0){
-        clicon_err(OE_PLUGIN, EINVAL, "sync pull <type> argument is %s, expected \"validate\" or \"commit\"", op);
+        clicon_err(OE_PLUGIN, EINVAL, "pull <type> argument is %s, expected \"validate\" or \"commit\"", op);
         goto done;
     }
     if ((cv = cvec_find(cvv, "name")) != NULL)
@@ -323,11 +323,11 @@ cli_rpc_sync_pull(clixon_handle h,
             NETCONF_BASE_NAMESPACE,
             clicon_username_get(h),
             NETCONF_MESSAGE_ID_ATTR);
-    cprintf(cb, "<sync-pull xmlns=\"%s\">", CONTROLLER_NAMESPACE);
+    cprintf(cb, "<config-pull xmlns=\"%s\">", CONTROLLER_NAMESPACE);
     cprintf(cb, "<devname>%s</devname>", name);
     if (strcmp(op, "merge") == 0)
         cprintf(cb, "<merge>true</merge>");
-    cprintf(cb, "</sync-pull>");
+    cprintf(cb, "</config-pull>");
     cprintf(cb, "</rpc>");
     if (clixon_xml_parse_string(cbuf_get(cb), YB_NONE, NULL, &xtop, NULL) < 0)
         goto done;
@@ -831,7 +831,7 @@ cli_show_transactions(clixon_handle h,
     return retval;
 }
 
-/*! Send a sync-pull transient
+/*! Send a pull transient
  *
  * @param[in]   h    Clixon handle
  * @param[out]  tid  Transaction id
@@ -862,10 +862,10 @@ send_pull_transient(clicon_handle h,
             NETCONF_BASE_NAMESPACE,
             clicon_username_get(h),
             NETCONF_MESSAGE_ID_ATTR);
-    cprintf(cb, "<sync-pull xmlns=\"%s\">", CONTROLLER_NAMESPACE);
+    cprintf(cb, "<config-pull xmlns=\"%s\">", CONTROLLER_NAMESPACE);
     cprintf(cb, "<devname>%s</devname>", name);
     cprintf(cb, "<transient>true</transient>>");
-    cprintf(cb, "</sync-pull>");
+    cprintf(cb, "</config-pull>");
     cprintf(cb, "</rpc>");
     if (clixon_xml_parse_string(cbuf_get(cb), YB_NONE, NULL, &xtop, NULL) < 0)
         goto done;
@@ -959,7 +959,7 @@ compare_device_config_type(clicon_handle      h,
         pattern = cv_string_get(cv);
     /* If remote, start with requesting it asynchrously */
     if (dt1 == DT_TRANSIENT || dt2 == DT_TRANSIENT){
-        /* Send sync-pull <transient> */
+        /* Send pull <transient> */
         if (send_pull_transient(h, pattern, &tidstr) < 0)
             goto done;
         /* Wait to complete transaction try ^C here */
