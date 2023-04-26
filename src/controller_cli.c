@@ -439,7 +439,7 @@ cli_rpc_controller_commit(clixon_handle h,
     cprintf(cb, "<device>%s</device>", name);
     cprintf(cb, "<push>%s</push>", push_type);
     cprintf(cb, "<actions>%s</actions>", actions_type);
-    cprintf(cb, "<source>ds:%s</source>", source);
+    cprintf(cb, "<source>ds:%s</source>", source); /* Note add datastore prefix */
     cprintf(cb, "</controller-commit>");
     cprintf(cb, "</rpc>");
     if (clixon_xml_parse_string(cbuf_get(cb), YB_NONE, NULL, &xtop, NULL) < 0)

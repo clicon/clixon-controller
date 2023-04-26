@@ -2,7 +2,7 @@
 #
 # see https://github.com/SUNET/snc-services/issues/12
 # 
-# Assume a testA(1) --> testA(2) and a testB
+# Assume a testA(1) --> testA(2) and a testB and a non-service 0
 # where
 # testA(1):  Ax, Ay, ABx, ABy
 # testA(2)2: Ay, Az, ABy, ABz
@@ -11,6 +11,10 @@
 # Algoritm: Clear actions
 #
 # Operations shown below, all others keep:
+# +------------------------------------------------+
+# |                       0x                       |
+# +----------------+---------------+---------------+
+# |     A0x        |      A0y      |      A0z      |
 # +----------------+---------------+---------------+
 # |     Ax         |      Ay       |      Az       |
 # |    (delete)    |               |     (add)     |
@@ -18,7 +22,7 @@
 # |     ABx        |      ABy      |      ABz      |
 # +----------------+---------------+---------------+
 # |                       Bx                       |
-# +----------------+---------------+---------------+
+# +------------------------------------------------+
 
 set -eux
 
@@ -123,6 +127,8 @@ ret=$(${PREFIX} ${clixon_netconf} -0 -f $CFG <<EOF
        <services xmlns="http://clicon.org/controller">
           <testA xmlns="urn:example:test" nc:operation="replace">
              <name>foo</name>
+             <params>A0x</params>
+             <params>A0y</params>
              <params>Ax</params>
              <params>Ay</params>
              <params>ABx</params>
@@ -130,12 +136,54 @@ ret=$(${PREFIX} ${clixon_netconf} -0 -f $CFG <<EOF
          </testA>
           <testB xmlns="urn:example:test" nc:operation="replace">
              <name>foo</name>
+             <params>A0x</params>
+             <params>A0y</params>
              <params>ABx</params>
              <params>ABy</params>
              <params>ABz</params>
              <params>Bx</params>
          </testB>
       </services>
+      <devices xmlns="http://clicon.org/controller">
+         <device>
+           <name>clixon-example1</name>
+           <config>
+             <table xmlns="urn:example:clixon">
+               <parameter>
+                 <name>0x</name>
+               </parameter>
+               <parameter>
+                 <name>A0x</name>
+               </parameter>
+               <parameter>
+                 <name>A0y</name>
+               </parameter>
+               <parameter>
+                 <name>A0z</name>
+               </parameter>
+             </table>
+           </config>
+         </device>
+         <device>
+           <name>clixon-example2</name>
+           <config>
+             <table xmlns="urn:example:clixon">
+               <parameter>
+                 <name>0x</name>
+               </parameter>
+               <parameter>
+                 <name>A0x</name>
+               </parameter>
+               <parameter>
+                 <name>A0y</name>
+               </parameter>
+               <parameter>
+                 <name>A0z</name>
+               </parameter>
+             </table>
+           </config>
+         </device>
+      </devices>
     </config>
   </edit-config>
 </rpc>]]>]]>
@@ -171,6 +219,8 @@ ret=$(${PREFIX} ${clixon_netconf} -0 -f $CFG <<EOF
        <services xmlns="http://clicon.org/controller">
           <testA xmlns="urn:example:test" nc:operation="replace">
              <name>foo</name>
+             <params>A0y</params>
+             <params>A0z</params>
              <params>Ay</params>
              <params>Az</params>
              <params>ABy</params>
