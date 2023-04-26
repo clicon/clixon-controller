@@ -118,5 +118,7 @@ if $BE; then
     sudo clixon_backend -s init -f $CFG -z
 fi
 
-echo "test-change-both"
-echo OK
+unset push
+
+echo "test-change-both OK"
+

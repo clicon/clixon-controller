@@ -216,5 +216,6 @@ if $BE; then
     sudo clixon_backend -s init -f $CFG -z
 fi
 
-echo "test-service"
-echo "OK"
+unset SA
+
+echo "test-service OK"

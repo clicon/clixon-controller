@@ -197,5 +197,7 @@ if $BE; then
     sudo clixon_backend -s init -f $CFG -z
 fi
 
-echo "test-change-ctrl"
-echo OK
+unset push
+unset commit
+
+echo "test-change-ctrl OK"
