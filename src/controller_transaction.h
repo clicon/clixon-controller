@@ -43,21 +43,23 @@
 /*! Clixon controller meta transactions spanning device operation
  */
 struct controller_transaction_t{
-    qelem_t  ct_qelem;           /* List header */
-    uint64_t ct_id;              /* Transaction-id */
-    transaction_state  ct_state; /* Transaction state */
-    transaction_result ct_result;/* Transaction result */
-    void    *ct_h;               /* Back-pointer to clixon handle (for convenience in timeout callbacks) */
-    uint32_t ct_client_id;       /* Client id of originator */
-    int      ct_pull_transient;  /* pull: dont commit locally */
-    int      ct_pull_merge;      /* pull: Merge instead of replace */
-    push_type ct_push_type;      /* push to remote devices: Do not, validate, or commit */
-    actions_type ct_actions_type;/* How to trigger service-commit notifications, and thereby action scripts */
-    char    *ct_sourcedb;        /* Source datastore */
-    char    *ct_description;     /* Description of transaction */
-    char    *ct_origin;          /* Originator of error (if result is != SUCCESS) */
-    char    *ct_reason;          /* Reason of error (if result != SUCCESS) */
-    struct timeval ct_timestamp; /* Timestamp when entering current state */
+    qelem_t            ct_qelem;         /* List header */
+    uint64_t           ct_id;            /* Transaction-id */
+    transaction_state  ct_state;         /* Transaction state */
+    transaction_result ct_result;        /* Transaction result */
+    void              *ct_h;             /* Back-pointer to clixon handle (for convenience in timeout callbacks) */
+    uint32_t           ct_client_id;     /* Client id of originator */
+    int                ct_pull_transient;/* pull: dont commit locally */
+    int                ct_pull_merge;    /* pull: Merge instead of replace */
+    push_type          ct_push_type;     /* push to remote devices: Do not, validate, or commit */
+    actions_type       ct_actions_type;  /* How to trigger service-commit notifications, 
+                                            and thereby action scripts */
+    char              *ct_sourcedb;      /* Source datastore (candidate or running) 
+                                            as given by rpc controller-commit (stripped prefix) */
+    char              *ct_description;   /* Description of transaction */
+    char              *ct_origin;        /* Originator of error (if result is != SUCCESS) */
+    char              *ct_reason;        /* Reason of error (if result != SUCCESS) */
+    struct timeval     ct_timestamp;     /* Timestamp when entering current state */
 };
 typedef struct controller_transaction_t controller_transaction;
     

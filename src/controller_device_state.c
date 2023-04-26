@@ -1103,8 +1103,14 @@ device_state_handler(clixon_handle h,
                 goto done;
             }
             cprintf(cb, "devices/device[name='%s']/config", name);
-            if (xmldb_get0(h, "actions", YB_MODULE, NULL, cbuf_get(cb), 1, WITHDEFAULTS_EXPLICIT, &xt, NULL, NULL) < 0)
-                goto done;
+            if (ct->ct_actions_type == AT_NONE){
+                if (xmldb_get0(h, ct->ct_sourcedb, YB_MODULE, NULL, cbuf_get(cb), 1, WITHDEFAULTS_EXPLICIT, &xt, NULL, NULL) < 0)
+                    goto done;
+            }
+            else{
+                if (xmldb_get0(h, "actions", YB_MODULE, NULL, cbuf_get(cb), 1, WITHDEFAULTS_EXPLICIT, &xt, NULL, NULL) < 0)
+                    goto done;
+            }
             if (xt != NULL){
                 if ((ret = device_config_write(h, name, "SYNCED", xt, cberr)) < 0)
                     goto done;
@@ -1124,7 +1130,7 @@ device_state_handler(clixon_handle h,
              * - if actions=AT_COMMIT, commit is made from actions-db
              * - otherwise if datastore is candidate, commit is made from candidate
              */
-            if (ct->ct_actions_type != AT_NONE && strcmp(ct->ct_sourcedb, "ds:candidate")==0){
+            if (ct->ct_actions_type != AT_NONE && strcmp(ct->ct_sourcedb, "candidate")==0){
                 if ((cberr = cbuf_new()) == NULL){
                     clicon_err(OE_UNIX, errno, "cbuf_new");
                     goto done;

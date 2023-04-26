@@ -523,7 +523,9 @@ module clixon-controller {
                     "Source datastore for controller commit
                      If actions is enabled, it is the source of actions
                      Otherwise it is the source for push which is candidate or running
-                     If candidate a controller commit is made at end of operation";
+                     If candidate a controller commit is made at end of operation.,
+                     Note that the common datastores typically have prefix ds:, like ds:running
+                     and there may be a need to strip the prefix for other uses";
                 type ds:datastore-ref;
                 default ds:running;
             }

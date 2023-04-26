@@ -954,9 +954,16 @@ rpc_controller_commit(clixon_handle h,
             goto done;
         goto ok;
     }
-    sourcedb = xml_find_body(xe, "source");
+    if ((str = xml_find_body(xe, "source")) == NULL){ /* on the form ds:running */
+        if (netconf_operation_failed(cbret, "application", "sourcedb not supported")< 0)
+            goto done;
+        goto ok;
+    }
+    /* strip prefix, eg ds: */
+    if (nodeid_split(str, NULL, &sourcedb) < 0)
+        goto done;
     if (sourcedb == NULL ||
-        (strcmp(sourcedb, "ds:candidate") != 0 && strcmp(sourcedb, "ds:running") != 0)){
+        (strcmp(sourcedb, "candidate") != 0 && strcmp(sourcedb, "running") != 0)){
         if (netconf_operation_failed(cbret, "application", "sourcedb not supported")< 0)
             goto done;
         goto ok;
@@ -987,10 +994,8 @@ rpc_controller_commit(clixon_handle h,
     ct->ct_client_id = ce->ce_id;
     ct->ct_push_type = pusht;
     ct->ct_actions_type = actions;
-    if ((ct->ct_sourcedb = strdup(sourcedb)) == NULL){
-        clicon_err(OE_UNIX, errno, "strdup");
-        goto done;
-    }
+    ct->ct_sourcedb = sourcedb;
+    sourcedb = NULL;
     if ((ret = controller_select_devices(h, ct, device)) < 0)
         goto done;
     if (ret == 0){
@@ -1019,7 +1024,7 @@ rpc_controller_commit(clixon_handle h,
         }        
     }
     else { /* Trigger actions */
-        if (strcmp(sourcedb, "ds:candidate") != 0){
+        if (strcmp(ct->ct_sourcedb, "candidate") != 0){
             if (netconf_operation_failed(cbret, "application", "Only candidates db supported if actions")< 0)
                 goto done;
             if (controller_transaction_done(h, ct, TR_FAILED) < 0)
@@ -1036,6 +1041,8 @@ rpc_controller_commit(clixon_handle h,
  ok:
     retval = 0;
  done:
+    if (sourcedb)
+        free(sourcedb);
     if (cbtr)
         cbuf_free(cbtr);
     if (cberr)
