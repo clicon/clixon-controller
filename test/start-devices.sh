@@ -60,5 +60,5 @@ for i in $(seq 1 $nr); do
 EOF
 
 done
-echo "start-devices"
-echo OK
+
+echo "start-devices OK"

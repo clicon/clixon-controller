@@ -101,7 +101,6 @@ fi # delete
 for i in $(seq 1 $nr); do
     NAME=$IMG$i
     ip=$(sudo docker inspect $NAME -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}')
-
     for j in $(seq 1 5); do    
         init_device_config $NAME $ip
         echo "$ret"
@@ -115,7 +114,7 @@ for i in $(seq 1 $nr); do
             exit 1
         fi
         echo "retry after sleep"
-        sleep 1
+        sleep $sleep
     done
 done
 
@@ -140,7 +139,7 @@ for j in $(seq 1 5); do
     ret=$(${PREFIX} ${clixon_cli} -1f $CFG pull)||fail=true||true
     echo "myfail:$fail"
     if $fail; then
-        sleep 1
+        sleep $sleep
     else
         break
     fi

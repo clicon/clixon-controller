@@ -60,4 +60,5 @@ EOF
         exit 1
     fi
 done
+
 echo "reset-devices OK"
