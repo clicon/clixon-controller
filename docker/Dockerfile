@@ -74,6 +74,7 @@ RUN git clone https://github.com/clicon/clixon-controller.git
 WORKDIR /clixon/clixon-controller
 
 # Configure, build and install clixon
+RUN git checkout docker
 RUN ./configure --prefix=/clixon/build --with-cligen=/clixon/build
 RUN make
 RUN make install
