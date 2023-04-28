@@ -57,12 +57,6 @@ RUN ./configure --prefix=/clixon/build --with-cligen=/clixon/build --with-restco
 
 RUN make
 RUN make install
-RUN make install-include
-
-# Clone openconfig YANGs from git repo
-RUN mkdir /clixon/build/share/openconfig
-WORKDIR /clixon/build/share/openconfig
-RUN git clone https://github.com/openconfig/public
 
 # Create paths locally (copied to /usr/local in stage 2)
 # Paths are according to controller.xml config file.
@@ -74,23 +68,15 @@ RUN mkdir /clixon/build/lib/controller
 RUN mkdir /clixon/build/lib/controller/clispec
 RUN mkdir /clixon/build/lib/controller/backend
 
-# Copy src file from local: config file and standard clispec file
-COPY src/controller.xml /clixon/build/etc/clixon.xml
-COPY src/controller_operation.cli /clixon/build/lib/controller/clispec/
-COPY src/controller_configure.cli /clixon/build/lib/controller/clispec/
-COPY yang/clixon-*.yang /clixon/build/share/clixon/
+# Clone clixon-controller
+WORKDIR /clixon
+RUN git clone https://github.com/clicon/clixon-controller.git
+WORKDIR /clixon/clixon-controller
 
-# XXX BUILD CONTROLLER, NEED TO CONFIGURE IN ALPINE?
-RUN mkdir /clixon/controller
-COPY src/*.c /clixon/controller/
-COPY src/*.h /clixon/controller/
-COPY src/Makefile /clixon/controller/
-
-# XXX Build and install the controller application
-WORKDIR /clixon/clixon/example/main
+# Configure, build and install clixon
+RUN ./configure --prefix=/clixon/build --with-cligen=/clixon/build
 RUN make
 RUN make install
-RUN install example.xml /clixon/build/etc/clixon.xml
 
 # Copy startscript for starting backend and restconf
 COPY startsystem.sh /clixon/build/bin/
