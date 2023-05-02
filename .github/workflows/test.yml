@@ -36,8 +36,6 @@ jobs:
       run: (cd clixon-pyapi && pip3 install -r requirements.txt)
     - name: install PyAPI server
       run: sudo cp clixon-pyapi/clixon_server.py /usr/local/bin/
-    - name: start PyAPI server
-      run: python3 /usr/local/bin/clixon_server.py -m clixon-controller/test/py/
 # 2)  Run tests
     - name: Start devices
       run: (cd test; ./start-devices.sh)

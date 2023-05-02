@@ -765,6 +765,11 @@ device_state_handler(clixon_handle h,
                                     name, device_state_int2str(conn_state));
             break;
         }
+        if (ct->ct_state != TS_INIT && ct->ct_state == TS_RESOLVED){
+            clicon_debug(1, "%s %s: Unexpected msg %s in state %s",
+                         __FUNCTION__, name, rpcname, transaction_state_int2str(ct->ct_state));
+            break;
+        }
         /* Receive hello from device, send hello */
         if ((ret = device_state_recv_hello(h, dh, s, xmsg, rpcname, conn_state)) < 0)
             goto done;
@@ -797,6 +802,11 @@ device_state_handler(clixon_handle h,
         if (tid == 0 || ct == NULL){
             device_close_connection(dh, "Device %s not associated with transaction in state %s",
                                     name, device_state_int2str(conn_state));
+            break;
+        }
+        if (ct->ct_state != TS_INIT && ct->ct_state == TS_RESOLVED){
+            clicon_debug(1, "%s %s: Unexpected msg %s in state %s",
+                         __FUNCTION__, name, rpcname, transaction_state_int2str(ct->ct_state));
             break;
         }
         /* Receive netconf-state schema list from device */
@@ -838,6 +848,11 @@ device_state_handler(clixon_handle h,
         if (tid == 0 || ct == NULL){
             device_close_connection(dh, "Device %s not associated with transaction in state %s",
                                     name, device_state_int2str(conn_state));
+            break;
+        }
+        if (ct->ct_state != TS_INIT && ct->ct_state == TS_RESOLVED){
+            clicon_debug(1, "%s %s: Unexpected msg %s in state %s",
+                         __FUNCTION__, name, rpcname, transaction_state_int2str(ct->ct_state));
             break;
         }
         /* Receive get-schema and write to local yang file */
@@ -885,6 +900,11 @@ device_state_handler(clixon_handle h,
                                     name, device_state_int2str(conn_state));
             break;
         }
+        if (ct->ct_state != TS_INIT && ct->ct_state == TS_RESOLVED){
+            clicon_debug(1, "%s %s: Unexpected msg %s in state %s",
+                         __FUNCTION__, name, rpcname, transaction_state_int2str(ct->ct_state));
+            break;
+        }
         /* Receive config data from device and add config to mount-point */
         if ((ret = device_state_recv_config(h, dh, xmsg, yspec0, rpcname, conn_state)) < 0)
             goto done;
@@ -917,6 +937,11 @@ device_state_handler(clixon_handle h,
         if (tid == 0 || ct == NULL){
             device_close_connection(dh, "Device %s not associated with transaction in state %s",
                                     name, device_state_int2str(conn_state));
+            break;
+        }
+        if (ct->ct_state != TS_INIT && ct->ct_state == TS_RESOLVED){
+            clicon_debug(1, "%s %s: Unexpected msg %s in state %s",
+                         __FUNCTION__, name, rpcname, transaction_state_int2str(ct->ct_state));
             break;
         }
         /* Receive config data, force transient, ie do not commit */
@@ -968,6 +993,11 @@ device_state_handler(clixon_handle h,
                                     name, device_state_int2str(conn_state));
             break;
         }
+        if (ct->ct_state != TS_INIT && ct->ct_state == TS_RESOLVED){
+            clicon_debug(1, "%s %s: Unexpected msg %s in state %s",
+                         __FUNCTION__, name, rpcname, transaction_state_int2str(ct->ct_state));
+            break;
+        }
         if ((ret = device_state_recv_ok(dh, xmsg, rpcname, conn_state, &cberr)) < 0)
             goto done;
         if (ret == 0){      /* 1. The device has failed: received rpc-error/not <ok>  */
@@ -1008,6 +1038,11 @@ device_state_handler(clixon_handle h,
         if (tid == 0 || ct == NULL){
             device_close_connection(dh, "Device %s not associated with transaction in state %s",
                                     name, device_state_int2str(conn_state));
+            break;
+        }
+        if (ct->ct_state != TS_INIT && ct->ct_state == TS_RESOLVED){
+            clicon_debug(1, "%s %s: Unexpected msg %s in state %s",
+                         __FUNCTION__, name, rpcname, transaction_state_int2str(ct->ct_state));
             break;
         }
         if ((ret = device_state_recv_ok(dh, xmsg, rpcname, conn_state, &cberr)) < 0)
@@ -1064,6 +1099,11 @@ device_state_handler(clixon_handle h,
         if (tid == 0 || ct == NULL){
             device_close_connection(dh, "Device %s not associated with transaction in state %s",
                 name, device_state_int2str(conn_state));
+            break;
+        }
+        if (ct->ct_state != TS_INIT && ct->ct_state == TS_RESOLVED){
+            clicon_debug(1, "%s %s: Unexpected msg %s in state %s",
+                         __FUNCTION__, name, rpcname, transaction_state_int2str(ct->ct_state));
             break;
         }
         if ((ret = device_state_recv_ok(dh, xmsg, rpcname, conn_state, &cberr)) < 0)
@@ -1143,9 +1183,23 @@ device_state_handler(clixon_handle h,
                     cprintf(cberr, "%s", clicon_err_reason);
                     ret = 0;
                 }
-                if (ret == 0){
-                    if (controller_transaction_failed(h, ct->ct_id, ct, dh, 1, name, cbuf_get(cberr)) < 0)
+                if (ret == 0){ // XXX awkward, cb ->xml->cb
+                    cxobj *xerr = NULL;
+                    cbuf *cberr2 = NULL;
+                    if ((cberr2 = cbuf_new()) == NULL){
+                        clicon_err(OE_UNIX, errno, "cbuf_new");
                         goto done;
+                    }
+                    if (clixon_xml_parse_string(cbuf_get(cberr), YB_NONE, NULL, &xerr, NULL) < 0)
+                        goto done;
+                    if (netconf_err2cb(xerr, cberr2) < 0)
+                        goto done;
+                    if (controller_transaction_failed(h, ct->ct_id, ct, dh, 1, name, cbuf_get(cberr2)) < 0)
+                        goto done;
+                    if (xerr)
+                        xml_free(xerr);
+                    if (cberr2)
+                        cbuf_free(cberr2);
                     break;
                 }
             }

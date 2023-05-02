@@ -105,7 +105,7 @@ transaction_notification_handler(int                 s,
         goto done;
     }
     if ((result = transaction_result_str2int(resstr)) != TR_SUCCESS){
-        clicon_err(OE_NETCONF, 0, "Transaction %s failed %s", tidstr, reason?reason:"");
+        fprintf(stderr, "Transaction %s failed %s\n", tidstr, reason?reason:"");
         goto ok; // error == ^C
     }
     if (result)
