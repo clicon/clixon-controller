@@ -28,8 +28,6 @@ jobs:
       run: (git clone https://github.com/clicon/clixon-controller.git && cd clixon-controller && ./configure && make && sudo make install)
     - name: fix lib links
       run: sudo ldconfig
-    - name: install test yang specs
-      run: sudo cp clixon-controller/test/yang/* /usr/local/share/clixon/controller/
     - name: install clixon-pyapi
       run: (git clone https://github.com/clicon/clixon-pyapi.git && cd clixon-pyapi && sudo python3 setup.py install)
     - name: install PyAPI dependencies
