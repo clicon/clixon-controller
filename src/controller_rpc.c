@@ -1382,6 +1382,7 @@ rpc_transactions_actions_done(clixon_handle h,
         cprintf(cbret, "<rpc-reply xmlns=\"%s\">", NETCONF_BASE_NAMESPACE);
         cprintf(cbret, "<ok/>");
         cprintf(cbret, "</rpc-reply>");
+        controller_transaction_state_set(ct, TS_INIT, -1); /* Multiple actions */
         if (commit_push_after_actions(h, ct) < 0)
             goto done;
         break;

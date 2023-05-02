@@ -23,8 +23,7 @@
 # +----------------+---------------+---------------+
 # |                       Bx                       |
 # +------------------------------------------------+
-
-set -eux
+set -eu
 
 # Magic line must be first in script (see README.md)
 s="$_" ; . ./lib.sh || if [ "$s" = $0 ]; then exit 0; else return 0; fi
@@ -36,8 +35,66 @@ dir=/var/tmp/$0
 if [ ! -d $dir ]; then
     mkdir $dir
 fi
-
+CFG=$dir/controller.xml
 fyang=$dir/myyang.yang
+
+cat<<EOF > $CFG
+<clixon-config xmlns="http://clicon.org/config">
+  <CLICON_CONFIGFILE>/usr/local/etc/controller.xml</CLICON_CONFIGFILE>
+  <CLICON_FEATURE>ietf-netconf:startup</CLICON_FEATURE>
+  <CLICON_FEATURE>clixon-restconf:allow-auth-none</CLICON_FEATURE>
+  <CLICON_YANG_DIR>/usr/local/share/clixon</CLICON_YANG_DIR>
+  <CLICON_YANG_MAIN_DIR>$dir</CLICON_YANG_MAIN_DIR>
+  <CLICON_CLI_MODE>operation</CLICON_CLI_MODE>
+  <CLICON_CLI_DIR>/usr/local/lib/controller/cli</CLICON_CLI_DIR>
+  <CLICON_CLISPEC_DIR>/usr/local/lib/controller/clispec</CLICON_CLISPEC_DIR>
+  <CLICON_BACKEND_DIR>/usr/local/lib/controller/backend</CLICON_BACKEND_DIR>
+  <CLICON_SOCK>/usr/local/var/controller.sock</CLICON_SOCK>
+  <CLICON_BACKEND_PIDFILE>/usr/local/var/controller.pidfile</CLICON_BACKEND_PIDFILE>
+  <CLICON_XMLDB_DIR>/usr/local/var/controller</CLICON_XMLDB_DIR>
+  <CLICON_STARTUP_MODE>init</CLICON_STARTUP_MODE>
+  <CLICON_SOCK_GROUP>clicon</CLICON_SOCK_GROUP>
+  <CLICON_STREAM_DISCOVERY_RFC5277>true</CLICON_STREAM_DISCOVERY_RFC5277>
+  <CLICON_RESTCONF_USER>www-data</CLICON_RESTCONF_USER>
+  <CLICON_RESTCONF_PRIVILEGES>drop_perm</CLICON_RESTCONF_PRIVILEGES>
+  <CLICON_RESTCONF_INSTALLDIR>/usr/local/sbin</CLICON_RESTCONF_INSTALLDIR>
+  <CLICON_VALIDATE_STATE_XML>true</CLICON_VALIDATE_STATE_XML>
+  <CLICON_CLI_HELPSTRING_TRUNCATE>true</CLICON_CLI_HELPSTRING_TRUNCATE>
+  <CLICON_CLI_HELPSTRING_LINES>1</CLICON_CLI_HELPSTRING_LINES>
+  <CLICON_YANG_SCHEMA_MOUNT>true</CLICON_YANG_SCHEMA_MOUNT>
+  <autocli>
+     <module-default>true</module-default>
+     <list-keyword-default>kw-nokey</list-keyword-default>
+     <treeref-state-default>true</treeref-state-default>
+     <rule>
+       <name>include controller</name>
+       <module-name>clixon-controller</module-name>
+       <operation>enable</operation>
+     </rule>
+     <rule>
+       <name>include example</name>
+       <module-name>clixon-example</module-name>
+       <operation>enable</operation>
+     </rule>
+     <rule>
+       <name>include junos</name>
+       <module-name>junos-conf-root</module-name>
+       <operation>enable</operation>
+     </rule>
+     <rule>
+       <name>include arista system</name>
+       <module-name>openconfig-system</module-name>
+       <operation>enable</operation>
+     </rule>
+     <rule>
+       <name>include arista interfaces</name>
+       <module-name>openconfig-interfaces</module-name>
+       <operation>enable</operation>
+     </rule>
+     <!-- there are many more arista/openconfig top-level modules -->
+  </autocli>
+</clixon-config>
+EOF
 
 cat <<EOF > $fyang
 module myyang {
@@ -81,9 +138,6 @@ module myyang {
 }
 EOF
 
-# XXX problem in how to add an application model to all clixon applications
-sudo cp $fyang /usr/local/share/clixon/controller/
-
 # Reset devices with initial config
 . ./reset-devices.sh
 
@@ -109,7 +163,31 @@ if $SA; then
     services_action -f $CFG &
 fi
 
-echo "edit testA(1)"
+if [ $nr -gt 1 ]; then
+    DEV2="<device>
+           <name>clixon-example2</name>
+           <config>
+             <table xmlns=\"urn:example:clixon\">
+               <parameter>
+                 <name>0x</name>
+               </parameter>
+               <parameter>
+                 <name>A0x</name>
+               </parameter>
+               <parameter>
+                 <name>A0y</name>
+               </parameter>
+               <parameter>
+                 <name>A0z</name>
+               </parameter>
+             </table>
+           </config>
+         </device>"
+else
+    DEV2=""
+fi
+
+new "edit testA(1)"
 ret=$(${PREFIX} ${clixon_netconf} -0 -f $CFG <<EOF
 <?xml version="1.0" encoding="UTF-8"?>
 <hello xmlns="urn:ietf:params:xml:ns:netconf:base:1.0">
@@ -164,25 +242,7 @@ ret=$(${PREFIX} ${clixon_netconf} -0 -f $CFG <<EOF
              </table>
            </config>
          </device>
-         <device>
-           <name>clixon-example2</name>
-           <config>
-             <table xmlns="urn:example:clixon">
-               <parameter>
-                 <name>0x</name>
-               </parameter>
-               <parameter>
-                 <name>A0x</name>
-               </parameter>
-               <parameter>
-                 <name>A0y</name>
-               </parameter>
-               <parameter>
-                 <name>A0z</name>
-               </parameter>
-             </table>
-           </config>
-         </device>
+         $DEV2
       </devices>
     </config>
   </edit-config>
@@ -197,11 +257,11 @@ if [ -n "$match" ]; then
     exit 1
 fi
 
-echo "commit push"
-echo "${PREFIX} ${clixon_cli} -m configure -1f $CFG commit push"
-${PREFIX} ${clixon_cli} -m configure -1f $CFG commit push
+new "commit push"
+set +e
+expectpart "$(${PREFIX} ${clixon_cli} -m configure -1f $CFG commit push 2>&1)" 0 OK --not-- Error
 
-echo "edit testA(2)"
+new "edit testA(2)"
 ret=$(${PREFIX} ${clixon_netconf} -0 -f $CFG <<EOF
 <?xml version="1.0" encoding="UTF-8"?>
 <hello xmlns="urn:ietf:params:xml:ns:netconf:base:1.0">
@@ -239,7 +299,7 @@ if [ -n "$match" ]; then
     exit 1
 fi
       
-echo "commit diff"
+new "commit diff"
 echo "${PREFIX} ${clixon_cli} -m configure -1f $CFG commit diff"
 ret=$(${PREFIX} ${clixon_cli} -m configure -1f $CFG commit diff)
 
@@ -253,8 +313,6 @@ if [ -z "$match" ]; then
     echo "commit diff failed"
     exit 1
 fi
-
-sudo rm -rf /usr/local/share/clixon/controller/$fyang
 
 if $SA; then
     echo "Kill service action"
