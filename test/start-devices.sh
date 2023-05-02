@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Start clixon example container devices and initiate with config x=11, y=22
-set -eux
+set -eu
 
 # Number of device containers to start
 : ${nr:=2}

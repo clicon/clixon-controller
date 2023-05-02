@@ -5,7 +5,7 @@
 # Push validate to devices
 # Push to devices
 
-set -eux
+set -eu
 
 # Magic line must be first in script (see README.md)
 s="$_" ; . ./lib.sh || if [ "$s" = $0 ]; then exit 0; else return 0; fi
@@ -83,7 +83,7 @@ EOF
     fi
 done
 
-echo "local commit"
+new "local commit"
 ${PREFIX} ${clixon_netconf} -0 -f $CFG <<EOF
 <?xml version="1.0" encoding="UTF-8"?>
 <hello xmlns="urn:ietf:params:xml:ns:netconf:base:1.0">
@@ -102,11 +102,12 @@ if ! $push ; then
     exit 0
 fi
 
-echo "push validate"
+new "push validate"
 ret=$(${PREFIX} ${clixon_netconf} -q0 -f $CFG <<EOF
 <rpc xmlns="urn:ietf:params:xml:ns:netconf:base:1.0" message-id="43">
   <controller-commit xmlns="http://clicon.org/controller">
     <push>VALIDATE</push>
+    <source>ds:running</source>
   </controller-commit>
 </rpc>]]>]]>
 EOF
@@ -123,11 +124,12 @@ fi
 
 sleep $sleep
 
-echo "push commit"
+new "push commit"
 ret=$(${PREFIX} ${clixon_netconf} -q0 -f $CFG <<EOF
 <rpc xmlns="urn:ietf:params:xml:ns:netconf:base:1.0" message-id="43">
   <controller-commit xmlns="http://clicon.org/controller">
     <push>COMMIT</push>
+    <source>ds:running</source>
   </controller-commit>
 </rpc>]]>]]>
 EOF
@@ -148,14 +150,14 @@ fi
 
 sleep $sleep
 
-echo "Verify controller"
+new "Verify controller"
 res=$(${PREFIX} ${clixon_cli} -1f $CFG show devices | grep OPEN | wc -l)
 if [ "$res" != "$nr" ]; then
    echo Error
    exit -1;
 fi
 
-echo "Verify containers"
+new "Verify containers"
 for i in $(seq 1 $nr); do
     NAME=$IMG$i
     ip=$(sudo docker inspect $NAME -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}')

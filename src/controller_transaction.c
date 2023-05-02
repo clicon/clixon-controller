@@ -104,10 +104,18 @@ controller_transaction_state_set(controller_transaction *ct,
 {
     switch (state) {
     case TS_INIT:
-        clicon_debug(1, "%s %" PRIu64 " : -> %s",
-                     __FUNCTION__,
-                     ct->ct_id,
-                     transaction_state_int2str(state));
+        assert(ct->ct_state != TS_DONE);
+        if (ct->ct_state != TS_INIT)
+            clicon_debug(1, "%s %" PRIu64 " : %s -> %s",
+                         __FUNCTION__,
+                         ct->ct_id,
+                         transaction_state_int2str(ct->ct_state),
+                         transaction_state_int2str(state));
+        else
+            clicon_debug(1, "%s %" PRIu64 " : -> %s",
+                         __FUNCTION__,
+                         ct->ct_id,
+                         transaction_state_int2str(state));
         break;
     case TS_ACTIONS:
         clicon_debug(1, "%s %" PRIu64 " : %s -> %s",
@@ -177,8 +185,12 @@ controller_transaction_notify(clixon_handle           h,
     cprintf(cb, "<result>%s</result>", transaction_result_int2str(ct->ct_result));
     if (ct->ct_origin)
         cprintf(cb, "<origin>%s</origin>", ct->ct_origin);
-    if (ct->ct_reason)
-        cprintf(cb, "<reason>%s</reason>", ct->ct_reason);
+    if (ct->ct_reason){
+        cprintf(cb, "<reason>");
+        if (xml_chardata_cbuf_append(cb, ct->ct_reason) < 0)
+            goto done;
+        cprintf(cb, "</reason>");
+    }
     cprintf(cb, "</controller-transaction>");
     if (stream_notify(h, "controller-transaction", "%s", cbuf_get(cb)) < 0)
         goto done;
@@ -460,6 +472,16 @@ controller_transaction_failed(clicon_handle           h,
         /* 1.2.3 If no devices left in transaction, mark it as done */
         if (controller_transaction_devices(h, tid) == 0){
             if (controller_transaction_done(h, ct, TR_FAILED) < 0)
+                goto done;
+            if (origin && (ct->ct_origin = strdup(origin)) == NULL){
+                clicon_err(OE_UNIX, errno, "strdup");
+                goto done;
+            }
+            if (reason && (ct->ct_reason = strdup(reason)) == NULL){
+                clicon_err(OE_UNIX, errno, "strdup");
+                goto done;
+            }
+            if (controller_transaction_notify(h, ct) < 0)
                 goto done;
         }
     }
