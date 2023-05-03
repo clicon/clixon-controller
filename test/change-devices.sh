@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Change device config: Remove x, change y, and add z
-set -eux
+set -eu
 
 echo "change-devices"
 

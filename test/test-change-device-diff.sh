@@ -5,7 +5,7 @@
 # Make a pull transient
 # Check the diff between controller and devices
 
-set -eux
+set -eu
 
 # Magic line must be first in script (see README.md)
 s="$_" ; . ./lib.sh || if [ "$s" = $0 ]; then exit 0; else return 0; fi

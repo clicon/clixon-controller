@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Stop clixon example container devices
-set -eux
+set -eu
 
 # Number of device containers to start
 : ${nr:=2}

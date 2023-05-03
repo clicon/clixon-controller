@@ -4,7 +4,7 @@
 # Reset devices and backend
 # Query controller of yang-schema-mount and yanglib of root and mount-points
 
-set -eux
+set -eu
 
 # Magic line must be first in script (see README.md)
 s="$_" ; . ./lib.sh || if [ "$s" = $0 ]; then exit 0; else return 0; fi
@@ -26,6 +26,7 @@ wait_backend
 # Reset controller
 . ./reset-controller.sh
 
+new "schema-mounts"
 # Query top-level schema-mount
 ret=$(${PREFIX} ${clixon_netconf} -0 -f $CFG <<EOF
 <?xml version="1.0" encoding="UTF-8"?>
@@ -103,6 +104,5 @@ if $BE; then
     sudo clixon_backend -s init -f $CFG -z
 fi
 
-echo "test-yanglib"
-echo OK
+echo "test-yanglib OK"
 

@@ -135,10 +135,10 @@ function expectpart(){
     retval=$2
     expect=$3
 
-    echo "r:$r"
-    echo "ret:\"$ret\""
-    echo "retval:$retval"
-    echo "expect:\"$expect\""
+#    echo "r:$r"
+#    echo "ret:\"$ret\""
+#    echo "retval:$retval"
+#    echo "expect:\"$expect\""
     if [ "$retval" -eq "$retval" 2> /dev/null ] ; then # single retval
 	if [ $r != $retval ]; then
 	    echo -e "\e[31m\nError ($r != $retval) in Test$testnr [$testname]:"

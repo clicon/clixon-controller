@@ -6,7 +6,7 @@
 # Push validate to devices which should fail
 # Push commit to devices which should fail
 
-set -eux
+set -eu
 
 # Magic line must be first in script (see README.md)
 s="$_" ; . ./lib.sh || if [ "$s" = $0 ]; then exit 0; else return 0; fi
@@ -84,7 +84,7 @@ EOF
     fi
 done
 
-echo "local commit"
+new "local commit"
 ${PREFIX} ${clixon_netconf} -0 -f $CFG <<EOF
 <?xml version="1.0" encoding="UTF-8"?>
 <hello xmlns="urn:ietf:params:xml:ns:netconf:base:1.0">
@@ -103,7 +103,7 @@ if ! $push ; then
     exit 0
 fi
 
-echo "push validate"
+new "push validate"
 ret=$(${PREFIX} ${clixon_cli} -1f $CFG push validate 2>&1)
 echo "ret:$ret"
 
