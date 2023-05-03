@@ -60,8 +60,6 @@ RUN pip3 install --break-system-packages -r requirements.txt
 WORKDIR /clixon
 RUN mkdir -p /usr/local/share/clixon/mounts/
 RUN useradd clicon
-RUN cp clixon-controller/test/yang/* /usr/local/share/clixon/controller
-RUN cp clixon-controller/test/py/* clixon-pyapi/modules/
 COPY startsystem.sh /usr/local/bin/
 
 ENTRYPOINT /usr/local/bin/startsystem.sh
