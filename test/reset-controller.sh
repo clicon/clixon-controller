@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Reset controller by initiaiting with clixon-example devices and a pull
 
-set -eu
+set -eux
 
 echo "reset-controller"
 
@@ -90,6 +90,7 @@ if $delete ; then
 </rpc>]]>]]>
 EOF
        )
+
     match=$(echo "$ret" | grep --null -Eo "<rpc-error>") || true
     if [ -n "$match" ]; then
         echo "netconf rpc-error detected"
@@ -97,10 +98,13 @@ EOF
     fi
 fi # delete
 
+i=1
+
 # Loop adding top-level device meta info
-for i in $(seq 1 $nr); do
-    NAME=$IMG$i
-    ip=$(sudo docker inspect $NAME -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}')
+for ip in $CONTAINERS; do
+    NAME="$IMG$i"
+    i=$((i+1))
+    
     for j in $(seq 1 5); do    
         init_device_config $NAME $ip
         echo "$ret"
