@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Start clixon example container devices and initiate with config x=11, y=22
-set -eu
+set -e
 
 : ${NAME:=clixon-controller}
 
