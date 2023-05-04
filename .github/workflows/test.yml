@@ -2,7 +2,7 @@ name: Clixon Controller CI
 
 on:
   push:
-    branches: [ main ]
+    branches: [ main, docker ]
   pull_request:
     branches: [ main ]
 
@@ -12,7 +12,7 @@ jobs:
     steps:
     - uses: actions/checkout@v3
     - name: build clixon controller container
-      run: (git clone https://github.com/clicon/clixon-controller.git && cd clixon-controller/docker/; docker build -t clixon-controller .)
+      run: (git clone https://github.com/clicon/clixon-controller.git && cd clixon-controller/docker/ && git checkout docker && docker build -t clixon-controller .)
 # 2)  Run tests
     - name: Start devices
       run: (cd test; ./start-devices.sh)    
