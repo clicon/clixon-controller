@@ -2,7 +2,7 @@
 # Start clixon example container devices and initiate with config x=11, y=22
 set -e
 
-: ${NAME:=clixon-controller}
+: ${NAME:=clixon-controller:latest}
 
 : ${sleep:=5}
 
