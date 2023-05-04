@@ -11,7 +11,7 @@ echo "reset-controller"
 # Number of devices to add config to
 : ${nr:=2}
 
-# Sleep delay in seconds between each step                                      
+# Sleep delay in seconds between each step
 : ${sleep:=2}
 
 # Default container name, postfixed with 1,2,..,<nr>
@@ -43,8 +43,8 @@ function init_device_config()
     ip=$2
 
     ret=$(${PREFIX} ${clixon_netconf} -qe0 -f $CFG <<EOF
-<rpc xmlns="urn:ietf:params:xml:ns:netconf:base:1.0" 
-  xmlns:nc="urn:ietf:params:xml:ns:netconf:base:1.0" 
+<rpc xmlns="urn:ietf:params:xml:ns:netconf:base:1.0"
+  xmlns:nc="urn:ietf:params:xml:ns:netconf:base:1.0"
   message-id="42">
   <edit-config>
     <target>
@@ -53,16 +53,16 @@ function init_device_config()
     <default-operation>none</default-operation>
     <config>
       <devices xmlns="http://clicon.org/controller">
-        <device nc:operation="replace">
-          <name>$NAME</name>
-          <enabled>true</enabled>
-          <description>$description</description>
-          <conn-type>NETCONF_SSH</conn-type>
-          <user>$user</user>
-          <addr>$ip</addr>
-          <yang-config>${yang_config}</yang-config>
-          <config/>
-        </device>
+	<device nc:operation="replace">
+	  <name>$NAME</name>
+	  <enabled>true</enabled>
+	  <description>$description</description>
+	  <conn-type>NETCONF_SSH</conn-type>
+	  <user>$user</user>
+	  <addr>$ip</addr>
+	  <yang-config>${yang_config}</yang-config>
+	  <config/>
+	</device>
       </devices>
     </config>
   </edit-config>
@@ -74,8 +74,8 @@ EOF
 if $delete ; then
     echo "Delete device config"
     ret=$(${PREFIX} ${clixon_netconf} -qe0 -f $CFG <<EOF
-<rpc xmlns="urn:ietf:params:xml:ns:netconf:base:1.0" 
-  xmlns:nc="urn:ietf:params:xml:ns:netconf:base:1.0" 
+<rpc xmlns="urn:ietf:params:xml:ns:netconf:base:1.0"
+  xmlns:nc="urn:ietf:params:xml:ns:netconf:base:1.0"
   message-id="42">
   <edit-config>
     <target>
@@ -93,8 +93,8 @@ EOF
 
     match=$(echo "$ret" | grep --null -Eo "<rpc-error>") || true
     if [ -n "$match" ]; then
-        echo "netconf rpc-error detected"
-        exit 1
+	echo "netconf rpc-error detected"
+	exit 1
     fi
 fi # delete
 
@@ -104,21 +104,21 @@ i=1
 for ip in $CONTAINERS; do
     NAME="$IMG$i"
     i=$((i+1))
-    
-    for j in $(seq 1 5); do    
-        init_device_config $NAME $ip
-        echo "$ret"
-        match=$(echo "$ret" | grep --null -Eo "<rpc-error>") || true
-        if [ -z "$match" ]; then
-            break
-        fi
-        match=$(echo "$ret" | grep --null -Eo "<error-tag>lock-denied</error-tag") || true
-        if [ -z "$match" ]; then
-            echo "netconf rpc-error detected"
-            exit 1
-        fi
-        echo "retry after sleep"
-        sleep $sleep
+
+    for j in $(seq 1 5); do
+	init_device_config $NAME $ip
+	echo "$ret"
+	match=$(echo "$ret" | grep --null -Eo "<rpc-error>") || true
+	if [ -z "$match" ]; then
+	    break
+	fi
+	match=$(echo "$ret" | grep --null -Eo "<error-tag>lock-denied</error-tag") || true
+	if [ -z "$match" ]; then
+	    echo "netconf rpc-error detected"
+	    exit 1
+	fi
+	echo "retry after sleep"
+	sleep $sleep
     done
 done
 
@@ -137,15 +137,15 @@ if [ -n "$match" ]; then
 fi
 
 # try 5 times if fail
-for j in $(seq 1 5); do    
+for j in $(seq 1 5); do
     echo "pull"
     fail=false
     ret=$(${PREFIX} ${clixon_cli} -1f $CFG pull)||fail=true||true
     echo "myfail:$fail"
     if $fail; then
-        sleep $sleep
+	sleep $sleep
     else
-        break
+	break
     fi
 done
 
@@ -167,12 +167,12 @@ fi
 echo "check config"
 for i in $(seq 1 $nr); do
     NAME=$IMG$i
-    ip=$(sudo docker inspect $NAME -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}')
-    
+    ip=$(docker inspect $NAME -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}')
+
     echo "Check config on device$i"
     ret=$(${PREFIX} ${clixon_netconf} -qe0 -f $CFG <<EOF
-<rpc xmlns="urn:ietf:params:xml:ns:netconf:base:1.0" 
-  xmlns:nc="urn:ietf:params:xml:ns:netconf:base:1.0" 
+<rpc xmlns="urn:ietf:params:xml:ns:netconf:base:1.0"
+  xmlns:nc="urn:ietf:params:xml:ns:netconf:base:1.0"
   message-id="42">
   <get-config>
     <source>
@@ -180,12 +180,12 @@ for i in $(seq 1 $nr); do
     </source>
     <filter type='subtree'>
       <devices xmlns="http://clicon.org/controller">
-        <device>
-          <name>clixon-example1</name>
-          <config>
-            <table xmlns="urn:example:clixon"/>
-          </config>
-        </device>
+	<device>
+	  <name>clixon-example1</name>
+	  <config>
+	    <table xmlns="urn:example:clixon"/>
+	  </config>
+	</device>
       </devices>
     </filter>
   </get-config>
@@ -195,13 +195,13 @@ EOF
     echo "$ret"
     match=$(echo "$ret" | grep --null -Eo "<rpc-error>") || true
     if [ -n "$match" ]; then
-        echo "netconf rpc-error detected"
-        exit 1
+	echo "netconf rpc-error detected"
+	exit 1
     fi
     match=$(echo "$ret" | grep --null -Eo "<table xmlns=\"urn:example:clixon\"><parameter><name>x</name><value>11</value></parameter><parameter><name>y</name><value>22</value></parameter></table>") || true
     if [ -z "$match" ]; then
-        echo "Config of device $i not matching"
-        exit 1
+	echo "Config of device $i not matching"
+	exit 1
     fi
 done
 
