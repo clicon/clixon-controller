@@ -21,7 +21,7 @@
 #
 
 FROM debian:bookworm-slim
-MAINTAINER Olof Hagsand <olof@hagsand.se>
+MAINTAINER Kristofer Hallin <kristofer@sunet.se>
 
 RUN apt update
 RUN apt install -y emacs-nox git make gcc bison libnghttp2-dev libssl-dev flex python3 python3-pip
@@ -47,6 +47,7 @@ RUN make install
 RUN ldconfig
 
 WORKDIR /clixon/clixon-controller
+RUN git checkout controller
 RUN ./configure
 RUN make
 RUN make install
