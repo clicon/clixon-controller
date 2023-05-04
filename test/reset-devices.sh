@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Reset running example container devices and initiate with config x=11, y=22
-set -eu
+set -e
 
 echo "reset-devices"
 
@@ -17,9 +17,7 @@ echo "reset-devices"
 sudo test -f $SSHKEY || sudo ssh-keygen -t rsa -N "" -f /root/.ssh/id_rsa
 
 # Add parameters x and y
-for i in $(seq 1 $nr); do
-    NAME=$IMG$i
-    ip=$(sudo docker inspect $NAME -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}')
+for ip in $CONTAINERS; do
     ret=$(sudo ssh $ip -o StrictHostKeyChecking=no -o PasswordAuthentication=no -s netconf <<EOF
 <?xml version="1.0" encoding="UTF-8"?>
 <hello xmlns="urn:ietf:params:xml:ns:netconf:base:1.0">
