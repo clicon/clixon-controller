@@ -1357,16 +1357,22 @@ controller_cligen_treeref_wrap(cligen_handle ch,
 {
     int           retval = -1;
     cg_var       *cv;
-    cg_var       *cvdev;
+    cg_var       *cvdev = NULL;
     char         *devname;
     char         *treename2;
     cbuf         *cb = NULL;
     yang_stmt    *yspec1 = NULL;
     clicon_handle h;
+    cvec         *cvv_edit;
 
     h = cligen_userhandle(ch);
-    if (strcmp(name, "mountpoint") == 0){
-        /* Ad-hoc: find "device" token in cvt */
+    if (strcmp(name, "mountpoint") != 0)
+        goto ok;
+    cvv_edit = clicon_data_cvec_get(h, "cli-edit-cvv");
+    /* Ad-hoc: find "name" variable in edit mode cvv, else "device" token */
+    if (cvv_edit && (cvdev = cvec_find(cvv_edit, "name")) != NULL)
+        ;
+    else{
         cv = NULL;
         while ((cv = cvec_each(cvt, cv)) != NULL){
             if (strcmp(cv_string_get(cv), "device") == 0)
@@ -1376,45 +1382,45 @@ controller_cligen_treeref_wrap(cligen_handle ch,
             goto ok;
         if ((cvdev = cvec_next(cvt, cv)) == NULL)
             goto ok;
-        if ((devname = cv_string_get(cvdev)) == NULL)
-            goto ok;
-        if ((cb = cbuf_new()) == NULL){
-            clicon_err(OE_UNIX, errno, "cbuf_new");
-            goto done;
-        }
-        cprintf(cb, "mountpoint-%s", devname);
-        treename2 = cbuf_get(cb);
-        /* Does this tree exist? */
-        if (cligen_ph_find(ch, treename2) == NULL){
-            if (create_autocli_mount_tree(h, devname, treename2, &yspec1) < 0)
-                goto done;
-            if (yspec1 == NULL){
-                clicon_err(OE_YANG, 0, "No yang spec");
-                goto done;
-            }
-            /* Generate auto-cligen tree from the specs */
-            if (yang2cli_yspec(h, yspec1, treename2, 0) < 0)
-                goto done;
-            /* Sanity */
-            if (cligen_ph_find(ch, treename2) == NULL){
-                clicon_err(OE_YANG, 0, "autocli should have  been generated but is not?");
-                goto done;
-            }
-        }
-        if (namep &&
-            (*namep = strdup(treename2)) == NULL){
-            clicon_err(OE_UNIX, errno, "strdup");
-            goto done;
-        }
-        retval = 1;
+    }
+    if ((devname = cv_string_get(cvdev)) == NULL)
+        goto ok;
+    if ((cb = cbuf_new()) == NULL){
+        clicon_err(OE_UNIX, errno, "cbuf_new");
         goto done;
     }
- ok:
-    retval = 0;
+    cprintf(cb, "mountpoint-%s", devname);
+    treename2 = cbuf_get(cb);
+    /* Does this tree exist? */
+    if (cligen_ph_find(ch, treename2) == NULL){
+        if (create_autocli_mount_tree(h, devname, treename2, &yspec1) < 0)
+            goto done;
+        if (yspec1 == NULL){
+            clicon_err(OE_YANG, 0, "No yang spec");
+            goto done;
+        }
+        /* Generate auto-cligen tree from the specs */
+        if (yang2cli_yspec(h, yspec1, treename2, 0) < 0)
+            goto done;
+        /* Sanity */
+        if (cligen_ph_find(ch, treename2) == NULL){
+            clicon_err(OE_YANG, 0, "autocli should have  been generated but is not?");
+            goto done;
+        }
+    }
+    if (namep &&
+        (*namep = strdup(treename2)) == NULL){
+        clicon_err(OE_UNIX, errno, "strdup");
+        goto done;
+    }
+    retval = 1;
  done:
     if (cb)
         cbuf_free(cb);
     return retval;
+ ok:
+    retval = 0;
+    goto done;
 }
 
 /*! YANG module patch
