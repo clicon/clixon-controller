@@ -3,10 +3,10 @@
 set -e
 
 : ${NAME:=clixon-controller:latest}
+: ${IMG:=clixon-controller:latest}
 
 : ${sleep:=5}
 
-sudo docker kill $NAME || true
 sudo docker run --name $NAME --rm -td $IMG
 
 sleep $sleep # need time to spin up backend in containers
