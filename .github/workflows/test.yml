@@ -15,20 +15,10 @@ jobs:
       run: (git clone https://github.com/clicon/clixon-controller.git && cd clixon-controller/docker/ && git checkout docker && docker build -t clixon-controller .)
 # 2)  Run tests
     - name: Start devices
-      run: (cd test; ./start-devices.sh)    
+      run: cd clixon-controller/test; ./start-devices.sh
     - name: Get container addresses
-      run: (cd test; CONTAINERS=`./containers.sh`; export CONTAINERS)
+      run: cd clixon-controller/test; CONTAINERS=`./containers.sh`; echo "CONTAINERS=$CONTAINERS" >> "$GITHUB_ENV"
     - name: Start controller container
-      run: (cd test; ./start-controller.sh)
-    - name: Run test-change-both
-      run: (cd test; PREFIX=sudo ./test-change-both.sh)
-    - name: Run test-change-ctrl-push
-      run: (cd test; PREFIX=sudo ./test-change-ctrl-push.sh)
-    - name: Run test-change-device-diff
-      run: (cd test; PREFIX=sudo ./test-change-device-diff.sh)
-    - name: Run test-cli-edit-commit-push
-      run: (cd test; ./test-cli-edit-commit-push.sh)
-    - name: Run test-service
-      run: (cd test; PREFIX=sudo ./test-service.sh)
-    - name: Run test-yanglib
-      run: (cd test; PREFIX=sudo ./test-yanglib.sh)
+      run: cd clixon-controller/test; CONTAINERS="${{ env.CONTAINERS }}" ./start-controller.sh
+    - name: Run tests
+      run: sudo docker exec -t clixon-controller bash -c 'cd clixon-controller/test && detail=true ./sum.sh'
