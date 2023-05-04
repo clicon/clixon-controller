@@ -61,4 +61,5 @@ EOF
 
 done
 
+echo
 echo "start-devices OK"
