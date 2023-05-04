@@ -47,7 +47,6 @@ RUN make install
 RUN ldconfig
 
 WORKDIR /clixon/clixon-controller
-RUN git checkout controller
 RUN ./configure
 RUN make
 RUN make install
