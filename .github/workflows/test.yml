@@ -2,7 +2,7 @@ name: Clixon Controller CI
 
 on:
   push:
-    branches: [ main ]
+    branches: [ main, docker ]
   pull_request:
     branches: [ main ]
 
