@@ -2,12 +2,12 @@
 # Start clixon example container devices and initiate with config x=11, y=22
 set -e
 
-: ${NAME:=clixon-controller:latest}
+: ${NAME:=clixon-controller}
 : ${IMG:=clixon-controller:latest}
 
 : ${sleep:=5}
 
-sudo docker run --name $NAME --rm -td $IMG
+sudo docker run --name $NAME --rm -td -e CONTAINERS="$CONTAINERS" $IMG
 
 sleep $sleep # need time to spin up backend in containers
 
