@@ -1,4 +1,10 @@
-set -eu
+# Controller test script using cli, pyapi, backend and two example devices
+# 1a. edit a service with (local) syntax error
+# 1b. edit a service: set x=1.2.3.4
+# 2. Commit (push) service
+# 3. Check device config on controller and devices
+
+set -u
 
 # Magic line must be first in script (see README.md)
 s="$_" ; . ./lib.sh || if [ "$s" = $0 ]; then exit 0; else return 0; fi
@@ -8,7 +14,7 @@ if [ ! -d $dir ]; then
     mkdir $dir
 fi
 CFG=$dir/controller.xml
-fyang=$dir/test@2023-03-22.yang
+fyang=$dir/clixon-test@2023-03-22.yang
 pydir=$dir/py
 if [ ! -d $pydir ]; then
     mkdir $pydir
@@ -47,60 +53,31 @@ cat<<EOF > $CFG
        <module-name>clixon-controller</module-name>
        <operation>enable</operation>
      </rule>
-     <rule>
-       <name>include example</name>
-       <module-name>clixon-example</module-name>
-       <operation>enable</operation>
-     </rule>
-     <rule>
-       <name>include junos</name>
-       <module-name>junos-conf-root</module-name>
-       <operation>enable</operation>
-     </rule>
-     <rule>
-       <name>include arista system</name>
-       <module-name>openconfig-system</module-name>
-       <operation>enable</operation>
-     </rule>
-     <rule>
-       <name>include arista interfaces</name>
-       <module-name>openconfig-interfaces</module-name>
-       <operation>enable</operation>
-     </rule>
-     <!-- there are many more arista/openconfig top-level modules -->
   </autocli>
 </clixon-config>
 EOF
 
 cat <<EOF > $fyang
-module clicon-test {
+module clixon-test {
     namespace "http://clicon.org/test";
     prefix test;
-
     import ietf-inet-types { prefix inet; }
     import clixon-controller { prefix ctrl; }
-
     revision 2023-03-22{
         description "Initial prototype";
     }
-
     augment "/ctrl:services" {
         list test {
             key service-name;
-
             leaf service-name {
                 type string;
             }
-
             description "Test service";
-
             list parameter {
                 key name;
-
                 leaf name{
                     type string;
                 }
-
                 leaf value{
                     type inet:ipv4-address;
                 }
@@ -153,26 +130,70 @@ python3 /usr/local/bin/clixon_server.py -m $pydir
 new "CLI: syncronize devices"
 expectpart "$(${PREFIX} $clixon_cli -1 -f $CFG pull)" 0 ""
 
+new "CLI: Check pre-controller devices configuration"
+expectpart "$(${PREFIX} $clixon_cli -1 -f $CFG show configuration xml devices)" 0 "<name>y</name>" --not-- "<value>1.2.3.4</value>"
+
 new "CLI: Configure service"
 expectpart "$(${PREFIX} $clixon_cli -1 -f $CFG -m configure set services test cli_test)" 0 ""
 
+# XXX move to error tests
 new "CLI: Set invalid value type"
-expectpart "$(${PREFIX} $clixon_cli -1 -f $CFG -l o -m configure set services test cli_test parameter XXX value YYY)" 255 "CLI syntax error: \"set services test cli_test parameter XXX value YYY\": \"YYY\" is invalid input for cli command: value"
+expectpart "$(${PREFIX} $clixon_cli -1 -f $CFG -l o -m configure set services test cli_test parameter x value y)" 255 "CLI syntax error: \"set services test cli_test parameter x value y\": \"y\" is invalid input for cli command: value"
 
 new "CLI: Set valid value type"
-expectpart "$(${PREFIX} $clixon_cli -1 -f $CFG -m configure set services test cli_test parameter XXX value 1.2.3.4)" 0 ""
+expectpart "$(${PREFIX} $clixon_cli -1 -f $CFG -m configure set services test cli_test parameter x value 1.2.3.4)" 0 ""
 
 sleep 2
 
 new "CLI: Commit"
-echo "${PREFIX} $clixon_cli -1 -f $CFG -m configure commit"
 expectpart "$(${PREFIX} $clixon_cli -1 -f $CFG -m configure commit)" 0 ""
 
-new "CLI: Show configuration"
-expectpart "$(${PREFIX} $clixon_cli -1 -f $CFG show configuration cli)" 0 "^services test cli_test" "^services test cli_test parameter XXX" "^services test cli_test parameter XXX value 1.2.3.4"
+new "CLI: Check controller services configuration"
+expectpart "$(${PREFIX} $clixon_cli -1 -f $CFG show configuration cli)" 0 "^services test cli_test" "^services test cli_test parameter x" "^services test cli_test parameter x value 1.2.3.4"
 
-new "CLI: Push configuration"
-expectpart "$(${PREFIX} $clixon_cli -1 -f $CFG push)" 0 ""
+new "CLI: Check controller devices configuration"
+expectpart "$(${PREFIX} $clixon_cli -1 -f $CFG show configuration xml)" 0 "<name>y</name>" "<value>1.2.3.4</value>"
+
+new "Verify containers"
+for i in $(seq 1 $nr); do
+    NAME=$IMG$i
+    ip=$(sudo docker inspect $NAME -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}')
+    ret=$(${PREFIX} ${clixon_netconf} -qe0 -f $CFG <<EOF
+<rpc xmlns="urn:ietf:params:xml:ns:netconf:base:1.0" 
+xmlns:nc="urn:ietf:params:xml:ns:netconf:base:1.0" 
+message-id="42">
+  <get-config>
+    <source><running/></source>
+    <filter type='subtree'>
+      <devices xmlns="http://clicon.org/controller">
+        <device>
+          <name>$NAME</name>
+          <config>
+            <table xmlns="urn:example:clixon">
+              <parameter>
+                 <name>x</name>
+              </parameter>
+            </table>
+          </config>
+        </device>
+      </devices>
+    </filter>
+  </get-config>
+</rpc>]]>]]>
+EOF
+       )
+    echo "ret:$ret"
+    match=$(echo $ret | grep --null -Eo "<rpc-error>") || true
+    if [ -n "$match" ]; then
+        echo "netconf rpc-error detected"
+        exit 1
+    fi
+    match=$(echo $ret | grep --null -Eo '<config><table xmlns="urn:example:clixon"><parameter><name>x</name><value>1.2.3.4</value></parameter></table></config>') || true
+    if [ -z "$match" ]; then
+        echo "netconf rpc get-config failed"
+        exit 1
+    fi
+done
 
 if $BE; then
     echo "Kill old backend"

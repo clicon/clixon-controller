@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Reset controller by initiaiting with clixon-example devices and a pull
 
-set -eu
+set -u
 
 echo "reset-controller"
 
