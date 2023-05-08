@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Reset controller by initiaiting with clixon-example devices and a pull
 
-set -eux
+set -eu
 
 echo "reset-controller"
 
@@ -42,7 +42,7 @@ function init_device_config()
     NAME=$1
     ip=$2
 
-    ret=$(${PREFIX} ${clixon_netconf} -qe0 -f $CFG <<EOF
+    ret=$(${clixon_netconf} -qe0 -f $CFG <<EOF
 <rpc xmlns="urn:ietf:params:xml:ns:netconf:base:1.0"
   xmlns:nc="urn:ietf:params:xml:ns:netconf:base:1.0"
   message-id="42">
@@ -73,7 +73,7 @@ EOF
 
 if $delete ; then
     echo "Delete device config"
-    ret=$(${PREFIX} ${clixon_netconf} -qe0 -f $CFG <<EOF
+    ret=$(${clixon_netconf} -qe0 -f $CFG <<EOF
 <rpc xmlns="urn:ietf:params:xml:ns:netconf:base:1.0"
   xmlns:nc="urn:ietf:params:xml:ns:netconf:base:1.0"
   message-id="42">
@@ -123,7 +123,7 @@ for ip in $CONTAINERS; do
 done
 
 echo "controller commit"
-ret=$(${PREFIX} ${clixon_netconf} -q0 -f $CFG <<EOF
+ret=$(${clixon_netconf} -q0 -f $CFG <<EOF
 <rpc xmlns="urn:ietf:params:xml:ns:netconf:base:1.0" message-id="43">
   <commit/>
 </rpc>]]>]]>
@@ -140,7 +140,7 @@ fi
 for j in $(seq 1 5); do
     echo "pull"
     fail=false
-    ret=$(${PREFIX} ${clixon_cli} -1f $CFG pull)||fail=true||true
+    ret=$(${clixon_cli} -1f $CFG pull)||fail=true||true
     echo "myfail:$fail"
     if $fail; then
 	sleep $sleep
@@ -150,7 +150,7 @@ for j in $(seq 1 5); do
 done
 
 echo "check open"
-res=$(${PREFIX} ${clixon_cli} -1f $CFG show devices | grep OPEN | grep "$IMG" | wc -l)
+res=$(${clixon_cli} -1f $CFG show devices | grep OPEN | grep "$IMG" | wc -l)
 if [ "$res" != "$nr" ]; then
    echo "Error: $res"
    exit -1;
@@ -168,11 +168,8 @@ i=1
 # Only works for clixon-example, others should set check=false
 echo "check config"
 for ip in $CONTAINERS; do
-    NAME=$IMG$i
-    i=$((i+1))
-
     echo "Check config on device$i"
-    ret=$(${PREFIX} ${clixon_netconf} -qe0 -f $CFG <<EOF
+    ret=$(${clixon_netconf} -qe0 -f $CFG <<EOF
 <rpc xmlns="urn:ietf:params:xml:ns:netconf:base:1.0"
   xmlns:nc="urn:ietf:params:xml:ns:netconf:base:1.0"
   message-id="42">
@@ -202,9 +199,12 @@ EOF
     fi
     match=$(echo "$ret" | grep --null -Eo "<table xmlns=\"urn:example:clixon\"><parameter><name>x</name><value>11</value></parameter><parameter><name>y</name><value>22</value></parameter></table>") || true
     if [ -z "$match" ]; then
-	echo "Config of device $i not matching"
+	echo "Config of device $i not matching:"
+	echo "$ret"
 	exit 1
     fi
+
+    i=$((i+1))
 done
 
 echo "reset-controller OK"

@@ -21,10 +21,10 @@ s="$_" ; . ./lib.sh || if [ "$s" = $0 ]; then exit 0; else return 0; fi
 
 if $BE; then
     echo "Kill old backend"
-    sudo clixon_backend -s init -f $CFG -z
+    clixon_backend -s init -f $CFG -z
 
     echo "Start new backend"
-    sudo clixon_backend -s init  -f $CFG -D $DBG
+    clixon_backend -s init  -f $CFG -D $DBG
 fi
 
 # Check backend is running
@@ -33,10 +33,11 @@ wait_backend
 # Reset controller
 . ./reset-controller.sh
 
+i=1
+
 # Change device in controller: Remove x, change y=122, and add z=99
-for i in $(seq 1 $nr); do
+for x in $CONTAINERS; do
     NAME=$IMG$i
-    
     ret=$(${PREFIX} ${clixon_netconf} -0 -f $CFG <<EOF
 <?xml version="1.0" encoding="UTF-8"?>
 <hello xmlns="urn:ietf:params:xml:ns:netconf:base:1.0">
@@ -81,6 +82,8 @@ EOF
         echo "netconf rpc-error detected"
         exit 1
     fi
+
+    i=$((i+1))
 done
 
 new "local commit"
@@ -157,11 +160,15 @@ if [ "$res" != "$nr" ]; then
    exit -1;
 fi
 
+i=1
+
 new "Verify containers"
-for i in $(seq 1 $nr); do
+for x in $CONTAINERS; do
     NAME=$IMG$i
-    ip=$(sudo docker inspect $NAME -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}')
-    ret=$(${PREFIX} ${clixon_netconf} -qe0 -f $CFG <<EOF
+
+    echo $NAME
+    
+    ret=$(${clixon_netconf} -qe0 -f $CFG <<EOF
 <rpc xmlns="urn:ietf:params:xml:ns:netconf:base:1.0" 
 xmlns:nc="urn:ietf:params:xml:ns:netconf:base:1.0" 
 message-id="42">
@@ -184,19 +191,21 @@ EOF
     echo "ret:$ret"
     match=$(echo $ret | grep --null -Eo "<rpc-error>") || true
     if [ -n "$match" ]; then
-        echo "netconf rpc-error detected"
+        echo "netconf rpc-error detected on $NAME"
         exit 1
     fi
     match=$(echo $ret | grep --null -Eo '<config><table xmlns="urn:example:clixon"><parameter><name>y</name><value>122</value></parameter><parameter><name>z</name><value>99</value></parameter></table></config>') || true
     if [ -z "$match" ]; then
-        echo "netconf rpc get-config failed"
+        echo "netconf rpc get-config failed on $NAME"
         exit 1
     fi
+
+    i=$((i+1))
 done
 
 if $BE; then
     echo "Kill old backend"
-    sudo clixon_backend -s init -f $CFG -z
+    clixon_backend -s init -f $CFG -z
 fi
 
 unset push

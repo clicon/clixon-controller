@@ -14,13 +14,11 @@ echo "change-devices"
 
 : ${SSHKEY:=/root/.ssh/id_rsa.pub}
 
-sudo test -f $SSHKEY || sudo ssh-keygen -t rsa -N "" -f /root/.ssh/id_rsa
+test -f $SSHKEY || ssh-keygen -t rsa -N "" -f /root/.ssh/id_rsa
 
 # Remove x, change y, and add z directly on devices
-for i in $(seq 1 $nr); do
-    NAME=$IMG$i
-    ip=$(sudo docker inspect $NAME -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}')
-    ret=$(sudo ssh $ip -o StrictHostKeyChecking=no -o PasswordAuthentication=no -s netconf <<EOF
+for ip in $CONTAINERS; do
+    ret=$(ssh $ip -o StrictHostKeyChecking=no -o PasswordAuthentication=no -s netconf <<EOF
 <?xml version="1.0" encoding="UTF-8"?>
 <hello xmlns="urn:ietf:params:xml:ns:netconf:base:1.0">
    <capabilities>

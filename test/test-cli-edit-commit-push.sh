@@ -131,10 +131,10 @@ EOF
 
 if $BE; then
     echo "Kill old backend"
-    sudo clixon_backend -s init -f $CFG -z
+    clixon_backend -s init -f $CFG -z
 
     echo "Start new backend -s init  -f $CFG -D $DBG"
-    sudo clixon_backend -s init -f $CFG -D $DBG
+    clixon_backend -s init -f $CFG -D $DBG
 fi
 
 # Check backend is running
@@ -176,7 +176,7 @@ expectpart "$(${PREFIX} $clixon_cli -1 -f $CFG push)" 0 ""
 
 if $BE; then
     echo "Kill old backend"
-    sudo clixon_backend -s init -f $CFG -z
+    clixon_backend -s init -f $CFG -z
 fi
 
 python3 /usr/local/bin/clixon_server.py -m $pydir -z > /dev/null || true
