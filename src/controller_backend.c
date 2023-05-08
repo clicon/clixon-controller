@@ -308,6 +308,7 @@ controller_unknown(clicon_handle h,
  * @retval     0       OK
  * @retval    -1       Error
  * @see RFC 8528 (schema-mount) and RFC 8525 (yang-lib)
+ * @see device_state_recv_schema_list  where yang-lib is received from device
  */
 int
 controller_yang_mount(clicon_handle   h,
