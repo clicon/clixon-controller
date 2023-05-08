@@ -163,11 +163,13 @@ if ! $check ; then
     exit 0
 fi
 
+i=1
+
 # Only works for clixon-example, others should set check=false
 echo "check config"
-for i in $(seq 1 $nr); do
+for ip in $CONTAINERS; do
     NAME=$IMG$i
-    ip=$(docker inspect $NAME -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}')
+    i=$((i+1))
 
     echo "Check config on device$i"
     ret=$(${PREFIX} ${clixon_netconf} -qe0 -f $CFG <<EOF
@@ -181,14 +183,14 @@ for i in $(seq 1 $nr); do
     <filter type='subtree'>
       <devices xmlns="http://clicon.org/controller">
 	<device>
-	  <name>clixon-example1</name>
+	  <name>clixon-example$i</name>
 	  <config>
 	    <table xmlns="urn:example:clixon"/>
 	  </config>
 	</device>
       </devices>
     </filter>
-  </get-config>
+      </get-config>
 </rpc>]]>]]>
 EOF
        )

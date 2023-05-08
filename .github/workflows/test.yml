@@ -21,4 +21,4 @@ jobs:
     - name: Start controller container
       run: cd clixon-controller/test; CONTAINERS="${{ env.CONTAINERS }}" ./start-controller.sh
     - name: Run tests
-      run: sudo docker exec -t clixon-controller bash -c 'cd clixon-controller/test && detail=true ./sum.sh'
+      run: docker exec -t clixon-controller bash -c 'cd clixon-controller/test && detail=true ./sum.sh'

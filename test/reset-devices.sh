@@ -12,13 +12,14 @@ echo "reset-devices"
 
 : ${IMG:=clixon-example}
 
-: ${SSHKEY:=/root/.ssh/id_rsa.pub}
+: ${SSHKEY:=~/.ssh/id_rsa.pub}
 
-test -f $SSHKEY || ssh-keygen -t rsa -N "" -f /root/.ssh/id_rsa
+test -f $SSHKEY || ssh-keygen -t rsa -N "" -f ~/.ssh/id_rsa
 
 # Add parameters x and y
 for ip in $CONTAINERS; do
-    ret=$(ssh $ip -o StrictHostKeyChecking=no -o PasswordAuthentication=no -s netconf <<EOF
+    echo $ip
+    ret=$(ssh -l root $ip -o StrictHostKeyChecking=no -o PasswordAuthentication=no -s netconf <<EOF
 <?xml version="1.0" encoding="UTF-8"?>
 <hello xmlns="urn:ietf:params:xml:ns:netconf:base:1.0">
    <capabilities>
@@ -52,6 +53,7 @@ for ip in $CONTAINERS; do
 </rpc>]]>]]>
 EOF
        )
+
     match=$(echo $ret | grep --null -Eo "<rpc-error>") || true
     if [ -n "$match" ]; then
         echo "netconf rpc-error detected"
