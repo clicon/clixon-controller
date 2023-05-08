@@ -208,6 +208,93 @@ actions_type_str2int(char *str)
     return clicon_str2int(atmap, str);
 }
 
+/*! Check if there is a location=NETCONF in list
+ *
+ * @param[in]  dh  Clixon client handle
+ * @param[in]  xd  XML tree of netconf monitor schema entry
+ * @retval     1   OK, location-netconf
+ * @retval     0   No location netconf
+ * @see ietf-netconf-monitoring@2010-10-04.yang
+ */
+static int
+schema_check_location_netconf(cxobj *xd)
+{
+    int      retval = 0;
+    cxobj   *x;
+
+    clicon_debug(CLIXON_DBG_DETAIL, "%s", __FUNCTION__);
+    x = NULL;
+    while ((x = xml_child_each(xd, x, CX_ELMNT)) != NULL) {
+        if (strcmp("location", xml_name(x)) != 0)
+            continue;
+        if (xml_body(x) && strcmp("NETCONF", xml_body(x)) == 0)
+            break;
+    }
+    if (x == NULL)
+        goto skip;
+    retval = 1;
+ skip:
+    return retval;
+}
+
+/*! Translate from RFC 6022 schemalist to RFC8525 yang-library
+ *
+ * @param[in]  xschemas On the form: <schemas><schema><identifier>clixon-autocli</identifier>...
+ * @param[out] xyanglib Allocated, xml_free:d by caller
+ * @retval     0        OK
+ * @retval    -1        Error
+ */
+int
+schema_list2yang_library(cxobj  *xschemas,
+                         cxobj **xyanglib)
+{
+    int    retval = -1;
+    cbuf  *cb = NULL;
+    cxobj *x;
+    char  *identifier;
+    char  *version;
+    char  *format;
+    char  *namespace;
+
+    if ((cb = cbuf_new()) == NULL){
+        clicon_err(OE_UNIX, errno, "cbuf_new");
+        goto done;
+    }
+    cprintf(cb, "<yang-library xmlns=\"urn:ietf:params:xml:ns:yang:ietf-yang-library\">");
+    cprintf(cb, "<module-set>");
+    cprintf(cb, "<name>mount</name>");
+    x = NULL;
+    while ((x = xml_child_each(xschemas, x, CX_ELMNT)) != NULL) {
+        if (strcmp(xml_name(x), "schema") != 0)
+            continue;
+        if ((identifier = xml_find_body(x, "identifier")) == NULL ||
+            (version = xml_find_body(x, "version")) == NULL ||
+            (namespace = xml_find_body(x, "namespace")) == NULL ||
+            (format = xml_find_body(x, "format")) == NULL)
+
+            continue;
+        if (strcmp(format, "yang") != 0)
+            continue;
+        if (schema_check_location_netconf(x) == 0)
+            continue;
+        cprintf(cb, "<module>");
+        cprintf(cb, "<name>%s</name>", identifier);
+        cprintf(cb, "<revision>%s</revision>", version);
+        cprintf(cb, "<namespace>%s</namespace>", namespace);
+        cprintf(cb, "</module>");
+    }
+    cprintf(cb, "</module-set>");
+    cprintf(cb, "</yang-library>");
+    /* Need yspec to make YB_MODULE */
+    if (clixon_xml_parse_string(cbuf_get(cb), YB_NONE, NULL, xyanglib, NULL) < 0)
+        goto done;
+    retval = 0;
+ done:
+    if (cb)
+        cbuf_free(cb);
+    return retval;
+}
+
 #ifdef CONTROLLER_JUNOS_ADD_COMMAND_FORWARDING
 /*! Rewrite of junos YANGs after parsing
  *

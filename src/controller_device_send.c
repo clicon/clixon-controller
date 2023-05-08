@@ -223,6 +223,7 @@ device_send_get_schema_next(clixon_handle h,
  * @param[in]  dh      Clixon client handle.
  * @note this could be part of the generic sync, but juniper seems to need 
  * an explicit to target the schemas (and only that)
+ * @see device_state_recv_schema_list  where the reply is received
  */
 int
 device_send_get_schema_list(clixon_handle h,
