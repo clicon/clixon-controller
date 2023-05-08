@@ -12,7 +12,7 @@ set -eu
 
 : ${SSHKEY:=~/.ssh/id_rsa.pub}
 
-sudo test -f $SSHKEY || sudo ssh-keygen -t rsa -N "" -f ~/.ssh/id_rsa
+test -f $SSHKEY || sudo ssh-keygen -t rsa -N "" -f ~/.ssh/id_rsa
 
 for i in $(seq 1 $nr); do
     NAME=$IMG$i
