@@ -7,11 +7,11 @@ set -e
 
 : ${sleep:=5}
 
-sudo docker run --name $NAME --rm -td -e CONTAINERS="$CONTAINERS" $IMG
+docker run --name $NAME --rm -td -e CONTAINERS="$CONTAINERS" $IMG
 
 sleep $sleep # need time to spin up backend in containers
 
 # Check if container is started
-sudo docker ps | grep $NAME || exit 1
+docker ps | grep $NAME || exit 1
 
 echo "controller started"
