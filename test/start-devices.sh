@@ -12,7 +12,7 @@ set -eu
 
 : ${SSHKEY:=~/.ssh/id_rsa.pub}
 
-test -f $SSHKEY || sudo ssh-keygen -t rsa -N "" -f ~/.ssh/id_rsa
+test -f $SSHKEY || ssh-keygen -t rsa -N "" -f ~/.ssh/id_rsa
 
 for i in $(seq 1 $nr); do
     NAME=$IMG$i
@@ -28,11 +28,13 @@ done
 
 sleep $sleep # need time to spin up backend in containers
 
+i=1
+
 # Add parameters x and y
 for i in $(seq 1 $nr); do
     NAME=$IMG$i
     ip=$(docker inspect $NAME -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}')
-    ssh $ip -o StrictHostKeyChecking=no -o PasswordAuthentication=no -s netconf <<EOF
+    ssh -l root $ip -o StrictHostKeyChecking=no -o PasswordAuthentication=no -s netconf <<EOF
 <?xml version="1.0" encoding="UTF-8"?>
 <hello xmlns="urn:ietf:params:xml:ns:netconf:base:1.0">
    <capabilities>

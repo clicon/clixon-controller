@@ -7,7 +7,7 @@ set -e
 
 : ${sleep:=5}
 
-docker run --name $NAME --rm -td -e CONTAINERS="$CONTAINERS" $IMG
+docker run -v ~/.ssh:/root/.ssh --name $NAME --rm -td -e CONTAINERS="$CONTAINERS" $IMG
 
 sleep $sleep # need time to spin up backend in containers
 

@@ -19,10 +19,10 @@ s="$_" ; . ./lib.sh || if [ "$s" = $0 ]; then exit 0; else return 0; fi
 
 if $BE; then
     echo "Kill old backend"
-    sudo clixon_backend -s init -f $CFG -z
+    clixon_backend -s init -f $CFG -z
 
     echo "Start new backend"
-    sudo clixon_backend -s init  -f $CFG -D $DBG
+    clixon_backend -s init  -f $CFG -D $DBG
 fi
 
 # Check backend is running
@@ -33,12 +33,11 @@ wait_backend
 
 # Change device configs on devices (not controller)
 . ./change-devices.sh
-
+i=1
 # Change device in controller: Remove x, change y=322, and add z=399
-for i in $(seq 1 $nr); do
+for ip in $CONTAINERS; do
     NAME=$IMG$i
-    
-    ret=$(${PREFIX} ${clixon_netconf} -0 -f $CFG <<EOF
+    ret=$(${clixon_netconf} -0 -f $CFG <<EOF
 <?xml version="1.0" encoding="UTF-8"?>
 <hello xmlns="urn:ietf:params:xml:ns:netconf:base:1.0">
    <capabilities>
@@ -82,6 +81,8 @@ EOF
         echo "netconf rpc-error detected"
         exit 1
     fi
+
+    i=$((i+1))  
 done
 
 new "local commit"
@@ -115,7 +116,7 @@ fi
 
 if $BE; then
     echo "Kill old backend"
-    sudo clixon_backend -s init -f $CFG -z
+    clixon_backend -s init -f $CFG -z
 fi
 
 unset push
