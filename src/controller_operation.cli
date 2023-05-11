@@ -25,19 +25,19 @@ shell("System command"), cli_start_shell("bash");{
 show("Show a particular state of the system"){
     configuration("Show configuration"), cli_show_auto_mode("running", "text", true, false);{
       xml, cli_show_auto_mode("running", "xml", true, false);{
-      	   @datamodelshow, cli_show_auto("running", "xml", true, false, "report-all");
+      	   @datamodelshow, cli_show_auto_devs("running", "xml", true, false, "report-all");
       }
       text, cli_show_auto_mode("running", "text", true, false);{
-           @datamodelshow, cli_show_auto("running", "text", true, false, "report-all");
+           @datamodelshow, cli_show_auto_devs("running", "text", true, false, "report-all");
       }
       json, cli_show_auto_mode("running", "json", true, false);{
-            @datamodelshow, cli_show_auto("running", "json", true, false, "report-all");
+            @datamodelshow, cli_show_auto_devs("running", "json", true, false, "report-all");
       }
       netconf, cli_show_auto_mode("running", "netconf", true, false);{
-            @datamodelshow, cli_show_auto("running", "netconf", true, false, "report-all");
+            @datamodelshow, cli_show_auto_devs("running", "netconf", true, false, "report-all");
       }
-      cli, cli_show_auto_mode("running", "cli", true, false);{
-           @datamodelshow, cli_show_auto("running", "cli", true, false, "report-all", "set ");
+      cli, cli_show_auto_mode("running", "cli", true, false, "report-all", "set ");{
+           @datamodelshow, cli_show_auto_devs("running", "cli", true, false, "report-all", "set ");
       }
     }
     xpath("Show configuration") <xpath:string>("XPATH expression")
