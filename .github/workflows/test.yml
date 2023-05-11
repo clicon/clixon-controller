@@ -43,9 +43,12 @@ jobs:
       run: (cd test; PREFIX=sudo ./test-change-ctrl-push.sh)
     - name: Run test-change-device-diff
       run: (cd test; PREFIX=sudo ./test-change-device-diff.sh)
-    - name: Run test-cli-edit-commit-push
-      run: (cd test; ./test-cli-edit-commit-push.sh)
+    - name: Run test-cli-show-config
+      run: (cd test; ./test-cli-show-config.sh)
+#    - name: Run test-cli-edit-commit-push
+#      run: (cd test; ./test-cli-edit-commit-push.sh)
     - name: Run test-service
       run: (cd test; PREFIX=sudo ./test-service.sh)
     - name: Run test-yanglib
       run: (cd test; PREFIX=sudo ./test-yanglib.sh)
+

@@ -120,46 +120,6 @@ transaction_notification_handler(int                 s,
     return retval;
 }
 
-#ifdef NOTUSED
-/*! This is the callback used by transaction end notification
- *
- * param[in]  s    UNIX socket from backend  where message should be read
- * param[in]  arg  Registered transaction id string
- * @retval      0  OK
- * @retval     -1  Error
- * @see transaction_notification_poll
- */
-static int
-transaction_notification_cb(int   s, 
-                            void *arg)
-{
-    int                retval = -1;
-    int                eof = 0;
-    char              *tidstr = (char*)arg;
-    int                match = 0;
-    transaction_result result = 0;
-    
-    if (transaction_notification_handler(s, tidstr, &match, &result, &eof) < 0)
-        goto done;
-    if (eof){ /* XXX: This is never called since eof is return -1, but maybe be used later */
-        clixon_event_unreg_fd(s, transaction_notification_cb);
-        if (tidstr)
-            free(tidstr);
-        goto done;
-    }
-    if (match){
-        fprintf(stdout, "Transaction %s completed with result: %s\n", tidstr,
-                transaction_result_int2str(result));
-        clixon_event_unreg_fd(s, transaction_notification_cb);
-        if (tidstr)
-            free(tidstr);
-    }
-    retval = 0;
-  done:
-    return retval;
-}
-#endif
-
 /*! Send transaction error to backend
  *
  * @param[in] h      Clixon handle
@@ -269,6 +229,269 @@ transaction_notification_poll(clicon_handle       h,
     retval = 0;
  done:
     clicon_debug(CLIXON_DBG_DEFAULT, "%s %d", __FUNCTION__, retval);
+    return retval;
+}
+
+/*! Send get yanglib of all mountpoints to backend and only return devices/yang-libs that match pattern
+ *
+ * @param[in]  h         Clixon handle
+ * @param[in]  pattern   Name glob pattern
+ * @param[in]  yanglib   0: only device name, 1: Also include config/yang-librarylib
+ * @param[out] xdevsp    XML on the form <devices><device><name>x</name>...
+ * @retval     0         OK
+ * @retval    -1         Error
+ */
+static int
+rpc_get_yanglib_mount_match(clicon_handle h,
+                            char         *pattern,
+                            int           yanglib,
+                            cxobj       **xdevsp)
+{
+    int    retval = -1;
+    cbuf  *cb = NULL;
+    cxobj *xtop = NULL;
+    cxobj *xrpc;
+    cxobj *xdevs = NULL;
+    cxobj *xdev;
+    char  *devname;
+    cxobj *xret = NULL;
+    cxobj *xerr;
+
+    clicon_debug(1, "%s", __FUNCTION__);
+    if ((cb = cbuf_new()) == NULL){
+        clicon_err(OE_PLUGIN, errno, "cbuf_new");
+        goto done;
+    }
+    cprintf(cb, "<rpc xmlns=\"%s\" username=\"%s\" %s>",
+            NETCONF_BASE_NAMESPACE,
+            clicon_username_get(h),
+            NETCONF_MESSAGE_ID_ATTR);
+    cprintf(cb, "<get>");
+    cprintf(cb, "<filter type=\"xpath\"");
+    if (yanglib)
+        cprintf(cb, " select=\"ctrl:devices/ctrl:device/ctrl:config/yanglib:yang-library/yanglib:module-set\"");
+    else
+        cprintf(cb, " select=\"ctrl:devices/ctrl:device/ctrl:name\"");
+    cprintf(cb, " xmlns:ctrl=\"%s\" xmlns:yanglib=\"urn:ietf:params:xml:ns:yang:ietf-yang-library\">",
+                    CONTROLLER_NAMESPACE);
+    cprintf(cb, "</filter>");
+    cprintf(cb, "</get>");
+    cprintf(cb, "</rpc>");
+    if (clixon_xml_parse_string(cbuf_get(cb), YB_NONE, NULL, &xtop, NULL) < 0)
+        goto done;
+    /* Skip top-level */
+    xrpc = xml_child_i(xtop, 0);
+    /* Send to backend */
+    if (clicon_rpc_netconf_xml(h, xrpc, &xret, NULL) < 0)
+        goto done;
+    if ((xerr = xpath_first(xret, NULL, "rpc-reply/rpc-error")) != NULL){
+        clixon_netconf_error(xerr, "Get configuration", NULL);
+        goto done;
+    }
+    if ((xdevs = xpath_first(xret, NULL, "rpc-reply/data/devices")) != NULL){
+        xdev = NULL;
+        while ((xdev = xml_child_each(xdevs, xdev, CX_ELMNT)) != NULL) {    
+            if ((devname = xml_find_body(xdev, "name")) == NULL ||
+                fnmatch(pattern, devname, 0) == 0) /* Match */
+                xml_flag_set(xdev, XML_FLAG_MARK);
+        }
+        /* 2. Remove all unmarked nodes, ie non-matching nodes */
+        if (xml_tree_prune_flagged_sub(xdevs, XML_FLAG_MARK, 1, NULL) < 0)
+            goto done;
+        /* Double check that there is at least one device */
+        if (xdevsp && xpath_first(xdevs, NULL, "device/name") != NULL){
+            *xdevsp = xdevs;
+            xml_rm(*xdevsp);
+        }
+    }
+    retval = 0;
+ done:
+    if (xtop)
+        xml_free(xtop);
+    if (xret)
+        xml_free(xret);
+    if (cb)
+        cbuf_free(cb);
+    return retval;
+}
+
+static int
+cli_apipath2xpath(clicon_handle h,
+                  cvec         *cvv,
+                  char         *mtpoint,
+                  char         *api_path_fmt,
+                  char        **xpath,
+                  cvec        **nsc)
+{
+    int        retval = -1;
+    yang_stmt *yspec0;
+    char      *api_path = NULL;
+    char      *api_path_fmt01 = NULL;
+    int        cvvi = 0;
+
+    if ((yspec0 = clicon_dbspec_yang(h)) == NULL){
+        clicon_err(OE_FATAL, 0, "No DB_SPEC");
+        goto done;
+    }
+    if (mtpoint){ 
+        /* Get and combined api-path01 */
+        if (mtpoint_paths(yspec0, mtpoint, api_path_fmt, &api_path_fmt01) < 0)
+            goto done;
+        if (api_path_fmt2api_path(api_path_fmt01, cvv, &api_path, &cvvi) < 0) 
+            goto done;
+    }
+    else{
+        if (api_path_fmt2api_path(api_path_fmt, cvv, &api_path, &cvvi) < 0)
+            goto done;
+    }
+    if (api_path2xpath(api_path, yspec0, xpath, nsc, NULL) < 0)
+        goto done;
+    if (*xpath == NULL){
+        clicon_err(OE_FATAL, 0, "Invalid api-path: %s", api_path);
+        goto done;
+    }
+    retval = 0;
+ done:
+    if (api_path)
+        free(api_path);
+    if (api_path_fmt01)
+        free(api_path_fmt01);
+    return retval;
+}
+
+/*! Specialization of clixon cli_show_auto to handle device globs
+ *
+ * Can be used only in context of an autocli generated syntax tree, such as:
+ *   show @datamodel, cli_show_auto();
+ * This show command can use expansion to "TAB" inside the syntax tree to show
+ * portions of the syntax.
+ * @param[in]  h     Clixon handle
+ * @param[in]  cvv   Vector of variables from CLIgen command-line
+ * @param[in]  argv  String vector of show options, format:
+ *   <api_path_fmt>  Generated API PATH (this is added implicitly, not actually given in the cvv)
+ *  [<api-path-fmt>] Extra api-path from mount-point
+ *   <dbname>        Name of datastore, such as "running"
+ * -- from here optional:
+ *   <format>        "text"|"xml"|"json"|"cli"|"netconf" (see format_enum), default: xml
+ *   <pretty>        true|false: pretty-print or not
+ *   <state>         true|false: also print state
+ *   <default>       Retrieval mode: report-all, trim, explicit, report-all-tagged, 
+ *                   NULL, report-all-tagged-default, report-all-tagged-strip (extended)
+ *   <prepend>       CLI prefix: prepend before cli syntax output
+ * @code
+ *   clispec: 
+ *      show config @datamodelshow, cli_show_auto("candidate", "xml");
+ *   cli run:
+ *      > set table parameter a value x
+ *      > show config table parameter a
+ *        <parameter>
+ *           <name>a</name>
+ *           <value>x</value>
+ *        </parameter>
+ * @endcode
+ * @see cli_show_auto  Original function
+ */
+int 
+cli_show_auto_devs(clicon_handle h,
+                   cvec         *cvv,
+                   cvec         *argv)
+{
+    int              retval = -1;
+    char            *dbname;
+    enum format_enum format = FORMAT_XML;
+    cvec            *nsc = NULL;
+    int              pretty = 1;
+    char            *prepend = NULL;
+    int              state = 0;
+    char            *withdefault = NULL; /* RFC 6243 modes */
+    char            *extdefault = NULL; /* with extended tagged modes */
+    int              argc = 0;
+    char            *xpath = NULL;
+    char            *api_path_fmt;  /* xml key format */
+    char            *str;
+    char            *mtpoint = NULL;
+    cg_var          *cv;
+    char            *pattern;
+    cxobj           *xdevs = NULL;
+    cxobj           *xdev;
+    char            *devname;
+    
+    if (cvec_len(argv) < 2 || cvec_len(argv) > 8){
+        clicon_err(OE_PLUGIN, EINVAL, "Received %d arguments. Expected:: <api-path-fmt>* <database> [<format> <pretty> <state> <default> <prepend>]", cvec_len(argv));
+        goto done;
+    }
+    api_path_fmt = cv_string_get(cvec_i(argv, argc++));
+    str = cv_string_get(cvec_i(argv, argc++));
+    if (str && str[0] == '/'){ /* ad-hoc to see if 2nd arg is mountpoint */
+        mtpoint = str;
+        dbname = cv_string_get(cvec_i(argv, argc++));
+    }
+    else
+        dbname = str;
+    if (cvec_len(argv) > argc)
+        if (cli_show_option_format(argv, argc++, &format) < 0)
+            goto done;
+    if (cvec_len(argv) > argc){
+        if (cli_show_option_bool(argv, argc++, &pretty) < 0)
+            goto done;
+    }
+    if (cvec_len(argv) > argc){
+        if (cli_show_option_bool(argv, argc++, &state) < 0)
+            goto done;
+    }
+    if (cvec_len(argv) > argc){
+        if (cli_show_option_withdefault(argv, argc++, &withdefault, &extdefault) < 0)
+            goto done;
+    }
+    if (cvec_len(argv) > argc){
+        prepend = cv_string_get(cvec_i(argv, argc++));
+    }
+    if ((cv = cvec_find(cvv, "name")) == NULL){
+        if (cli_apipath2xpath(h, cvv, mtpoint, api_path_fmt, &xpath, &nsc) < 0)
+            goto done;        
+        if (cli_show_common(h, dbname, format, pretty, state,
+                            withdefault, extdefault,
+                            prepend, xpath, nsc, 0) < 0)
+            goto done;
+    }
+    else { /* Assume device tree */
+        pattern = cv_string_get(cv);
+        if (rpc_get_yanglib_mount_match(h, pattern, 0, &xdevs) < 0)
+            goto done;
+        if (xdevs == NULL)
+            goto ok;
+        xdev = NULL;
+        while ((xdev = xml_child_each(xdevs, xdev, CX_ELMNT)) != NULL) {
+            if ((devname = xml_find_body(xdev, "name")) == NULL)
+                continue;
+            cv_string_set(cv, devname); /* replace name */
+            /* aggregate to composite xpath */
+            if (cli_apipath2xpath(h, cvv, mtpoint, api_path_fmt, &xpath, &nsc) < 0)
+                goto done;
+            cligen_output(stdout, "%s:\n", devname);
+            if (cli_show_common(h, dbname, format, pretty, state,
+                                withdefault, extdefault,
+                                prepend, xpath, nsc, 0) < 0)
+                goto done;
+            if (xpath){
+                free(xpath);
+                xpath = NULL;
+            }
+            if (nsc){
+                free(nsc);
+                nsc = NULL;
+            }
+        }
+    }
+ ok:
+    retval = 0;
+ done:
+    if (xdevs)
+        xml_free(xdevs);
+    if (nsc)
+        xml_nsctx_free(nsc);
+    if (xpath)
+        free(xpath);
     return retval;
 }
 
@@ -1180,74 +1403,6 @@ controller_cli_exit(clicon_handle h)
     return retval;
 }
 
-/*! Send get yanglib of mountpount to backend
- *
- * @param[in]  h       Clixon handle
- * @param[in]  devname Device name 
- * @param[out] yanglib XML yang-library module-set, claler needs to deallocate this
- * @retval     0       OK
- * @retval    -1       Error
- */
-static int
-rpc_get_yanglib_mount(clicon_handle h,
-                      char         *devname,
-                      cxobj       **yanglib)
-{
-    int retval = -1;
-
-    cbuf  *cb = NULL;
-    cxobj *xtop = NULL;
-    cxobj *xrpc;
-    cxobj *xret = NULL;
-    cxobj *xreply;
-    cxobj *xerr;
-
-    clicon_debug(1, "%s", __FUNCTION__);
-    if ((cb = cbuf_new()) == NULL){
-        clicon_err(OE_PLUGIN, errno, "cbuf_new");
-        goto done;
-    }
-    cprintf(cb, "<rpc xmlns=\"%s\" username=\"%s\" %s>",
-            NETCONF_BASE_NAMESPACE,
-            clicon_username_get(h),
-            NETCONF_MESSAGE_ID_ATTR);
-    cprintf(cb, "<get>");
-    cprintf(cb, "<filter type=\"xpath\" select=\"ctrl:devices/ctrl:device[ctrl:name='%s']/ctrl:config/yanglib:yang-library/yanglib:module-set\" xmlns:ctrl=\"%s\" xmlns:yanglib=\"urn:ietf:params:xml:ns:yang:ietf-yang-library\">",
-            devname,
-            CONTROLLER_NAMESPACE);
-    cprintf(cb, "</filter>");
-    cprintf(cb, "</get>");
-    cprintf(cb, "</rpc>");
-    if (clixon_xml_parse_string(cbuf_get(cb), YB_NONE, NULL, &xtop, NULL) < 0)
-        goto done;
-    /* Skip top-level */
-    xrpc = xml_child_i(xtop, 0);
-    /* Send to backend */
-    if (clicon_rpc_netconf_xml(h, xrpc, &xret, NULL) < 0)
-        goto done;
-    clicon_debug_xml(1, xret, "get module-set");
-    if ((xreply = xpath_first(xret, NULL, "rpc-reply")) == NULL){
-        clicon_err(OE_CFG, 0, "Malformed rpc reply");
-        goto done;
-    }
-    if ((xerr = xpath_first(xreply, NULL, "rpc-error")) != NULL){
-        clixon_netconf_error(xerr, "Get configuration", NULL);
-        goto done;
-    }
-    if (yanglib){
-        *yanglib = xpath_first(xreply, 0, "data/devices/device/config/yang-library");
-        xml_rm(*yanglib);
-    }
-    retval = 0;
- done:
-    if (xtop)
-        xml_free(xtop);
-    if (xret)
-        xml_free(xret);
-    if (cb)
-        cbuf_free(cb);
-    return retval;
-}
 
 /*! There is not auto cligen tree "treename", create it
  *
@@ -1258,7 +1413,8 @@ rpc_get_yanglib_mount(clicon_handle h,
  * 5. Parse YANGs locally from the yang specs
  * 6. Generate auto-cligen tree from the specs 
  * @param[in]  h         Clicon handle
- * @param[in]  debname   Device name
+ * @param[in]  xdev      XML device tree 
+ * @param[in]  devname   Device name
  * @param[in]  treename  Autocli treename
  * @param[out] yspec1p   yang spec
  * @retval     0         Ok
@@ -1266,7 +1422,7 @@ rpc_get_yanglib_mount(clicon_handle h,
  */
 static int
 create_autocli_mount_tree(clicon_handle h,
-                          char         *devname,
+                          cxobj        *xdev,
                           char         *treename,
                           yang_stmt   **yspec1p)
 {
@@ -1278,6 +1434,7 @@ create_autocli_mount_tree(clicon_handle h,
     yang_stmt *yspec1 = NULL;
     yang_stmt *ymod;
     cxobj     *yanglib = NULL;
+    char      *devname;
     int        ret;
 
     clicon_debug(1, "%s", __FUNCTION__);
@@ -1298,6 +1455,7 @@ create_autocli_mount_tree(clicon_handle h,
         goto done;
     }
     /* 2. Create xpath to specific mountpoint given by devname */
+    devname = xml_find_body(xdev, "name");
     cprintf(cb, "/ctrl:devices/ctrl:device[ctrl:name='%s']/ctrl:config", devname);
     xpath = cbuf_get(cb);
     /* 3. Check if yspec associated to that mountpoint exists */
@@ -1307,9 +1465,7 @@ create_autocli_mount_tree(clicon_handle h,
         if ((yspec1 = yspec_new()) == NULL)
             goto done;
         /* 4. Get yang specs of mountpoint from controller */
-        if (rpc_get_yanglib_mount(h, devname, &yanglib) < 0)
-            goto done;
-
+        yanglib = xpath_first(xdev, 0, "config/yang-library");
 #ifdef CONTROLLER_JUNOS_ADD_COMMAND_FORWARDING
         /* 5. Parse YANGs locally from the yang specs 
            Added extra JUNOS patch to mod YANGs */
@@ -1329,8 +1485,6 @@ create_autocli_mount_tree(clicon_handle h,
         *yspec1p = yspec1;
     retval = 0;
  done:
-    if (yanglib)
-        xml_free(yanglib);
     if (cb)
         cbuf_free(cb);
     return retval;
@@ -1359,11 +1513,16 @@ controller_cligen_treeref_wrap(cligen_handle ch,
     cg_var       *cv;
     cg_var       *cvdev = NULL;
     char         *devname;
-    char         *treename2;
+    char         *pattern;
+    char         *newtree;
+    char         *firsttree = NULL;
     cbuf         *cb = NULL;
     yang_stmt    *yspec1 = NULL;
     clicon_handle h;
     cvec         *cvv_edit;
+    cxobj        *xdevs = NULL;
+    cxobj        *xdev;
+    pt_head      *ph;
 
     h = cligen_userhandle(ch);
     if (strcmp(name, "mountpoint") != 0)
@@ -1383,38 +1542,84 @@ controller_cligen_treeref_wrap(cligen_handle ch,
         if ((cvdev = cvec_next(cvt, cv)) == NULL)
             goto ok;
     }
-    if ((devname = cv_string_get(cvdev)) == NULL)
+    if ((pattern = cv_string_get(cvdev)) == NULL)
         goto ok;
+    /* Pattern match all devices (mountpoints) into xdevs
+     * Match devname against all existing devices via get-config (using depth?)
+     * Find a "newtree" device name (or NULL)
+     * construct a treename from that: mountpoint-<newtree>
+     * If it does not exist, call a yang2cli_yspec from that
+     * create_autocli_mount_tree() should probably be rewritten
+     */
+    if (rpc_get_yanglib_mount_match(h, pattern, 1, &xdevs) < 0)
+        goto done;
     if ((cb = cbuf_new()) == NULL){
         clicon_err(OE_UNIX, errno, "cbuf_new");
         goto done;
     }
-    cprintf(cb, "mountpoint-%s", devname);
-    treename2 = cbuf_get(cb);
-    /* Does this tree exist? */
-    if (cligen_ph_find(ch, treename2) == NULL){
-        if (create_autocli_mount_tree(h, devname, treename2, &yspec1) < 0)
+    /* Loop through all matching devices, check if clispec exists, if not generate
+     * But only for first match
+     */
+    xdev = NULL;
+    while ((xdev = xml_child_each(xdevs, xdev, CX_ELMNT)) != NULL) {
+        if ((devname = xml_find_body(xdev, "name")) == NULL)
+            continue;
+        cbuf_reset(cb);
+        cprintf(cb, "mountpoint-%s", devname);
+        newtree = cbuf_get(cb);
+        if (firsttree == NULL &&
+            (firsttree= strdup(newtree)) == NULL){
+            clicon_err(OE_UNIX, errno, "strdup");
+            goto done;
+        }
+        if (cligen_ph_find(ch, newtree) != NULL)
+            continue;
+        /* No such cligen specs, generate them */
+        if (create_autocli_mount_tree(h, xdev, newtree, &yspec1) < 0)
             goto done;
         if (yspec1 == NULL){
             clicon_err(OE_YANG, 0, "No yang spec");
             goto done;
         }
-        /* Generate auto-cligen tree from the specs */
-        if (yang2cli_yspec(h, yspec1, treename2, 0) < 0)
-            goto done;
-        /* Sanity */
-        if (cligen_ph_find(ch, treename2) == NULL){
-            clicon_err(OE_YANG, 0, "autocli should have  been generated but is not?");
-            goto done;
+        if (strcmp(firsttree, newtree) == 0){
+            /* XXX: Only first match (one could generate all?) */
+            /* Generate auto-cligen tree from the specs */
+            if (yang2cli_yspec(h, yspec1, newtree) < 0)
+                goto done;
+            /* Sanity */
+            if (cligen_ph_find(ch, newtree) == NULL){
+                clicon_err(OE_YANG, 0, "autocli should have been generated but is not?");
+                goto done;
+            }
         }
     }
-    if (namep &&
-        (*namep = strdup(treename2)) == NULL){
-        clicon_err(OE_UNIX, errno, "strdup");
-        goto done;
+    if (namep){
+        if (firsttree){
+            *namep = firsttree;
+            firsttree = NULL;
+        }
+        else{ /* create dummy tree */
+            if (cligen_ph_find(ch, "mointpoint") == NULL){
+                parse_tree     *pt0;
+                if ((ph = cligen_ph_add(ch, "mountpoint")) == NULL)
+                    goto done;
+                if ((pt0 = pt_new()) == NULL){
+                    clicon_err(OE_UNIX, errno, "pt_new");
+                    goto done;
+                }
+                if (cligen_ph_parsetree_set(ph, pt0) < 0){
+                    clicon_err(OE_UNIX, 0, "cligen_ph_parsetree_set");
+                    goto done;
+                }                
+            }
+        }
     }
     retval = 1;
  done:
+    if (firsttree)
+        free(firsttree);
+    if (xdevs)
+        xml_free(xdevs);
     if (cb)
         cbuf_free(cb);
     return retval;
