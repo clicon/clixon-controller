@@ -62,7 +62,7 @@ $(BE_PLUGIN): $(BE_OBJ)
 # CLI frontend plugin
 CLI_PLUGIN      = $(APPNAME)_cli.so
 CLI_SRC         = $(APPNAME)_cli.c
-CLI_SRC         = $(APPNAME)_cli.c
+CLI_SRC        += $(APPNAME)_cli_callbacks.c
 CLI_SRC        += controller_lib.c
 CLI_OBJ         = $(CLI_SRC:%.c=%.o)
 
