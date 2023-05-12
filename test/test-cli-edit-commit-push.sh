@@ -20,6 +20,9 @@ if [ ! -d $pydir ]; then
     mkdir $pydir
 fi
 
+# If set to false, override starting of clixon_server.py in test (you bring your own)
+: ${PY:=true}
+
 cat<<EOF > $CFG
 <clixon-config xmlns="http://clicon.org/config">
   <CLICON_CONFIGFILE>/usr/local/etc/controller.xml</CLICON_CONFIGFILE>
@@ -97,7 +100,6 @@ def setup(root, log):
             parameter = service.parameter
             device.config.table.add(parameter)
 
-
 if __name__ == "__main__":
     setup()
 EOF
@@ -107,21 +109,24 @@ EOF
 . ./reset-devices.sh
 
 if $BE; then
-    echo "Kill old backend"
+    new "Kill old backend"
     sudo clixon_backend -s init -f $CFG -z
 
-    echo "Start new backend -s init  -f $CFG -D $DBG"
+    new "Start new backend -s init  -f $CFG -D $DBG"
     sudo clixon_backend -s init -f $CFG -D $DBG
 fi
 
 # Check backend is running
 wait_backend
 
-new "Start py server"
+if $PY; then
+    new "Kill existing pyapi"
+    python3 /usr/local/bin/clixon_server.py -m $pydir -z > /dev/null || true
+    sleep 1
 
-python3 /usr/local/bin/clixon_server.py -m $pydir -z > /dev/null || true
-sleep 1
-python3 /usr/local/bin/clixon_server.py -m $pydir
+    new "Start py server"
+    python3 /usr/local/bin/clixon_server.py -m $pydir
+fi
 
 # Reset controller
 . ./reset-controller.sh
@@ -142,8 +147,6 @@ expectpart "$(${PREFIX} $clixon_cli -1 -f $CFG -l o -m configure set services te
 
 new "CLI: Set valid value type"
 expectpart "$(${PREFIX} $clixon_cli -1 -f $CFG -m configure set services test cli_test parameter x value 1.2.3.4)" 0 ""
-
-sleep 2
 
 new "CLI: Commit"
 expectpart "$(${PREFIX} $clixon_cli -1 -f $CFG -m configure commit)" 0 ""
@@ -200,6 +203,9 @@ if $BE; then
     sudo clixon_backend -s init -f $CFG -z
 fi
 
-python3 /usr/local/bin/clixon_server.py -m $pydir -z > /dev/null || true
+if $PY; then
+    python3 /usr/local/bin/clixon_server.py -m $pydir -z > /dev/null || true
+fi
 
+echo "test-cli-edit-commit-push"
 echo OK

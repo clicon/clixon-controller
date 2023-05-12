@@ -146,8 +146,11 @@ if $BE; then
     sudo clixon_backend -s init -f $CFG -z
 
     echo "Start new backend -s init  -f $CFG -D $DBG"
-    sudo clixon_backend -s init -f $CFG -D $DBG
+    sudo clixon_backend -s init -f $CFG -D 7 -lf/tmp/backend.log # $DBG XXX
 fi
+
+sleep 5 # XXX
+cat /tmp/backend.log # XXX
 
 # Check backend is running
 wait_backend
