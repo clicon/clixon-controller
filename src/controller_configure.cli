@@ -18,11 +18,6 @@ delete("Delete a configuration item") {
       all("Delete whole candidate configuration"), delete_all("candidate");
 }
 quit("Quit"), cli_quit();
-delete("Delete a configuration item") {
-      @datamodel, cli_auto_del(); 
-      all("Delete whole candidate configuration"), delete_all("candidate");
-}
-
 commit("Commit the changes, trigger services scripts"), cli_rpc_controller_commit("candidate", "CHANGE", "COMMIT");{
     diff("Show the result of running the services but do not commit"), cli_rpc_controller_commit("candidate", "CHANGE", "NONE");
     push("Run services and push to devices"), cli_rpc_controller_commit("candidate", "CHANGE", "COMMIT"); 

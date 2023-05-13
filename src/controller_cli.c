@@ -512,4 +512,3 @@ clixon_plugin_init(clixon_handle h)
     }
     return &api;
 }
-

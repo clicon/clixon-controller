@@ -111,8 +111,7 @@ ret=$(${PREFIX} ${clixon_netconf} -q0 -f $CFG <<EOF
   </controller-commit>
 </rpc>]]>]]>
 EOF
-      )
-
+   )
 echo "ret:$ret"
 match=$(echo $ret | grep --null -Eo "<rpc-error>") || true
 if [ -n "$match" ]; then
@@ -150,11 +149,25 @@ fi
 
 sleep $sleep
 
-new "Verify controller"
-res=$(${PREFIX} ${clixon_cli} -1f $CFG show devices | grep OPEN | wc -l)
+echo "Verify open devices"
+ret=$(${PREFIX} ${clixon_netconf} -q0 -f $CFG <<EOF
+<rpc xmlns="urn:ietf:params:xml:ns:netconf:base:1.0" xmlns:nc="urn:ietf:params:xml:ns:netconf:base:1.0" message-id="43">
+   <get cl:content="all" xmlns:cl="http://clicon.org/lib">
+      <nc:filter nc:type="xpath" nc:select="co:devices/co:device/co:conn-state" xmlns:co="http://clicon.org/controller"/>
+   </get>
+</rpc>]]>]]>
+EOF
+   )        
+echo "$ret"
+match=$(echo "$ret" | grep --null -Eo "<rpc-error>") || true
+if [ -n "$match" ]; then
+    echo "Error: $res"
+    exit -1;
+fi
+res=$(echo "$ret" | sed 's/OPEN/OPEN\n/g' | grep -c "OPEN")
 if [ "$res" != "$nr" ]; then
-   echo Error
-   exit -1;
+    echo "Error: $res"
+    exit -1;
 fi
 
 new "Verify containers"
