@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
 #
+# Simple non-python service checking shared object create and delete
+#
 # see https://github.com/SUNET/snc-services/issues/12
 # 
 # Assume a testA(1) --> testA(2) and a testB and a non-service 0
@@ -300,7 +302,6 @@ if [ -n "$match" ]; then
 fi
       
 new "commit diff"
-echo "${PREFIX} ${clixon_cli} -m configure -1f $CFG commit diff"
 ret=$(${PREFIX} ${clixon_cli} -m configure -1f $CFG commit diff)
 
 match=$(echo $ret | grep --null -Eo '+ <name>Az</name>') || true

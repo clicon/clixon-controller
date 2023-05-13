@@ -103,10 +103,10 @@ if ! $push ; then
     exit 0
 fi
 
+# XXX remove cli, but it is difficult since we have to wait for notification, rpc-reply is not enough
 new "push validate"
 ret=$(${PREFIX} ${clixon_cli} -1f $CFG push validate 2>&1)
 echo "ret:$ret"
-
 match=$(echo $ret | grep --null -Eo "failed Device changed config") || true
 if [ -z "$match" ]; then
     echo "Error msg not detected"

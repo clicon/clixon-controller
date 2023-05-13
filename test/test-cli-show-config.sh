@@ -110,18 +110,13 @@ operation("run operational commands") @operation;
 edit @datamodelmode, cli_auto_edit("basemodel");
 up, cli_auto_up("basemodel");
 top, cli_auto_top("basemodel");
-set @datamodel, cli_auto_set();
-merge @datamodel, cli_auto_merge();
-create @datamodel, cli_auto_create();
+set @datamodel, cli_auto_set_devs();
+merge @datamodel, cli_auto_merge_devs();
 delete("Delete a configuration item") {
-      @datamodel, cli_auto_del(); 
+      @datamodel, cli_auto_del_devs(); 
       all("Delete whole candidate configuration"), delete_all("candidate");
 }
 quit("Quit"), cli_quit();
-delete("Delete a configuration item") {
-      @datamodel, cli_auto_del(); 
-      all("Delete whole candidate configuration"), delete_all("candidate");
-}
 show("Show a particular state of the system"), @datamodelshow, cli_show_auto_mode("candidate", "text", true, false);{
       xml, cli_show_auto_mode("candidate", "xml", false, false);{
       	   @datamodelshow, cli_show_auto_devs("candidate", "xml", false, false, "report-all");
@@ -146,11 +141,8 @@ if $BE; then
     sudo clixon_backend -s init -f $CFG -z
 
     echo "Start new backend -s init  -f $CFG -D $DBG"
-    sudo clixon_backend -s init -f $CFG -D 7 -lf/tmp/backend.log # $DBG XXX
+    sudo clixon_backend -s init -f $CFG -D $DBG
 fi
-
-sleep 5 # XXX
-cat /tmp/backend.log # XXX
 
 # Check backend is running
 wait_backend
@@ -190,7 +182,7 @@ function show-sub()
     mode=$2
     
     new "$cmd xml"
-    expectpart "$(${PREFIX} $clixon_cli -1 -m $mode -f $CFG $cmd xml devices device clixon-example1 config table )" 0 "<table xmlns=\"urn:example:clixon\"><parameter><name>x</name><value>11</value></parameter><parameter><name>y</name><value>22</value></parameter></table>" --not-- "<devices xmlns=\"http://clicon.org/controller\"><device><name>clixon-example1</name>"
+    expectpart "$(${PREFIX} $clixon_cli -1 -m $mode -f $CFG $cmd xml devices device clixon-example1 config table)" 0 "<table xmlns=\"urn:example:clixon\"><parameter><name>x</name><value>11</value></parameter><parameter><name>y</name><value>22</value></parameter></table>" --not-- "<devices xmlns=\"http://clicon.org/controller\"><device><name>clixon-example1</name>"
 
     new "$cmd json"
     expectpart "$(${PREFIX} $clixon_cli -1 -m $mode -f $CFG $cmd json devices device clixon-example1 config table)" 0 '{"clixon-example:table":{"parameter":\[{"name":"x","value":"11"},{"name":"y","value":"22"}]}}' --not-- '{"clixon-controller:devices":{"device":\[{"name":"clixon-example1"'
@@ -211,7 +203,7 @@ function show-sub-glob()
     mode=$2
     
     new "$cmd xml"
-    expectpart "$(${PREFIX} $clixon_cli -1 -m $mode -f $CFG $cmd xml devices device clixon* config table )" 0 "<table xmlns=\"urn:example:clixon\"><parameter><name>x</name><value>11</value></parameter><parameter><name>y</name><value>22</value></parameter></table>" "clixon-example1:" "clixon-example2:" --not-- "<devices xmlns=\"http://clicon.org/controller\"><device><name>clixon-example1</name>"
+    expectpart "$(${PREFIX} $clixon_cli -1 -m $mode -f $CFG $cmd xml devices device clixon* config table)" 0 "<table xmlns=\"urn:example:clixon\"><parameter><name>x</name><value>11</value></parameter><parameter><name>y</name><value>22</value></parameter></table>" "clixon-example1:" "clixon-example2:" --not-- "<devices xmlns=\"http://clicon.org/controller\"><device><name>clixon-example1</name>"
 
     new "$cmd json"
     expectpart "$(${PREFIX} $clixon_cli -1 -m $mode -f $CFG $cmd json devices device clixon* config table)" 0 '{"clixon-example:table":{"parameter":\[{"name":"x","value":"11"},{"name":"y","value":"22"}]}}'  "clixon-example1:" "clixon-example2:" --not-- '{"clixon-controller:devices":{"device":\[{"name":"clixon-example1"'
@@ -224,17 +216,12 @@ function show-sub-glob()
 }
 
 # Tests
-new "syncronize devices"
-expectpart "$(${PREFIX} $clixon_cli -1 -f $CFG pull)" 0 ""
 
 new "Operation top"
 show-top "show config" operation 
 
 new "Operation sub"
 show-sub "show config" operation
-
-new "show state xml"
-expectpart "$(${PREFIX} $clixon_cli -1 -f $CFG show state)" 0  "<capabilities><capability>urn:ietf:params:netconf:base:1.0</capability>" "<sync-timestamp>" "<yang-library xmlns=\"urn:ietf:params:xml:ns:yang:ietf-yang-library\"><module-set><name>mount</name><module><name>clixon-autocli</name>"
 
 new "Configure top"
 show-top "show" configure
@@ -248,14 +235,19 @@ show-sub-glob "show config" operation
 new "Configure sub glob"
 show-sub-glob "show" configure
 
-new "show config xml * table"
-expectpart "$(${PREFIX} $clixon_cli -1 -m operation -f $CFG show config xml devices device clixon* config table)" 0 "<table xmlns=\"urn:example:clixon\"><parameter><name>x</name><value>11</value></parameter><parameter><name>y</name><value>22</value></parameter></table>" "<table xmlns=\"urn:example:clixon\"><parameter><name>x</name><value>11</value></parameter><parameter><name>y</name><value>22</value></parameter></table>" --not-- "<devices xmlns=\"http://clicon.org/controller\">"
+# Special cases
+new "show state xml"
+expectpart "$(${PREFIX} $clixon_cli -1 -f $CFG show state)" 0  "<capabilities><capability>urn:ietf:params:netconf:base:1.0</capability>" "<sync-timestamp>" "<yang-library xmlns=\"urn:ietf:params:xml:ns:yang:ietf-yang-library\"><module-set><name>mount</name><module><name>clixon-autocli</name>"
+
+new "show config xml device *"
+expectpart "$(${PREFIX} $clixon_cli -1 -f $CFG show config xml devices device clixon*)" 0 "clixon-example1:" "clixon-example2:" "<device><name>clixon-example1</name><description>Clixon example container</description><enabled>true</enabled><conn-type>NETCONF_SSH</conn-type><user>root</user>" "<yang-config>VALIDATE</yang-config><config><table xmlns=\"urn:example:clixon\"><parameter><name>x</name><value>11</value></parameter><parameter><name>y</name><value>22</value></parameter></table></config></device>" "<device><name>clixon-example2</name><description>Clixon example container</description><enabled>true</enabled><conn-type>NETCONF_SSH</conn-type><user>root</user>"
 
 new "Configure edit modes"
 mode=configure
 cmd=show
 new "show config xml"
-expectpart "$(${PREFIX} $clixon_cli -1 -m $mode -f $CFG $cmd xml devices device clixon-example1 config table )" 0 "<table xmlns=\"urn:example:clixon\"><parameter><name>x</name><value>11</value></parameter><parameter><name>y</name><value>22</value></parameter></table>" --not-- "<devices xmlns=\"http://clicon.org/controller\"><device><name>clixon-example1</name>"
+expectpart "$(${PREFIX} $clixon_cli -1 -m $mode -f $CFG $cmd xml devices device clixon-example1 config table)" 0 "<table xmlns=\"urn:example:clixon\">
+<parameter><name>x</name><value>11</value></parameter><parameter><name>y</name><value>22</value></parameter></table>" --not-- "<devices xmlns=\"http://clicon.org/controller\"><device><name>clixon-example1</name>"
 
 cat <<EOF > $fin
 edit devices device clixon-example1
@@ -300,5 +292,5 @@ if $BE; then
     sudo clixon_backend -s init -f $CFG -z
 fi
 
-
+echo "test-cli-show-config"
 echo OK

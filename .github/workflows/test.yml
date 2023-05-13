@@ -2,13 +2,21 @@ name: Clixon Controller CI
 
 on:
   push:
-    branches: [ main, docker ]
+    branches:
+      - main
+      - test-actions2
+      - docker
   pull_request:
-    branches: [ main ]
+    branches:
+      - main
+  schedule:
+    - cron: '00 3 * * 6'     # Run every Saturday morning
 
 jobs:
-  build:
+  test-job:
+    name: Controller tests
     runs-on: ubuntu-latest
+    timeout-minutes: 2
     steps:
     - uses: actions/checkout@v3
 # 1) checkout and compile natively
@@ -31,24 +39,36 @@ jobs:
     - name: install clixon-pyapi
       run: (git clone https://github.com/clicon/clixon-pyapi.git && cd clixon-pyapi && sudo python3 setup.py install)
     - name: install PyAPI dependencies
-      run: (cd clixon-pyapi && pip3 install -r requirements.txt)
+      working-directory: clixon-pyapi
+      run: pip3 install -r requirements.txt
     - name: install PyAPI server
-      run: sudo cp clixon-pyapi/clixon_server.py /usr/local/bin/
+      working-directory: clixon-pyapi
+      run: sudo cp clixon_server.py /usr/local/bin/
 # 2)  Run tests
     - name: Start devices
-      run: (cd test; ./start-devices.sh)
+      run: ./start-devices.sh
+      working-directory: clixon-controller/test
     - name: Run test-change-both
-      run: (cd test; PREFIX=sudo ./test-change-both.sh)
+      run: PREFIX=sudo ./test-change-both.sh
+      working-directory: clixon-controller/test
     - name: Run test-change-ctrl-push
-      run: (cd test; PREFIX=sudo ./test-change-ctrl-push.sh)
+      run: PREFIX=sudo ./test-change-ctrl-push.sh
+      working-directory: clixon-controller/test
     - name: Run test-change-device-diff
-      run: (cd test; PREFIX=sudo ./test-change-device-diff.sh)
-    - name: Run test-cli-show-config
-      run: (cd test; ./test-cli-show-config.sh)
+      run: PREFIX=sudo ./test-change-device-diff.sh
+      working-directory: clixon-controller/test
 #    - name: Run test-cli-edit-commit-push
-#      run: (cd test; ./test-cli-edit-commit-push.sh)
+#      run: PREFIX=sudo ./test-cli-edit-commit-push.sh
+#      working-directory: clixon-controller/test
+    - name: Run test-cli-show-config
+      run: PREFIX=sudo ./test-cli-show-config.sh
+      working-directory: clixon-controller/test
+    - name: Run test-cli-edit-multiple
+      run: PREFIX=sudo ./test-cli-edit-multiple.sh
+      working-directory: clixon-controller/test
     - name: Run test-service
-      run: (cd test; PREFIX=sudo ./test-service.sh)
+      run: PREFIX=sudo ./test-service.sh
+      working-directory: clixon-controller/test
     - name: Run test-yanglib
-      run: (cd test; PREFIX=sudo ./test-yanglib.sh)
-
+      run: PREFIX=sudo ./test-yanglib.sh
+      working-directory: clixon-controller/test

@@ -253,6 +253,7 @@ cli_show_auto_devs(clicon_handle h,
     cxobj           *xdevs = NULL;
     cxobj           *xdev;
     char            *devname;
+    int              devices = 0;
     
     if (cvec_len(argv) < 2 || cvec_len(argv) > 8){
         clicon_err(OE_PLUGIN, EINVAL, "Received %d arguments. Expected:: <api-path-fmt>* <database> [<format> <pretty> <state> <default> <prepend>]", cvec_len(argv));
@@ -260,12 +261,16 @@ cli_show_auto_devs(clicon_handle h,
     }
     api_path_fmt = cv_string_get(cvec_i(argv, argc++));
     str = cv_string_get(cvec_i(argv, argc++));
-    if (str && str[0] == '/'){ /* ad-hoc to see if 2nd arg is mountpoint */
+    /* ad-hocs to see if 2nd arg is mountpoint and if devices cmd tree is selected */
+    if (str && str[0] == '/'){ 
         mtpoint = str;
+        devices = strstr(mtpoint, "/ctrl:devices") != NULL;
         dbname = cv_string_get(cvec_i(argv, argc++));
     }
-    else
+    else{
+        devices = strstr(api_path_fmt, "/clixon-controller:devices") != NULL;
         dbname = str;
+    }
     if (cvec_len(argv) > argc)
         if (cli_show_option_format(argv, argc++, &format) < 0)
             goto done;
@@ -284,15 +289,8 @@ cli_show_auto_devs(clicon_handle h,
     if (cvec_len(argv) > argc){
         prepend = cv_string_get(cvec_i(argv, argc++));
     }
-    if (mtpoint == NULL || (cv = cvec_find(cvv, "name")) == NULL){
-        if (cli_apipath2xpath(h, cvv, mtpoint, api_path_fmt, &xpath, &nsc) < 0)
-            goto done;        
-        if (cli_show_common(h, dbname, format, pretty, state,
-                            withdefault, extdefault,
-                            prepend, xpath, nsc, 0) < 0)
-            goto done;
-    }
-    else { /* Assume device tree */
+    /* ad-hoc if devices device <name> is selected */
+    if (devices && (cv = cvec_find(cvv, "name")) != NULL){
         pattern = cv_string_get(cv);
         if (rpc_get_yanglib_mount_match(h, pattern, 0, &xdevs) < 0)
             goto done;
@@ -320,6 +318,14 @@ cli_show_auto_devs(clicon_handle h,
                 nsc = NULL;
             }
         }
+    }
+    else {
+        if (cli_apipath2xpath(h, cvv, mtpoint, api_path_fmt, &xpath, &nsc) < 0)
+            goto done;        
+        if (cli_show_common(h, dbname, format, pretty, state,
+                            withdefault, extdefault,
+                            prepend, xpath, nsc, 0) < 0)
+            goto done;
     }
  ok:
     retval = 0;
@@ -1430,6 +1436,7 @@ cli_dbxml_devs(clicon_handle       h,
     cxobj     *xdevs = NULL;
     cxobj     *xdev;
     char      *devname;
+    int        devices = 0;
 
     if (cvec_len(argv) != 1 && cvec_len(argv) != 2){
         clicon_err(OE_PLUGIN, EINVAL, "Requires one element to be xml key format string");
@@ -1437,20 +1444,19 @@ cli_dbxml_devs(clicon_handle       h,
     }
     arg = cvec_i(argv, 0);
     api_path_fmt = cv_string_get(arg);
+    /* ad-hocs to see if 2nd arg is mountpoint and if devices cmd tree is selected */
     if (cvec_len(argv) > 1){ 
         arg = cvec_i(argv, 1);
         mtpoint = cv_string_get(arg);
+        devices = strstr(mtpoint, "/ctrl:devices") != NULL;
+    }
+    else{
+        devices = strstr(api_path_fmt, "/clixon-controller:devices") != NULL;        
     }
     /* Remove all keywords */
     if (cvec_exclude_keys(cvv) < 0)
         goto done;
-    if (mtpoint == NULL || (cv = cvec_find(cvv, "name")) == NULL){
-        if (cli_apipath(h, cvv, mtpoint, api_path_fmt, &cvvi, &api_path) < 0)
-            goto done;
-        if (cli_dbxml_devs_sub(h, cvv, op, nsctx, cvvi, api_path) < 0)
-            goto done;
-    }
-    else{
+    if (devices && (cv = cvec_find(cvv, "name")) != NULL){
         pattern = cv_string_get(cv);
         if (rpc_get_yanglib_mount_match(h, pattern, 0, &xdevs) < 0)
             goto done;
@@ -1470,6 +1476,13 @@ cli_dbxml_devs(clicon_handle       h,
                 api_path = NULL;
             }
         }
+    }
+    else{
+        if (cli_apipath(h, cvv, mtpoint, api_path_fmt, &cvvi, &api_path) < 0)
+            goto done;
+        if (cli_dbxml_devs_sub(h, cvv, op, nsctx, cvvi, api_path) < 0)
+            goto done;
+        
     }
  ok:
     retval = 0;
