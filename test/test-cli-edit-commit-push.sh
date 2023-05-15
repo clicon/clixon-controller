@@ -143,7 +143,7 @@ wait_backend
 new "Start py server"
 
 python3 /usr/local/bin/clixon_server.py -m $pydir -z > /dev/null || true
-sleep 1
+sleep 5
 python3 /usr/local/bin/clixon_server.py -m $pydir
 
 # Reset controller
