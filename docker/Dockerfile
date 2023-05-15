@@ -47,11 +47,11 @@ RUN make install
 RUN ldconfig
 
 WORKDIR /clixon/clixon-controller
-RUN git checkout origin docker
 RUN ./configure
 RUN make
 RUN make install
 RUN ldconfig
+RUN git switch docker
 
 WORKDIR /clixon/clixon-pyapi
 RUN python3 setup.py install
