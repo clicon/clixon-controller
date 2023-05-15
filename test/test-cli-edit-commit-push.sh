@@ -1,4 +1,4 @@
-set -eu
+set -eux
 
 # Magic line must be first in script (see README.md)
 s="$_" ; . ./lib.sh || if [ "$s" = $0 ]; then exit 0; else return 0; fi
@@ -169,7 +169,7 @@ echo "${PREFIX} $clixon_cli -1 -f $CFG -m configure commit"
 expectpart "$(${PREFIX} $clixon_cli -1 -f $CFG -m configure commit)" 0 ""
 
 new "CLI: Show configuration"
-expectpart "$(${PREFIX} $clixon_cli -1 -f $CFG show configuration cli)" 0 "^services test cli_test" "^services test cli_test parameter XXX" "^services test cli_test parameter XXX value 1.2.3.4"
+expectpart "$(${PREFIX} $clixon_cli -1 -f $CFG show configuration cli)" 0 "^set services test cli_test" "^set services test cli_test parameter XXX" "^set services test cli_test parameter XXX value 1.2.3.4"
 
 new "CLI: Push configuration"
 expectpart "$(${PREFIX} $clixon_cli -1 -f $CFG push)" 0 ""
