@@ -20,6 +20,9 @@ if [ ! -d $pydir ]; then
     mkdir $pydir
 fi
 
+# If set to false, override starting of clixon_server.py in test (you bring your own)
+: ${PY:=true}
+
 cat<<EOF > $CFG
 <clixon-config xmlns="http://clicon.org/config">
   <CLICON_CONFIGFILE>/usr/local/etc/controller.xml</CLICON_CONFIGFILE>
@@ -97,7 +100,6 @@ def setup(root, log):
             parameter = service.parameter
             device.config.table.add(parameter)
 
-
 if __name__ == "__main__":
     setup()
 EOF
@@ -117,11 +119,14 @@ fi
 # Check backend is running
 wait_backend
 
-new "Start py server"
+if $PY; then
+    new "Kill existing pyapi"
+    python3 /usr/local/bin/clixon_server.py -m $pydir -z > /dev/null || true
+    sleep 1
 
-python3 /usr/local/bin/clixon_server.py -m $pydir -z > /dev/null || true
-sleep 5
-python3 /usr/local/bin/clixon_server.py -m $pydir
+    new "Start py server"
+    python3 /usr/local/bin/clixon_server.py -m $pydir
+fi
 
 # Reset controller
 . ./reset-controller.sh
@@ -155,6 +160,7 @@ new "CLI: Check controller devices configuration"
 expectpart "$(${PREFIX} $clixon_cli -1 -f $CFG show configuration xml)" 0 "<name>y</name>" "<value>1.2.3.4</value>"
 
 new "Verify containers"
+
 i=1;
 
 for ip in $CONTAINERS; do
@@ -204,6 +210,9 @@ if $BE; then
     ${PREFIX} clixon_backend -s init -f $CFG -z
 fi
 
-python3 /usr/local/bin/clixon_server.py -m $pydir -z > /dev/null || true
+if $PY; then
+    python3 /usr/local/bin/clixon_server.py -m $pydir -z > /dev/null || true
+fi
 
+echo "test-cli-edit-commit-push"
 echo OK

@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
 #
+# Simple non-python service checking shared object create and delete
+#
 # see https://github.com/SUNET/snc-services/issues/12
 #
 # Assume a testA(1) --> testA(2) and a testB and a non-service 0
@@ -187,6 +189,30 @@ else
     DEV2=""
 fi
 
+if [ $nr -gt 1 ]; then
+    DEV2="<device>
+           <name>clixon-example2</name>
+           <config>
+             <table xmlns=\"urn:example:clixon\">
+               <parameter>
+                 <name>0x</name>
+               </parameter>
+               <parameter>
+                 <name>A0x</name>
+               </parameter>
+               <parameter>
+                 <name>A0y</name>
+               </parameter>
+               <parameter>
+                 <name>A0z</name>
+               </parameter>
+             </table>
+           </config>
+         </device>"
+else
+    DEV2=""
+fi
+
 new "edit testA(1)"
 ret=$(${PREFIX} ${clixon_netconf} -0 -f $CFG <<EOF
 <?xml version="1.0" encoding="UTF-8"?>
@@ -223,26 +249,26 @@ ret=$(${PREFIX} ${clixon_netconf} -0 -f $CFG <<EOF
 	 </testB>
       </services>
       <devices xmlns="http://clicon.org/controller">
-	 <device>
-	   <name>clixon-example1</name>
-	   <config>
-	     <table xmlns="urn:example:clixon">
-	       <parameter>
-		 <name>0x</name>
-	       </parameter>
-	       <parameter>
-		 <name>A0x</name>
-	       </parameter>
-	       <parameter>
-		 <name>A0y</name>
-	       </parameter>
-	       <parameter>
-		 <name>A0z</name>
-	       </parameter>
-	     </table>
-	   </config>
-	 </device>
-	 $DEV2
+         <device>
+           <name>clixon-example1</name>
+           <config>
+             <table xmlns="urn:example:clixon">
+               <parameter>
+                 <name>0x</name>
+               </parameter>
+               <parameter>
+                 <name>A0x</name>
+               </parameter>
+               <parameter>
+                 <name>A0y</name>
+               </parameter>
+               <parameter>
+                 <name>A0z</name>
+               </parameter>
+             </table>
+           </config>
+         </device>
+         $DEV2
       </devices>
     </config>
   </edit-config>
@@ -299,8 +325,6 @@ if [ -n "$match" ]; then
     exit 1
 fi
 
-new "commit diff"
-echo "${PREFIX} ${clixon_cli} -m configure -1f $CFG commit diff"
 ret=$(${PREFIX} ${clixon_cli} -m configure -1f $CFG commit diff)
 
 match=$(echo $ret | grep --null -Eo '+ <name>Az</name>') || true

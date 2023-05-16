@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 # Reset controller by initiaiting with clixon-example devices and a pull
+# Only use netconf (not cli)
 
 set -u
 
@@ -16,8 +17,6 @@ echo "reset-controller"
 
 # Default container name, postfixed with 1,2,..,<nr>
 : ${IMG:=clixon-example}
-
-: ${clixon_cli:=clixon_cli}
 
 : ${clixon_netconf:=$(which clixon_netconf)}
 
@@ -140,22 +139,56 @@ fi
 # try 5 times if fail
 for j in $(seq 1 5); do
     echo "pull"
+
     fail=false
     ret=$(${PREFIX} ${clixon_cli} -1f $CFG pull)||fail=true||true
     echo "tryagain:$fail"
 
     if $fail; then
 	sleep $sleep
-    else
-	break
+
+	ret=$(${PREFIX} ${clixon_netconf} -q0 -f $CFG <<EOF
+<rpc xmlns="urn:ietf:params:xml:ns:netconf:base:1.0" message-id="43">
+	<config-pull xmlns="http://clicon.org/controller">
+	 <devname>*</devname>
+   </config-pull>
+</rpc>]]>]]>
+EOF
+       )
+	echo "$ret"
+	match=$(echo "$ret" | grep --null -Eo "<rpc-error>") || true
+	if [ -n "$match" ]; then
+	    echo "tryagain sleep $sleep"
+	    sleep $sleep
+	else
+	    break
+	fi
     fi
 done
 
 echo "check open"
 res=$(${clixon_cli} -1f $CFG show devices | grep OPEN | grep "$IMG" | wc -l)
+
+echo "Verify open devices"
+ret=$(${PREFIX} ${clixon_netconf} -q0 -f $CFG <<EOF
+<rpc xmlns="urn:ietf:params:xml:ns:netconf:base:1.0" xmlns:nc="urn:ietf:params:xml:ns:netconf:base:1.0" message-id="43">
+   <get cl:content="all" xmlns:cl="http://clicon.org/lib">
+      <nc:filter nc:type="xpath" nc:select="co:devices/co:device/co:conn-state" xmlns:co="http://clicon.org/controller"/>
+   </get>
+</rpc>]]>]]>
+EOF
+   )
+echo "$ret"
+match=$(echo "$ret" | grep --null -Eo "<rpc-error>") || true
+if [ -n "$match" ]; then
+    echo "Error: $res"
+    exit -1;
+fi
+res=$(echo "$ret" | sed 's/OPEN/OPEN\n/g' | grep -c "OPEN")
+
 if [ "$res" != "$nr" ]; then
-   echo "Error: $res"
-   exit -1;
+    echo "Error: $res"
+    exit -1;
 fi
 
 # Early exit point, do not check pulled config
