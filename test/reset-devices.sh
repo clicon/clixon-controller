@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Reset running example container devices and initiate with config x=11, y=22
-set -e
+set -u
 
 echo "reset-devices"
 
