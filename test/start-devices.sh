@@ -12,7 +12,9 @@ set -eu
 
 : ${SSHKEY:=~/.ssh/id_rsa.pub}
 
-test -f $SSHKEY || ssh-keygen -t rsa -N "" -f ~/.ssh/id_rsa
+: ${PREFIX:=}
+
+${PREFIX} test -f $SSHKEY || ${PREFIX} ssh-keygen -t rsa -N "" -f ~/.ssh/id_rsa
 
 for i in $(seq 1 $nr); do
     NAME=$IMG$i

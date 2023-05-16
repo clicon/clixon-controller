@@ -21,10 +21,10 @@ s="$_" ; . ./lib.sh || if [ "$s" = $0 ]; then exit 0; else return 0; fi
 
 if $BE; then
     echo "Kill old backend"
-    clixon_backend -s init -f $CFG -z
+    ${PREFIX} clixon_backend -s init -f $CFG -z
 
     echo "Start new backend"
-    clixon_backend -s init  -f $CFG -D $DBG
+    ${PREFIX} clixon_backend -s init  -f $CFG -D $DBG
 fi
 
 # Check backend is running
@@ -45,42 +45,42 @@ for x in $CONTAINERS; do
       <capability>urn:ietf:params:netconf:base:1.0</capability>
    </capabilities>
 </hello>]]>]]>
-<rpc xmlns="urn:ietf:params:xml:ns:netconf:base:1.0" 
-     xmlns:nc="urn:ietf:params:xml:ns:netconf:base:1.0" 
+<rpc xmlns="urn:ietf:params:xml:ns:netconf:base:1.0"
+     xmlns:nc="urn:ietf:params:xml:ns:netconf:base:1.0"
      message-id="42">
   <edit-config>
     <target><candidate/></target>
     <default-operation>none</default-operation>
     <config>
       <devices xmlns="http://clicon.org/controller">
-        <device>
-          <name>$NAME</name>
-          <config>
-            <table xmlns="urn:example:clixon">
-              <parameter nc:operation="remove">
-                <name>x</name>
-              </parameter>
-              <parameter>
-                <name>y</name>
-                <value nc:operation="replace">122</value>
-               </parameter>
-               <parameter nc:operation="merge">>
-                 <name>z</name>
-                 <value>99</value>
-               </parameter>
-            </table>
-          </config>
-        </device>
+	<device>
+	  <name>$NAME</name>
+	  <config>
+	    <table xmlns="urn:example:clixon">
+	      <parameter nc:operation="remove">
+		<name>x</name>
+	      </parameter>
+	      <parameter>
+		<name>y</name>
+		<value nc:operation="replace">122</value>
+	       </parameter>
+	       <parameter nc:operation="merge">>
+		 <name>z</name>
+		 <value>99</value>
+	       </parameter>
+	    </table>
+	  </config>
+	</device>
       </devices>
     </config>
   </edit-config>
 </rpc>]]>]]>
 EOF
-          )
+	  )
     match=$(echo $ret | grep --null -Eo "<rpc-error>") || true
     if [ -n "$match" ]; then
-        echo "netconf rpc-error detected"
-        exit 1
+	echo "netconf rpc-error detected"
+	exit 1
     fi
 
     i=$((i+1))
@@ -167,21 +167,21 @@ for x in $CONTAINERS; do
     NAME=$IMG$i
 
     echo $NAME
-    
+
     ret=$(${clixon_netconf} -qe0 -f $CFG <<EOF
-<rpc xmlns="urn:ietf:params:xml:ns:netconf:base:1.0" 
-xmlns:nc="urn:ietf:params:xml:ns:netconf:base:1.0" 
+<rpc xmlns="urn:ietf:params:xml:ns:netconf:base:1.0"
+xmlns:nc="urn:ietf:params:xml:ns:netconf:base:1.0"
 message-id="42">
   <get-config>
     <source><running/></source>
     <filter type='subtree'>
       <devices xmlns="http://clicon.org/controller">
-        <device>
-          <name>$NAME</name>
-          <config>
-            <table xmlns="urn:example:clixon"/>
-          </config>
-        </device>
+	<device>
+	  <name>$NAME</name>
+	  <config>
+	    <table xmlns="urn:example:clixon"/>
+	  </config>
+	</device>
       </devices>
     </filter>
   </get-config>
@@ -191,13 +191,13 @@ EOF
     echo "ret:$ret"
     match=$(echo $ret | grep --null -Eo "<rpc-error>") || true
     if [ -n "$match" ]; then
-        echo "netconf rpc-error detected on $NAME"
-        exit 1
+	echo "netconf rpc-error detected on $NAME"
+	exit 1
     fi
     match=$(echo $ret | grep --null -Eo '<config><table xmlns="urn:example:clixon"><parameter><name>y</name><value>122</value></parameter><parameter><name>z</name><value>99</value></parameter></table></config>') || true
     if [ -z "$match" ]; then
-        echo "netconf rpc get-config failed on $NAME"
-        exit 1
+	echo "netconf rpc get-config failed on $NAME"
+	exit 1
     fi
 
     i=$((i+1))
@@ -205,7 +205,7 @@ done
 
 if $BE; then
     echo "Kill old backend"
-    clixon_backend -s init -f $CFG -z
+    ${PREFIX} clixon_backend -s init -f $CFG -z
 fi
 
 unset push

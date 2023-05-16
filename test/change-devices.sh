@@ -4,6 +4,8 @@ set -eu
 
 echo "change-devices"
 
+: ${PREFIX:=}
+
 # Number of device containers to start
 : ${nr:=2}
 
@@ -14,11 +16,11 @@ echo "change-devices"
 
 : ${SSHKEY:=/root/.ssh/id_rsa.pub}
 
-test -f $SSHKEY || ssh-keygen -t rsa -N "" -f /root/.ssh/id_rsa
+${PREFIX} test -f $SSHKEY || ${PREFIX} ssh-keygen -t rsa -N "" -f /root/.ssh/id_rsa
 
 # Remove x, change y, and add z directly on devices
 for ip in $CONTAINERS; do
-    ret=$(ssh $ip -o StrictHostKeyChecking=no -o PasswordAuthentication=no -s netconf <<EOF
+    ret=$(${PREFIX} ssh $ip -o StrictHostKeyChecking=no -o PasswordAuthentication=no -s netconf <<EOF
 <?xml version="1.0" encoding="UTF-8"?>
 <hello xmlns="urn:ietf:params:xml:ns:netconf:base:1.0">
    <capabilities>

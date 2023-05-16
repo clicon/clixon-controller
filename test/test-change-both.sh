@@ -19,10 +19,10 @@ s="$_" ; . ./lib.sh || if [ "$s" = $0 ]; then exit 0; else return 0; fi
 
 if $BE; then
     echo "Kill old backend"
-    clixon_backend -s init -f $CFG -z
+    ${PREFIX} clixon_backend -s init -f $CFG -z
 
     echo "Start new backend"
-    clixon_backend -s init  -f $CFG -D $DBG
+    ${PREFIX} clixon_backend -s init  -f $CFG -D $DBG
 fi
 
 # Check backend is running
@@ -116,7 +116,7 @@ fi
 
 if $BE; then
     echo "Kill old backend"
-    clixon_backend -s init -f $CFG -z
+    ${PREFIX} clixon_backend -s init -f $CFG -z
 fi
 
 unset push

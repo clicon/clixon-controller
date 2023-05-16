@@ -108,10 +108,10 @@ EOF
 
 if $BE; then
     echo "Kill old backend"
-    clixon_backend -s init -f $CFG -z
+    ${PREFIX} clixon_backend -s init -f $CFG -z
 
     echo "Start new backend -s init  -f $CFG -D $DBG"
-    clixon_backend -s init -f $CFG -D $DBG
+    ${PREFIX} clixon_backend -s init -f $CFG -D $DBG
 fi
 
 # Check backend is running
@@ -149,7 +149,7 @@ new "CLI: Commit"
 expectpart "$(${PREFIX} $clixon_cli -1 -f $CFG -m configure commit)" 0 ""
 
 new "CLI: Check controller services configuration"
-expectpart "$(${PREFIX} $clixon_cli -1 -f $CFG show configuration cli)" 0 "^services test cli_test" "^services test cli_test parameter x" "^services test cli_test parameter x value 1.2.3.4"
+expectpart "$(${PREFIX} $clixon_cli -1 -f $CFG show configuration cli)" 0 "^set services test cli_test" "^set services test cli_test parameter x" "^set services test cli_test parameter x value 1.2.3.4"
 
 new "CLI: Check controller devices configuration"
 expectpart "$(${PREFIX} $clixon_cli -1 -f $CFG show configuration xml)" 0 "<name>y</name>" "<value>1.2.3.4</value>"
@@ -201,7 +201,7 @@ done
 
 if $BE; then
     echo "Kill old backend"
-    clixon_backend -s init -f $CFG -z
+    ${PREFIX} clixon_backend -s init -f $CFG -z
 fi
 
 python3 /usr/local/bin/clixon_server.py -m $pydir -z > /dev/null || true

@@ -7,9 +7,11 @@ set -eu
 
 : ${IMG:=clixon-example}
 
+: ${PREFIX:=}
+
 for i in $(seq 1 $nr); do
     NAME=$IMG$i
-    sudo docker kill $NAME || true
+    ${PREFIX} docker kill $NAME || true
 done
 
 echo "stop-devices OK"
