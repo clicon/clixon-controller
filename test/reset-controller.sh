@@ -130,6 +130,7 @@ ret=$(${clixon_netconf} -q0 -f $CFG <<EOF
 EOF
       )
 echo "$ret"
+
 match=$(echo "$ret" | grep --null -Eo "<rpc-error>") || true
 if [ -n "$match" ]; then
     echo "netconf rpc-error detected"

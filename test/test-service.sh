@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 #
 # see https://github.com/SUNET/snc-services/issues/12
-# 
+#
 # Assume a testA(1) --> testA(2) and a testB and a non-service 0
 # where
 # testA(1):  Ax, Ay, ABx, ABy
@@ -101,11 +101,11 @@ module myyang {
     yang-version 1.1;
     namespace "urn:example:test";
     prefix test;
-    import ietf-inet-types { 
-      prefix inet; 
+    import ietf-inet-types {
+      prefix inet;
     }
-    import clixon-controller { 
-      prefix ctrl; 
+    import clixon-controller {
+      prefix ctrl;
     }
     revision 2023-03-22{
 	description "Initial prototype";
@@ -114,14 +114,14 @@ module myyang {
 	list testA {
 	    key name;
 	    leaf name {
-                description "Not used";
+		description "Not used";
 		type string;
 	    }
 	    description "Test service A";
 	    leaf-list params{
 	       type string;
 	    }
-      	}
+	}
     }
     augment "/ctrl:services" {
 	list testB {
@@ -133,7 +133,7 @@ module myyang {
 	    leaf-list params{
 	       type string;
 	    }
-      	}
+	}
     }
 }
 EOF
@@ -143,46 +143,46 @@ EOF
 
 if $BE; then
     echo "Kill old backend"
-    clixon_backend -s init -f $CFG -z
+    ${PREFIX} clixon_backend -s init -f $CFG -z
 
     echo "Start new backend -s init  -f $CFG -D $DBG"
-    clixon_backend -s init  -f $CFG -D $DBG
+    ${PREFIX} clixon_backend -s init  -f $CFG -D $DBG
 fi
 
 # Check backend is running
 wait_backend
 
-# Reset controller 
+# Reset controller
 . ./reset-controller.sh
 
 if $SA; then
     echo "Kill previous service action"
-    pkill service_action || true
-    
+    ${PREFIX} pkill service_action || true
+
     echo "Start service action"
-    services_action -f $CFG &
+    ${PREFIX} services_action -f $CFG &
 fi
 
 if [ $nr -gt 1 ]; then
     DEV2="<device>
-           <name>clixon-example2</name>
-           <config>
-             <table xmlns=\"urn:example:clixon\">
-               <parameter>
-                 <name>0x</name>
-               </parameter>
-               <parameter>
-                 <name>A0x</name>
-               </parameter>
-               <parameter>
-                 <name>A0y</name>
-               </parameter>
-               <parameter>
-                 <name>A0z</name>
-               </parameter>
-             </table>
-           </config>
-         </device>"
+	   <name>clixon-example2</name>
+	   <config>
+	     <table xmlns=\"urn:example:clixon\">
+	       <parameter>
+		 <name>0x</name>
+	       </parameter>
+	       <parameter>
+		 <name>A0x</name>
+	       </parameter>
+	       <parameter>
+		 <name>A0y</name>
+	       </parameter>
+	       <parameter>
+		 <name>A0z</name>
+	       </parameter>
+	     </table>
+	   </config>
+	 </device>"
 else
     DEV2=""
 fi
@@ -195,54 +195,54 @@ ret=$(${PREFIX} ${clixon_netconf} -0 -f $CFG <<EOF
       <capability>urn:ietf:params:netconf:base:1.0</capability>
    </capabilities>
 </hello>]]>]]>
-<rpc xmlns="urn:ietf:params:xml:ns:netconf:base:1.0" 
-     xmlns:nc="urn:ietf:params:xml:ns:netconf:base:1.0" 
+<rpc xmlns="urn:ietf:params:xml:ns:netconf:base:1.0"
+     xmlns:nc="urn:ietf:params:xml:ns:netconf:base:1.0"
      message-id="42">
   <edit-config>
     <target><candidate/></target>
     <default-operation>none</default-operation>
     <config>
        <services xmlns="http://clicon.org/controller">
-          <testA xmlns="urn:example:test" nc:operation="replace">
-             <name>foo</name>
-             <params>A0x</params>
-             <params>A0y</params>
-             <params>Ax</params>
-             <params>Ay</params>
-             <params>ABx</params>
-             <params>ABy</params>
-         </testA>
-          <testB xmlns="urn:example:test" nc:operation="replace">
-             <name>foo</name>
-             <params>A0x</params>
-             <params>A0y</params>
-             <params>ABx</params>
-             <params>ABy</params>
-             <params>ABz</params>
-             <params>Bx</params>
-         </testB>
+	  <testA xmlns="urn:example:test" nc:operation="replace">
+	     <name>foo</name>
+	     <params>A0x</params>
+	     <params>A0y</params>
+	     <params>Ax</params>
+	     <params>Ay</params>
+	     <params>ABx</params>
+	     <params>ABy</params>
+	 </testA>
+	  <testB xmlns="urn:example:test" nc:operation="replace">
+	     <name>foo</name>
+	     <params>A0x</params>
+	     <params>A0y</params>
+	     <params>ABx</params>
+	     <params>ABy</params>
+	     <params>ABz</params>
+	     <params>Bx</params>
+	 </testB>
       </services>
       <devices xmlns="http://clicon.org/controller">
-         <device>
-           <name>clixon-example1</name>
-           <config>
-             <table xmlns="urn:example:clixon">
-               <parameter>
-                 <name>0x</name>
-               </parameter>
-               <parameter>
-                 <name>A0x</name>
-               </parameter>
-               <parameter>
-                 <name>A0y</name>
-               </parameter>
-               <parameter>
-                 <name>A0z</name>
-               </parameter>
-             </table>
-           </config>
-         </device>
-         $DEV2
+	 <device>
+	   <name>clixon-example1</name>
+	   <config>
+	     <table xmlns="urn:example:clixon">
+	       <parameter>
+		 <name>0x</name>
+	       </parameter>
+	       <parameter>
+		 <name>A0x</name>
+	       </parameter>
+	       <parameter>
+		 <name>A0y</name>
+	       </parameter>
+	       <parameter>
+		 <name>A0z</name>
+	       </parameter>
+	     </table>
+	   </config>
+	 </device>
+	 $DEV2
       </devices>
     </config>
   </edit-config>
@@ -269,23 +269,23 @@ ret=$(${PREFIX} ${clixon_netconf} -0 -f $CFG <<EOF
       <capability>urn:ietf:params:netconf:base:1.0</capability>
    </capabilities>
 </hello>]]>]]>
-<rpc xmlns="urn:ietf:params:xml:ns:netconf:base:1.0" 
-     xmlns:nc="urn:ietf:params:xml:ns:netconf:base:1.0" 
+<rpc xmlns="urn:ietf:params:xml:ns:netconf:base:1.0"
+     xmlns:nc="urn:ietf:params:xml:ns:netconf:base:1.0"
      message-id="42">
   <edit-config>
     <target><candidate/></target>
     <default-operation>none</default-operation>
     <config>
        <services xmlns="http://clicon.org/controller">
-          <testA xmlns="urn:example:test" nc:operation="replace">
-             <name>foo</name>
-             <params>A0y</params>
-             <params>A0z</params>
-             <params>Ay</params>
-             <params>Az</params>
-             <params>ABy</params>
-             <params>ABz</params>
-         </testA>
+	  <testA xmlns="urn:example:test" nc:operation="replace">
+	     <name>foo</name>
+	     <params>A0y</params>
+	     <params>A0z</params>
+	     <params>Ay</params>
+	     <params>Az</params>
+	     <params>ABy</params>
+	     <params>ABz</params>
+	 </testA>
       </services>
     </config>
   </edit-config>
@@ -298,7 +298,7 @@ if [ -n "$match" ]; then
     echo "netconf rpc-error detected"
     exit 1
 fi
-      
+
 new "commit diff"
 echo "${PREFIX} ${clixon_cli} -m configure -1f $CFG commit diff"
 ret=$(${PREFIX} ${clixon_cli} -m configure -1f $CFG commit diff)
@@ -321,7 +321,7 @@ fi
 
 if $BE; then
     echo "Kill old backend"
-    clixon_backend -s init -f $CFG -z
+    ${PREFIX} clixon_backend -s init -f $CFG -z
 fi
 
 unset SA
