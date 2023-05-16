@@ -25,7 +25,7 @@ for i in $(seq 1 $nr); do
     sudo docker exec -t $NAME chown root /root/.ssh/authorized_keys
     sudo docker exec -t $NAME chgrp root /root/.ssh/authorized_keys
     ip=$(${PREFIX} docker inspect $NAME -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}')
-    ${SUDO} ssh-keygen -f ~/.ssh/known_hosts -R "$ip" || true
+    ${PREFIX} ssh-keygen -f ~/.ssh/known_hosts -R "$ip" || true
 done
 
 sleep $sleep # need time to spin up backend in containers
