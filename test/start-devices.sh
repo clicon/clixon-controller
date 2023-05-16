@@ -5,8 +5,8 @@ set -eu
 # Number of device containers to start
 : ${nr:=2}
 
-# Sleep delay in seconds between each step                                      
-: ${sleep:=2}
+# Sleep delay in seconds between each step
+: ${sleep:=5}
 
 : ${IMG:=clixon-example}
 
@@ -48,14 +48,14 @@ for i in $(seq 1 $nr); do
     <target><candidate/></target>
     <config>
       <table xmlns="urn:example:clixon">
-        <parameter>
-          <name>x</name>
-          <value>11</value>
-        </parameter>
-        <parameter>
-          <name>y</name>
-          <value>22</value>
-        </parameter>
+	<parameter>
+	  <name>x</name>
+	  <value>11</value>
+	</parameter>
+	<parameter>
+	  <name>y</name>
+	  <value>22</value>
+	</parameter>
       </table>
     </config>
   </edit-config>
@@ -65,5 +65,4 @@ EOF
 
 done
 
-echo
 echo "start-devices OK"
