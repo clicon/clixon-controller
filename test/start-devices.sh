@@ -24,8 +24,8 @@ for i in $(seq 1 $nr); do
     sudo docker cp $SSHKEY $NAME:/root/.ssh/authorized_keys
     sudo docker exec -t $NAME chown root /root/.ssh/authorized_keys
     sudo docker exec -t $NAME chgrp root /root/.ssh/authorized_keys
-    ip=$(sudo docker inspect $NAME -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}')
-    ssh-keygen -f ~/.ssh/known_hosts -R "$ip" || true
+    ip=$(${PREFIX} docker inspect $NAME -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}')
+    ${SUDO} ssh-keygen -f ~/.ssh/known_hosts -R "$ip" || true
 done
 
 sleep $sleep # need time to spin up backend in containers
@@ -35,8 +35,8 @@ i=1
 # Add parameters x and y
 for i in $(seq 1 $nr); do
     NAME=$IMG$i
-    ip=$(docker inspect $NAME -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}')
-    ssh -l root $ip -o StrictHostKeyChecking=no -o PasswordAuthentication=no -s netconf <<EOF
+    ip=$(${PREFIX} docker inspect $NAME -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}')
+    ${PREFIX} ssh -l root $ip -o StrictHostKeyChecking=no -o PasswordAuthentication=no -s netconf <<EOF
 <?xml version="1.0" encoding="UTF-8"?>
 <hello xmlns="urn:ietf:params:xml:ns:netconf:base:1.0">
    <capabilities>
