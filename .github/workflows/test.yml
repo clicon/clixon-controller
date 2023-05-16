@@ -2,13 +2,21 @@ name: Clixon Controller CI
 
 on:
   push:
-    branches: [ main, docker ]
+    branches:
+      - main
+      - test-actions2
+      - docker
   pull_request:
-    branches: [ main ]
+    branches:
+      - main
+  schedule:
+    - cron: '00 3 * * 6'     # Run every Saturday morning
 
 jobs:
-  build:
+  test-job:
+    name: Controller tests
     runs-on: ubuntu-latest
+    timeout-minutes: 2
     steps:
     - uses: actions/checkout@v3
     - name: build clixon controller container
