@@ -95,10 +95,10 @@ EOF
 
 if $BE; then
     echo "Kill old backend"
-    sudo clixon_backend -s init -f $CFG -z
+    ${PREFIX} clixon_backend -s init -f $CFG -z
 
     echo "Start new backend -s init  -f $CFG -D $DBG"
-    sudo clixon_backend -s init -f $CFG -D $DBG
+    ${PREFIX} clixon_backend -s init -f $CFG -D $DBG
 fi
 
 # Check backend is running
@@ -133,7 +133,7 @@ expectpart "$(${PREFIX} $clixon_cli -1 -m configure -f $CFG show cli devices dev
 
 if $BE; then
     echo "Kill old backend"
-    sudo clixon_backend -s init -f $CFG -z
+    ${PREFIX} clixon_backend -s init -f $CFG -z
 fi
 
 echo "test-cli-edit-multiple"

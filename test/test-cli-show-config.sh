@@ -138,10 +138,10 @@ EOF
 
 if $BE; then
     echo "Kill old backend"
-    sudo clixon_backend -s init -f $CFG -z
+    ${PREFIX} clixon_backend -s init -f $CFG -z
 
     echo "Start new backend -s init  -f $CFG -D $DBG"
-    sudo clixon_backend -s init -f $CFG -D $DBG
+    ${PREFIX} clixon_backend -s init -f $CFG -D $DBG
 fi
 
 # Check backend is running
@@ -289,7 +289,7 @@ fi
 
 if $BE; then
     echo "Kill old backend"
-    sudo clixon_backend -s init -f $CFG -z
+    ${PREFIX} clixon_backend -s init -f $CFG -z
 fi
 
 echo "test-cli-show-config"
