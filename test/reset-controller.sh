@@ -140,8 +140,9 @@ fi
 for j in $(seq 1 5); do
     echo "pull"
     fail=false
-    ret=$(${clixon_cli} -1f $CFG pull)||fail=true||true
-    echo "myfail:$fail"
+    ret=$(${PREFIX} ${clixon_cli} -1f $CFG pull)||fail=true||true
+    echo "tryagain:$fail"
+
     if $fail; then
 	sleep $sleep
     else
