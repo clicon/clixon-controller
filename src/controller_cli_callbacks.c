@@ -294,28 +294,36 @@ cli_show_auto_devs(clicon_handle h,
         pattern = cv_string_get(cv);
         if (rpc_get_yanglib_mount_match(h, pattern, 0, &xdevs) < 0)
             goto done;
-        if (xdevs == NULL)
-            goto ok;
-        xdev = NULL;
-        while ((xdev = xml_child_each(xdevs, xdev, CX_ELMNT)) != NULL) {
-            if ((devname = xml_find_body(xdev, "name")) == NULL)
-                continue;
-            cv_string_set(cv, devname); /* replace name */
-            /* aggregate to composite xpath */
+        if (xdevs == NULL){
             if (cli_apipath2xpath(h, cvv, mtpoint, api_path_fmt, &xpath, &nsc) < 0)
-                goto done;
-            cligen_output(stdout, "%s:\n", devname);
+                goto done;        
             if (cli_show_common(h, dbname, format, pretty, state,
                                 withdefault, extdefault,
                                 prepend, xpath, nsc, 0) < 0)
                 goto done;
-            if (xpath){
-                free(xpath);
-                xpath = NULL;
-            }
-            if (nsc){
-                free(nsc);
-                nsc = NULL;
+        }
+        else {
+            xdev = NULL;
+            while ((xdev = xml_child_each(xdevs, xdev, CX_ELMNT)) != NULL) {
+                if ((devname = xml_find_body(xdev, "name")) == NULL)
+                    continue;
+                cv_string_set(cv, devname); /* replace name */
+                /* aggregate to composite xpath */
+                if (cli_apipath2xpath(h, cvv, mtpoint, api_path_fmt, &xpath, &nsc) < 0)
+                    goto done;
+                cligen_output(stdout, "%s:\n", devname);
+                if (cli_show_common(h, dbname, format, pretty, state,
+                                    withdefault, extdefault,
+                                    prepend, xpath, nsc, 0) < 0)
+                    goto done;
+                if (xpath){
+                    free(xpath);
+                    xpath = NULL;
+                }
+                if (nsc){
+                    free(nsc);
+                    nsc = NULL;
+                }
             }
         }
     }
@@ -327,7 +335,6 @@ cli_show_auto_devs(clicon_handle h,
                             prepend, xpath, nsc, 0) < 0)
             goto done;
     }
- ok:
     retval = 0;
  done:
     if (xdevs)
@@ -845,7 +852,6 @@ cli_connection_change(clixon_handle h,
         xml_free(xtop);
     return retval;
 }
-
 
 /*! Show controller device states
  * @param[in] h
@@ -1460,20 +1466,26 @@ cli_dbxml_devs(clicon_handle       h,
         pattern = cv_string_get(cv);
         if (rpc_get_yanglib_mount_match(h, pattern, 0, &xdevs) < 0)
             goto done;
-        if (xdevs == NULL)
-            goto ok;
-        xdev = NULL;
-        while ((xdev = xml_child_each(xdevs, xdev, CX_ELMNT)) != NULL) {
-            if ((devname = xml_find_body(xdev, "name")) == NULL)
-                continue;
-            cv_string_set(cv, devname); /* replace name */
+        if (xdevs == NULL){
             if (cli_apipath(h, cvv, mtpoint, api_path_fmt, &cvvi, &api_path) < 0)
                 goto done;
             if (cli_dbxml_devs_sub(h, cvv, op, nsctx, cvvi, api_path) < 0)
                 goto done;
-            if (api_path){
-                free(api_path);
-                api_path = NULL;
+        }
+        else {
+            xdev = NULL;
+            while ((xdev = xml_child_each(xdevs, xdev, CX_ELMNT)) != NULL) {
+                if ((devname = xml_find_body(xdev, "name")) == NULL)
+                    continue;
+                cv_string_set(cv, devname); /* replace name */
+                if (cli_apipath(h, cvv, mtpoint, api_path_fmt, &cvvi, &api_path) < 0)
+                    goto done;
+                if (cli_dbxml_devs_sub(h, cvv, op, nsctx, cvvi, api_path) < 0)
+                    goto done;
+                if (api_path){
+                    free(api_path);
+                    api_path = NULL;
+                }
             }
         }
     }
@@ -1484,7 +1496,6 @@ cli_dbxml_devs(clicon_handle       h,
             goto done;
         
     }
- ok:
     retval = 0;
  done:
     if (api_path_fmt01)
