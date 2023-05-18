@@ -4,7 +4,7 @@ on:
   push:
     branches:
       - main
-      - test-actions2
+      - test-actions
       - docker
   pull_request:
     branches:
@@ -21,12 +21,5 @@ jobs:
     - uses: actions/checkout@v3
     - name: build clixon controller container
       run: (git clone https://github.com/clicon/clixon-controller.git && cd clixon-controller/docker/ && docker build -t clixon-controller .)
-# 2)  Run tests
-    - name: Start devices
-      run: cd clixon-controller/test; ./start-devices.sh
-    - name: Get container addresses
-      run: cd clixon-controller/test; CONTAINERS=`./containers.sh`; echo "CONTAINERS=$CONTAINERS" >> "$GITHUB_ENV"
-    - name: Start controller container
-      run: cd clixon-controller/test; CONTAINERS="${{ env.CONTAINERS }}" ./start-controller.sh
     - name: Run tests
-      run: docker exec -t clixon-controller bash -c 'cd clixon-controller/test && detail=true ./sum.sh'
+      run: make test
