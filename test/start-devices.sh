@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
 # Start clixon example container devices and initiate with config x=11, y=22
+# To use root as login to containers from root, use: 
+# PREFIX=sudo start-devices.sh
 set -eu
 
 # Number of device containers to start
@@ -10,9 +12,10 @@ set -eu
 
 : ${IMG:=clixon-example}
 
-: ${SSHKEY:=~/.ssh/id_rsa.pub}
+# sudo if ssh login from root
+: ${PREFIX:=} 
 
-: ${PREFIX:=}
+SSHKEY=~/.ssh/id_rsa.pub
 
 ${PREFIX} test -f $SSHKEY || ${PREFIX} ssh-keygen -t rsa -N "" -f ~/.ssh/id_rsa
 
@@ -24,19 +27,21 @@ for i in $(seq 1 $nr); do
     sudo docker cp $SSHKEY $NAME:/root/.ssh/authorized_keys
     sudo docker exec -t $NAME chown root /root/.ssh/authorized_keys
     sudo docker exec -t $NAME chgrp root /root/.ssh/authorized_keys
-    ip=$(${PREFIX} docker inspect $NAME -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}')
-    ${PREFIX} ssh-keygen -f ~/.ssh/known_hosts -R "$ip" || true
+    ip=$(sudo docker inspect $NAME -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}')
+    ssh-keygen -f ~/.ssh/known_hosts -R "$ip" || true
 done
 
 sleep $sleep # need time to spin up backend in containers
 
-i=1
-
 # Add parameters x and y
 for i in $(seq 1 $nr); do
     NAME=$IMG$i
-    ip=$(${PREFIX} docker inspect $NAME -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}')
-    ${PREFIX} ssh -l root $ip -o StrictHostKeyChecking=no -o PasswordAuthentication=no -s netconf <<EOF
+
+    echo "get ip of $NAME"
+    ip=$(sudo docker inspect $NAME -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}')
+    
+    echo "Configure $NAME w ip:$ip"
+    ssh $ip -l root -o StrictHostKeyChecking=no -o PasswordAuthentication=no -s netconf <<EOF
 <?xml version="1.0" encoding="UTF-8"?>
 <hello xmlns="urn:ietf:params:xml:ns:netconf:base:1.0">
    <capabilities>
@@ -65,4 +70,5 @@ EOF
 
 done
 
+echo
 echo "start-devices OK"

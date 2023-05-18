@@ -46,7 +46,7 @@ SUBDIRS += yang
 SUBDIRS += util
 #SUBDIRS += docker
 
-.PHONY:	all clean $(SUBDIRS) install uninstall docker push TAGS .config.status
+.PHONY:	all clean $(SUBDIRS) test install uninstall docker push TAGS .config.status
 
 all:	$(SUBDIRS)
 
@@ -64,6 +64,9 @@ uninstall:
 docker:
 	(cd docker; $(MAKE) $(MFLAGS) $@)
 	echo "make push to push images to dockerhub"
+
+test:
+	$(MAKE) -C docker $(MFLAGS) $@
 
 push:
 	(cd docker; $(MAKE) $(MFLAGS) $@)

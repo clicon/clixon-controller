@@ -25,12 +25,13 @@ top_srcdir  	= ../..
 
 # docker.hub image. CHANGE THIS IF YOU PUSH YOUR OWN
 IMG   = clixon/controller
+NAME  = clixon-controller
 
 .PHONY: all clean distclean docker push depend install uninstall
 .PHONY: src yang # dont cache source
 
 all:	
-	echo "Run make docker to build docker image"
+	echo "Run make docker to build docker image, or make test to run tests"
 
 clean:
 	rm -rf src yang
@@ -51,6 +52,10 @@ docker: Dockerfile yang src
 
 push:
 	sudo docker push $(IMG)
+
+test: docker
+	./cleanup.sh ; ./start.sh # kill (ignore error) and start it
+	sudo docker exec -t $(NAME) bash -c 'cd clixon-controller/test && detail=true ./sum.sh'
 
 depend:
 
