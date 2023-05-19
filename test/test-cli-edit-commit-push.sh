@@ -110,10 +110,10 @@ EOF
 
 if $BE; then
     echo "Kill old backend"
-    ${PREFIX} clixon_backend -s init -f $CFG -z
+    sudo clixon_backend -s init -f $CFG -z
 
     echo "Start new backend -s init  -f $CFG -D $DBG"
-    ${PREFIX} clixon_backend -s init -f $CFG -D $DBG
+    sudo clixon_backend -s init -f $CFG -D $DBG
 fi
 
 # Check backend is running
@@ -133,31 +133,31 @@ fi
 
 # Tests
 new "CLI: syncronize devices"
-expectpart "$(${PREFIX} $clixon_cli -1 -f $CFG pull)" 0 ""
+expectpart "$($clixon_cli -1 -f $CFG pull)" 0 ""
 
 new "CLI: Check pre-controller devices configuration"
-expectpart "$(${PREFIX} $clixon_cli -1 -f $CFG show configuration xml devices)" 0 "<name>y</name>" --not-- "<value>1.2.3.4</value>"
+expectpart "$($clixon_cli -1 -f $CFG show configuration xml devices)" 0 "<name>y</name>" --not-- "<value>1.2.3.4</value>"
 
 new "CLI: Configure service"
-expectpart "$(${PREFIX} $clixon_cli -1 -f $CFG -m configure set services test cli_test)" 0 ""
+expectpart "$($clixon_cli -1 -f $CFG -m configure set services test cli_test)" 0 ""
 
 # XXX move to error tests
 new "CLI: Set invalid value type"
-expectpart "$(${PREFIX} $clixon_cli -1 -f $CFG -l o -m configure set services test cli_test parameter x value y)" 255 "CLI syntax error: \"set services test cli_test parameter x value y\": \"y\" is invalid input for cli command: value"
+expectpart "$($clixon_cli -1 -f $CFG -l o -m configure set services test cli_test parameter x value y)" 255 "CLI syntax error: \"set services test cli_test parameter x value y\": \"y\" is invalid input for cli command: value"
 
 new "CLI: Set valid value type"
-expectpart "$(${PREFIX} $clixon_cli -1 -f $CFG -m configure set services test cli_test parameter x value 1.2.3.4)" 0 ""
+expectpart "$($clixon_cli -1 -f $CFG -m configure set services test cli_test parameter x value 1.2.3.4)" 0 ""
 
 sleep 2
 
 new "CLI: Commit"
-expectpart "$(${PREFIX} $clixon_cli -1 -f $CFG -m configure commit)" 0 ""
+expectpart "$($clixon_cli -1 -f $CFG -m configure commit)" 0 ""
 
 new "CLI: Check controller services configuration"
-expectpart "$(${PREFIX} $clixon_cli -1 -f $CFG show configuration cli)" 0 "^set services test cli_test" "^set services test cli_test parameter x" "^set services test cli_test parameter x value 1.2.3.4"
+expectpart "$($clixon_cli -1 -f $CFG show configuration cli)" 0 "^set services test cli_test" "^set services test cli_test parameter x" "^set services test cli_test parameter x value 1.2.3.4"
 
 new "CLI: Check controller devices configuration"
-expectpart "$(${PREFIX} $clixon_cli -1 -f $CFG show configuration xml)" 0 "<name>y</name>" "<value>1.2.3.4</value>"
+expectpart "$($clixon_cli -1 -f $CFG show configuration xml)" 0 "<name>y</name>" "<value>1.2.3.4</value>"
 
 new "Verify containers"
 
@@ -165,7 +165,7 @@ i=1;
 
 for ip in $CONTAINERS; do
     NAME=$IMG$i
-    ret=$(${PREFIX} ${clixon_netconf} -qe0 -f $CFG <<EOF
+    ret=$(${clixon_netconf} -qe0 -f $CFG <<EOF
 <rpc xmlns="urn:ietf:params:xml:ns:netconf:base:1.0" 
 xmlns:nc="urn:ietf:params:xml:ns:netconf:base:1.0" 
 message-id="42">
@@ -207,7 +207,7 @@ done
 
 if $BE; then
     echo "Kill old backend"
-    ${PREFIX} clixon_backend -s init -f $CFG -z
+    sudo clixon_backend -s init -f $CFG -z
 fi
 
 if $PY; then

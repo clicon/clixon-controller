@@ -15,10 +15,10 @@ s="$_" ; . ./lib.sh || if [ "$s" = $0 ]; then exit 0; else return 0; fi
 
 if $BE; then
     echo "Kill old backend"
-    ${PREFIX} clixon_backend -s init -f $CFG -z
+    sudo clixon_backend -s init -f $CFG -z
 
     echo "Start new backend"
-    ${PREFIX} clixon_backend -s init  -f $CFG -D $DBG
+    sudo clixon_backend -s init  -f $CFG -D $DBG
 fi
 
 # Check backend is running
@@ -31,7 +31,7 @@ wait_backend
 . ./change-devices.sh
 
 echo "trigger pull transient"
-ret=$(${PREFIX} ${clixon_netconf} -q0 -f $CFG <<EOF
+ret=$(${clixon_netconf} -q0 -f $CFG <<EOF
 <rpc xmlns="urn:ietf:params:xml:ns:netconf:base:1.0" message-id="43">
   <config-pull xmlns="http://clicon.org/controller">
     <devname>*</devname>
@@ -50,7 +50,7 @@ for i in $(seq 1 $nr); do
     NAME=$IMG$i
     # verify controller 
     echo "get and check transient device db"
-    ret=$(${PREFIX} ${clixon_netconf} -q0 -f $CFG <<EOF
+    ret=$(${clixon_netconf} -q0 -f $CFG <<EOF
 <rpc xmlns="urn:ietf:params:xml:ns:netconf:base:1.0" message-id="43">
   <get-device-config xmlns="http://clicon.org/controller">
     <devname>$NAME</devname>
@@ -74,7 +74,7 @@ done
 
 if $BE; then
     echo "Kill old backend"
-    ${PREFIX} clixon_backend -s init -f $CFG -z
+    sudo clixon_backend -s init -f $CFG -z
 fi
 
 echo "test-device-diff"

@@ -14,10 +14,10 @@ s="$_" ; . ./lib.sh || if [ "$s" = $0 ]; then exit 0; else return 0; fi
 
 if $BE; then
     echo "Kill old backend"
-    ${PREFIX} clixon_backend -s init -f $CFG -z
+    sudo clixon_backend -s init -f $CFG -z
 
     echo "Start new backend"
-    ${PREFIX} clixon_backend -s init  -f $CFG -D $DBG
+    sudo clixon_backend -s init  -f $CFG -D $DBG
 fi
 
 # Check backend is running
@@ -28,7 +28,7 @@ wait_backend
 
 new "schema-mounts"
 # Query top-level schema-mount
-ret=$(${PREFIX} ${clixon_netconf} -0 -f $CFG <<EOF
+ret=$(${clixon_netconf} -0 -f $CFG <<EOF
 <?xml version="1.0" encoding="UTF-8"?>
 <hello xmlns="urn:ietf:params:xml:ns:netconf:base:1.0">
    <capabilities>
@@ -61,7 +61,7 @@ if [ -z "$match" ]; then
 fi
 
 # Query per-device yanglibs
-ret=$(${PREFIX} ${clixon_netconf} -0 -f $CFG <<EOF
+ret=$(${clixon_netconf} -0 -f $CFG <<EOF
 <?xml version="1.0" encoding="UTF-8"?>
 <hello xmlns="urn:ietf:params:xml:ns:netconf:base:1.0">
    <capabilities>
@@ -101,7 +101,7 @@ fi
 
 if $BE; then
     echo "Kill old backend"
-    ${PREFIX} clixon_backend -s init -f $CFG -z
+    sudo clixon_backend -s init -f $CFG -z
 fi
 
 echo "test-yanglib OK"
