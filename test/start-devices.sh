@@ -1,30 +1,25 @@
 #!/usr/bin/env bash
 # Start clixon example container devices and initiate with config x=11, y=22
-# To use root as login to containers from root, use: 
-# PREFIX=sudo start-devices.sh
-set -eu
+# Note: dont use with sudo, you need proper ~/ $HOME set for this script to work
+set -eux
 
 # Number of device containers to start
 : ${nr:=2}
 
 # Sleep delay in seconds between each step
-: ${sleep:=5}
+: ${sleep:=2}
 
 : ${IMG:=clixon-example}
 
-# sudo if ssh login from root
-: ${PREFIX:=} 
-
-SSHKEY=~/.ssh/id_rsa.pub
-
-${PREFIX} test -f $SSHKEY || ${PREFIX} ssh-keygen -t rsa -N "" -f ~/.ssh/id_rsa
+# Generate rsa key if not exists
+test -f ~/.ssh/id_rsa.pub || ssh-keygen -t rsa -N "" -f ~/.ssh/id_rsa
 
 for i in $(seq 1 $nr); do
     NAME=$IMG$i
     sudo docker kill $NAME || true
     sudo docker run --name $NAME --rm -td clixon/$IMG #|| err "Error starting clixon-example"
     sudo docker exec -t $NAME mkdir -m 700 /root/.ssh
-    sudo docker cp $SSHKEY $NAME:/root/.ssh/authorized_keys
+    sudo docker cp ~/.ssh/id_rsa.pub $NAME:/root/.ssh/authorized_keys
     sudo docker exec -t $NAME chown root /root/.ssh/authorized_keys
     sudo docker exec -t $NAME chgrp root /root/.ssh/authorized_keys
     ip=$(sudo docker inspect $NAME -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}')

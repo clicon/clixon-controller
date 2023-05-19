@@ -145,10 +145,10 @@ EOF
 
 if $BE; then
     echo "Kill old backend"
-    ${PREFIX} clixon_backend -s init -f $CFG -z
+    sudo clixon_backend -s init -f $CFG -z
 
     echo "Start new backend -s init  -f $CFG -D $DBG"
-    ${PREFIX} clixon_backend -s init  -f $CFG -D $DBG
+    sudo clixon_backend -s init  -f $CFG -D $DBG
 fi
 
 # Check backend is running
@@ -159,10 +159,10 @@ wait_backend
 
 if $SA; then
     echo "Kill previous service action"
-    ${PREFIX} pkill service_action || true
+    pkill service_action || true
 
     echo "Start service action"
-    ${PREFIX} services_action -f $CFG &
+    services_action -f $CFG &
 fi
 
 if [ $nr -gt 1 ]; then
@@ -214,7 +214,7 @@ else
 fi
 
 new "edit testA(1)"
-ret=$(${PREFIX} ${clixon_netconf} -0 -f $CFG <<EOF
+ret=$(${clixon_netconf} -0 -f $CFG <<EOF
 <?xml version="1.0" encoding="UTF-8"?>
 <hello xmlns="urn:ietf:params:xml:ns:netconf:base:1.0">
    <capabilities>
@@ -285,10 +285,10 @@ fi
 
 new "commit push"
 set +e
-expectpart "$(${PREFIX} ${clixon_cli} -m configure -1f $CFG commit push 2>&1)" 0 OK --not-- Error
+expectpart "$(${clixon_cli} -m configure -1f $CFG commit push 2>&1)" 0 OK --not-- Error
 
 new "edit testA(2)"
-ret=$(${PREFIX} ${clixon_netconf} -0 -f $CFG <<EOF
+ret=$(${clixon_netconf} -0 -f $CFG <<EOF
 <?xml version="1.0" encoding="UTF-8"?>
 <hello xmlns="urn:ietf:params:xml:ns:netconf:base:1.0">
    <capabilities>
@@ -325,7 +325,7 @@ if [ -n "$match" ]; then
     exit 1
 fi
 
-ret=$(${PREFIX} ${clixon_cli} -m configure -1f $CFG commit diff)
+ret=$(${clixon_cli} -m configure -1f $CFG commit diff)
 
 match=$(echo $ret | grep --null -Eo '+ <name>Az</name>') || true
 if [ -z "$match" ]; then
@@ -345,7 +345,7 @@ fi
 
 if $BE; then
     echo "Kill old backend"
-    ${PREFIX} clixon_backend -s init -f $CFG -z
+    sudo clixon_backend -s init -f $CFG -z
 fi
 
 unset SA

@@ -11,4 +11,3 @@ for i in $(seq 1 $nr); do
     NAME=$IMG$i
     sudo docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' $NAME
 done
-

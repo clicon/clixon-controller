@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 # Setup env before test for native, start container
+# Create ssh-key pair in controller container and copy public key to device containers
 # Called from make test
 
 set -ex
@@ -13,7 +14,7 @@ testdir=../test
 (cd $testdir; nr=$nr ./start-devices.sh)
 
 echo "start controller"
-CONTAINERS="$(./containers.sh)" ./start-controller.sh
+CONTAINERS="$(../test/containers.sh)" ./start-controller.sh
 
 # Create controller key and copy public key to example dockers
 echo "sudo docker exec -t $NAME bash -c 'ssh-keygen -t rsa -f /root/.ssh/id_rsa -N ""'"

@@ -1,4 +1,4 @@
-# Controller test script for cli set/delete multiple
+# Controller test script for cli set/delete multiple, using glob '*'
 
 set -u
 
@@ -95,10 +95,10 @@ EOF
 
 if $BE; then
     echo "Kill old backend"
-    ${PREFIX} clixon_backend -s init -f $CFG -z
+    sudo clixon_backend -s init -f $CFG -z
 
     echo "Start new backend -s init  -f $CFG -D $DBG"
-    ${PREFIX} clixon_backend -s init -f $CFG -D $DBG
+    sudo clixon_backend -s init -f $CFG -D $DBG
 fi
 
 # Check backend is running
@@ -108,32 +108,32 @@ wait_backend
 . ./reset-controller.sh
 
 new "verify no z"
-expectpart "$(${PREFIX} $clixon_cli -1 -m configure -f $CFG show cli devices device clixon* config table parameter z)" 0 "clixon-example1:" "clixon-example2:" --not-- "set parameter z"
+expectpart "$($clixon_cli -1 -m configure -f $CFG show cli devices device clixon* config table parameter z)" 0 "clixon-example1:" "clixon-example2:" --not-- "set parameter z"
 
 new "set * z"
-expectpart "$(${PREFIX} $clixon_cli -1 -m configure -f $CFG set devices device clixon* config table parameter z value 789)" 0 "^$"
+expectpart "$($clixon_cli -1 -m configure -f $CFG set devices device clixon* config table parameter z value 789)" 0 "^$"
 
 new "verify z 789"
-expectpart "$(${PREFIX} $clixon_cli -1 -m configure -f $CFG show cli devices device clixon* config table parameter z)" 0 "clixon-example1:" "clixon-example2:" "set parameter z value 789"
+expectpart "$($clixon_cli -1 -m configure -f $CFG show cli devices device clixon* config table parameter z)" 0 "clixon-example1:" "clixon-example2:" "set parameter z value 789"
 
 new "set *1 z 123"
-expectpart "$(${PREFIX} $clixon_cli -1 -m configure -f $CFG set devices device *1 config table parameter z value 123)" 0 "^$"
+expectpart "$($clixon_cli -1 -m configure -f $CFG set devices device *1 config table parameter z value 123)" 0 "^$"
 
 new "set *2 z 456"
-expectpart "$(${PREFIX} $clixon_cli -1 -m configure -f $CFG set devices device *2 config table parameter z value 456)" 0 "^$"
+expectpart "$($clixon_cli -1 -m configure -f $CFG set devices device *2 config table parameter z value 456)" 0 "^$"
 
 new "verify z 456 + 789"
-expectpart "$(${PREFIX} $clixon_cli -1 -m configure -f $CFG show cli devices device clixon* config table parameter z)" 0 "set parameter z value 123" "set parameter z value 456" --not-- "set parameter z value 789"
+expectpart "$($clixon_cli -1 -m configure -f $CFG show cli devices device clixon* config table parameter z)" 0 "set parameter z value 123" "set parameter z value 456" --not-- "set parameter z value 789"
 
 new "del * z"
-expectpart "$(${PREFIX} $clixon_cli -1 -m configure -f $CFG del devices device clixon* config table parameter z)" 0 "^$"
+expectpart "$($clixon_cli -1 -m configure -f $CFG del devices device clixon* config table parameter z)" 0 "^$"
 
 new "verify no z"
-expectpart "$(${PREFIX} $clixon_cli -1 -m configure -f $CFG show cli devices device clixon* config table parameter z)" 0 "clixon-example1:" "clixon-example2:" --not-- "set parameter z"
+expectpart "$($clixon_cli -1 -m configure -f $CFG show cli devices device clixon* config table parameter z)" 0 "clixon-example1:" "clixon-example2:" --not-- "set parameter z"
 
 if $BE; then
     echo "Kill old backend"
-    ${PREFIX} clixon_backend -s init -f $CFG -z
+    sudo clixon_backend -s init -f $CFG -z
 fi
 
 echo "test-cli-edit-multiple"

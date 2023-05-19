@@ -7,8 +7,6 @@ set -ex
 
 : ${sleep:=5}
 
-: ${PREFIX:=}
-
 echo "CONTAINERS:$CONTAINERS"
 
 # Mount home ssh dir to get right key

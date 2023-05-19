@@ -19,19 +19,21 @@ s="$_" ; . ./lib.sh || if [ "$s" = $0 ]; then exit 0; else return 0; fi
 
 if $BE; then
     echo "Kill old backend"
-    ${PREFIX} clixon_backend -s init -f $CFG -z
+    sudo clixon_backend -s init -f $CFG -z
 
     echo "Start new backend"
-    ${PREFIX} clixon_backend -s init  -f $CFG -D $DBG
+    sudo clixon_backend -s init  -f $CFG -D $DBG
 fi
 
 # Check backend is running
 wait_backend
 
 # Reset controller 
+new "reset controller"
 . ./reset-controller.sh
 
 # Change device configs on devices (not controller)
+new "change devices"
 . ./change-devices.sh
 i=1
 # Change device in controller: Remove x, change y=322, and add z=399
@@ -86,7 +88,7 @@ EOF
 done
 
 new "local commit"
-${PREFIX} ${clixon_netconf} -0 -f $CFG <<EOF
+${clixon_netconf} -0 -f $CFG <<EOF
 <?xml version="1.0" encoding="UTF-8"?>
 <hello xmlns="urn:ietf:params:xml:ns:netconf:base:1.0">
    <capabilities>
@@ -107,7 +109,7 @@ fi
 # XXX remove cli, but it is difficult since we have to wait for notification, rpc-reply is not enough
 
 new "push validate"
-ret=$(${PREFIX} ${clixon_cli} -1f $CFG push validate 2>&1)
+ret=$(${clixon_cli} -1f $CFG push validate 2>&1)
 echo "ret:$ret"
 match=$(echo $ret | grep --null -Eo "failed Device changed config") || true
 if [ -z "$match" ]; then
@@ -117,7 +119,7 @@ fi
 
 if $BE; then
     echo "Kill old backend"
-    ${PREFIX} clixon_backend -s init -f $CFG -z
+    sudo clixon_backend -s init -f $CFG -z
 fi
 
 unset push

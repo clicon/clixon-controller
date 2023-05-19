@@ -21,10 +21,10 @@ s="$_" ; . ./lib.sh || if [ "$s" = $0 ]; then exit 0; else return 0; fi
 
 if $BE; then
     echo "Kill old backend"
-    ${PREFIX} clixon_backend -s init -f $CFG -z
+    sudo clixon_backend -s init -f $CFG -z
 
     echo "Start new backend"
-    ${PREFIX} clixon_backend -s init  -f $CFG -D $DBG
+    sudo clixon_backend -s init  -f $CFG -D $DBG
 fi
 
 # Check backend is running
@@ -38,7 +38,7 @@ i=1
 # Change device in controller: Remove x, change y=122, and add z=99
 for x in $CONTAINERS; do
     NAME=$IMG$i
-    ret=$(${PREFIX} ${clixon_netconf} -0 -f $CFG <<EOF
+    ret=$(${clixon_netconf} -0 -f $CFG <<EOF
 <?xml version="1.0" encoding="UTF-8"?>
 <hello xmlns="urn:ietf:params:xml:ns:netconf:base:1.0">
    <capabilities>
@@ -87,7 +87,7 @@ EOF
 done
 
 new "local commit"
-${PREFIX} ${clixon_netconf} -0 -f $CFG <<EOF
+${clixon_netconf} -0 -f $CFG <<EOF
 <?xml version="1.0" encoding="UTF-8"?>
 <hello xmlns="urn:ietf:params:xml:ns:netconf:base:1.0">
    <capabilities>
@@ -106,7 +106,7 @@ if ! $push ; then
 fi
 
 new "push validate"
-ret=$(${PREFIX} ${clixon_netconf} -q0 -f $CFG <<EOF
+ret=$(${clixon_netconf} -q0 -f $CFG <<EOF
 <rpc xmlns="urn:ietf:params:xml:ns:netconf:base:1.0" message-id="43">
   <controller-commit xmlns="http://clicon.org/controller">
     <push>VALIDATE</push>
@@ -127,7 +127,7 @@ fi
 sleep $sleep
 
 new "push commit"
-ret=$(${PREFIX} ${clixon_netconf} -q0 -f $CFG <<EOF
+ret=$(${clixon_netconf} -q0 -f $CFG <<EOF
 <rpc xmlns="urn:ietf:params:xml:ns:netconf:base:1.0" message-id="43">
   <controller-commit xmlns="http://clicon.org/controller">
     <push>COMMIT</push>
@@ -153,10 +153,10 @@ fi
 sleep $sleep
 
 new "Verify controller"
-res=$(${PREFIX} ${clixon_cli} -1f $CFG show devices | grep OPEN | wc -l)
+res=$(${clixon_cli} -1f $CFG show devices | grep OPEN | wc -l)
 
 echo "Verify open devices"
-ret=$(${PREFIX} ${clixon_netconf} -q0 -f $CFG <<EOF
+ret=$(${clixon_netconf} -q0 -f $CFG <<EOF
 <rpc xmlns="urn:ietf:params:xml:ns:netconf:base:1.0" xmlns:nc="urn:ietf:params:xml:ns:netconf:base:1.0" message-id="43">
    <get cl:content="all" xmlns:cl="http://clicon.org/lib">
       <nc:filter nc:type="xpath" nc:select="co:devices/co:device/co:conn-state" xmlns:co="http://clicon.org/controller"/>
@@ -222,7 +222,7 @@ done
 
 if $BE; then
     echo "Kill old backend"
-    ${PREFIX} clixon_backend -s init -f $CFG -z
+    sudo clixon_backend -s init -f $CFG -z
 fi
 
 unset push

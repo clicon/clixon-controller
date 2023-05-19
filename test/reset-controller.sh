@@ -19,6 +19,7 @@ echo "reset-controller"
 : ${IMG:=clixon-example}
 
 : ${clixon_netconf:=$(which clixon_netconf)}
+: ${clixon_cli:=clixon_cli}
 
 # Set if delete old config
 : ${delete:=true}
@@ -30,10 +31,6 @@ echo "reset-controller"
 : ${description:="Clixon example container"}
 : ${yang_config:=VALIDATE}
 : ${user:=root}
-
-# Prefix to add in front of all client commands.
-# Eg to force all client to run as root if there is problem with group assignment (see github actions)
-: ${PREFIX:=}
 
 # Send edit-config to controller with initial device meta-config
 function init_device_config()
@@ -98,7 +95,6 @@ EOF
 fi # delete
 
 i=1
-
 # Loop adding top-level device meta info
 for ip in $CONTAINERS; do
     NAME="$IMG$i"
@@ -141,13 +137,13 @@ for j in $(seq 1 5); do
     echo "pull"
 
     fail=false
-    ret=$(${PREFIX} ${clixon_cli} -1f $CFG pull)||fail=true||true
+    ret=$(${clixon_cli} -1f $CFG pull)||fail=true||true
     echo "tryagain:$fail"
 
     if $fail; then
 	sleep $sleep
 
-	ret=$(${PREFIX} ${clixon_netconf} -q0 -f $CFG <<EOF
+	ret=$(${clixon_netconf} -q0 -f $CFG <<EOF
 <rpc xmlns="urn:ietf:params:xml:ns:netconf:base:1.0" message-id="43">
 	<config-pull xmlns="http://clicon.org/controller">
 	 <devname>*</devname>
@@ -170,7 +166,7 @@ echo "check open"
 res=$(${clixon_cli} -1f $CFG show devices | grep OPEN | grep "$IMG" | wc -l)
 
 echo "Verify open devices"
-ret=$(${PREFIX} ${clixon_netconf} -q0 -f $CFG <<EOF
+ret=$(${clixon_netconf} -q0 -f $CFG <<EOF
 <rpc xmlns="urn:ietf:params:xml:ns:netconf:base:1.0" xmlns:nc="urn:ietf:params:xml:ns:netconf:base:1.0" message-id="43">
    <get cl:content="all" xmlns:cl="http://clicon.org/lib">
       <nc:filter nc:type="xpath" nc:select="co:devices/co:device/co:conn-state" xmlns:co="http://clicon.org/controller"/>
@@ -178,6 +174,7 @@ ret=$(${PREFIX} ${clixon_netconf} -q0 -f $CFG <<EOF
 </rpc>]]>]]>
 EOF
    )
+
 echo "$ret"
 match=$(echo "$ret" | grep --null -Eo "<rpc-error>") || true
 if [ -n "$match" ]; then
@@ -185,7 +182,6 @@ if [ -n "$match" ]; then
     exit -1;
 fi
 res=$(echo "$ret" | sed 's/OPEN/OPEN\n/g' | grep -c "OPEN")
-
 if [ "$res" != "$nr" ]; then
     echo "Error: $res"
     exit -1;

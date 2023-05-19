@@ -11,13 +11,6 @@
 # Controller config file
 : ${CFG:=/usr/local/etc/controller.xml}
 
-# If set to true, start containers and controller, otherwise they are assumed to be already running
-: ${INIT:=false}
-
-# Prefix to add in front of all client commands.
-# Eg to force all client to run as root if there is problem with group assignment (see github actions)
-: ${PREFIX:=}
-
 : ${DBG:=0}
 
 # Namespace: netconf base
@@ -68,13 +61,6 @@ testname=
 #
 : ${valgrindtest=0}
 
-if $INIT; then
-    # Start devices
-    nr=$nr ./stop-devices.sh
-    sleep $sleep
-    nr=$nr ./start-devices.sh
-fi
-
 #----------------------- Functions
 
 # Given a string, add RFC6242 chunked franing around it
@@ -91,7 +77,7 @@ function chunked_framing()
 # Wait for restconf to stop sending  502 Bad Gateway
 function wait_backend(){
     freq=$(chunked_framing "<rpc $DEFAULTNS><ping $LIBNS/></rpc>")
-    reply=$(echo "$freq" | $PREFIX ${clixon_netconf} -q1ef $CFG) || true
+    reply=$(echo "$freq" | ${clixon_netconf} -q1ef $CFG) || true
     #    freply=$(chunked_framing "<rpc-reply $DEFAULTNS><ok/></rpc-reply>")
     #    chunked_equal "$reply" "$freply"
     let i=0 || true
@@ -99,7 +85,7 @@ function wait_backend(){
 	echo "sleep $DEMSLEEP"
 	sleep $DEMSLEEP
         freq=$(chunked_framing "<rpc $DEFAULTNS><ping $LIBNS/></rpc>")
-        reply=$(echo "$freq" | $PREFIX ${clixon_netconf} -q1ef $CFG) || true
+        reply=$(echo "$freq" | ${clixon_netconf} -q1ef $CFG) || true
 	let i++ || true
 	echo "wait_backend  $i"
 	if [ $i -ge $DEMLOOP ]; then

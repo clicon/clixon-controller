@@ -14,14 +14,12 @@ echo "reset-devices"
 
 : ${SSHKEY:=~/.ssh/id_rsa.pub}
 
-: ${PREFIX:=}
-
-${PREFIX} test -f $SSHKEY || ${PREFIX} ssh-keygen -t rsa -N "" -f ~/.ssh/id_rsa
+test -f $SSHKEY || ssh-keygen -t rsa -N "" -f ~/.ssh/id_rsa
 
 # Add parameters x and y
 for ip in $CONTAINERS; do
     echo $ip
-    ret=$(${PREFIX} ssh -l root $ip -o StrictHostKeyChecking=no -o PasswordAuthentication=no -s netconf <<EOF
+    ret=$(ssh -l root $ip -o StrictHostKeyChecking=no -o PasswordAuthentication=no -s netconf <<EOF
 <?xml version="1.0" encoding="UTF-8"?>
 <hello xmlns="urn:ietf:params:xml:ns:netconf:base:1.0">
    <capabilities>
