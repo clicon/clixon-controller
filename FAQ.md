@@ -37,7 +37,7 @@ The controller requires its public key to be installed on the devices and perfor
 
 ## How do I configure JunOS and the Clixon controller?
 
-JunOS must be configured with SSH-keys and a few other settings before being used with Clixon:
+JunOS must be configured with SSH-keys and a few other settings before being used with Clixon. The SSH-key belongs to the user which clixon_backend run as. We must also configure the rfc-compliant option for the netconf server:
 
 ```
 root@junos> show configuration
@@ -61,3 +61,14 @@ system {
         }
     }
 }
+```
+
+## How do I add a device in Clixon?
+
+The device should be configured to use the same user as in the configuration above. 
+
+```
+set devices device test enabled true
+set devices device test conn-type NETCONF_SSH
+set devices device test user admin
+set devices device test addr 1.2.3.4
