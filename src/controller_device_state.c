@@ -681,8 +681,9 @@ device_config_copy(clicon_handle h,
  * @param[in]  h      Clixon handle.
  * @param[in]  dh     Device handle.
  * @param[in]  name   Device name
- * @param[out] eq     If equal==0
- * @retval     1      OK
+ * @param[out] cberr0 Reason why inequal (retval = 1)
+ * @retval     2      OK and equal
+ * @retval     1      Not equal, cberr0 set
  * @retval     0      Closed
  * @retval    -1      Error
  */
@@ -691,12 +692,13 @@ device_config_compare(clicon_handle           h,
                       device_handle           dh,
                       char                   *name,
                       controller_transaction *ct,
-                      int                    *eq)
+                      cbuf                  **cberr0)
 {
     int    retval = -1;
     cxobj *x0 = NULL;
     cxobj *x1 = NULL;
     cbuf  *cberr = NULL;
+    int    eq;
     int    ret;
             
     if ((ret = device_config_read(h, name, "SYNCED", &x0, &cberr)) < 0)
@@ -707,9 +709,18 @@ device_config_compare(clicon_handle           h,
         if (device_close_connection(dh, "%s", cbuf_get(cberr)) < 0)
             goto done;
         goto closed;
+    } 
+    if ((eq = xml_tree_equal(x0, x1)) != 0 && cberr0){
+        if ((*cberr0 = cbuf_new()) == NULL){
+            clicon_err(OE_UNIX, errno, "cbuf_new");
+            goto done;
+        }
+        cprintf(*cberr0, "Device %s has changed config. See: diff device-%s-SYNCED_db device-%s-TRANSIENT_db",
+                name, name, name);
+         retval = 1;
     }
-    *eq = xml_tree_equal(x0, x1);
-    retval = 1;
+    else
+        retval = 2;
  done:
     if (cberr)
         cbuf_free(cberr);
@@ -750,7 +761,6 @@ device_state_handler(clixon_handle h,
     controller_transaction *ct = NULL;
     cbuf       *cberr = NULL;
     cbuf       *cbmsg;
-    int         eq = 0;
 
     rpcname = xml_name(xmsg);
     conn_state = device_handle_conn_state_get(dh);
@@ -765,7 +775,7 @@ device_state_handler(clixon_handle h,
                                     name, device_state_int2str(conn_state));
             break;
         }
-        if (ct->ct_state != TS_INIT && ct->ct_state == TS_RESOLVED){
+        if (ct->ct_state != TS_INIT && ct->ct_state != TS_RESOLVED){
             clicon_debug(1, "%s %s: Unexpected msg %s in state %s",
                          __FUNCTION__, name, rpcname, transaction_state_int2str(ct->ct_state));
             break;
@@ -804,7 +814,7 @@ device_state_handler(clixon_handle h,
                                     name, device_state_int2str(conn_state));
             break;
         }
-        if (ct->ct_state != TS_INIT && ct->ct_state == TS_RESOLVED){
+        if (ct->ct_state != TS_INIT && ct->ct_state != TS_RESOLVED){
             clicon_debug(1, "%s %s: Unexpected msg %s in state %s",
                          __FUNCTION__, name, rpcname, transaction_state_int2str(ct->ct_state));
             break;
@@ -850,7 +860,7 @@ device_state_handler(clixon_handle h,
                                     name, device_state_int2str(conn_state));
             break;
         }
-        if (ct->ct_state != TS_INIT && ct->ct_state == TS_RESOLVED){
+        if (ct->ct_state != TS_INIT && ct->ct_state != TS_RESOLVED){
             clicon_debug(1, "%s %s: Unexpected msg %s in state %s",
                          __FUNCTION__, name, rpcname, transaction_state_int2str(ct->ct_state));
             break;
@@ -900,7 +910,7 @@ device_state_handler(clixon_handle h,
                                     name, device_state_int2str(conn_state));
             break;
         }
-        if (ct->ct_state != TS_INIT && ct->ct_state == TS_RESOLVED){
+        if (ct->ct_state != TS_INIT && ct->ct_state != TS_RESOLVED){
             clicon_debug(1, "%s %s: Unexpected msg %s in state %s",
                          __FUNCTION__, name, rpcname, transaction_state_int2str(ct->ct_state));
             break;
@@ -939,7 +949,7 @@ device_state_handler(clixon_handle h,
                                     name, device_state_int2str(conn_state));
             break;
         }
-        if (ct->ct_state != TS_INIT && ct->ct_state == TS_RESOLVED){
+        if (ct->ct_state != TS_INIT && ct->ct_state != TS_RESOLVED){
             clicon_debug(1, "%s %s: Unexpected msg %s in state %s",
                          __FUNCTION__, name, rpcname, transaction_state_int2str(ct->ct_state));
             break;
@@ -948,16 +958,16 @@ device_state_handler(clixon_handle h,
         ct->ct_pull_transient = 1;
         if ((ret = device_state_recv_config(h, dh, xmsg, yspec0, rpcname, conn_state)) < 0)
             goto done;
-         /* Compare transient with last sync*/
-        if (ret && (ret = device_config_compare(h, dh, name, ct, &eq)) < 0)
+         /* Compare transient with last sync 0: closed, 1: unequal, 2: is equal */
+        if (ret && (ret = device_config_compare(h, dh, name, ct, &cberr)) < 0)
             goto done;
         if (ret == 0){ /* closed */
             if (controller_transaction_failed(h, tid, ct, dh, 1, name, device_handle_logmsg_get(dh)) < 0)
                 goto done;
             break;
         }
-        if (eq != 0){
-            if (controller_transaction_failed(h, tid, ct, dh, 0, name, "Device changed config") < 0)
+        else if (ret == 1){ /* unequal */
+            if (controller_transaction_failed(h, tid, ct, dh, 0, name, cbuf_get(cberr)) < 0)
                 goto done;
             if (device_state_set(dh, CS_OPEN) < 0)
                 goto done;
@@ -965,8 +975,8 @@ device_state_handler(clixon_handle h,
             device_handle_tid_set(dh, 0);
             /* 2.2.2.2 If no devices in transaction, mark as OK and close it*/
             if (controller_transaction_devices(h, tid) == 0){
-            if (controller_transaction_done(h, ct, TR_FAILED) < 0)
-                goto done;
+                if (controller_transaction_done(h, ct, TR_FAILED) < 0)
+                    goto done;
             }
             break;
         }
@@ -993,7 +1003,7 @@ device_state_handler(clixon_handle h,
                                     name, device_state_int2str(conn_state));
             break;
         }
-        if (ct->ct_state != TS_INIT && ct->ct_state == TS_RESOLVED){
+        if (ct->ct_state != TS_INIT && ct->ct_state != TS_RESOLVED){
             clicon_debug(1, "%s %s: Unexpected msg %s in state %s",
                          __FUNCTION__, name, rpcname, transaction_state_int2str(ct->ct_state));
             break;
@@ -1040,7 +1050,7 @@ device_state_handler(clixon_handle h,
                                     name, device_state_int2str(conn_state));
             break;
         }
-        if (ct->ct_state != TS_INIT && ct->ct_state == TS_RESOLVED){
+        if (ct->ct_state != TS_INIT && ct->ct_state != TS_RESOLVED){
             clicon_debug(1, "%s %s: Unexpected msg %s in state %s",
                          __FUNCTION__, name, rpcname, transaction_state_int2str(ct->ct_state));
             break;
@@ -1101,7 +1111,7 @@ device_state_handler(clixon_handle h,
                 name, device_state_int2str(conn_state));
             break;
         }
-        if (ct->ct_state != TS_INIT && ct->ct_state == TS_RESOLVED){
+        if (ct->ct_state != TS_INIT && ct->ct_state != TS_RESOLVED){
             clicon_debug(1, "%s %s: Unexpected msg %s in state %s",
                          __FUNCTION__, name, rpcname, transaction_state_int2str(ct->ct_state));
             break;

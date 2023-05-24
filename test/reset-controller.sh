@@ -162,10 +162,7 @@ EOF
     fi
 done
 
-echo "check open"
-res=$(${clixon_cli} -1f $CFG show devices | grep OPEN | grep "$IMG" | wc -l)
-
-echo "Verify open devices"
+echo "Verify open devices x"
 ret=$(${clixon_netconf} -q0 -f $CFG <<EOF
 <rpc xmlns="urn:ietf:params:xml:ns:netconf:base:1.0" xmlns:nc="urn:ietf:params:xml:ns:netconf:base:1.0" message-id="43">
    <get cl:content="all" xmlns:cl="http://clicon.org/lib">
@@ -181,12 +178,12 @@ if [ -n "$match" ]; then
     echo "Error: $res"
     exit -1;
 fi
-res=$(echo "$ret" | sed 's/OPEN/OPEN\n/g' | grep -c "OPEN")
+
+res=$(echo "$ret" | sed 's/OPEN/OPEN\n/g' | grep "$IMG" | grep -c "OPEN") || true
 if [ "$res" != "$nr" ]; then
     echo "Error: $res"
     exit -1;
 fi
-
 # Early exit point, do not check pulled config
 if ! $check ; then
     echo "reset-controller early exit: do not check result"
@@ -195,7 +192,6 @@ if ! $check ; then
 fi
 
 i=1
-
 # Only works for clixon-example, others should set check=false
 echo "check config"
 for ip in $CONTAINERS; do

@@ -12,13 +12,9 @@ echo "change-devices"
 
 : ${IMG:=clixon-example}
 
-: ${SSHKEY:=/root/.ssh/id_rsa.pub}
-
-test -f $SSHKEY || ssh-keygen -t rsa -N "" -f /root/.ssh/id_rsa
-
 # Remove x, change y, and add z directly on devices
 for ip in $CONTAINERS; do
-    ret=$(ssh $ip -o StrictHostKeyChecking=no -o PasswordAuthentication=no -s netconf <<EOF
+    ret=$(ssh $ip -l root -o StrictHostKeyChecking=no -o PasswordAuthentication=no -s netconf <<EOF
 <?xml version="1.0" encoding="UTF-8"?>
 <hello xmlns="urn:ietf:params:xml:ns:netconf:base:1.0">
    <capabilities>
