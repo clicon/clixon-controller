@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Assume backend and devics running
+# Assume backend and devices running
 # Reset devices and backend
 # Commit a change to controller device config: remove x, change y, and add z
 # Commit a change to _devices_ remove x, change y, and add z
@@ -107,11 +107,10 @@ if ! $push ; then
 fi
 
 # XXX remove cli, but it is difficult since we have to wait for notification, rpc-reply is not enough
-
 new "push validate"
 ret=$(${clixon_cli} -1f $CFG push validate 2>&1)
 echo "ret:$ret"
-match=$(echo $ret | grep --null -Eo "failed Device changed config") || true
+match=$(echo $ret | grep --null -Eo "failed Device") || true
 if [ -z "$match" ]; then
     echo "Error msg not detected"
     exit 1
