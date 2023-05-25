@@ -2,8 +2,8 @@
 
   * [What is the Clixon controller?](#what-is-the-clixon-controller)
   * [How does it differ from Clixon?](#how-does-it-differ-from-clixon)
-  * [What about other protocols?](#what-about other protocols)
-  * [My devices are stuck in CONNECTING](#my-devices-are-stuck-in-connecting)
+  * [What about other protocols?](#what-about-other-protocols)
+  * [My devices are closed by device](#my-devices-are-closed-by device)
   * [How to configure JunOS and the Clixon controller?](#how-to-configure-junos-and-the-clixon-controller)
   * [How do I add a device in Clixon?](#how-do-i-add-a-device-in-clixon)
 
@@ -22,18 +22,26 @@ The controller is such an application: I.e., it is a Clixon application. All con
 
 ## What about other protocols?
 
-The clixon controller only inrefaces with devices using NETCONF, not
+The clixon controller only intefaces with devices using NETCONF, not
 other protocols are supported (or CLI).  The controller itself
 supports NETCONF, RESTCONF and CLI.
 
-## My devices are stuck in CONNECTING
+## My devices are closed by device
 
-If a device is stuck in `CONNECTING` state when you do `show devices` in the CLI and you
-see messages like the following in syslog/backend logs:
+If a device does not come up and shows something like::
 ```
-  Host key verification failed.
+cli>show device
+Name                    State      Time                   Logmsg                        
+=======================================================================================
+clixon-example1         CLOSED     2023-05-25T11:12:29    Closed by device
+
 ```
-It is probable that the controller was unable to login to a device due to some failure with SSH keys.
+The controller may be unable to login to the device for one of the following reasons:
+
+   * The device has not netconf SSH subsystem enabled
+   * The controllers public SSH key is not installed on the device
+   * The device host key is not installed in the controllers `known_hosts`
+
 The controller requires its public key to be installed on the devices and performs strict checking of host keys to avoid man-in-the-middle attacks. You need to ensure that the public key the controller uses is installed on the devices, and that the known_hosts file of the controller contains entries for the devices.
 
 ## How to configure JunOS and the Clixon controller?
