@@ -3,8 +3,9 @@
   * [What is the Clixon controller?](#what-is-the-clixon-controller)
   * [How does it differ from Clixon?](#how-does-it-differ-from-clixon)
   * [What about other protocols?](#what-about other protocols)
-  * [What about other protocols?](#what-about other protocols)
   * [My devices are stuck in CONNECTING](#my-devices-are-stuck-in-connecting)
+  * [How to configure JunOS and the Clixon controller?](#how-to-configure-junos-and-the-clixon-controller)
+  * [How do I add a device in Clixon?](#how-do-i-add-a-device-in-clixon)
 
 ## What is the Clixon controller?
 
@@ -35,7 +36,7 @@ see messages like the following in syslog/backend logs:
 It is probable that the controller was unable to login to a device due to some failure with SSH keys.
 The controller requires its public key to be installed on the devices and performs strict checking of host keys to avoid man-in-the-middle attacks. You need to ensure that the public key the controller uses is installed on the devices, and that the known_hosts file of the controller contains entries for the devices.
 
-## How do I configure JunOS and the Clixon controller?
+## How to configure JunOS and the Clixon controller?
 
 JunOS must be configured with SSH-keys and a few other settings before being used with Clixon. The SSH-key belongs to the user which clixon_backend run as. We must also configure the rfc-compliant option for the netconf server:
 
