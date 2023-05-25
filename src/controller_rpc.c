@@ -93,7 +93,9 @@ connect_netconf_ssh(clixon_handle h,
         goto done;
     s = device_handle_socket_get(dh);    
     device_handle_framing_type_set(dh, NETCONF_SSH_EOM);
-    if (clixon_event_reg_fd(s, device_input_cb, dh, "netconf socket") < 0)
+    cbuf_reset(cb); /* reuse cb for event dbg str */
+    cprintf(cb, "Netconf ssh %s", addr);
+    if (clixon_event_reg_fd(s, device_input_cb, dh, cbuf_get(cb)) < 0)
         goto done;
     retval = 0;
  done:

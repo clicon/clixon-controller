@@ -7,7 +7,7 @@
 #   HOMEDIR=~ ./copy-keys.sh # user
 # The latter is already done by start-devices.sh (if there is where you came from)
 
-set -eux
+set -eu
 
 # Number of device containers to start
 : ${nr:=2}
@@ -38,4 +38,5 @@ for i in $(seq 1 $nr); do
 EOF
 done
 
+echo
 echo "copy-keys OK"

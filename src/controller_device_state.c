@@ -236,6 +236,15 @@ device_input_cb(int   s,
     /* Read input data from socket and append to cbbuf */
     if ((len = netconf_input_read2(s, buf, buflen, &eof)) < 0)
         goto done;
+    if (eof){
+        if (ct){
+            if (controller_transaction_failed(h, tid, ct, dh, 2, name, "Closed by device") < 0)
+                goto done;
+        }
+        else
+            device_close_connection(dh, "Closed by device");
+        goto ok;
+    }
     p = buf;
     plen = len;
     while (!eof && plen > 0){
