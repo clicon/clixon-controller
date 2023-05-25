@@ -21,14 +21,9 @@ If run natively, the controller runs as root, and a root public key needs to be 
     sudo ./copy-keys.sh
 ```
 
-Bind the `CONTAINERS` env variable to the IP:s of the clixon-example containers:
+Bind the `CONTAINERS` env variable to the IP:s of the clixon-example containers and run tests with the CONTAINERS environment variable bound:
 ```
-    CONTAINERS=$(./containers.sh)
-```
-
-Run tests with CONTAINERS bound:
-```
-    CONTAINERS=$CONTAINERS ./sum.sh
+    CONTAINERS=$(./containers.sh) ./sum.sh
 ```
 
 ## Tests
