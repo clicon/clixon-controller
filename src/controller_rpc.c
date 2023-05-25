@@ -934,8 +934,8 @@ rpc_controller_commit(clixon_handle h,
                       void         *arg,  
                       void         *regarg)
 {
-    client_entry           *ce = (client_entry *)arg;
     int                     retval = -1;
+    client_entry           *ce = (client_entry *)arg;
     controller_transaction *ct = NULL;
     char                   *str;
     char                   *device;

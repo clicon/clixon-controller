@@ -127,6 +127,9 @@ module clixon-controller {
             enum PUSH-COMMIT{
                 description  "Commit sent, waiting for reply ok";
             }
+            enum PUSH-COMMIT-SYNC{
+                description  "Commit sent, waiting for reply ok";
+            }
             enum PUSH-DISCARD{
                 description  "Discard sent, waiting for reply";
             }
