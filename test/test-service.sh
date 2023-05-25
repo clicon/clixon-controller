@@ -318,15 +318,16 @@ ret=$(${clixon_netconf} -0 -f $CFG <<EOF
 </rpc>]]>]]>
 EOF
 )
-echo "$ret"
+
 match=$(echo "$ret" | grep --null -Eo "<rpc-error>") || true
 if [ -n "$match" ]; then
     echo "netconf rpc-error detected"
     exit 1
 fi
 
+new "commit diff"
 ret=$(${clixon_cli} -m configure -1f $CFG commit diff)
-
+echo "$ret"
 match=$(echo $ret | grep --null -Eo '+ <name>Az</name>') || true
 if [ -z "$match" ]; then
     echo "commit diff failed"
@@ -339,12 +340,12 @@ if [ -z "$match" ]; then
 fi
 
 if $SA; then
-    echo "Kill service action"
+    new "Kill service action"
     pkill services_action || true
 fi
 
 if $BE; then
-    echo "Kill old backend"
+    new "Kill old backend"
     sudo clixon_backend -s init -f $CFG -z
 fi
 

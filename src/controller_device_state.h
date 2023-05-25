@@ -79,6 +79,7 @@ enum conn_state_t {
     CS_PUSH_VALIDATE, /* validate sent, waiting for reply  */
     CS_PUSH_WAIT,     /* Waiting for other devices to validate */
     CS_PUSH_COMMIT,   /* commit sent, waiting for reply ok */
+    CS_PUSH_COMMIT_SYNC, /* After remote commit, received remote config, commit it in controller */
     CS_PUSH_DISCARD,  /* discard sent, waiting for reply ok */
 };
 typedef enum conn_state_t conn_state;

@@ -80,16 +80,17 @@
 static const map_str2int csmap[] = {
     {"CLOSED",       CS_CLOSED},
     {"CONNECTING",   CS_CONNECTING},
-    {"SCHEMA_LIST",  CS_SCHEMA_LIST},
-    {"SCHEMA_ONE",   CS_SCHEMA_ONE}, /* substate is schema-nr */
+    {"SCHEMA-LIST",  CS_SCHEMA_LIST},
+    {"SCHEMA-ONE",   CS_SCHEMA_ONE}, /* substate is schema-nr */
     {"DEVICE-SYNC",  CS_DEVICE_SYNC},
     {"OPEN",         CS_OPEN},
-    {"PUSH_CHECK",   CS_PUSH_CHECK},
-    {"PUSH_EDIT",    CS_PUSH_EDIT},
-    {"PUSH_VALIDATE",CS_PUSH_VALIDATE},
-    {"PUSH_WAIT",    CS_PUSH_WAIT},
-    {"PUSH_COMMIT",  CS_PUSH_COMMIT},
-    {"PUSH_DISCARD", CS_PUSH_DISCARD},
+    {"PUSH-CHECK",   CS_PUSH_CHECK},
+    {"PUSH-EDIT",    CS_PUSH_EDIT},
+    {"PUSH-VALIDATE",CS_PUSH_VALIDATE},
+    {"PUSH-WAIT",    CS_PUSH_WAIT},
+    {"PUSH-COMMIT",  CS_PUSH_COMMIT},
+    {"PUSH-COMMIT-SYNC", CS_PUSH_COMMIT_SYNC},
+    {"PUSH-DISCARD", CS_PUSH_DISCARD},
     {NULL,           -1}
 };
 
@@ -1104,7 +1105,6 @@ device_state_handler(clixon_handle h,
                 goto done;            
         }
         break;
-    case CS_PUSH_DISCARD:
     case CS_PUSH_COMMIT:
         if (tid == 0 || ct == NULL){
             device_close_connection(dh, "Device %s not associated with transaction in state %s",
@@ -1133,53 +1133,91 @@ device_state_handler(clixon_handle h,
             /* 2.1 But transaction is in error state */
             assert(ct->ct_result != TR_SUCCESS);
         }
+        /* Pull for commited db in the case the device changes it post-commit */
+        if (device_send_get_config(h, dh, s) < 0)
+            goto done;
+        if (device_state_set(dh, CS_PUSH_COMMIT_SYNC) < 0)
+            goto done;
+        break;
+    case CS_PUSH_DISCARD:
+        if (tid == 0 || ct == NULL){
+            device_close_connection(dh, "Device %s not associated with transaction in state %s",
+                name, device_state_int2str(conn_state));
+            break;
+        }
+        if (ct->ct_state != TS_INIT && ct->ct_state != TS_RESOLVED){
+            clicon_debug(1, "%s %s: Unexpected msg %s in state %s",
+                         __FUNCTION__, name, rpcname, transaction_state_int2str(ct->ct_state));
+            break;
+        }
+        if ((ret = device_state_recv_ok(dh, xmsg, rpcname, conn_state, &cberr)) < 0)
+            goto done;
+        if (ret == 0){      /* 1. The device has failed: received rpc-error/not <ok>  */
+            if (controller_transaction_failed(h, tid, ct, dh, 2, name, cbuf_get(cberr)) < 0)
+                goto done;
+            break;
+        }
+        else if (ret == 1){ /* 1. The device has failed and is closed */
+            if (controller_transaction_failed(h, tid, ct, dh, 1, name, NULL) < 0)
+                goto done;
+            break;
+        }
+        /* 2. The device is OK */
+        if (ct->ct_state == TS_RESOLVED){ 
+            /* 2.1 But transaction is in error state */
+            assert(ct->ct_result != TR_SUCCESS);
+        }
+        /* Pull for commited db in the case the device changes it post-commit */
         if (device_state_set(dh, CS_OPEN) < 0)
             goto done;
         /* 2.2.2.1 Leave transaction */
         device_handle_tid_set(dh, 0);
-        if (conn_state == CS_PUSH_COMMIT){
-            cxobj *xt = NULL;
-            cbuf  *cb = NULL;
-    
-            /* Copy transient to device config (last sync) 
-               XXXX in commit push
-             */
-            if ((cb = cbuf_new()) == NULL){
-                clicon_err(OE_UNIX, errno, "cbuf_new");
-                goto done;
-            }
-            if ((cberr = cbuf_new()) == NULL){
-                clicon_err(OE_UNIX, errno, "cbuf_new");
-                goto done;
-            }
-            cprintf(cb, "devices/device[name='%s']/config", name);
-            if (ct->ct_actions_type == AT_NONE){
-                if (xmldb_get0(h, ct->ct_sourcedb, YB_MODULE, NULL, cbuf_get(cb), 1, WITHDEFAULTS_EXPLICIT, &xt, NULL, NULL) < 0)
-                    goto done;
-            }
-            else{
-                if (xmldb_get0(h, "actions", YB_MODULE, NULL, cbuf_get(cb), 1, WITHDEFAULTS_EXPLICIT, &xt, NULL, NULL) < 0)
-                    goto done;
-            }
-            if (xt != NULL){
-                if ((ret = device_config_write(h, name, "SYNCED", xt, cberr)) < 0)
-                    goto done;
-                if (ret == 0){
-                    clicon_err(OE_XML, 0, "%s", cbuf_get(cberr));
-                    goto done;
-                }
-            }
-            if (cb)
-                cbuf_free(cb);
-            if (xt)
-                xml_free(xt);
-        }
+
         /* 2.2.2.2 If no devices in transaction, mark as OK and close it*/
         if (controller_transaction_devices(h, tid) == 0){
             /* If source datastore is candidate, then commit (from actions) 
              * - if actions=AT_COMMIT, commit is made from actions-db
              * - otherwise if datastore is candidate, commit is made from candidate
              */
+            if (ct->ct_state != TS_RESOLVED){
+                controller_transaction_state_set(ct, TS_RESOLVED, TR_SUCCESS);
+                if (controller_transaction_notify(h, ct) < 0)
+                    goto done;
+            }
+            if (controller_transaction_done(h, ct, TR_SUCCESS) < 0)
+                goto done;
+        }
+        break;
+    case CS_PUSH_COMMIT_SYNC:
+        if (tid == 0 || ct == NULL){
+            device_close_connection(dh, "Device %s not associated with transaction in state %s",
+                                    name, device_state_int2str(conn_state));
+            break;
+        }
+        if (ct->ct_state != TS_INIT && ct->ct_state != TS_RESOLVED){
+            clicon_debug(1, "%s %s: Unexpected msg %s in state %s",
+                         __FUNCTION__, name, rpcname, transaction_state_int2str(ct->ct_state));
+            break;
+        }
+        /* Receive config data from device and add config to mount-point */
+        if ((ret = device_state_recv_config(h, dh, xmsg, yspec0, rpcname, conn_state)) < 0)
+            goto done;
+        if (ret == 0){ /* closed */
+            if (controller_transaction_failed(h, tid, ct, dh, 1, name, device_handle_logmsg_get(dh)) < 0)
+                goto done;
+            break;
+        }
+        /* 2. The device is OK */
+        if (ct->ct_state == TS_RESOLVED){ 
+            /* 2.1 But transaction is in error state */
+            assert(ct->ct_result != TR_SUCCESS);
+        }
+        if (device_state_set(dh, CS_OPEN) < 0)
+            goto done;
+        /* 2.2.2.1 Leave transaction */
+        device_handle_tid_set(dh, 0);
+        /* 2.2.2.2 If no devices in transaction, mark as OK and close it*/
+        if (controller_transaction_devices(h, tid) == 0){
             if (ct->ct_actions_type != AT_NONE && strcmp(ct->ct_sourcedb, "candidate")==0){
                 if ((cberr = cbuf_new()) == NULL){
                     clicon_err(OE_UNIX, errno, "cbuf_new");
