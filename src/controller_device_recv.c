@@ -183,6 +183,8 @@ device_state_recv_hello(clixon_handle h,
  * @param[in] yspec      Yang top-level spec
  * @param[in] rpcname    Name of RPC, only "rpc-reply" expected here
  * @param[in] conn_state Device connection state
+ * @param[in] force_transient If set, always save config in TRANSIENT db, regardless of dh setting
+ * @param[in] force_merge If set, always merge db
  * @retval    1          OK
  * @retval    0          Closed
  * @retval   -1          Error
@@ -193,7 +195,9 @@ device_state_recv_config(clixon_handle h,
                          cxobj        *xmsg,
                          yang_stmt    *yspec0,
                          char         *rpcname,
-                         conn_state    conn_state)
+                         conn_state    conn_state,
+                         int           force_transient,
+                         int           force_merge)
 {
     int                     retval = -1;
     cxobj                  *xdata;
@@ -289,6 +293,10 @@ device_state_recv_config(clixon_handle h,
         merge = ct->ct_pull_merge;
         transient = ct->ct_pull_transient;
     }
+    if (force_transient)
+        transient = 1;
+    if (force_merge)
+        merge = 1;
     if (merge){
         if (xml_value_set(xa, xml_operation2str(OP_MERGE)) < 0)
             goto done;

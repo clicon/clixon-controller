@@ -61,6 +61,7 @@ static const map_str2int tsmap[] = {
  * @see clixon-controller@2023-01-01.yang
  */
 static const map_str2int trmap[] = {
+    {"INIT",    TR_INIT},
     {"ERROR",   TR_ERROR},
     {"FAILED",  TR_FAILED},
     {"SUCCESS", TR_SUCCESS},

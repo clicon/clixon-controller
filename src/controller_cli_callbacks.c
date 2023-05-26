@@ -522,6 +522,7 @@ transaction_notification_poll(clicon_handle       h,
         case TR_FAILED:
             cligen_output(stderr, "Failed\n");
             break;
+        case TR_INIT:
         case TR_SUCCESS:
             break;
         }

@@ -37,7 +37,6 @@
 #ifndef _CONTROLLER_DEVICE_RECV_H
 #define _CONTROLLER_DEVICE_RECV_H
 
-
 /*
  * Prototypes
  */
@@ -48,7 +47,8 @@ extern "C" {
 int device_state_recv_hello(clixon_handle h, device_handle dh, int s, cxobj *xmsg,
                             char *rpcname, conn_state  conn_state);
 int device_state_recv_config(clixon_handle h, device_handle dh, cxobj *xmsg,
-                             yang_stmt *yspec0, char *rpcname, conn_state conn_state);
+                             yang_stmt *yspec0, char *rpcname, conn_state conn_state,
+                             int force_transient, int force_merge);
 int device_state_recv_schema_list(device_handle dh, cxobj *xmsg, char *rpcname,
                                   conn_state conn_state);
 int device_state_recv_get_schema(device_handle dh, cxobj *xmsg, char *rpcname,

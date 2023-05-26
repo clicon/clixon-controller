@@ -926,7 +926,7 @@ device_state_handler(clixon_handle h,
             break;
         }
         /* Receive config data from device and add config to mount-point */
-        if ((ret = device_state_recv_config(h, dh, xmsg, yspec0, rpcname, conn_state)) < 0)
+        if ((ret = device_state_recv_config(h, dh, xmsg, yspec0, rpcname, conn_state, 0, 0)) < 0)
             goto done;
         if (ret == 0){ /* closed */
             if (controller_transaction_failed(h, tid, ct, dh, 1, name, device_handle_logmsg_get(dh)) < 0)
@@ -965,8 +965,7 @@ device_state_handler(clixon_handle h,
             break;
         }
         /* Receive config data, force transient, ie do not commit */
-        ct->ct_pull_transient = 1;
-        if ((ret = device_state_recv_config(h, dh, xmsg, yspec0, rpcname, conn_state)) < 0)
+        if ((ret = device_state_recv_config(h, dh, xmsg, yspec0, rpcname, conn_state, 1, 0)) < 0)
             goto done;
          /* Compare transient with last sync 0: closed, 1: unequal, 2: is equal */
         if (ret && (ret = device_config_compare(h, dh, name, ct, &cberr)) < 0)
@@ -1109,9 +1108,43 @@ device_state_handler(clixon_handle h,
             goto done;
         if (ret == 1){
             /* 2.2.1 All devices are in WAIT (none are in EDIT/VALIDATE) 
-               2.2.1.1 Trigger COMMIT of all devices */
+               2.2.1.1 Trigger COMMIT of all devices and set this device into CS_PUSH_COMMIT */
             if (controller_transaction_wait_trigger(h, tid, 1) < 0)
                 goto done;            
+            /* Not running */
+            if (ct->ct_actions_type != AT_NONE && strcmp(ct->ct_sourcedb, "candidate")==0){
+                if ((cberr = cbuf_new()) == NULL){
+                    clicon_err(OE_UNIX, errno, "cbuf_new");
+                    goto done;
+                }
+                /* What to copy to candidate and commit to running? */
+                if (xmldb_copy(h, "actions", "candidate") < 0)
+                    goto done;
+                if ((ret = candidate_commit(h, NULL, "candidate", 0, 0, cberr)) < 0){
+                    /* Handle that candidate_commit can return < 0 if transaction ongoing */
+                    cprintf(cberr, "%s", clicon_err_reason);
+                    ret = 0;
+                }
+                if (ret == 0){ // XXX awkward, cb ->xml->cb
+                    cxobj *xerr = NULL;
+                    cbuf *cberr2 = NULL;
+                    if ((cberr2 = cbuf_new()) == NULL){
+                        clicon_err(OE_UNIX, errno, "cbuf_new");
+                        goto done;
+                    }
+                    if (clixon_xml_parse_string(cbuf_get(cberr), YB_NONE, NULL, &xerr, NULL) < 0)
+                        goto done;
+                    if (netconf_err2cb(xerr, cberr2) < 0)
+                        goto done;
+                    if (controller_transaction_failed(h, ct->ct_id, ct, dh, 1, name, cbuf_get(cberr2)) < 0)
+                        goto done;
+                    if (xerr)
+                        xml_free(xerr);
+                    if (cberr2)
+                        cbuf_free(cberr2);
+                    break;
+                }
+            }
         }
         break;
     case CS_PUSH_COMMIT:
@@ -1209,7 +1242,7 @@ device_state_handler(clixon_handle h,
             break;
         }
         /* Receive config data from device and add config to mount-point */
-        if ((ret = device_state_recv_config(h, dh, xmsg, yspec0, rpcname, conn_state)) < 0)
+        if ((ret = device_state_recv_config(h, dh, xmsg, yspec0, rpcname, conn_state, 0, 1)) < 0)
             goto done;
         if (ret == 0){ /* closed */
             if (controller_transaction_failed(h, tid, ct, dh, 1, name, device_handle_logmsg_get(dh)) < 0)
@@ -1227,39 +1260,6 @@ device_state_handler(clixon_handle h,
         device_handle_tid_set(dh, 0);
         /* 2.2.2.2 If no devices in transaction, mark as OK and close it*/
         if (controller_transaction_devices(h, tid) == 0){
-            if (ct->ct_actions_type != AT_NONE && strcmp(ct->ct_sourcedb, "candidate")==0){
-                if ((cberr = cbuf_new()) == NULL){
-                    clicon_err(OE_UNIX, errno, "cbuf_new");
-                    goto done;
-                }
-                /* What to copy to candidate and commit to running? */
-                if (xmldb_copy(h, "actions", "candidate") < 0)
-                    goto done;
-                if ((ret = candidate_commit(h, NULL, "candidate", 0, 0, cberr)) < 0){
-                    /* Handle that candidate_commit can return < 0 if transaction ongoing */        
-                    cprintf(cberr, "%s", clicon_err_reason);
-                    ret = 0;
-                }
-                if (ret == 0){ // XXX awkward, cb ->xml->cb
-                    cxobj *xerr = NULL;
-                    cbuf *cberr2 = NULL;
-                    if ((cberr2 = cbuf_new()) == NULL){
-                        clicon_err(OE_UNIX, errno, "cbuf_new");
-                        goto done;
-                    }
-                    if (clixon_xml_parse_string(cbuf_get(cberr), YB_NONE, NULL, &xerr, NULL) < 0)
-                        goto done;
-                    if (netconf_err2cb(xerr, cberr2) < 0)
-                        goto done;
-                    if (controller_transaction_failed(h, ct->ct_id, ct, dh, 1, name, cbuf_get(cberr2)) < 0)
-                        goto done;
-                    if (xerr)
-                        xml_free(xerr);
-                    if (cberr2)
-                        cbuf_free(cberr2);
-                    break;
-                }
-            }
             if (ct->ct_state != TS_RESOLVED){
                 controller_transaction_state_set(ct, TS_RESOLVED, TR_SUCCESS);
                 if (controller_transaction_notify(h, ct) < 0)

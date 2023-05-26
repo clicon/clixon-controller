@@ -54,7 +54,8 @@ typedef enum transaction_state_t transaction_state;
  * @see trmap translation table
  */
 enum transaction_result_t{
-    TR_ERROR = 0,  /* Transaction failed in an inconsistent state, not recoverable */
+    TR_INIT = 0,   /* Inconclusive, no defined result */
+    TR_ERROR,      /* Transaction failed in an inconsistent state, not recoverable */
     TR_FAILED,     /* Transaction failed but reverted successfully */
     TR_SUCCESS,    /* Transaction completed successfully */
 };
