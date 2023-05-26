@@ -3,7 +3,7 @@
   * [What is the Clixon controller?](#what-is-the-clixon-controller)
   * [How does it differ from Clixon?](#how-does-it-differ-from-clixon)
   * [What about other protocols?](#what-about-other-protocols)
-  * [My devices are closed by device](#my-devices-are-closed-by device)
+  * [My devices are CLOSED](#my-devices-are-closed)
   * [How to configure JunOS and the Clixon controller?](#how-to-configure-junos-and-the-clixon-controller)
   * [How do I add a device in Clixon?](#how-do-i-add-a-device-in-clixon)
 
@@ -26,7 +26,7 @@ The clixon controller only intefaces with devices using NETCONF, not
 other protocols are supported (or CLI).  The controller itself
 supports NETCONF, RESTCONF and CLI.
 
-## My devices are closed by device
+## My devices are CLOSED
 
 If a device does not come up and shows something like::
 ```

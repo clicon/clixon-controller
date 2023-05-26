@@ -176,6 +176,9 @@ module clixon-controller {
         description
             "Transaction result as set in resolved and closed state.";
         type enumeration{
+            enum INIT {
+                description "Init state, no defined result";
+            }
             enum ERROR {
                 description "Transaction failed in an inconsistent state, not recoverable";
             }
@@ -265,6 +268,19 @@ module clixon-controller {
             default 60;
             units s;
         }
+    }
+    container pyapi {
+       description "Python API action daemon";
+       leaf enabled {
+          description "If set, start pyapi daemon";
+          type boolean;
+          default false;
+       }
+       leaf status {
+          config false;
+          description "True if pyapi daemon is running";
+          type boolean;
+       }
     }
     /* Generic config data */
     container devices{

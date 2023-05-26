@@ -171,7 +171,7 @@ controller_connect(clixon_handle           h,
     return retval;
 }
 
-/*! Initiate a push to a singel device
+/*! Compute diff, construct edit-config and send to device
  *
  * 1) get previous device synced xml
  * 2) get current and compute diff with previous
@@ -234,6 +234,10 @@ push_device_one(clixon_handle           h,
         cprintf(*cberr, "Device not configured");
         goto failed;
     }
+#if 0 // debug
+    fprintf(stderr, "%s before push x1:\n", __FUNCTION__);
+    xml_creator_print(stderr, x1); // XXX
+#endif
     if ((yspec = device_handle_yspec_get(dh)) == NULL){
         if ((*cberr = cbuf_new()) == NULL){
             clicon_err(OE_UNIX, errno, "cbuf_new");
@@ -625,6 +629,11 @@ strip_device(cxobj *x,
  * 
  * Read a datastore, for each device in the datastore, strip data created by services 
  * as defined by the services vector cvv. Write back the changed datasrtore
+ * @param[in]  h    Clicon handle 
+ * @param[in]  db   Database
+ * @param[in]  cvv  Vector of services
+ * @retval     0    OK
+ * @retval    -1    Error
  */
 static int
 strip_service_data_from_device_config(clixon_handle h,
@@ -646,6 +655,10 @@ strip_service_data_from_device_config(clixon_handle h,
         goto done;
     for (i=0; i<veclen; i++){
         xd = vec[i];
+#if 0 // debug
+        fprintf(stderr, "%s before strip xd:\n", __FUNCTION__);
+        xml_creator_print(stderr, xd); 
+#endif
         if (xml_apply(xd, CX_ELMNT, strip_device, cvv) < 0)
             goto done;
         if (xml_tree_prune_flags(xd, XML_FLAG_MARK, XML_FLAG_MARK) < 0)
@@ -1385,6 +1398,7 @@ rpc_transactions_actions_done(clixon_handle h,
         cprintf(cbret, "<ok/>");
         cprintf(cbret, "</rpc-reply>");
         controller_transaction_state_set(ct, TS_INIT, -1); /* Multiple actions */
+        /* Start device push process: compute diff send edit-configs */
         if (commit_push_after_actions(h, ct) < 0)
             goto done;
         break;
