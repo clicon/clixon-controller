@@ -769,6 +769,42 @@ commit_push_after_actions(clixon_handle           h,
         }
         /* No device started, close transaction */
         else if (controller_transaction_devices(h, ct->ct_id) == 0){
+            if (ct->ct_actions_type != AT_NONE && strcmp(ct->ct_sourcedb, "candidate")==0){
+                if ((cberr = cbuf_new()) == NULL){
+                    clicon_err(OE_UNIX, errno, "cbuf_new");
+                    goto done;
+                }
+                /* What to copy to candidate and commit to running? */
+                if (xmldb_copy(h, "actions", "candidate") < 0)
+                    goto done;
+                /* XXX: recursive creates transaction */
+                if ((ret = candidate_commit(h, NULL, "candidate", 0, 0, cberr)) < 0){
+                    /* Handle that candidate_commit can return < 0 if transaction ongoing */
+                    cprintf(cberr, "%s", clicon_err_reason); // XXX encode
+                    ret = 0;
+                }
+                if (ret == 0){ // XXX awkward, cb ->xml->cb
+                    cxobj *xerr = NULL;
+                    cbuf *cberr2 = NULL;
+                    if ((cberr2 = cbuf_new()) == NULL){
+                        clicon_err(OE_UNIX, errno, "cbuf_new");
+                        goto done;
+                    }
+                    if (clixon_xml_parse_string(cbuf_get(cberr), YB_NONE, NULL, &xerr, NULL) < 0)
+                        goto done;
+                    if (netconf_err2cb(xerr, cberr2) < 0)
+                        goto done;
+                    if (controller_transaction_failed(h, ct->ct_id, ct, NULL, 1,
+                                                      NULL,
+                                                      cbuf_get(cberr2)) < 0)
+                        goto done;
+                    if (xerr)
+                        xml_free(xerr);
+                    if (cberr2)
+                        cbuf_free(cberr2);
+                    goto ok;
+                }
+            }
             if (controller_transaction_done(h, ct, TR_SUCCESS) < 0)
                 goto done;
             if (controller_transaction_notify(h, ct) < 0)
@@ -778,6 +814,7 @@ commit_push_after_actions(clixon_handle           h,
             /* Some or all started */
         }
     }
+ ok:
     retval = 0;
  done:
     if (cberr)
@@ -1201,6 +1238,8 @@ rpc_connection_change(clixon_handle h,
     size_t                  veclen;
     int                     i;
     char                   *devname;
+    char                   *body;
+    int                     enabled;
     device_handle           dh;
     controller_transaction *ct = NULL;
     client_entry           *ce;
@@ -1235,27 +1274,39 @@ rpc_connection_change(clixon_handle h,
         xn = vec[i];
         if ((devname = xml_find_body(xn, "name")) == NULL)
             continue;
-        if ((dh = device_handle_find(h, devname)) == NULL)
+        if ((body = xml_find_body(xn, "enabled")) == NULL)
             continue;
+        enabled = strcmp(body, "true")==0;
         if (pattern != NULL && fnmatch(pattern, devname, 0) != 0)
             continue;
+        dh = device_handle_find(h, devname);
         /* @see clixon-controller.yang connection-operation */
         if (strcmp(operation, "CLOSE") == 0){
-            if (device_handle_conn_state_get(dh) != CS_OPEN)
-                continue;
-            device_close_connection(dh, "User request");
+            /* Close if there is a handle and it is OPEN */
+            if (dh != NULL && device_handle_conn_state_get(dh) == CS_OPEN){
+                if (device_close_connection(dh, "User request") < 0)
+                    goto done;
+            }
         }
         else if (strcmp(operation, "OPEN") == 0){
-            if (device_handle_conn_state_get(dh) != CS_CLOSED)
-                continue;
-            if (controller_connect(h, xn, ct) < 0)
-                goto done;
+            /* Open if enabled and handle does not exist or it exists and is closed  */
+            if (enabled &&
+                (dh == NULL || device_handle_conn_state_get(dh) == CS_CLOSED)){
+                if (controller_connect(h, xn, ct) < 0)
+                    goto done;
+            }
         }
         else if (strcmp(operation, "RECONNECT") == 0){
-            if (device_handle_conn_state_get(dh) != CS_CLOSED)
-                device_close_connection(dh, "User request");
-            if (controller_connect(h, xn, ct) < 0)
-                goto done;
+            /* First close it if there is a handle and it is OPEN */
+            if (dh != NULL && device_handle_conn_state_get(dh) == CS_OPEN){
+                if (device_close_connection(dh, "User request") < 0)
+                    goto done;
+            }
+            /* Then open if enabled */
+            if (enabled){
+                if (controller_connect(h, xn, ct) < 0)
+                    goto done;
+            }
         }
         else {
             clicon_err(OE_NETCONF, 0, "%s is not a conenction-operation", operation);

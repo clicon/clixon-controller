@@ -30,6 +30,11 @@ set -eu
 # Magic line must be first in script (see README.md)
 s="$_" ; . ./lib.sh || if [ "$s" = $0 ]; then exit 0; else return 0; fi
 
+if [ $nr -lt 2 ]; then
+    echo "Test requires nr=$nr to be greater than 1"
+    if [ "$s" = $0 ]; then exit 0; else return 0; fi
+fi
+
 # If set to false, override starting of services_action utility
 : ${SA:=true}
 
@@ -165,9 +170,8 @@ if $SA; then
     services_action -f $CFG &
 fi
 
-if [ $nr -gt 1 ]; then
-    DEV2="<device>
-	   <name>clixon-example2</name>
+DEV2="<device>
+           <name>clixon-example2</name>
 	   <config>
 	     <table xmlns=\"urn:example:clixon\">
 	       <parameter>
@@ -185,33 +189,6 @@ if [ $nr -gt 1 ]; then
 	     </table>
 	   </config>
 	 </device>"
-else
-    DEV2=""
-fi
-
-if [ $nr -gt 1 ]; then
-    DEV2="<device>
-           <name>clixon-example2</name>
-           <config>
-             <table xmlns=\"urn:example:clixon\">
-               <parameter>
-                 <name>0x</name>
-               </parameter>
-               <parameter>
-                 <name>A0x</name>
-               </parameter>
-               <parameter>
-                 <name>A0y</name>
-               </parameter>
-               <parameter>
-                 <name>A0z</name>
-               </parameter>
-             </table>
-           </config>
-         </device>"
-else
-    DEV2=""
-fi
 
 new "edit testA(1)"
 ret=$(${clixon_netconf} -0 -f $CFG <<EOF
@@ -283,6 +260,7 @@ if [ -n "$match" ]; then
     exit 1
 fi
 
+sleep $sleep
 new "commit push"
 set +e
 expectpart "$(${clixon_cli} -m configure -1f $CFG commit push 2>&1)" 0 OK --not-- Error

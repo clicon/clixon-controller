@@ -6,6 +6,11 @@ set -u
 
 echo "reset-controller"
 
+if [[ ! -v CONTAINERS ]]; then
+    echo "CONTAINERS unset"
+    exit -1
+fi
+
 # Controller config file
 : ${CFG:=/usr/local/etc/controller.xml}
 
@@ -38,6 +43,7 @@ function init_device_config()
     NAME=$1
     ip=$2
 
+    echo "Init device $NAME edit-config"
     ret=$(${clixon_netconf} -qe0 -f $CFG <<EOF
 <rpc xmlns="urn:ietf:params:xml:ns:netconf:base:1.0"
   xmlns:nc="urn:ietf:params:xml:ns:netconf:base:1.0"
@@ -99,7 +105,6 @@ i=1
 for ip in $CONTAINERS; do
     NAME="$IMG$i"
     i=$((i+1))
-
     for j in $(seq 1 5); do
 	init_device_config $NAME $ip
 	echo "$ret"
@@ -117,7 +122,7 @@ for ip in $CONTAINERS; do
     done
 done
 
-echo "controller commit"
+echo "Controller commit"
 ret=$(${clixon_netconf} -q0 -f $CFG <<EOF
 <rpc xmlns="urn:ietf:params:xml:ns:netconf:base:1.0" message-id="43">
   <commit/>
@@ -132,37 +137,65 @@ if [ -n "$match" ]; then
     exit 1
 fi
 
-# try 5 times if fail
-for j in $(seq 1 5); do
-    echo "pull"
+echo "Send rpc connection-change OPEN"
+ret=$(${clixon_netconf} -q0 -f $CFG <<EOF
+<rpc xmlns="urn:ietf:params:xml:ns:netconf:base:1.0" message-id="43">
+   <connection-change xmlns="http://clicon.org/controller">
+      <devname>*</devname>
+      <operation>OPEN</operation>
+   </connection-change>
+</rpc>]]>]]>
+EOF
+   )
 
-    fail=false
-    ret=$(${clixon_cli} -1f $CFG pull)||fail=true||true
-    echo "tryagain:$fail"
+match=$(echo "$ret" | grep --null -Eo "<rpc-error>") || true
+if [ -n "$match" ]; then
+    echo "netconf open rpc-error detected"
+    exit 1
+fi
 
-    if $fail; then
-	sleep $sleep
+sleep $sleep
 
-	ret=$(${clixon_netconf} -q0 -f $CFG <<EOF
+echo "Verify open devices 1"
+ret=$(${clixon_netconf} -q0 -f $CFG <<EOF
+<rpc xmlns="urn:ietf:params:xml:ns:netconf:base:1.0" xmlns:nc="urn:ietf:params:xml:ns:netconf:base:1.0" message-id="43">
+   <get cl:content="all" xmlns:cl="http://clicon.org/lib">
+      <nc:filter nc:type="xpath" nc:select="co:devices/co:device/co:conn-state" xmlns:co="http://clicon.org/controller"/>
+   </get>
+</rpc>]]>]]>
+EOF
+   )
+
+echo "$ret"
+match=$(echo "$ret" | grep --null -Eo "<rpc-error>") || true
+if [ -n "$match" ]; then
+    echo "Error: $ret"
+    exit -1;
+fi
+
+res=$(echo "$ret" | sed 's/OPEN/OPEN\n/g' | grep "$IMG" | grep -c "OPEN") || true
+if [ "$res" != "$nr" ]; then
+    echo "Error: $res devices open, expected $nr"
+    exit -1;
+fi
+
+echo "Netconf pull"
+ret=$(${clixon_netconf} -q0 -f $CFG <<EOF
 <rpc xmlns="urn:ietf:params:xml:ns:netconf:base:1.0" message-id="43">
 	<config-pull xmlns="http://clicon.org/controller">
 	 <devname>*</devname>
    </config-pull>
 </rpc>]]>]]>
 EOF
-       )
-	echo "$ret"
-	match=$(echo "$ret" | grep --null -Eo "<rpc-error>") || true
-	if [ -n "$match" ]; then
-	    echo "tryagain sleep $sleep"
-	    sleep $sleep
-	else
-	    break
-	fi
-    fi
-done
+   )
+echo "ret:$ret"
+match=$(echo "$ret" | grep --null -Eo "<rpc-error>") || true
+if [ -n "$match" ]; then
+    echo "Error: $ret"
+    exit -1;
+fi
 
-echo "Verify open devices x"
+echo "Verify open devices 2"
 ret=$(${clixon_netconf} -q0 -f $CFG <<EOF
 <rpc xmlns="urn:ietf:params:xml:ns:netconf:base:1.0" xmlns:nc="urn:ietf:params:xml:ns:netconf:base:1.0" message-id="43">
    <get cl:content="all" xmlns:cl="http://clicon.org/lib">

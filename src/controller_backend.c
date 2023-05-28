@@ -119,17 +119,10 @@ controller_commit_device(clixon_handle h,
     int                     retval = -1;
     cxobj                 **vec1 = NULL;
     cxobj                 **vec2 = NULL;
-    cxobj                 **vec3 = NULL;
     size_t                  veclen1;
     size_t                  veclen2;
-    size_t                  veclen3;
     int                     i;
     char                   *body;
-    controller_transaction *ct = NULL; /* created lazy/on-demand */
-    cxobj                  *xn;
-    int                     ret;
-    char                   *enablestr;
-    cbuf                   *cberr = NULL;
     
     /* 1) if device removed, disconnect */
     if (xpath_vec_flag(src, nsc, "devices/device",
@@ -152,58 +145,15 @@ controller_commit_device(clixon_handle h,
                 if (controller_disconnect(h, xml_parent(vec2[i])) < 0)
                     goto done;
             }
-            else{
-                if (ct == NULL){
-                    if ((ret = controller_transaction_new(h, "commit", &ct, &cberr)) < 0)
-                        goto done;
-                    if (ret == 0){
-                        clicon_err(OE_XML, 0, "%s", cbuf_get(cberr));
-                        goto done;
-                    }
-                }
-                if (controller_connect(h, xml_parent(vec2[i]), ct) < 0)
-                    goto done;
-            }
         }
-    }
-    /* 3) if device added, connect */
-    if (xpath_vec_flag(target, nsc, "devices/device",
-                       XML_FLAG_ADD,
-                       &vec3, &veclen3) < 0)
-        goto done;
-    for (i=0; i<veclen3; i++){
-        xn = vec3[i];
-        if ((enablestr = xml_find_body(xn, "enabled")) != NULL &&
-            strcmp(enablestr, "false") == 0)
-            continue;
-        if (ct == NULL){
-            if ((ret = controller_transaction_new(h, "commit", &ct, &cberr)) < 0)
-                goto done;
-            if (ret == 0){
-                clicon_err(OE_XML, 0, "%s", cbuf_get(cberr));
-                goto done;
-            }
-        }
-        if (controller_connect(h, xn, ct) < 0)
-            goto done;
-    }
-    /* No device started, close transaction */
-    if (ct && controller_transaction_devices(h, ct->ct_id) == 0){
-        if (controller_transaction_done(h, ct, TR_SUCCESS) < 0)
-            goto done;
-        if (controller_transaction_notify(h, ct) < 0)
-            goto done;
     }
     retval = 0;
  done:
-    if (cberr)
-        cbuf_free(cberr);
     if (vec1)
         free(vec1);
     if (vec2)
         free(vec2);
-    if (vec3)
-        free(vec3);
+
     return retval;
 }
 
