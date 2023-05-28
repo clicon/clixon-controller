@@ -81,3 +81,4 @@ set devices device test enabled true
 set devices device test conn-type NETCONF_SSH
 set devices device test user admin
 set devices device test addr 1.2.3.4
+```

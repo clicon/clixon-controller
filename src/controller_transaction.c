@@ -57,6 +57,10 @@
   *  --> the transition is set in an (unrecoverable) error state 
   *  --> All devices are closed?
   * 
+  * Transactions are created in the following places:
+  * 1. In rpc_config_pull
+  * 2. In rpc_controller_commit
+  * 3. In rpc_connection_change
  */
 
 #include <stdio.h>
