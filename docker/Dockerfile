@@ -32,7 +32,6 @@ WORKDIR /clixon
 RUN git clone https://github.com/clicon/cligen.git
 RUN git clone https://github.com/clicon/clixon.git
 RUN git clone https://github.com/clicon/clixon-pyapi.git
-RUN git clone https://github.com/clicon/clixon-controller.git
 
 WORKDIR /clixon/cligen
 RUN ./configure
@@ -46,7 +45,10 @@ RUN make
 RUN make install
 RUN ldconfig
 
+# Copy Clixon-controller code from local dir
+RUN mkdir /clixon/clixon-controller
 WORKDIR /clixon/clixon-controller
+COPY clixon-controller .
 RUN ./configure
 RUN make
 RUN make install
