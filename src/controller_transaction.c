@@ -352,6 +352,7 @@ controller_transaction_free(clicon_handle           h,
  *
  * @param[in]  h      Clixon handle
  * @param[in]  ct     Transaction
+ * @param[in]  result Can be -1 for already setche
  * @retval     0      OK
  * @retval    -1      Error
  * @see controller_transaction_new

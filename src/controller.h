@@ -66,4 +66,12 @@
  */
 #define DATASTORE_TOP_SYMBOL "config"
 
+/*! Add extra sync pull state after commit
+ *
+ * This may be necessary if device changes from config from the one the controller has actually
+ * pushed, see https://github.com/clicon/clixon-controller/issues/6
+ * Alternatively, filter some fields not used so often
+ */
+#undef CONTROLLER_EXTRA_PUSH_SYNC
+
 #endif /* _CONTROLLER_H */

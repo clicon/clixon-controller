@@ -125,6 +125,9 @@ if $PY; then
     sleep 1
 
     new "Start py server"
+    if [ ! -x /usr/local/bin/clixon_server.py ]; then
+        err1 "/usr/local/bin/clixon_server.py not found"
+    fi
     python3 /usr/local/bin/clixon_server.py -m $pydir
 fi
 
