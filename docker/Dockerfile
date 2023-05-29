@@ -24,7 +24,7 @@ FROM debian:bookworm-slim
 MAINTAINER Kristofer Hallin <kristofer@sunet.se>
 
 RUN apt update
-RUN apt install -y emacs-nox git make gcc bison libnghttp2-dev libssl-dev flex python3 python3-pip
+RUN apt install -y emacs-nox git make gcc bison libnghttp2-dev libssl-dev flex python3 python3-pip sudo
 
 RUN mkdir /clixon
 WORKDIR /clixon
@@ -41,7 +41,7 @@ RUN make install
 RUN ldconfig
 
 WORKDIR /clixon/clixon
-RUN ./configure --enable-yang-schema-mount
+RUN ./configure
 RUN make
 RUN make install
 RUN ldconfig
