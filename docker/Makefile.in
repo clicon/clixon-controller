@@ -21,33 +21,27 @@
 #
 
 srcdir  	= .
-top_srcdir  	= ../..
+top_srcdir  	= ..
 
 # docker.hub image. CHANGE THIS IF YOU PUSH YOUR OWN
 IMG   = clixon/controller
 NAME  = clixon-controller
 
 .PHONY: all clean distclean docker push depend install uninstall test
-.PHONY: src yang # dont cache source
 
 all:	
 	echo "Run make docker to build docker image, or make test to run tests"
 
+clixon-controller:
+	git clone file://$(realpath ${top_srcdir})
+
 clean:
-	rm -rf src yang
+	rm -rf clixon-controller
 
 distclean: clean
 	rm -f Makefile *~ .depend
 
-yang:
-	rm -rf $@
-	cp -R ${srcdir}/../$@ .
-
-src:
-	rm -rf $@
-	cp -R ${srcdir}/../$@ .
-
-docker: Dockerfile yang src
+docker: Dockerfile clixon-controller
 	sudo docker build -t $(IMG) .  # --no-cache
 
 push:

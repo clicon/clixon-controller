@@ -19,7 +19,9 @@ jobs:
     timeout-minutes: 5
     steps:
     - uses: actions/checkout@v3
-    - name: build clixon controller container
-      run: (git clone https://github.com/clicon/clixon-controller.git && cd clixon-controller/docker/ && docker build -t clixon-controller .)
+    - name: Copy Makefile # Kludge: use makefile.in so we dont need to run configure
+      run: (cd docker && cp Makefile.in Makefile)
+    - name: Build docker
+      run: (cd docker; make docker)
     - name: Run tests
-      run: (pwd && cd clixon-controller/docker/ && pwd && ls && cat Makefile && make test)
+      run: (cd docker; make test)
