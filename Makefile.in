@@ -65,9 +65,6 @@ docker:
 	(cd docker; $(MAKE) $(MFLAGS) $@)
 	echo "make push to push images to dockerhub"
 
-test:
-	$(MAKE) -C docker $(MFLAGS) $@
-
 push:
 	(cd docker; $(MAKE) $(MFLAGS) $@)
 
