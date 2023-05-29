@@ -27,7 +27,7 @@ top_srcdir  	= ../..
 IMG   = clixon/controller
 NAME  = clixon-controller
 
-.PHONY: all clean distclean docker push depend install uninstall
+.PHONY: all clean distclean docker push depend install uninstall test
 .PHONY: src yang # dont cache source
 
 all:	

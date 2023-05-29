@@ -56,6 +56,11 @@
  */
 #define CONTROLLER_JUNOS_ADD_COMMAND_FORWARDING
 
+/*! XPATH to skip for junos
+ * Primitive patch for single xpath to ignore when comparing remote and local device configs
+ */
+#define CONTROLLER_JUNOS_XPATH_SKIP "/configuration/system/login/user/uid"
+
 /*! Where to write all yangs from devices 
  * Move to clixon as option?
  */

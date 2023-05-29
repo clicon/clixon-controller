@@ -22,4 +22,4 @@ jobs:
     - name: build clixon controller container
       run: (git clone https://github.com/clicon/clixon-controller.git && cd clixon-controller/docker/ && docker build -t clixon-controller .)
     - name: Run tests
-      run: make test
+      run: (cd clixon-controller/docker/; make test)

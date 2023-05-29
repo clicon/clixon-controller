@@ -710,6 +710,9 @@ device_config_compare(clicon_handle           h,
     cbuf  *cberr = NULL;
     int    eq;
     int    ret;
+    cxobj **vec = NULL;
+    size_t  veclen;
+    int     i;
             
     if ((ret = device_config_read(h, name, "SYNCED", &x0, &cberr)) < 0)
         goto done;
@@ -720,6 +723,24 @@ device_config_compare(clicon_handle           h,
             goto done;
         goto closed;
     } 
+#ifdef CONTROLLER_JUNOS_XPATH_SKIP
+    if (xpath_vec(x0, NULL, CONTROLLER_JUNOS_XPATH_SKIP, &vec, &veclen) < 0)
+        goto done;
+    for (i=0; i<veclen; i++)
+        xml_flag_set(vec[i], XML_FLAG_MARK);
+    if (xml_tree_prune_flags(x0, XML_FLAG_MARK, XML_FLAG_MARK) < 0)
+        goto done;
+    if (vec){
+        free(vec);
+        vec = NULL;
+    }
+    if (xpath_vec(x1, NULL, CONTROLLER_JUNOS_XPATH_SKIP, &vec, &veclen) < 0)
+        goto done;
+    for (i=0; i<veclen; i++)
+        xml_flag_set(vec[i], XML_FLAG_MARK);
+    if (xml_tree_prune_flags(x1, XML_FLAG_MARK, XML_FLAG_MARK) < 0)
+        goto done;
+#endif // CONTROLLER_JUNOS_XPATH_SKIP
     if ((eq = xml_tree_equal(x0, x1)) != 0 && cberr0){
         if ((*cberr0 = cbuf_new()) == NULL){
             clicon_err(OE_UNIX, errno, "cbuf_new");
@@ -732,6 +753,8 @@ device_config_compare(clicon_handle           h,
     else
         retval = 2;
  done:
+    if (vec)
+        free(vec);
     if (cberr)
         cbuf_free(cberr);
     if (x0)
@@ -1286,6 +1309,7 @@ device_state_handler(clixon_handle h,
                 goto done;
         }
         break;
+#ifdef CONTROLLER_EXTRA_PUSH_SYNC
     case CS_PUSH_COMMIT_SYNC:
         if (tid == 0 || ct == NULL){
             device_close_connection(dh, "Device %s not associated with transaction in state %s",
@@ -1325,6 +1349,7 @@ device_state_handler(clixon_handle h,
                 goto done;
         }
         break;
+#endif
     case CS_PUSH_WAIT:
     case CS_CLOSED:
     case CS_OPEN:
