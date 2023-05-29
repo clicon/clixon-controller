@@ -572,9 +572,12 @@ device_state_recv_ok(device_handle dh,
             clicon_err(OE_UNIX, errno, "cbuf_new");
             goto done;
         }
-        cprintf(cb, "No ok in reply in state %s of device %s",
-                device_state_int2str(conn_state),
-                device_handle_name_get(dh));
+        cprintf(cb, "Unexpected reply from %s in state %s:",
+                device_handle_name_get(dh),
+                device_state_int2str(conn_state));
+        /* XXX: following fn does not support prefixes properly, so the err msg from XML does not appear as it should */
+        if (netconf_err2cb(xml_find(xmsg, "rpc-error"), cb) < 0)
+            goto done;
         if (cberr){
             *cberr = cb;
             cb = NULL;

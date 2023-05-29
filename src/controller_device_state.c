@@ -1122,12 +1122,16 @@ device_state_handler(clixon_handle h,
                     goto done;
                 if ((ret = candidate_commit(h, NULL, "candidate", 0, 0, cberr)) < 0){
                     /* Handle that candidate_commit can return < 0 if transaction ongoing */
-                    cprintf(cberr, "%s", clicon_err_reason);
-                    ret = 0;
+                    cprintf(cberr, "%s: Commit error", name);
+                    if (strlen(clicon_err_reason) > 0)
+                        cprintf(cberr, " %s", clicon_err_reason);
+                    if (controller_transaction_failed(h, ct->ct_id, ct, dh, 1, name, cbuf_get(cberr)) < 0)
+                        goto done;
+                    break;
                 }
                 if (ret == 0){ // XXX awkward, cb ->xml->cb
                     cxobj *xerr = NULL;
-                    cbuf *cberr2 = NULL;
+                    cbuf  *cberr2 = NULL;
                     if ((cberr2 = cbuf_new()) == NULL){
                         clicon_err(OE_UNIX, errno, "cbuf_new");
                         goto done;
@@ -1175,11 +1179,63 @@ device_state_handler(clixon_handle h,
             /* 2.1 But transaction is in error state */
             assert(ct->ct_result != TR_SUCCESS);
         }
+#ifdef CONTROLLER_EXTRA_PUSH_SYNC
         /* Pull for commited db in the case the device changes it post-commit */
         if (device_send_get_config(h, dh, s) < 0)
             goto done;
         if (device_state_set(dh, CS_PUSH_COMMIT_SYNC) < 0)
             goto done;
+#else
+        if (device_state_set(dh, CS_OPEN) < 0)
+            goto done;
+        /* 2.2.2.1 Leave transaction */
+        device_handle_tid_set(dh, 0);
+        
+        if (conn_state == CS_PUSH_COMMIT){
+            cxobj *xt = NULL;
+            cbuf  *cb = NULL;
+    
+            /* Copy transient to device config (last sync) 
+               XXXX in commit push
+             */
+            if ((cb = cbuf_new()) == NULL){
+                clicon_err(OE_UNIX, errno, "cbuf_new");
+                goto done;
+            }
+            if ((cberr = cbuf_new()) == NULL){
+                clicon_err(OE_UNIX, errno, "cbuf_new");
+                goto done;
+            }
+            cprintf(cb, "devices/device[name='%s']/config", name);
+            if (ct->ct_actions_type == AT_NONE){
+                if (xmldb_get0(h, ct->ct_sourcedb, YB_MODULE, NULL, cbuf_get(cb), 1, WITHDEFAULTS_EXPLICIT, &xt, NULL, NULL) < 0)
+                    goto done;
+            }
+            else{
+                if (xmldb_get0(h, "actions", YB_MODULE, NULL, cbuf_get(cb), 1, WITHDEFAULTS_EXPLICIT, &xt, NULL, NULL) < 0)
+                    goto done;
+            }
+            if (xt != NULL){
+                if ((ret = device_config_write(h, name, "SYNCED", xt, cberr)) < 0)
+                    goto done;
+                if (ret == 0){
+                    clicon_err(OE_XML, 0, "%s", cbuf_get(cberr));
+                    goto done;
+                }
+            }
+            if (cb)
+                cbuf_free(cb);
+            if (xt)
+                xml_free(xt);
+        }
+        if (controller_transaction_devices(h, tid) == 0){
+            controller_transaction_state_set(ct, TS_RESOLVED, TR_SUCCESS);
+            if (controller_transaction_notify(h, ct) < 0)
+                goto done;
+            if (controller_transaction_done(h, ct, -1) < 0)
+                goto done;
+        }
+#endif // CONTROLLER_EXTRA_PUSH_SYNC
         break;
     case CS_PUSH_DISCARD:
         if (tid == 0 || ct == NULL){
@@ -1226,7 +1282,7 @@ device_state_handler(clixon_handle h,
                 if (controller_transaction_notify(h, ct) < 0)
                     goto done;
             }
-            if (controller_transaction_done(h, ct, TR_SUCCESS) < 0)
+            if (controller_transaction_done(h, ct, -1) < 0)
                 goto done;
         }
         break;
