@@ -10,21 +10,23 @@ module clixon-controller-config {
     revision 2023-01-01 {
         description "Initial version";
     }
-    augment '/cc:clixon-config/' {
+    augment "/cc:clixon-config" {
         description
             "Controller-specific options";
-        container controller {
-            leaf PYAPI_MODULES{
-                type string;
-                default "/usr/local/share/clixon/modules";
-            }
-            leaf PYAPI_MODULE_FILTER{
-                type string;
-            }
-            leaf PYAPI_PIDFILE{
-                type string;
-                default "/tmp/clixon_pyapi.pid";
-            }
+        leaf CONTROLLER_ACTION_BINARY{
+            type string;
+            default "/usr/local/bin/clixon_server.py";
+        }
+        leaf CONTROLLER_PYAPI_MODULES{
+            type string;
+            default "/usr/local/share/clixon/modules";
+        }
+        leaf CONTROLLER_PYAPI_MODULE_FILTER{
+            type string;
+        }
+        leaf CONTROLLER_PYAPI_PIDFILE{
+            type string;
+            default "/tmp/clixon_pyapi.pid";
         }
     }
 }

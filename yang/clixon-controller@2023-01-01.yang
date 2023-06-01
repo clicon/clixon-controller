@@ -260,6 +260,11 @@ module clixon-controller {
                does not work since augments would then act under service, and you want different
                services in different trees not in the same service branch.
              ";
+       leaf enabled {
+          description "If set, start action daemon";
+          type boolean;
+          default false;
+       }
     }
     container generic{
         description "Generic controller settings";
@@ -271,19 +276,6 @@ module clixon-controller {
             default 60;
             units s;
         }
-    }
-    container pyapi {
-       description "Python API action daemon";
-       leaf enabled {
-          description "If set, start pyapi daemon";
-          type boolean;
-          default false;
-       }
-       leaf status {
-          config false;
-          description "True if pyapi daemon is running";
-          type boolean;
-       }
     }
     /* Generic config data */
     container devices{

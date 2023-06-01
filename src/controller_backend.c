@@ -35,6 +35,7 @@
 #include <fcntl.h>
 #include <fnmatch.h>
 #include <sys/time.h>
+#include <sys/stat.h>
 
 /* clicon */
 #include <cligen/cligen.h>
@@ -134,28 +135,35 @@ controller_commit_generic(clixon_handle h,
     return retval;
 }
 
+/*! Changes in services
+ *
+ * Start/stop action daemon
+ * @see clixon-controller.yang: action-process
+ */
 static int
-controller_commit_pyapi(clixon_handle h,
-                        cvec         *nsc,
-                        cxobj        *src,
-                        cxobj        *target)
+controller_commit_services(clixon_handle h,
+                           cvec         *nsc,
+                           cxobj        *src,
+                           cxobj        *target)
 {
     int      retval = -1;
     cxobj  **vec = NULL;
     size_t   veclen;
     char    *body;
 
-    if (xpath_vec_flag(target, nsc, "pyapi/enabled",
+    if (xpath_vec_flag(target, nsc, "services/enabled",
                        XML_FLAG_CHANGE|XML_FLAG_ADD,
                        &vec, &veclen) < 0)
         goto done;
     if (veclen){
         body = xml_body(vec[0]);
         if (strcmp(body, "true") == 0){
-            // XXX see restconf_pseudo_process_control()
-            // and restconf_pseudo_process_commit(
+            if (clixon_process_operation(h, ACTION_PROCESS, PROC_OP_START, 0) < 0)
+                goto done;
         }
         else {
+            if (clixon_process_operation(h, ACTION_PROCESS, PROC_OP_STOP, 0) < 0)
+                goto done;
         }
     }
     retval = 0;
@@ -227,8 +235,6 @@ controller_commit_device(clixon_handle h,
     return retval;
 }
 
-
-
 /*! Transaction commit
  */
 int
@@ -249,7 +255,7 @@ controller_commit(clixon_handle    h,
         goto done;
     if (controller_commit_device(h, nsc, src, target) < 0)
         goto done;
-    if (controller_commit_pyapi(h, nsc, src, target) < 0)
+    if (controller_commit_services(h, nsc, src, target) < 0)
         goto done;
     retval = 0;
  done:
@@ -389,6 +395,111 @@ controller_yang_patch(clicon_handle h,
     return retval;
 }
 
+/*! Process rpc callback function 
+ *
+ * @param[in]     h   Clixon handle
+ * @param[in]     pe  Process entry
+ * @param[in,out] op  Process operation
+ */
+int
+controller_action_proc_cb(clicon_handle    h,
+                          process_entry_t *pe,
+                          proc_operation  *operation)
+{
+    int    retval = -1;
+    
+    clicon_debug(1, "%s", __FUNCTION__);
+    switch (*operation){
+    case PROC_OP_STOP:
+        /* if RPC op is stop, stop the service */
+        break;
+    case PROC_OP_START:
+        /* RPC op is start & enable is true, then start the service, 
+                           & enable is false, error or ignore it */
+        break;
+    default:
+        break;
+    }
+    retval = 0;
+    // done:
+    return retval;
+}
+
+/*! Register action daemon (eg pyapi)
+ *
+ * Need generic options for other solutions
+ */
+static int
+action_daemon_register(clicon_handle h)
+{
+    int         retval = -1;
+    char       *pgm;    
+    struct stat fstat;
+    int         i = 0;
+    int         nr;
+    char      **argv = NULL;
+    uid_t       newuid = -1;
+    char       *sockgr;
+    char       *modules;
+    
+    clicon_debug(1, "%s", __FUNCTION__);
+    if ((pgm = clicon_option_str(h, "CONTROLLER_ACTION_BINARY")) == NULL)
+        goto ok;
+    modules = clicon_option_str(h, "CONTROLLER_PYAPI_MODULES");
+    /* Sanity check of executable */
+    if (stat(pgm, &fstat) < 0){   
+        clicon_err(OE_XML, 0, "%s not found", pgm);
+        goto done;
+    }
+    else if (S_ISREG(fstat.st_mode) == 0){
+        clicon_err(OE_XML, 0, "%s not regulare device", pgm);
+        goto done;
+    } // XXX check for exec bits but depends on which user it runs as
+
+    /* Get user id, kludge: assume clixon sock group has an associated user */
+    if ((sockgr = clicon_sock_group(h)) == NULL){
+        clicon_err(OE_FATAL, 0, "clicon_sock_group option not set");
+        goto done;
+    }
+    if (name2uid(sockgr, &newuid) < 0){
+        clicon_err(OE_DAEMON, errno, "'%s' is not a valid user .\n", sockgr);
+        goto done;
+    }
+    nr = 4;
+#if 1
+    nr += 2;
+    if ((argv = calloc(nr, sizeof(char *))) == NULL){
+        clicon_err(OE_UNIX, errno, "calloc");
+        goto done;
+    }
+    argv[i++] = "/usr/bin/bash";
+    argv[i++] = "-c";
+#endif
+    argv[i++] = pgm;
+    if (modules){
+        argv[i++] = "-m"; // XXX should be read by process itself
+        argv[i++] = modules;
+    }
+    argv[i++] = NULL;
+    if (i > nr){
+        clicon_err(OE_UNIX, 0, "calloc mismatatch i:%d nr:%d", i, nr);
+        goto done;
+    }
+    if (clixon_process_register(h, ACTION_PROCESS,
+                                "Controller action daemon process",
+                                NULL,
+                                newuid,
+                                controller_action_proc_cb,
+                                argv,
+                                i) < 0)
+        goto done;
+ ok:
+    retval = 0;
+ done:
+    if (argv != NULL)
+        free(argv);
+    return retval;
+}
 
 /* Called just before plugin unloaded. 
  * @param[in] h    Clixon handle
@@ -433,6 +544,9 @@ clixon_plugin_init(clixon_handle h)
     if (stream_add(h, "controller-transaction",
                    "A transaction has been completed.",
                    0, NULL) < 0)
+        goto done;
+    /* Register pyapi sub-process (how to generalize this?)*/
+    if (action_daemon_register(h) < 0)
         goto done;
     return &api;
  done:
