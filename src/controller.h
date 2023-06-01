@@ -79,4 +79,6 @@
  */
 #undef CONTROLLER_EXTRA_PUSH_SYNC
 
+#define ACTION_PROCESS "Action process"
+
 #endif /* _CONTROLLER_H */

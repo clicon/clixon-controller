@@ -31,6 +31,7 @@ libdir          = @exec_prefix@/lib
 INSTALLFLAGS  	= @INSTALLFLAGS@ 
 
 # Here is where example yang appears
+YANG_INSTALLDIR0  = @YANG_INSTALLDIR@
 YANG_INSTALLDIR  = @YANG_INSTALLDIR@/controller
 # Here is where example yang appears
 YANG_MOUNTDIR  = @YANG_INSTALLDIR@/mounts
@@ -38,6 +39,9 @@ YANG_MOUNTDIR  = @YANG_INSTALLDIR@/mounts
 # Local yang files to install
 # IETF
 YANGSPECS  = clixon-controller@2023-01-01.yang
+
+# Extends config (not data)
+YANGSPECS0  = clixon-controller-config@2023-01-01.yang
 
 .PHONY: all clean distclean install uninstall depend
 
@@ -48,9 +52,11 @@ clean:
 distclean: clean
 	rm -f Makefile *~ .depend
 
-install: $(YANGSPECS)
+install: $(YANGSPECS) $(YANGSPECS0)
 	install -d -m 0755 $(DESTDIR)$(YANG_INSTALLDIR)
 	install -m 0644 $(YANGSPECS) $(DESTDIR)$(YANG_INSTALLDIR)
+	install -d -m 0755 $(DESTDIR)$(YANG_INSTALLDIR0)
+	install -m 0644 $(YANGSPECS0) $(DESTDIR)$(YANG_INSTALLDIR0)
 	install -d -m 0755 $(DESTDIR)$(YANG_MOUNTDIR)
 
 uninstall: 

@@ -1,5 +1,7 @@
 <clixon-config xmlns="http://clicon.org/config">
   <CLICON_CONFIGFILE>/usr/local/etc/controller.xml</CLICON_CONFIGFILE>
+  <CLICON_CONFIG_EXTEND>clixon-controller-config</CLICON_CONFIG_EXTEND>
+  <CLICON_CONFIGFILE>/usr/local/etc/controller.xml</CLICON_CONFIGFILE>
   <CLICON_FEATURE>ietf-netconf:startup</CLICON_FEATURE>
   <CLICON_FEATURE>clixon-restconf:allow-auth-none</CLICON_FEATURE>
   <CLICON_YANG_DIR>/usr/local/share/clixon</CLICON_YANG_DIR>
@@ -50,6 +52,6 @@
        <module-name>openconfig-interfaces</module-name>
        <operation>enable</operation>
      </rule>
-     <!-- there are many more arista/openconfig top-level modules -->
   </autocli>
+  <CONTROLLER_PYAPI_MODULES xmlns="http://clicon.org/controller-config">/usr/local/share/clixon/modules</CONTROLLER_PYAPI_MODULES>
 </clixon-config>
