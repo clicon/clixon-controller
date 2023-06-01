@@ -427,8 +427,8 @@ actions_timeout(int   s,
     controller_transaction *ct = (controller_transaction *)arg;
     
     clicon_debug(1, "%s", __FUNCTION__);
-    //    if (controller_transaction_failed(h, ct->ct_id, ct, dh, 2, name, "Timeout waiting for remote peer") < 0)
-    //        goto done;
+    if (controller_transaction_failed(ct->ct_h, ct->ct_id, ct, NULL, 0, "Actions", "Timeout waiting for action daemon") < 0)
+        goto done;
     if (ct->ct_state == TS_INIT){ /* 1.3 The transition is not in an error state */
         controller_transaction_state_set(ct, TS_RESOLVED, TR_FAILED);
         if ((ct->ct_origin = strdup("actions")) == NULL){
@@ -1170,6 +1170,7 @@ rpc_get_device_config(clixon_handle h,
         switch (dt){
         case DT_RUNNING:
         case DT_CANDIDATE:
+        case DT_ACTIONS:
             xroot1 = xpath_first(xn, nsc, "config");
             if (clixon_xml2cbuf(cb, xroot1, 0, 0, NULL, -1, 0) < 0)
                 goto done;
@@ -1520,6 +1521,7 @@ datastore_diff_device(clixon_handle      h,
 {
     int           retval = -1;
     cbuf         *cb = NULL;
+    cbuf         *cbxpath = NULL;
     cbuf         *cberr = NULL;
     cxobj        *x1;
     cxobj        *x2;
@@ -1527,25 +1529,32 @@ datastore_diff_device(clixon_handle      h,
     cxobj        *x2m = NULL; 
     cvec         *nsc = NULL;
     cxobj        *xret = NULL;
+    cxobj        *x1ret = NULL;
+    cxobj        *x2ret = NULL;
     cxobj       **vec = NULL;
     size_t        veclen;
     char         *devname;
-    cxobj        *xn;
+    cxobj        *xdev;
     device_handle dh;
     int           i;
     int           ret;
+    char         *ct;
     
     if ((cb = cbuf_new()) == NULL){
         clicon_err(OE_UNIX, errno, "cbuf_new");
         goto done;
     }
-    if (xmldb_get0(h, "running", Y_MODULE, nsc, "devices/device", 1, WITHDEFAULTS_EXPLICIT, &xret, NULL, NULL) < 0)
+    if ((cbxpath = cbuf_new()) == NULL){
+        clicon_err(OE_UNIX, errno, "cbuf_new");
         goto done;
-    if (xpath_vec(xret, nsc, "devices/device", &vec, &veclen) < 0) 
+    }
+    if (xmldb_get0(h, "running", Y_MODULE, nsc, "devices/device/name", 1, WITHDEFAULTS_EXPLICIT, &xret, NULL, NULL) < 0)
+        goto done;
+    if (xpath_vec(xret, nsc, "devices/device/name", &vec, &veclen) < 0) 
         goto done;
     for (i=0; i<veclen; i++){
-        xn = vec[i];
-        if ((devname = xml_find_body(xn, "name")) == NULL)
+        xdev = vec[i];
+        if ((devname = xml_body(xdev)) == NULL)
             continue;
         if ((dh = device_handle_find(h, devname)) == NULL)
             continue;
@@ -1554,14 +1563,30 @@ datastore_diff_device(clixon_handle      h,
         x1 = x1m = NULL;
         switch (dt1){
         case DT_RUNNING:
+            cbuf_reset(cbxpath);
+            cprintf(cbxpath, "devices/device[name='%s']/config", devname);
+            if (xmldb_get0(h, "running", Y_MODULE, nsc, cbuf_get(cbxpath), 1, WITHDEFAULTS_EXPLICIT, &x1ret, NULL, NULL) < 0)
+                goto done;
+            x1 = xpath_first(x1ret, nsc, "devices/device/config");
+            break;
         case DT_CANDIDATE:
-            x1 = xpath_first(xn, nsc, "config");
+            cbuf_reset(cbxpath);
+            cprintf(cbxpath, "devices/device[name='%s']/config", devname);
+            if (xmldb_get0(h, "candidate", Y_MODULE, nsc, cbuf_get(cbxpath), 1, WITHDEFAULTS_EXPLICIT, &x1ret, NULL, NULL) < 0)
+                goto done;
+            x1 = xpath_first(x1ret, nsc, "devices/device/config");
+            break;
+        case DT_ACTIONS:
+            cbuf_reset(cbxpath);
+            cprintf(cbxpath, "devices/device[name='%s']/config", devname);
+            if (xmldb_get0(h, "actions", Y_MODULE, nsc, cbuf_get(cbxpath), 1, WITHDEFAULTS_EXPLICIT, &x1ret, NULL, NULL) < 0)
+                goto done;
+            x1 = xpath_first(x1ret, nsc, "devices/device/config");
             break;
         case DT_SYNCED:
         case DT_TRANSIENT:
-            if ((ret = device_config_read(h, devname,
-                                          device_config_type_int2str(dt1),
-                                          &x1m, &cberr)) < 0)
+            ct = device_config_type_int2str(dt1);
+            if ((ret = device_config_read(h, devname, ct, &x1m, &cberr)) < 0)
                 goto done;            
             if (ret == 0){
                 if (netconf_operation_failed(cbret, "application", cbuf_get(cberr))< 0)
@@ -1573,14 +1598,24 @@ datastore_diff_device(clixon_handle      h,
         x2 = x2m = NULL;
         switch (dt2){
         case DT_RUNNING:
+            if (xmldb_get0(h, "running", Y_MODULE, nsc, cbuf_get(cbxpath), 1, WITHDEFAULTS_EXPLICIT, &x2ret, NULL, NULL) < 0)
+                goto done;
+            x2 = xpath_first(x2ret, nsc, "devices/device/config");
+            break;
         case DT_CANDIDATE:
-            x2 = xpath_first(xn, nsc, "config");
+            if (xmldb_get0(h, "candidate", Y_MODULE, nsc, cbuf_get(cbxpath), 1, WITHDEFAULTS_EXPLICIT, &x2ret, NULL, NULL) < 0)
+                goto done;
+            x2 = xpath_first(x2ret, nsc, "devices/device/config");
+            break;
+        case DT_ACTIONS:
+            if (xmldb_get0(h, "actions", Y_MODULE, nsc, cbuf_get(cbxpath), 1, WITHDEFAULTS_EXPLICIT, &x2ret, NULL, NULL) < 0)
+                goto done;
+            x2 = xpath_first(x2ret, nsc, "devices/device/config");
             break;
         case DT_SYNCED:
         case DT_TRANSIENT:
-            if ((ret = device_config_read(h, devname,
-                                          device_config_type_int2str(dt2),
-                                          &x2m, &cberr)) < 0)
+            ct = device_config_type_int2str(dt2);
+            if ((ret = device_config_read(h, devname, ct, &x2m, &cberr)) < 0)
                 goto done;            
             if (ret == 0){
                 if (netconf_operation_failed(cbret, "application", cbuf_get(cberr))< 0)
@@ -1598,6 +1633,14 @@ datastore_diff_device(clixon_handle      h,
         if (x2m){
             xml_free(x2m);
             x2m = NULL;
+        }
+        if (x1ret){
+            xml_free(x1ret);
+            x1ret = NULL;
+        }
+        if (x2ret){
+            xml_free(x2ret);
+            x2ret = NULL;
         }
     }
     cprintf(cbret, "<rpc-reply xmlns=\"%s\">", NETCONF_BASE_NAMESPACE);
@@ -1617,19 +1660,29 @@ datastore_diff_device(clixon_handle      h,
         free(vec);
     if (xret)
         xml_free(xret);
+    if (x1ret)
+        xml_free(x1ret);
+    if (x2ret)
+        xml_free(x2ret);
     if (cberr)
         cbuf_free(cberr);
     if (cb)
         cbuf_free(cb);
+    if (cbxpath)
+        cbuf_free(cbxpath);
     return retval;
 }
 
-/*! Compare two data-storesby returning a diff-list in XML
+/*! Compare two data-stores by returning a diff-list in XML
  *
+ * Compare two data-stores by returning a diff-list in XML.
+ * There are two variants: 
+ *  1) Regular datastore references, such as running/candidate according to ietf-datastores YANG
+ *  2) Clixon-controller specific device datastores
  * @param[in]  h       Clicon handle 
  * @param[in]  xe      Request: <rpc><xn></rpc> 
  * @param[out] cbret   Return xml tree, eg <rpc-reply>..., <rpc-error.. 
- * @param[in]  arg     Domain specific arg, ec client-entry or FCGX_Request 
+ * @param[in]  arg     Domain specific arg
  * @param[in]  regarg  User argument given at rpc_callback_register() 
  * @retval     0       OK
  * @retval    -1       Error
@@ -1652,7 +1705,7 @@ rpc_datastore_diff(clixon_handle h,
     char              *devname;
                 
     xpath = xml_find_body(xe, "xpath");
-    if ((ds1 = xml_find_body(xe, "dsref1")) != NULL){
+    if ((ds1 = xml_find_body(xe, "dsref1")) != NULL){ /* Regular datastores */
         if (nodeid_split(ds1, NULL, &id1) < 0)
             goto done;
         if ((ds2 = xml_find_body(xe, "dsref2")) == NULL){
@@ -1665,7 +1718,7 @@ rpc_datastore_diff(clixon_handle h,
         if (datastore_diff_dsref(h, xpath, id1, id2, cbret) < 0)
             goto done;
     }
-    else{
+    else{ /* Device specific datastores */
         if ((devname = xml_find_body(xe, "devname")) == NULL){
             if (netconf_operation_failed(cbret, "application", "No devname")< 0)
                 goto done;

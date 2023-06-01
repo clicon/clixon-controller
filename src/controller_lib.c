@@ -74,6 +74,7 @@ static const map_str2int trmap[] = {
 static const map_str2int dtmap[] = {
     {"RUNNING",   DT_RUNNING},
     {"CANDIDATE", DT_CANDIDATE},
+    {"ACTIONS",   DT_ACTIONS},
     {"SYNCED",    DT_SYNCED},
     {"TRANSIENT", DT_TRANSIENT},
     {NULL,        -1}

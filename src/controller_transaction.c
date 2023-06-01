@@ -443,7 +443,7 @@ controller_transaction_devices(clicon_handle h,
  * @param[in]  h      Clixon handle
  * @param[in]  tid    Transaction id
  * @param[in]  dh     Device handler (or NULL)
- * @param[in]  devclose 0: dont close, 
+ * @param[in]  devclose 0: dont close, (If dh is set)
  *                      1: dont close and leave transaction
  *                      2: close device and leave transaction
  * @param[in]  origin Originator of error
