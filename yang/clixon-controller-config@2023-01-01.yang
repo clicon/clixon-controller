@@ -1,0 +1,30 @@
+module clixon-controller-config {
+    yang-version 1.1;
+    namespace "http://clicon.org/controller-config";
+    prefix ctrc;
+    import clixon-config {
+        prefix "cc";
+    }
+    description
+        "Clixon controller config extending regular clixon-config";
+    revision 2023-01-01 {
+        description "Initial version";
+    }
+    augment '/cc:clixon-config/' {
+        description
+            "Controller-specific options";
+        container controller {
+            leaf PYAPI_MODULES{
+                type string;
+                default "/usr/local/share/clixon/modules";
+            }
+            leaf PYAPI_MODULE_FILTER{
+                type string;
+            }
+            leaf PYAPI_PIDFILE{
+                type string;
+                default "/tmp/clixon_pyapi.pid";
+            }
+        }
+    }
+}
