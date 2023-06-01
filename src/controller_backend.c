@@ -95,68 +95,6 @@ controller_disconnect(clixon_handle h,
     return 0;
 }
 
-/*! Commit device config
- *
- * @param[in] h    Clixon handle
- * @param[in] nsc  Namespace context
- * @param[in] src  pre-existing xml tree
- * @param[in] target  Post target xml tree
- * @retval   -1    Error
- * @retval    0    OK
- * Logic:
- * 1) if device removed, disconnect
- * 2a) if enable changed to false, disconnect
- * 2b) if enable changed to true, connect
- * 2c) if device changed addr,user,type changed, disconnect + connect (NYI)
- * 3) if device added, connect
- */
-static int
-controller_commit_device(clixon_handle h,
-                         cvec         *nsc,
-                         cxobj        *src,
-                         cxobj        *target)
-{
-    int                     retval = -1;
-    cxobj                 **vec1 = NULL;
-    cxobj                 **vec2 = NULL;
-    size_t                  veclen1;
-    size_t                  veclen2;
-    int                     i;
-    char                   *body;
-    
-    /* 1) if device removed, disconnect */
-    if (xpath_vec_flag(src, nsc, "devices/device",
-                       XML_FLAG_DEL,
-                       &vec1, &veclen1) < 0)
-        goto done;
-    for (i=0; i<veclen1; i++){
-        if (controller_disconnect(h, vec1[i]) < 0)
-            goto done;
-    }
-    /* 2a) if enable changed to false, disconnect, to true connect
-     */
-    if (xpath_vec_flag(target, nsc, "devices/device/enabled",
-                       XML_FLAG_CHANGE,
-                       &vec2, &veclen2) < 0)
-        goto done;
-    for (i=0; i<veclen2; i++){
-        if ((body = xml_body(vec2[i])) != NULL){
-            if (strcmp(body, "false") == 0){
-                if (controller_disconnect(h, xml_parent(vec2[i])) < 0)
-                    goto done;
-            }
-        }
-    }
-    retval = 0;
- done:
-    if (vec1)
-        free(vec1);
-    if (vec2)
-        free(vec2);
-
-    return retval;
-}
-
 /*! Commit generic part of controller yang
  * @param[in] h    Clixon handle
  * @param[in] nsc  Namespace context
@@ -196,6 +134,101 @@ controller_commit_generic(clixon_handle h,
     return retval;
 }
 
+static int
+controller_commit_pyapi(clixon_handle h,
+                        cvec         *nsc,
+                        cxobj        *src,
+                        cxobj        *target)
+{
+    int      retval = -1;
+    cxobj  **vec = NULL;
+    size_t   veclen;
+    char    *body;
+
+    if (xpath_vec_flag(target, nsc, "pyapi/enabled",
+                       XML_FLAG_CHANGE|XML_FLAG_ADD,
+                       &vec, &veclen) < 0)
+        goto done;
+    if (veclen){
+        body = xml_body(vec[0]);
+        if (strcmp(body, "true") == 0){
+            // XXX see restconf_pseudo_process_control()
+            // and restconf_pseudo_process_commit(
+        }
+        else {
+        }
+    }
+    retval = 0;
+ done:
+    if (vec)
+        free(vec);
+    return retval;
+}
+
+/*! Commit device config
+ *
+ * @param[in] h    Clixon handle
+ * @param[in] nsc  Namespace context
+ * @param[in] src  pre-existing xml tree
+ * @param[in] target  Post target xml tree
+ * @retval   -1    Error
+ * @retval    0    OK
+ * Logic:
+ * 1) if device removed, disconnect
+ * 2a) if enable changed to false, disconnect
+ * 2b) if enable changed to true, connect
+ * 2c) if device changed addr,user,type changed, disconnect + connect (NYI)
+ * 3) if device added, connect
+ */
+static int
+controller_commit_device(clixon_handle h,
+                         cvec         *nsc,
+                         cxobj        *src,
+                         cxobj        *target)
+{
+    int       retval = -1;
+    cxobj   **vec1 = NULL;
+    cxobj   **vec2 = NULL;
+    size_t    veclen1;
+    size_t    veclen2;
+    int       i;
+    char     *body;
+    
+    /* 1) if device removed, disconnect */
+    if (xpath_vec_flag(src, nsc, "devices/device",
+                       XML_FLAG_DEL,
+                       &vec1, &veclen1) < 0)
+        goto done;
+    for (i=0; i<veclen1; i++){
+        if (controller_disconnect(h, vec1[i]) < 0)
+            goto done;
+    }
+    /* 2a) if enable changed to false, disconnect, to true connect
+     */
+    if (xpath_vec_flag(target, nsc, "devices/device/enabled",
+                       XML_FLAG_CHANGE,
+                       &vec2, &veclen2) < 0)
+        goto done;
+    for (i=0; i<veclen2; i++){
+        if ((body = xml_body(vec2[i])) != NULL){
+            if (strcmp(body, "false") == 0){
+                if (controller_disconnect(h, xml_parent(vec2[i])) < 0)
+                    goto done;
+            }
+        }
+    }
+    retval = 0;
+ done:
+    if (vec1)
+        free(vec1);
+    if (vec2)
+        free(vec2);
+
+    return retval;
+}
+
+
+
 /*! Transaction commit
  */
 int
@@ -215,6 +248,8 @@ controller_commit(clixon_handle    h,
     if (controller_commit_generic(h, nsc, target) < 0)
         goto done;
     if (controller_commit_device(h, nsc, src, target) < 0)
+        goto done;
+    if (controller_commit_pyapi(h, nsc, src, target) < 0)
         goto done;
     retval = 0;
  done:

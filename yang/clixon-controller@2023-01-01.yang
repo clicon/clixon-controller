@@ -200,6 +200,9 @@ module clixon-controller {
             enum CANDIDATE {
                 description "Device config that the controller has in its candidate config";
             }
+            enum ACTIONS {
+                description "Device config that the controller has in its actions config";
+            }
             enum SYNCED {
                 description "Device config from last pull. A successful push also updates this config";
             }
@@ -671,7 +674,11 @@ module clixon-controller {
     }
     rpc datastore-diff {
         description
-            "Compare two data-storesby returning a diff-list in XML";
+            "Compare two data-stores by returning a diff-list in XML.
+             There are two variants: 
+             1) Regular datastore references, such as running/candidate according to
+                ietf-datastores YANG
+             2) Clixon-controller specific device datastores";
         input {
             leaf xpath {
                 description

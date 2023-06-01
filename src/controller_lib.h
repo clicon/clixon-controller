@@ -68,6 +68,7 @@ typedef enum transaction_result_t transaction_result;
 enum device_config_type_t{
     DT_RUNNING = 0,  /* Device config that the controller has in its running config */
     DT_CANDIDATE,    /* Device config that the controller has in its candidate config */
+    DT_ACTIONS,      /* Device config that the controller has in its actions config */
     DT_SYNCED,       /* Device config from last sync pull. A successful sync push also updates this config */
     DT_TRANSIENT,    /* The current configuration of the remote device (retrieved by sync pull transient) */
 };

@@ -627,11 +627,119 @@ cli_rpc_pull(clixon_handle h,
     return retval;
 }
 
-/*! Read the config of one or several devices
- * @param[in] h
- * @param[in] cvv  : name pattern
- * @param[in] argv : source:running/candidate, actions:NONE/CHANGE/FORCE, push:NONE/VALIDATE/COMMIT, 
- * @RETVAL    0      OK
+static int
+cli_rpc_commit_diff_one(clicon_handle h,
+                        char         *name)
+{
+    int     retval = -1;
+    cbuf   *cb = NULL;
+    cxobj  *xtop = NULL;
+    cxobj  *xrpc;
+    cxobj  *xreply;
+    cxobj  *xerr;
+    cxobj  *xdiff;
+    char   *diff;
+    cxobj  *xret = NULL;
+
+    if ((cb = cbuf_new()) == NULL){
+        clicon_err(OE_PLUGIN, errno, "cbuf_new");
+        goto done;
+    }
+    cprintf(cb, "<rpc xmlns=\"%s\" username=\"%s\" %s>",
+            NETCONF_BASE_NAMESPACE,
+            clicon_username_get(h),
+            NETCONF_MESSAGE_ID_ATTR);
+    cprintf(cb, "<datastore-diff xmlns=\"%s\">", CONTROLLER_NAMESPACE);
+    //    cprintf(cb, "<xpath>devices</xpath>");
+    cprintf(cb, "<devname>%s</devname>", name);
+    cprintf(cb, "<config-type1>RUNNING</config-type1>");
+    cprintf(cb, "<config-type2>ACTIONS</config-type2>");
+    cprintf(cb, "</datastore-diff>");
+    cprintf(cb, "</rpc>");
+    if (xtop){
+        xml_free(xtop);
+        xtop = NULL;
+    }
+    if (clixon_xml_parse_string(cbuf_get(cb), YB_NONE, NULL, &xtop, NULL) < 0)
+        goto done;
+    xrpc = xml_child_i(xtop, 0);
+    /* Send to backend */
+    if (clicon_rpc_netconf_xml(h, xrpc, &xret, NULL) < 0)
+        goto done;
+    if ((xreply = xpath_first(xret, NULL, "rpc-reply")) == NULL){
+        clicon_err(OE_CFG, 0, "Malformed rpc reply");
+        goto done;
+    }
+    if ((xerr = xpath_first(xreply, NULL, "rpc-error")) != NULL){
+        clixon_netconf_error(xerr, "Get configuration", NULL);
+        goto done;
+    }
+    if ((xdiff = xpath_first(xreply, NULL, "diff")) == NULL){
+        clicon_err(OE_CFG, 0, "No returned diff");
+        goto done;
+    }
+    if ((diff = xml_body(xdiff)) != NULL)
+        cligen_output(stdout, "%s", diff);
+    retval = 0;
+ done:
+    if (xret)
+        xml_free(xret);
+    if (xtop)
+        xml_free(xtop);
+    if (cb)
+        cbuf_free(cb);
+    return retval;
+}
+
+/*! Make a controller commit diff variant
+ * 
+ * @param[in] h     Clixon handle
+ */
+static int
+cli_rpc_commit_diff(clixon_handle h)
+{
+    int     retval = -1;
+    cxobj  *xdevs = NULL;
+    cxobj  *xdev;
+    cvec   *nsc = NULL;
+    cxobj **vec = NULL;
+    size_t  veclen;
+    char   *name;
+    int     i;
+    
+    /* get all devices */
+    if ((nsc = xml_nsctx_init("co", CONTROLLER_NAMESPACE)) == NULL)
+        goto done;
+    if (clicon_rpc_get_config(h, NULL, "running", "co:devices/co:device/co:name", nsc,
+                              "explicit", &xdevs) < 0)
+        goto done;
+    if (xpath_vec(xdevs, nsc, "devices/device/name", &vec, &veclen) < 0) 
+        goto done;
+    for (i=0; i<veclen; i++){
+        xdev = vec[i];
+        if ((name = xml_body(xdev)) != NULL){
+            cligen_output(stdout, "%s:\n", name);
+            if (cli_rpc_commit_diff_one(h, name) < 0)
+                goto done;
+        }
+    }
+    retval = 0;
+ done:
+    if (nsc)
+        cvec_free(nsc);
+    if (vec)
+        free(vec);
+    if (xdevs)
+        xml_free(xdevs);
+    return retval;
+}
+
+/*! Make a controller commit rpc with its many variants
+ *
+ * @param[in] h     Clixon handle
+ * @param[in] cvv   Name pattern
+ * @param[in] argv  Source:running/candidate, actions:NONE/CHANGE/FORCE, push:NONE/VALIDATE/COMMIT, 
+ * @retval    0      OK
  * @retval   -1      Error
  * @see controller-commit in clixon-controller.yang
  */
@@ -640,23 +748,21 @@ cli_rpc_controller_commit(clixon_handle h,
                           cvec         *cvv, 
                           cvec         *argv)
 {
-    int          retval = -1;
-    cbuf        *cb = NULL;
-    cg_var      *cv;
-    cxobj       *xtop = NULL;
-    cxobj       *xrpc;
-    cxobj       *xret = NULL;
-    cxobj       *xreply;
-    cxobj       *xerr;
-    char        *push_type;
-    char        *name = "*";
-    cxobj       *xid;
-    char        *tidstr;
-    uint64_t     tid = 0;
-    char        *actions_type;
-    char        *source;
-    cxobj       *xdiff;
-    char        *diff;
+    int                retval = -1;
+    cbuf              *cb = NULL;
+    cg_var            *cv;
+    cxobj             *xtop = NULL;
+    cxobj             *xrpc;
+    cxobj             *xret = NULL;
+    cxobj             *xreply;
+    cxobj             *xerr;
+    char              *push_type;
+    char              *name = "*";
+    cxobj             *xid;
+    char              *tidstr;
+    uint64_t           tid = 0;
+    char              *actions_type;
+    char              *source;
     transaction_result result;
 
     if (argv == NULL || cvec_len(argv) != 3){
@@ -732,41 +838,8 @@ cli_rpc_controller_commit(clixon_handle h,
     /* Interpret actions and no push as diff */
     if (actions_type_str2int(actions_type) != AT_NONE &&
         push_type_str2int(push_type) == PT_NONE){ 
-        cbuf_reset(cb);
-        cprintf(cb, "<rpc xmlns=\"%s\" username=\"%s\" %s>",
-            NETCONF_BASE_NAMESPACE,
-            clicon_username_get(h),
-            NETCONF_MESSAGE_ID_ATTR);
-        cprintf(cb, "<datastore-diff xmlns=\"%s\">", CONTROLLER_NAMESPACE);
-        cprintf(cb, "<xpath>devices</xpath>");
-        cprintf(cb, "<dsref1>ds:running</dsref1>");
-        cprintf(cb, "<dsref2>actions</dsref2>");
-        cprintf(cb, "</datastore-diff>");
-        cprintf(cb, "</rpc>");
-        if (xtop){
-            xml_free(xtop);
-            xtop = NULL;
-        }
-        if (clixon_xml_parse_string(cbuf_get(cb), YB_NONE, NULL, &xtop, NULL) < 0)
+        if (cli_rpc_commit_diff(h) < 0)
             goto done;
-        xrpc = xml_child_i(xtop, 0);
-        /* Send to backend */
-        if (clicon_rpc_netconf_xml(h, xrpc, &xret, NULL) < 0)
-            goto done;
-        if ((xreply = xpath_first(xret, NULL, "rpc-reply")) == NULL){
-            clicon_err(OE_CFG, 0, "Malformed rpc reply");
-            goto done;
-        }
-        if ((xerr = xpath_first(xreply, NULL, "rpc-error")) != NULL){
-            clixon_netconf_error(xerr, "Get configuration", NULL);
-            goto done;
-        }
-        if ((xdiff = xpath_first(xreply, NULL, "diff")) == NULL){
-            clicon_err(OE_CFG, 0, "No returned diff");
-            goto done;
-        }
-        if ((diff = xml_body(xdiff)) != NULL)
-            cligen_output(stdout, "%s", diff);
     }
     cligen_output(stderr, "OK\n");
  ok:
