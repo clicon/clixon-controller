@@ -53,5 +53,4 @@
        <operation>enable</operation>
      </rule>
   </autocli>
-  <CONTROLLER_PYAPI_MODULES xmlns="http://clicon.org/controller-config">/usr/local/share/clixon/modules</CONTROLLER_PYAPI_MODULES>
 </clixon-config>

@@ -35,9 +35,6 @@ if [ $nr -lt 2 ]; then
     if [ "$s" = $0 ]; then exit 0; else return 0; fi
 fi
 
-# If set to false, override starting of services_action utility
-: ${SA:=true}
-
 dir=/var/tmp/$0
 if [ ! -d $dir ]; then
     mkdir $dir
@@ -50,6 +47,10 @@ cat<<EOF > $CFG
   <CLICON_CONFIGFILE>/usr/local/etc/controller.xml</CLICON_CONFIGFILE>
   <CLICON_FEATURE>ietf-netconf:startup</CLICON_FEATURE>
   <CLICON_FEATURE>clixon-restconf:allow-auth-none</CLICON_FEATURE>
+  <CLICON_CONFIG_EXTEND>clixon-controller-config</CLICON_CONFIG_EXTEND>
+  <CONTROLLER_ACTION_COMMAND xmlns="http://clicon.org/controller-config">/usr/local/bin/services_action -f $CFG -D 1 -lf/tmp/services.log</CONTROLLER_ACTION_COMMAND>
+  <CLICON_BACKEND_USER>clicon</CLICON_BACKEND_USER>
+  <CLICON_SOCK_GROUP>clicon</CLICON_SOCK_GROUP>
   <CLICON_YANG_DIR>/usr/local/share/clixon</CLICON_YANG_DIR>
   <CLICON_YANG_MAIN_DIR>$dir</CLICON_YANG_MAIN_DIR>
   <CLICON_CLI_MODE>operation</CLICON_CLI_MODE>
@@ -60,7 +61,6 @@ cat<<EOF > $CFG
   <CLICON_BACKEND_PIDFILE>/usr/local/var/controller.pidfile</CLICON_BACKEND_PIDFILE>
   <CLICON_XMLDB_DIR>/usr/local/var/controller</CLICON_XMLDB_DIR>
   <CLICON_STARTUP_MODE>init</CLICON_STARTUP_MODE>
-  <CLICON_SOCK_GROUP>clicon</CLICON_SOCK_GROUP>
   <CLICON_STREAM_DISCOVERY_RFC5277>true</CLICON_STREAM_DISCOVERY_RFC5277>
   <CLICON_RESTCONF_USER>www-data</CLICON_RESTCONF_USER>
   <CLICON_RESTCONF_PRIVILEGES>drop_perm</CLICON_RESTCONF_PRIVILEGES>
@@ -149,7 +149,7 @@ EOF
 . ./reset-devices.sh
 
 if $BE; then
-    echo "Kill old backend"
+    echo "Kill old backend $CFG"
     sudo clixon_backend -s init -f $CFG -z
 
     echo "Start new backend -s init  -f $CFG -D $DBG"
@@ -162,12 +162,46 @@ wait_backend
 # Reset controller
 . ./reset-controller.sh
 
-if $SA; then
-    echo "Kill previous service action"
-    pkill service_action || true
+new "set services enabled"
+ret=$(${clixon_netconf} -qe0 -f $CFG <<EOF
+<rpc xmlns="urn:ietf:params:xml:ns:netconf:base:1.0"
+  xmlns:nc="urn:ietf:params:xml:ns:netconf:base:1.0"
+  message-id="42">
+  <edit-config>
+    <target>
+      <candidate/>
+    </target>
+    <default-operation>merge</default-operation>
+    <config>
+      <services xmlns="http://clicon.org/controller">
+        <enabled>true</enabled>
+      </services>
+    </config>
+  </edit-config>
+</rpc>]]>]]>
+EOF
+   )
 
-    echo "Start service action"
-    services_action -f $CFG &
+match=$(echo "$ret" | grep --null -Eo "<rpc-error>") || true
+if [ -n "$match" ]; then
+    echo "netconf rpc-error detected"
+    exit 1
+fi
+
+new "set services enabled commit"
+echo "Controller commit"
+ret=$(${clixon_netconf} -q0 -f $CFG <<EOF
+<rpc xmlns="urn:ietf:params:xml:ns:netconf:base:1.0" message-id="43">
+  <commit/>
+</rpc>]]>]]>
+EOF
+   )
+echo "$ret"
+
+match=$(echo "$ret" | grep --null -Eo "<rpc-error>") || true
+if [ -n "$match" ]; then
+    echo "netconf rpc-error detected"
+    exit 1
 fi
 
 DEV2="<device>
@@ -317,16 +351,9 @@ if [ -z "$match" ]; then
     exit 1
 fi
 
-if $SA; then
-    new "Kill service action"
-    pkill services_action || true
-fi
-
 if $BE; then
     new "Kill old backend"
     sudo clixon_backend -s init -f $CFG -z
 fi
-
-unset SA
 
 echo "test-service OK"
