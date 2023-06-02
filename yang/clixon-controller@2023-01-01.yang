@@ -263,7 +263,7 @@ module clixon-controller {
        leaf enabled {
           description "If set, start action daemon";
           type boolean;
-          default false;
+          default true;
        }
     }
     container generic{
