@@ -433,19 +433,28 @@ static int
 action_daemon_register(clicon_handle h)
 {
     int         retval = -1;
+    char       *cmd;
     char       *pgm;    
     struct stat fstat;
-    int         i = 0;
+    int         i;
+    int         j;
     int         nr;
-    char      **argv = NULL;
-    uid_t       newuid = -1;
-    char       *sockgr;
-    char       *modules;
+    char      **argv0 = NULL;
+    int         argc0;
+    char      **argv1 = NULL;
+    gid_t       gid = -1;
+    uid_t       uid = -1;
+    char       *group;
+    char       *user;
     
     clicon_debug(1, "%s", __FUNCTION__);
-    if ((pgm = clicon_option_str(h, "CONTROLLER_ACTION_BINARY")) == NULL)
+    if ((cmd = clicon_option_str(h, "CONTROLLER_ACTION_COMMAND")) == NULL)
         goto ok;
-    modules = clicon_option_str(h, "CONTROLLER_PYAPI_MODULES");
+    if ((argv0 = clicon_strsep(cmd, " \t", &argc0)) == NULL)
+        goto done;
+    if (argc0 == 0)
+        goto ok;
+    pgm = argv0[0];
     /* Sanity check of executable */
     if (stat(pgm, &fstat) < 0){   
         clicon_err(OE_XML, 0, "%s not found", pgm);
@@ -454,50 +463,56 @@ action_daemon_register(clicon_handle h)
     else if (S_ISREG(fstat.st_mode) == 0){
         clicon_err(OE_XML, 0, "%s not regulare device", pgm);
         goto done;
-    } // XXX check for exec bits but depends on which user it runs as
-
+    }
     /* Get user id, kludge: assume clixon sock group has an associated user */
-    if ((sockgr = clicon_sock_group(h)) == NULL){
-        clicon_err(OE_FATAL, 0, "clicon_sock_group option not set");
-        goto done;
+    if ((group = clicon_sock_group(h)) != NULL){
+        if (group_name2gid(group, &gid) < 0){
+            clicon_err(OE_DAEMON, errno, "'%s' is not a valid group\n", group);
+            goto done;
+        }
     }
-    if (name2uid(sockgr, &newuid) < 0){
-        clicon_err(OE_DAEMON, errno, "'%s' is not a valid user .\n", sockgr);
-        goto done;
+    if ((user = clicon_backend_user(h)) != NULL){
+        if (name2uid(user, &uid) < 0){
+            clicon_err(OE_DAEMON, errno, "'%s' is not a valid user .\n", user);
+            goto done;
+        }
     }
-    nr = 4;
-#if 1
+    nr = argc0 + 1;
+#if 0 // run in shell?
     nr += 2;
-    if ((argv = calloc(nr, sizeof(char *))) == NULL){
+#endif
+    if ((argv1 = calloc(nr, sizeof(char *))) == NULL){
         clicon_err(OE_UNIX, errno, "calloc");
         goto done;
     }
-    argv[i++] = "/usr/bin/bash";
-    argv[i++] = "-c";
+    i = 0;
+#if 0
+    argv1[i++] = "/usr/bin/bash";
+    argv1[i++] = "-c";
 #endif
-    argv[i++] = pgm;
-    if (modules){
-        argv[i++] = "-m"; // XXX should be read by process itself
-        argv[i++] = modules;
-    }
-    argv[i++] = NULL;
+    for (j=0; j<argc0; j++)
+        argv1[i++] = argv0[j];
+    argv1[i++] = NULL;
     if (i > nr){
         clicon_err(OE_UNIX, 0, "calloc mismatatch i:%d nr:%d", i, nr);
         goto done;
     }
+    /* The actual fork/exec is made in clixon_process_operation/clixon_proc_background */
     if (clixon_process_register(h, ACTION_PROCESS,
                                 "Controller action daemon process",
                                 NULL,
-                                newuid,
+                                uid, gid,
                                 controller_action_proc_cb,
-                                argv,
+                                argv1,
                                 i) < 0)
         goto done;
  ok:
     retval = 0;
  done:
-    if (argv != NULL)
-        free(argv);
+    if (argv0 != NULL)
+        free(argv0);
+    if (argv1 != NULL)
+        free(argv1);
     return retval;
 }
 

@@ -13,13 +13,11 @@ module clixon-controller-config {
     augment "/cc:clixon-config" {
         description
             "Controller-specific options";
-        leaf CONTROLLER_ACTION_BINARY{
+        leaf CONTROLLER_ACTION_COMMAND{
+            description
+                "Binary command and arguments of action server";
             type string;
             default "/usr/local/bin/clixon_server.py";
-        }
-        leaf CONTROLLER_PYAPI_MODULES{
-            type string;
-            default "/usr/local/share/clixon/modules";
         }
         leaf CONTROLLER_PYAPI_MODULE_FILTER{
             type string;

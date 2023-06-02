@@ -59,7 +59,6 @@ The following modifiers apply to some tests:
 * nr=<nr>               Apply on <nr> devices (all)
 * BE=false              Do not start backend in script, start backend externally instead,
                         ie in a debugger (init-controller.sh only)
-* SA=false              Do not start service-action daemon (test-service only)
 * push=false            Only change dont sync push (change-push.sh only)
 * sleep=<s>             Sleep <s> seconds instead of 2 (all)
 * PREFIX=sudo           Generate keys for root (device scripts only)
