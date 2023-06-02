@@ -19,8 +19,13 @@ module clixon-controller-config {
             type string;
             default "/usr/local/bin/clixon_server.py";
         }
+        leaf CONTROLLER_PYAPI_MODULE_PATH{
+            default "/usr/local/share/clixon/controller/modules/";
+            type string;
+        }
         leaf CONTROLLER_PYAPI_MODULE_FILTER{
             type string;
+            default "";
         }
         leaf CONTROLLER_PYAPI_PIDFILE{
             type string;
