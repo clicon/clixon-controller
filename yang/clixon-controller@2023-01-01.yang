@@ -266,8 +266,8 @@ module clixon-controller {
           default true;
        }
     }
-    container generic{
-        description "Generic controller settings";
+    container devices{
+        description "Device configurations";
         leaf device-timeout{
             description
                 "Device transient state timeout in seconds.
@@ -276,10 +276,6 @@ module clixon-controller {
             default 60;
             units s;
         }
-    }
-    /* Generic config data */
-    container devices{
-        description "Device configurations";
         list device-group{
             description "Groups of devices, NOTE: device-name/-group unclear semantics?";
             key name;
@@ -318,7 +314,7 @@ module clixon-controller {
             }
             leaf enabled {
                 type boolean;
-                default "true";
+                default true;
                 description
                     "This leaf contains the configured, desired state of the
                      device.
