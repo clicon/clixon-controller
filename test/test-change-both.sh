@@ -35,10 +35,12 @@ new "reset controller"
 # Change device configs on devices (not controller)
 new "change devices"
 . ./change-devices.sh
+
 i=1
-# Change device in controller: Remove x, change y=322, and add z=399
+# Change device out-of-band directly: Remove x, change y=322, and add z=399
 for ip in $CONTAINERS; do
     NAME=$IMG$i
+    new "edit device $NAME directly"
     ret=$(${clixon_netconf} -0 -f $CFG <<EOF
 <?xml version="1.0" encoding="UTF-8"?>
 <hello xmlns="urn:ietf:params:xml:ns:netconf:base:1.0">
@@ -88,7 +90,7 @@ EOF
 done
 
 new "local commit"
-${clixon_netconf} -0 -f $CFG <<EOF
+ret=$(${clixon_netconf} -0 -f $CFG <<EOF
 <?xml version="1.0" encoding="UTF-8"?>
 <hello xmlns="urn:ietf:params:xml:ns:netconf:base:1.0">
    <capabilities>
@@ -99,6 +101,12 @@ ${clixon_netconf} -0 -f $CFG <<EOF
   <commit/>
 </rpc>]]>]]>
 EOF
+)
+match=$(echo $ret | grep --null -Eo "<rpc-error>") || true
+if [ -n "$match" ]; then
+    echo "netconf rpc-error detected"
+    exit 1
+fi
 
 if ! $push ; then
     echo "Stop after changes, no push"

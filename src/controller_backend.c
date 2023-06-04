@@ -96,45 +96,6 @@ controller_disconnect(clixon_handle h,
     return 0;
 }
 
-/*! Commit generic part of controller yang
- * @param[in] h    Clixon handle
- * @param[in] nsc  Namespace context
- * @param[in] target  Post target xml tree
- * @retval   -1    Error
- * @retval    0    OK
- */
-static int
-controller_commit_generic(clixon_handle h,
-                          cvec         *nsc,
-                          cxobj        *target)
-{
-    int      retval = -1;
-    char    *body;
-    cxobj  **vec = NULL;
-    size_t   veclen;
-    int      i;
-    uint32_t d;
-    
-    if (xpath_vec_flag(target, nsc, "generic/device-timeout",
-                       XML_FLAG_ADD | XML_FLAG_CHANGE,
-                       &vec, &veclen) < 0)
-        goto done;
-    for (i=0; i<veclen; i++){
-        if ((body = xml_body(vec[i])) == NULL)
-            continue;
-        if (parse_uint32(body, &d, NULL) < 1){
-            clicon_err(OE_UNIX, errno, "error parsing limit:%s", body);
-            goto done;
-        }
-        clicon_data_int_set(h, "controller-device-timeout", d);
-    }
-    retval = 0;
- done:
-    if (vec)
-        free(vec);
-    return retval;
-}
-
 /*! Changes in services
  *
  * Start/stop action daemon
@@ -195,13 +156,30 @@ controller_commit_device(clixon_handle h,
                          cxobj        *target)
 {
     int       retval = -1;
+    cxobj   **vec0= NULL;
     cxobj   **vec1 = NULL;
     cxobj   **vec2 = NULL;
+    size_t    veclen0;
     size_t    veclen1;
     size_t    veclen2;
     int       i;
     char     *body;
+    uint32_t  dt;
     
+    if (xpath_vec_flag(target, nsc, "devices/device-timeout",
+                       XML_FLAG_ADD | XML_FLAG_CHANGE,
+                       &vec0, &veclen0) < 0)
+        goto done;
+    for (i=0; i<veclen0; i++){
+        if ((body = xml_body(vec0[i])) == NULL)
+            continue;
+        if (parse_uint32(body, &dt, NULL) < 1){
+            clicon_err(OE_UNIX, errno, "error parsing limit:%s", body);
+            goto done;
+        }
+        clicon_data_int_set(h, "controller-device-timeout", dt);
+    }
+
     /* 1) if device removed, disconnect */
     if (xpath_vec_flag(src, nsc, "devices/device",
                        XML_FLAG_DEL,
@@ -227,6 +205,8 @@ controller_commit_device(clixon_handle h,
     }
     retval = 0;
  done:
+    if (vec0)
+        free(vec0);
     if (vec1)
         free(vec1);
     if (vec2)
@@ -250,8 +230,6 @@ controller_commit(clixon_handle    h,
     src = transaction_src(td);    /* existing XML tree */
     target = transaction_target(td); /* wanted XML tree */
     if ((nsc = xml_nsctx_init(NULL, CONTROLLER_NAMESPACE)) == NULL)
-        goto done;
-    if (controller_commit_generic(h, nsc, target) < 0)
         goto done;
     if (controller_commit_device(h, nsc, src, target) < 0)
         goto done;
@@ -436,12 +414,8 @@ action_daemon_register(clicon_handle h)
     char       *cmd;
     char       *pgm;    
     struct stat fstat;
-    int         i;
-    int         j;
-    int         nr;
-    char      **argv0 = NULL;
-    int         argc0;
-    char      **argv1 = NULL;
+    char      **argv = NULL;
+    int         argc;
     gid_t       gid = -1;
     uid_t       uid = -1;
     char       *group;
@@ -450,11 +424,11 @@ action_daemon_register(clicon_handle h)
     clicon_debug(1, "%s", __FUNCTION__);
     if ((cmd = clicon_option_str(h, "CONTROLLER_ACTION_COMMAND")) == NULL)
         goto ok;
-    if ((argv0 = clicon_strsep(cmd, " \t", &argc0)) == NULL)
+    if ((argv = clicon_strsep(cmd, " \t", &argc)) == NULL)
         goto done;
-    if (argc0 == 0)
+    if (argc == 0)
         goto ok;
-    pgm = argv0[0];
+    pgm = argv[0];
     /* Sanity check of executable */
     if (stat(pgm, &fstat) < 0){   
         clicon_err(OE_XML, 0, "%s not found", pgm);
@@ -477,42 +451,62 @@ action_daemon_register(clicon_handle h)
             goto done;
         }
     }
-    nr = argc0 + 1;
-#if 0 // run in shell?
-    nr += 2;
-#endif
-    if ((argv1 = calloc(nr, sizeof(char *))) == NULL){
-        clicon_err(OE_UNIX, errno, "calloc");
-        goto done;
-    }
-    i = 0;
-#if 0
-    argv1[i++] = "/usr/bin/bash";
-    argv1[i++] = "-c";
-#endif
-    for (j=0; j<argc0; j++)
-        argv1[i++] = argv0[j];
-    argv1[i++] = NULL;
-    if (i > nr){
-        clicon_err(OE_UNIX, 0, "calloc mismatatch i:%d nr:%d", i, nr);
-        goto done;
-    }
     /* The actual fork/exec is made in clixon_process_operation/clixon_proc_background */
     if (clixon_process_register(h, ACTION_PROCESS,
                                 "Controller action daemon process",
                                 NULL,
                                 uid, gid,
                                 controller_action_proc_cb,
-                                argv1,
-                                i) < 0)
+                                argv,
+                                argc) < 0)
         goto done;
  ok:
     retval = 0;
  done:
-    if (argv0 != NULL)
-        free(argv0);
-    if (argv1 != NULL)
-        free(argv1);
+    if (argv != NULL)
+        free(argv);
+    return retval;
+}
+
+/*! Reset system status 
+ *
+ * Add xml or set state in backend system.
+ * plugin_reset in each backend plugin after all plugins have been initialized. 
+ * This gives the application a chance to reset system state back to a base state. 
+ * This is generally done when a system boots up to make sure the initial system state
+ * is well defined. 
+ * This involves creating default configuration files for various daemons, set interface
+ * flags etc.
+ * @param[in]  h   Clicon handle
+ * @param[in]  db  Database name (eg "running")
+ * @retval     0   OK
+ * @retval    -1   Fatal error
+*/
+static int
+controller_reset(clicon_handle h,
+                 const char   *db)
+{
+    int    retval = -1;
+    char  *xpath = "services/enabled";
+    cxobj *xtop = NULL;
+    cxobj *xse = NULL;
+    cvec  *nsc = NULL;
+    
+    if ((nsc = xml_nsctx_init(NULL, CONTROLLER_NAMESPACE)) == NULL)
+        goto done;
+    if (xmldb_get(h, db, NULL, xpath, &xtop) < 0)
+        goto done;
+    if ((xse = xpath_first(xtop, 0, "services/enabled")) != NULL){
+        if (strcmp(xml_body(xse), "true") == 0)
+            if (clixon_process_operation(h, ACTION_PROCESS, PROC_OP_START, 0) < 0)
+                goto done;            
+    }
+    retval = 0;
+ done:
+    if (nsc)
+        cvec_free(nsc);
+    if (xtop)
+        xml_free(xtop);
     return retval;
 }
 
@@ -526,12 +520,15 @@ controller_exit(clixon_handle h)
     return 0;
 }
 
+
+
 /* Forward declaration */
 clixon_plugin_api *clixon_plugin_init(clixon_handle h);
 
 static clixon_plugin_api api = {
     "controller backend",
     .ca_exit         = controller_exit,
+    .ca_reset        = controller_reset,
     .ca_extension    = controller_unknown,
     .ca_statedata    = controller_statedata,
     .ca_trans_commit = controller_commit,
