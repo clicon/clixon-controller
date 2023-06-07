@@ -20,12 +20,10 @@ if [ ! -d $pydir ]; then
     mkdir $pydir
 fi
 
-# If set to false, override starting of clixon_server.py in test (you bring your own)
-: ${PY:=true}
-
 cat<<EOF > $CFG
 <clixon-config xmlns="http://clicon.org/config">
   <CLICON_CONFIGFILE>/usr/local/etc/controller.xml</CLICON_CONFIGFILE>
+  <CLICON_CONFIG_EXTEND>clixon-controller-config</CLICON_CONFIG_EXTEND>
   <CLICON_FEATURE>ietf-netconf:startup</CLICON_FEATURE>
   <CLICON_FEATURE>clixon-restconf:allow-auth-none</CLICON_FEATURE>
   <CLICON_YANG_DIR>/usr/local/share/clixon</CLICON_YANG_DIR>
@@ -47,6 +45,11 @@ cat<<EOF > $CFG
   <CLICON_CLI_HELPSTRING_TRUNCATE>true</CLICON_CLI_HELPSTRING_TRUNCATE>
   <CLICON_CLI_HELPSTRING_LINES>1</CLICON_CLI_HELPSTRING_LINES>
   <CLICON_YANG_SCHEMA_MOUNT>true</CLICON_YANG_SCHEMA_MOUNT>
+  <CLICON_BACKEND_USER>clicon</CLICON_BACKEND_USER>
+  <CONTROLLER_ACTION_COMMAND xmlns="http://clicon.org/controller-config">/usr/local/bin/clixon_server.py -f $CFG -F</CONTROLLER_ACTION_COMMAND>
+  <CONTROLLER_PYAPI_MODULE_PATH xmlns="http://clicon.org/controller-config">$pydir/</CONTROLLER_PYAPI_MODULE_PATH>
+  <CONTROLLER_PYAPI_MODULE_FILTER xmlns="http://clicon.org/controller-config"></CONTROLLER_PYAPI_MODULE_FILTER>
+  <CONTROLLER_PYAPI_PIDFILE xmlns="http://clicon.org/controller-config">/tmp/clixon_server.pid</CONTROLLER_PYAPI_PIDFILE>
   <autocli>
      <module-default>true</module-default>
      <list-keyword-default>kw-nokey</list-keyword-default>
@@ -118,18 +121,6 @@ fi
 
 # Check backend is running
 wait_backend
-
-if $PY; then
-    new "Kill existing pyapi"
-    python3 /usr/local/bin/clixon_server.py -m $pydir -z > /dev/null || true
-    sleep 1
-
-    new "Start py server"
-    if [ ! -x /usr/local/bin/clixon_server.py ]; then
-        err1 "/usr/local/bin/clixon_server.py not found"
-    fi
-    python3 /usr/local/bin/clixon_server.py -m $pydir
-fi
 
 # Reset controller
 . ./reset-controller.sh
@@ -211,10 +202,6 @@ done
 if $BE; then
     echo "Kill old backend"
     sudo clixon_backend -s init -f $CFG -z
-fi
-
-if $PY; then
-    python3 /usr/local/bin/clixon_server.py -m $pydir -z > /dev/null || true
 fi
 
 echo "test-cli-edit-commit-push"
