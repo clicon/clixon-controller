@@ -33,6 +33,8 @@ RUN git clone https://github.com/clicon/cligen.git
 RUN git clone https://github.com/clicon/clixon.git
 RUN git clone https://github.com/clicon/clixon-pyapi.git
 
+RUN useradd -d /home/clicon clicon
+
 WORKDIR /clixon/cligen
 RUN ./configure
 RUN make
@@ -57,11 +59,10 @@ RUN ldconfig
 WORKDIR /clixon/clixon-pyapi
 RUN python3 setup.py install
 RUN cp clixon_server.py /usr/local/bin/
-RUN pip3 install --break-system-packages -r requirements.txt
 
-WORKDIR /clixon
-RUN mkdir -p /usr/local/share/clixon/mounts/
-RUN useradd clicon
+USER clicon
+RUN pip3 install -r requirements.txt
+
 COPY startsystem.sh /usr/local/bin/
 
 ENTRYPOINT /usr/local/bin/startsystem.sh
