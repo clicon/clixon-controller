@@ -414,8 +414,12 @@ action_daemon_register(clicon_handle h)
     char       *cmd;
     char       *pgm;    
     struct stat fstat;
-    char      **argv = NULL;
-    int         argc;
+    int         i;
+    int         j;
+    int         nr;
+    char      **argv0 = NULL;
+    int         argc0;
+    char      **argv1 = NULL;
     gid_t       gid = -1;
     uid_t       uid = -1;
     char       *group;
@@ -424,11 +428,11 @@ action_daemon_register(clicon_handle h)
     clicon_debug(1, "%s", __FUNCTION__);
     if ((cmd = clicon_option_str(h, "CONTROLLER_ACTION_COMMAND")) == NULL)
         goto ok;
-    if ((argv = clicon_strsep(cmd, " \t", &argc)) == NULL)
+    if ((argv0 = clicon_strsep(cmd, " \t", &argc0)) == NULL)
         goto done;
-    if (argc == 0)
+    if (argc0 == 0)
         goto ok;
-    pgm = argv[0];
+    pgm = argv0[0];
     /* Sanity check of executable */
     if (stat(pgm, &fstat) < 0){   
         clicon_err(OE_XML, 0, "%s not found", pgm);
@@ -451,20 +455,36 @@ action_daemon_register(clicon_handle h)
             goto done;
         }
     }
+    nr = argc0 + 1;
+    if ((argv1 = calloc(nr, sizeof(char *))) == NULL){
+        clicon_err(OE_UNIX, errno, "calloc");
+        goto done;
+    }
+    i = 0;
+    for (j=0; j<argc0; j++)
+        argv1[i++] = argv0[j];
+    argv1[i++] = NULL;
+    if (i > nr){
+        clicon_err(OE_UNIX, 0, "calloc mismatatch i:%d nr:%d", i, nr);
+        goto done;
+    }
+
     /* The actual fork/exec is made in clixon_process_operation/clixon_proc_background */
     if (clixon_process_register(h, ACTION_PROCESS,
                                 "Controller action daemon process",
                                 NULL,
                                 uid, gid,
                                 controller_action_proc_cb,
-                                argv,
-                                argc) < 0)
+                                argv1,
+                                i) < 0)
         goto done;
  ok:
     retval = 0;
  done:
-    if (argv != NULL)
-        free(argv);
+    if (argv0 != NULL)
+        free(argv0);
+    if (argv1 != NULL)
+        free(argv1);
     return retval;
 }
 
@@ -557,7 +577,7 @@ clixon_plugin_init(clixon_handle h)
                    "A transaction has been completed.",
                    0, NULL) < 0)
         goto done;
-    /* Register pyapi sub-process (how to generalize this?)*/
+    /* Register pyapi sub-process */
     if (action_daemon_register(h) < 0)
         goto done;
     return &api;
