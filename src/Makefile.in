@@ -104,6 +104,7 @@ install: $(CLISPECS) $(PLUGINS) $(APPNAME).xml
 	install -d -m 0755 $(DESTDIR)$(libdir)/$(APPNAME)/backend
 	install -m 0644 $(INSTALLFLAGS) $(BE_PLUGIN) $(DESTDIR)$(libdir)/$(APPNAME)/backend
 	install -d -m 0755 $(DESTDIR)$(datarootdir)/clixon/controller/mounts # See YANG_SCHEMA_MOUNT_DIR
+	install -d -m 0755 -o clicon -g clicon $(DESTDIR)$(datarootdir)/clixon/controller/modules/
 
 uninstall: 
 	rm -rf $(DESTDIR)$(sysconfdir)/$(APPNAME).xml
