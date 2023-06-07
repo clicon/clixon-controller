@@ -62,7 +62,7 @@ RUN python3 setup.py install
 RUN cp clixon_server.py /usr/local/bin/
 
 USER clicon
-RUN pip3 install -r requirements.txt
+RUN pip3 install -r requirements.txt --break-system-packages
 
 COPY startsystem.sh /usr/local/bin/
 
