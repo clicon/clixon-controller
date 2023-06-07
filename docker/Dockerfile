@@ -64,6 +64,8 @@ RUN cp clixon_server.py /usr/local/bin/
 USER clicon
 RUN pip3 install -r requirements.txt --break-system-packages
 
+USER root
+
 COPY startsystem.sh /usr/local/bin/
 
 ENTRYPOINT /usr/local/bin/startsystem.sh
