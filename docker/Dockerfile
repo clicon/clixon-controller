@@ -33,7 +33,8 @@ RUN git clone https://github.com/clicon/cligen.git
 RUN git clone https://github.com/clicon/clixon.git
 RUN git clone https://github.com/clicon/clixon-pyapi.git
 
-RUN useradd -d /home/clicon clicon
+RUN useradd -m -d /home/clicon clicon
+RUN ls -l /home
 
 WORKDIR /clixon/cligen
 RUN ./configure
