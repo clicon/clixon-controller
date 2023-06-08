@@ -70,25 +70,25 @@ module clixon-test {
     import ietf-inet-types { prefix inet; }
     import clixon-controller { prefix ctrl; }
     revision 2023-03-22{
-        description "Initial prototype";
+	description "Initial prototype";
     }
     augment "/ctrl:services" {
-        list test {
-            key service-name;
-            leaf service-name {
-                type string;
-            }
-            description "Test service";
-            list parameter {
-                key name;
-                leaf name{
-                    type string;
-                }
-                leaf value{
-                    type inet:ipv4-address;
-                }
-            }
-        }
+	list test {
+	    key service-name;
+	    leaf service-name {
+		type string;
+	    }
+	    description "Test service";
+	    list parameter {
+		key name;
+		leaf name{
+		    type string;
+		}
+		leaf value{
+		    type inet:ipv4-address;
+		}
+	    }
+	}
     }
 }
 EOF
@@ -99,9 +99,9 @@ from clixon.clixon import rpc
 @rpc()
 def setup(root, log):
     for device in root.devices.device:
-        for service in root.services.test:
-            parameter = service.parameter
-            device.config.table.add(parameter)
+	for service in root.services.test:
+	    parameter = service.parameter
+	    device.config.table.add(parameter)
 
 if __name__ == "__main__":
     setup()
@@ -114,6 +114,12 @@ EOF
 if $BE; then
     echo "Kill old backend"
     sudo clixon_backend -s init -f $CFG -z
+
+    # Make sure the Python server is dead
+    if [ -f "/tmp/clixon_server.pid" ]; then
+	pid=`cat /tmp/clixon_server.pid`
+	kill -9 $pid
+    fi
 
     echo "Start new backend -s init  -f $CFG -D $DBG"
     sudo clixon_backend -s init -f $CFG -D $DBG
@@ -160,23 +166,23 @@ i=1;
 for ip in $CONTAINERS; do
     NAME=$IMG$i
     ret=$(${clixon_netconf} -qe0 -f $CFG <<EOF
-<rpc xmlns="urn:ietf:params:xml:ns:netconf:base:1.0" 
-xmlns:nc="urn:ietf:params:xml:ns:netconf:base:1.0" 
+<rpc xmlns="urn:ietf:params:xml:ns:netconf:base:1.0"
+xmlns:nc="urn:ietf:params:xml:ns:netconf:base:1.0"
 message-id="42">
   <get-config>
     <source><running/></source>
     <filter type='subtree'>
       <devices xmlns="http://clicon.org/controller">
-        <device>
-          <name>$NAME</name>
-          <config>
-            <table xmlns="urn:example:clixon">
-              <parameter>
-                 <name>x</name>
-              </parameter>
-            </table>
-          </config>
-        </device>
+	<device>
+	  <name>$NAME</name>
+	  <config>
+	    <table xmlns="urn:example:clixon">
+	      <parameter>
+		 <name>x</name>
+	      </parameter>
+	    </table>
+	  </config>
+	</device>
       </devices>
     </filter>
   </get-config>
@@ -189,13 +195,13 @@ EOF
     echo "ret:$ret"
     match=$(echo $ret | grep --null -Eo "<rpc-error>") || true
     if [ -n "$match" ]; then
-        echo "netconf rpc-error detected"
-        exit 1
+	echo "netconf rpc-error detected"
+	exit 1
     fi
     match=$(echo $ret | grep --null -Eo '<config><table xmlns="urn:example:clixon"><parameter><name>x</name><value>1.2.3.4</value></parameter></table></config>') || true
     if [ -z "$match" ]; then
-        echo "netconf rpc get-config failed"
-        exit 1
+	echo "netconf rpc get-config failed"
+	exit 1
     fi
 done
 
