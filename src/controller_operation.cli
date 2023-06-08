@@ -21,13 +21,11 @@ debug("Debugging parts of the system"){
 shell("System command"), cli_start_shell("bash");{
   <source:rest>("Single shell command"), cli_start_shell("bash");
 }
-service("Actions daemon operations") {
-    process("Actions daemon operations") {
+processes("Process operation") services("Service daemon operation") {
     start, cli_process_control("Action process", "start");
     stop, cli_process_control("Action process", "stop");
     restart, cli_process_control("Action process", "restart");
     status, cli_process_control("Action process", "status");
-  }
 }
 show("Show a particular state of the system"){
     configuration("Show configuration"), cli_show_auto_mode("running", "text", true, false);{

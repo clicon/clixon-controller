@@ -96,13 +96,13 @@ controller_disconnect(clixon_handle h,
     return 0;
 }
 
-/*! Changes in services
+/*! Changes in processes
  *
- * Start/stop action daemon
- * @see clixon-controller.yang: action-process
+ * Start/stop services daemon
+ * @see clixon-controller.yang: processes/services
  */
 static int
-controller_commit_services(clixon_handle h,
+controller_commit_processes(clixon_handle h,
                            cvec         *nsc,
                            cxobj        *src,
                            cxobj        *target)
@@ -112,7 +112,7 @@ controller_commit_services(clixon_handle h,
     size_t   veclen;
     char    *body;
 
-    if (xpath_vec_flag(target, nsc, "services/enabled",
+    if (xpath_vec_flag(target, nsc, "processes/services/enabled",
                        XML_FLAG_CHANGE|XML_FLAG_ADD,
                        &vec, &veclen) < 0)
         goto done;
@@ -233,7 +233,7 @@ controller_commit(clixon_handle    h,
         goto done;
     if (controller_commit_device(h, nsc, src, target) < 0)
         goto done;
-    if (controller_commit_services(h, nsc, src, target) < 0)
+    if (controller_commit_processes(h, nsc, src, target) < 0)
         goto done;
     retval = 0;
  done:
@@ -473,7 +473,7 @@ action_daemon_register(clicon_handle h)
     if (clixon_process_register(h, ACTION_PROCESS,
                                 "Controller action daemon process",
                                 NULL,
-                                uid, gid,
+                                uid, gid, 2,
                                 controller_action_proc_cb,
                                 argv1,
                                 i) < 0)
@@ -507,7 +507,7 @@ controller_reset(clicon_handle h,
                  const char   *db)
 {
     int    retval = -1;
-    char  *xpath = "services/enabled";
+    char  *xpath = "processes/services/enabled";
     cxobj *xtop = NULL;
     cxobj *xse = NULL;
     cvec  *nsc = NULL;
@@ -516,7 +516,7 @@ controller_reset(clicon_handle h,
         goto done;
     if (xmldb_get(h, db, NULL, xpath, &xtop) < 0)
         goto done;
-    if ((xse = xpath_first(xtop, 0, "services/enabled")) != NULL){
+    if ((xse = xpath_first(xtop, 0, "processes/services/enabled")) != NULL){
         if (strcmp(xml_body(xse), "true") == 0)
             if (clixon_process_operation(h, ACTION_PROCESS, PROC_OP_START, 0) < 0)
                 goto done;            

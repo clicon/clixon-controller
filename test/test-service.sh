@@ -48,7 +48,7 @@ cat<<EOF > $CFG
   <CLICON_FEATURE>ietf-netconf:startup</CLICON_FEATURE>
   <CLICON_FEATURE>clixon-restconf:allow-auth-none</CLICON_FEATURE>
   <CLICON_CONFIG_EXTEND>clixon-controller-config</CLICON_CONFIG_EXTEND>
-  <CONTROLLER_ACTION_COMMAND xmlns="http://clicon.org/controller-config">/usr/local/bin/services_action -f $CFG -D 1 -lf/tmp/services.log</CONTROLLER_ACTION_COMMAND>
+  <CONTROLLER_ACTION_COMMAND xmlns="http://clicon.org/controller-config">/usr/local/bin/services_action -f $CFG</CONTROLLER_ACTION_COMMAND> <!-- Debug: -D 1 -l s -->
   <CLICON_BACKEND_USER>clicon</CLICON_BACKEND_USER>
   <CLICON_SOCK_GROUP>clicon</CLICON_SOCK_GROUP>
   <CLICON_YANG_DIR>/usr/local/share/clixon</CLICON_YANG_DIR>
@@ -59,7 +59,7 @@ cat<<EOF > $CFG
   <CLICON_BACKEND_DIR>/usr/local/lib/controller/backend</CLICON_BACKEND_DIR>
   <CLICON_SOCK>/usr/local/var/controller.sock</CLICON_SOCK>
   <CLICON_BACKEND_PIDFILE>/usr/local/var/controller.pidfile</CLICON_BACKEND_PIDFILE>
-  <CLICON_XMLDB_DIR>/usr/local/var/controller</CLICON_XMLDB_DIR>
+  <CLICON_XMLDB_DIR>$dir</CLICON_XMLDB_DIR>
   <CLICON_STARTUP_MODE>init</CLICON_STARTUP_MODE>
   <CLICON_STREAM_DISCOVERY_RFC5277>true</CLICON_STREAM_DISCOVERY_RFC5277>
   <CLICON_RESTCONF_USER>www-data</CLICON_RESTCONF_USER>
@@ -145,15 +145,26 @@ module myyang {
 }
 EOF
 
+# Disable services process if you run a separate services_action process for debugging
+cat <<EOF > $dir/startup_db
+<config>
+  <processes xmlns="http://clicon.org/controller">
+    <services>
+      <enabled>true</enabled> // true
+    </services>
+  </processes>
+</config>
+EOF
+
 # Reset devices with initial config
 . ./reset-devices.sh
 
 if $BE; then
     echo "Kill old backend $CFG"
-    sudo clixon_backend -s init -f $CFG -z
+    sudo clixon_backend -f $CFG -z
 
-    echo "Start new backend -s init  -f $CFG -D $DBG"
-    sudo clixon_backend -s init  -f $CFG -D $DBG
+    echo "Start new backend -s init -f $CFG -D $DBG"
+    sudo clixon_backend -s init -f $CFG -D $DBG
 fi
 
 # Check backend is running

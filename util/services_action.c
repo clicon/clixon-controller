@@ -43,14 +43,12 @@
  * 
  * @param[in] h        Clixon handle
  * @param[in] tidstr   Transaction id
- * @param[in] servstr  String of XML containing list of processed services
  * @retval    0        OK
  * @retval   -1        Error
  */
 static int
 send_transaction_actions_done(clicon_handle h,
-                              char         *tidstr,
-                              char         *servstr)
+                              char         *tidstr)
 {
     int                retval = -1;
     cbuf              *cb = NULL;
@@ -70,7 +68,6 @@ send_transaction_actions_done(clicon_handle h,
     cprintf(cb, "<transaction-actions-done xmlns=\"%s\">", 
             CONTROLLER_NAMESPACE);
     cprintf(cb, "<tid>%s</tid>", tidstr);
-    cprintf(cb, "%s", servstr);
     cprintf(cb, "</transaction-actions-done>");
     cprintf(cb, "</rpc>");
     if ((msg = clicon_msg_encode(0, "%s", cbuf_get(cb))) == NULL)
@@ -137,72 +134,6 @@ send_transaction_error(clicon_handle h,
     return retval;
 }
 
-/*! Read services definition, send an edit-config table/param for each param in the service
- * 
- * @param[in] h       Clixon handle
- * @param[in] s       Socket
- * @param[in] devname Device name
- * @param[in] xsc     XML service tree
- * @param[in] db      Target datastore
- * @retval    0       OK
- * @retval   -1       Error
- */
-static int
-do_service(clicon_handle h,
-           int           s,
-           char         *devname,
-           cxobj        *xsc,
-           char         *db,
-           char         *service_name)
-{
-    int   retval = -1;
-    cbuf  *cb = NULL;
-    cxobj *x;
-    char  *p;
-
-    if (strcmp(db, "actions") != 0){
-        clicon_err(OE_CFG, 0, "Unexpected datastore: %s (expected actions)", db);
-        goto done;
-    }
-    /* Write and mark a table/param for each param in the service */
-    if ((cb = cbuf_new()) == NULL){
-        clicon_err(OE_XML, errno, "cbuf_new");
-        goto done;
-    }
-    cprintf(cb, "<config>");
-    cprintf(cb, "<devices xmlns=\"%s\">", CONTROLLER_NAMESPACE);
-    cprintf(cb, "<device>");
-    cprintf(cb, "<name>%s</name>", devname);
-    cprintf(cb, "<config>");
-    cprintf(cb, "<table xmlns=\"%s\" nc:operation=\"merge\"", "urn:example:clixon");
-    cprintf(cb, " xmlns:%s=\"%s\">", CLIXON_LIB_PREFIX, CLIXON_LIB_NS);
-    cprintf(cb, ">");
-    x = NULL;
-    while ((x = xml_child_each(xsc, x,  CX_ELMNT)) != NULL){
-        if (strcmp(xml_name(x), "params") != 0)
-            continue;
-        if ((p = xml_body(x)) == NULL)
-            continue;        
-        cprintf(cb, "<parameter %s:creator=\"%s\">", CLIXON_LIB_PREFIX, service_name);
-        cprintf(cb, "<name>%s</name>", p);
-        cprintf(cb, "</parameter>");
-    }
-    cprintf(cb, "</table>");
-    cprintf(cb, "</config>");
-    cprintf(cb, "</device>");
-    cprintf(cb, "</devices>");
-    cprintf(cb, "</config>");
-    /* (Read service and) produce device output and mark with service name */
-    if (clicon_rpc_edit_config(h,
-                               "actions xmlns=\"http://clicon.org/controller\"",
-                               OP_NONE, cbuf_get(cb)) < 0)
-        goto done;
-    retval = 0;
- done:
-    if (cb)
-        cbuf_free(cb);
-    return retval;
-}
 
 /*! Read services definition from backend
  *
@@ -213,9 +144,9 @@ do_service(clicon_handle h,
  * @retval    -1    Error
  */
 static int
-read_services(clicon_handle      h,
+read_services(clicon_handle     h,
               char             *db,
-              cxobj            **xtp)
+              cxobj           **xtp)
 {
     int                retval = -1;
     cxobj             *xt = NULL;
@@ -330,12 +261,206 @@ read_devices(clicon_handle h,
     return retval;
 }
 
+/*! Given service+instance config, send an edit-config table/param for each param in the service
+ * 
+ * @param[in] h       Clixon handle
+ * @param[in] s       Socket
+ * @param[in] devname Device name
+ * @param[in] xsc     XML service tree
+ * @param[in] db      Target datastore
+ * @param[in] tag     Creator tag
+ * @retval    0       OK
+ * @retval   -1       Error
+ */
+static int
+do_service(clicon_handle h,
+           int           s,
+           char         *devname,
+           cxobj        *xsc,
+           char         *db,
+           char         *tag)
+{
+    int   retval = -1;
+    cbuf  *cb = NULL;
+    cxobj *x;
+    char  *p;
+
+    if (strcmp(db, "actions") != 0){
+        clicon_err(OE_CFG, 0, "Unexpected datastore: %s (expected actions)", db);
+        goto done;
+    }
+    /* Write and mark a table/param for each param in the service */
+    if ((cb = cbuf_new()) == NULL){
+        clicon_err(OE_XML, errno, "cbuf_new");
+        goto done;
+    }
+    cprintf(cb, "<config>");
+    cprintf(cb, "<devices xmlns=\"%s\">", CONTROLLER_NAMESPACE);
+    cprintf(cb, "<device>");
+    cprintf(cb, "<name>%s</name>", devname);
+    cprintf(cb, "<config>");
+    cprintf(cb, "<table xmlns=\"%s\" nc:operation=\"merge\"", "urn:example:clixon");
+    cprintf(cb, " xmlns:%s=\"%s\"", CLIXON_LIB_PREFIX, CLIXON_LIB_NS);
+    cprintf(cb, ">");
+    x = NULL;
+    while ((x = xml_child_each(xsc, x,  CX_ELMNT)) != NULL){
+        if (strcmp(xml_name(x), "params") != 0)
+            continue;
+        if ((p = xml_body(x)) == NULL)
+            continue;        
+        cprintf(cb, "<parameter %s:creator=\"%s\">", CLIXON_LIB_PREFIX, tag);
+        cprintf(cb, "<name>%s</name>", p);
+        cprintf(cb, "</parameter>");
+    }
+    cprintf(cb, "</table>");
+    cprintf(cb, "</config>");
+    cprintf(cb, "</device>");
+    cprintf(cb, "</devices>");
+    cprintf(cb, "</config>");
+    /* (Read service and) produce device output and mark with service name */
+    if (clicon_rpc_edit_config(h,
+                               "actions xmlns=\"http://clicon.org/controller\"",
+                               OP_NONE, cbuf_get(cb)) < 0)
+        goto done;
+    retval = 0;
+ done:
+    if (cb)
+        cbuf_free(cb);
+    return retval;
+}
+
+/*! Loop over all devices
+ *
+ * @param[in]  h         Clixon handle
+ * @param[in]  s         Socket
+ * @param[in]  targetdb  Datastore to edit
+ * @param[in]  xdevs     Devices XML tree
+ * @param[in]  xs        XML tree of one service instance (in config services tree)
+ * @param[in]  tag       Service/instance tag
+ * @retval     0         OK
+ * @retval    -1         Error
+ */
+static int
+service_loop_devices(clicon_handle h,
+                     int           s,
+                     char         *targetdb,
+                     cxobj        *xdevs,
+                     cxobj        *xs,
+                     char         *tag)
+{
+    int     retval = -1;
+    cxobj  *xd;
+    char   *devname;
+
+    xd = NULL;
+    while ((xd = xml_child_each(xdevs, xd,  CX_ELMNT)) != NULL){
+        devname = xml_find_body(xd, "name");
+        if (do_service(h, s, devname, xs, targetdb, tag) < 0)
+            goto done;
+    }
+    retval = 0;
+ done:
+    return retval;
+}    
+
+/*! Iterate through one service+instance
+ *
+ * @param[in]  h         Clixon handle
+ * @param[in]  s         Socket
+ * @param[in]  pattern   Glob of services/instance, typically '*'
+ * @param[in]  targetdb  Datastore to edit
+ * @param[in]  xdevs     Devices XML tree
+ * @param[in]  xs        XML tree of one service instance (in config services tree)
+ * @retval     0         OK
+ * @retval    -1         Error
+ */
+static int
+service_action_one(clicon_handle h,
+                   int           s,
+                   char         *pattern,
+                   char         *targetdb,
+                   cxobj        *xdevs,
+                   cxobj        *xs)
+{
+    int    retval = -1;
+    cxobj *xi;
+    char  *instance;
+    cbuf  *cb = NULL;
+
+    if ((xi = xml_find_type(xs, NULL, NULL, CX_ELMNT)) == NULL ||
+        (instance = xml_body(xi)) == NULL)
+        goto ok;
+    if ((cb = cbuf_new()) == NULL){
+        clicon_err(OE_XML, errno, "cbuf_new");
+        goto done;
+    }
+    cprintf(cb, "%s/%s", xml_name(xs), instance);
+    if (service_loop_devices(h, s, targetdb, xdevs, xs, cbuf_get(cb)) < 0)
+        goto done;
+ ok:
+    retval = 0;
+ done:
+    if (cb)
+        cbuf_free(cb);
+    return retval;
+}
+
+/*! Specific service+instance handler, given tag find that service instance and handle it
+ *
+ * @param[in]  h         Clixon handle
+ * @param[in]  s         Socket
+ * @param[in]  pattern   Glob of services/instance, typically '*'
+ * @param[in]  targetdb  Datastore to edit
+ * @param[in]  xservices Services XML tree
+ * @param[in]  xdevs     Devices XML tree
+ * @param[in]  xsi       XML tree of one service instance (in notification msg tree)
+ * @retval     0         OK
+ * @retval    -1         Error
+ */
+static int
+service_action_instance(clicon_handle h,
+                        int           s,
+                        char         *pattern,
+                        char         *targetdb,
+                        cxobj        *xservices,
+                        cxobj        *xdevs,
+                        cxobj        *xsi)
+{
+    int     retval = -1;
+    char   *service_name = NULL;
+    char   *instance = NULL;
+    char   *tag;
+    cxobj  *xs;
+    
+    if ((tag = xml_body(xsi)) == NULL)
+        goto ok;
+    if (pattern != NULL && fnmatch(pattern, tag, 0) != 0)
+        goto ok;
+    if (clixon_strsplit(tag, '/', &service_name, &instance) < 0)
+        goto done;
+    /* Note: Assumes single key and that key is called "name" 
+     * See also controller_actions_diff()
+     */
+    if ((xs = xpath_first(xservices, NULL, "%s[name='%s']", service_name, instance)) != NULL){
+        if (service_loop_devices(h, s, targetdb, xdevs, xs, tag) < 0)
+            goto done;
+    }
+ ok:
+    retval = 0;
+ done:
+    if (service_name)
+        free(service_name);
+    if (instance)
+        free(instance);
+    return retval;
+}
+
 /*! Service commit notification handling, actions on test* services on all devices
  *
  * @param[in]  h            Clixon handle
  * @param[in]  s            Socket
  * @param[in]  notification XML of notification
- * @param[in]  pattern
+ * @param[in]  pattern      Glob of services/instance, typically '*'
  * @param[in]  send_error   Send error instead of edit-config/done
  * @retval     0            OK
  * @retval    -1            Error
@@ -351,18 +476,13 @@ service_action_handler(clicon_handle      h,
     cxobj  *xt = NULL;
     cxobj  *xn;
     cxobj  *xs;
-    cxobj  *xd;
+    cxobj  *xsi;
     cxobj  *xservices = NULL;
     cxobj  *xdevs = NULL;
-    cxobj  *xsc;
     char   *tidstr;
-    char   *service_name;
-    char   *devname;
     int     ret;
-    cbuf   *cbs = NULL;
     char   *sourcedb = NULL;
     char   *targetdb = NULL;
-    int     nr=0;
 
     clicon_debug(1, "%s", __FUNCTION__);
     if ((ret = clicon_msg_decode(notification, NULL, NULL, &xt, NULL)) < 0) 
@@ -397,62 +517,27 @@ service_action_handler(clicon_handle      h,
         goto done;
     if (read_devices(h, sourcedb, &xdevs) < 0)
         goto done;
-    if ((cbs = cbuf_new()) == NULL){
-        clicon_err(OE_UNIX, errno, "cbuf_new");
-        goto done;
-    }
-    xs = NULL;
-    while ((xs = xml_child_each(xn, xs,  CX_ELMNT)) != NULL){
-        if (strcmp(xml_name(xs), "service") != 0)
-            continue;
-        if ((service_name = xml_body(xs)) == NULL)
-            continue;
-        nr++;
-    }
-    if (nr==0){ /* All services */
+    if (xpath_first(xn, 0, "service") == 0){ /* All services: loop through service definitions */
         xs = NULL;
         while ((xs = xml_child_each(xservices, xs,  CX_ELMNT)) != NULL){
-            service_name = xml_name(xs);
-            if (pattern != NULL && fnmatch(pattern, service_name, 0) != 0)
-                continue;
-            cprintf(cbs, "<service>%s</service>", service_name);
-            /* Loop over all devices */
-            xd = NULL;
-            while ((xd = xml_child_each(xdevs, xd,  CX_ELMNT)) != NULL){
-                devname = xml_find_body(xd, "name");
-                if (do_service(h, s, devname, xs, targetdb, service_name) < 0)
-                    goto done;
-            }
+            if (service_action_one(h, s, pattern, targetdb, xdevs, xs) < 0)
+                goto done;
         }
     }
-    else {
-        xs = NULL;
-        while ((xs = xml_child_each(xn, xs,  CX_ELMNT)) != NULL){
-            if (strcmp(xml_name(xs), "service") != 0)
+    else {             /* Loop through specific service+instance field in notification */
+        xsi = NULL;
+        while ((xsi = xml_child_each(xn, xsi,  CX_ELMNT)) != NULL){
+            if (strcmp(xml_name(xsi), "service") != 0)
                 continue;
-            if ((service_name = xml_body(xs)) == NULL)
-                continue;
-            if (pattern != NULL && fnmatch(pattern, service_name, 0) != 0)
-                continue;
-            if ((xsc = xpath_first(xservices, NULL, "%s", service_name)) != NULL){
-                cprintf(cbs, "<service>%s</service>", service_name);
-                /* Loop over all devices */
-                xd = NULL;
-                while ((xd = xml_child_each(xdevs, xd,  CX_ELMNT)) != NULL){
-                    devname = xml_find_body(xd, "name");
-                    if (do_service(h, s, devname, xsc, targetdb, service_name) < 0)
-                        goto done;
-                }
-            }
+            if (service_action_instance(h, s, pattern, targetdb, xservices, xdevs, xsi) < 0)
+                goto done;
         }
     }
-    if (send_transaction_actions_done(h, tidstr, cbuf_get(cbs)) < 0)
+    if (send_transaction_actions_done(h, tidstr) < 0)
         goto done;
  ok:
     retval = 0;
  done:
-    if (cbs)
-        cbuf_free(cbs);
     if (xservices)
         xml_free(xservices);
     if (xdevs)
@@ -469,7 +554,6 @@ service_action_handler(clicon_handle      h,
 static int
 service_action_terminate(clicon_handle h)
 {
-    clicon_debug(1, "%s", __FUNCTION__);
     clixon_event_exit();
     clicon_debug(1, "%s done", __FUNCTION__); 
     clixon_err_exit();
@@ -478,15 +562,18 @@ service_action_terminate(clicon_handle h)
     return 0;
 }
 
-/*! wait for killed child
- * primary use in case restconf daemon forked using process-control API
- * This may cause EINTR in eg select() in clixon_event_loop() which will be ignored
+/*! Quit
  */
 static void
-service_action_sig_child(int arg)
+service_action_sig_term(int arg)
 {
-    clicon_debug(1, "%s", __FUNCTION__);
-    clicon_sig_child_set(1);
+    static int i=0;
+    
+    clicon_log(LOG_NOTICE, "%s: %s: pid: %u Signal %d", 
+               __PROGRAM__, __FUNCTION__, getpid(), arg);
+    if (i++ > 0)
+        exit(1);
+    clixon_exit_set(1); /* checked in clixon_event_loop() */
 }
 
 /*! usage
@@ -565,8 +652,12 @@ main(int    argc,
         }
     clicon_log_init(__PROGRAM__, dbg?LOG_DEBUG:LOG_INFO, logdst);
     clicon_debug_init(dbg, NULL);
-    /* This is in case restconf daemon forked using process-control API */
-    if (set_signal(SIGCHLD, service_action_sig_child, NULL) < 0){
+    /* Setup handlers to exit cleanly when killed from parent or user */
+    if (set_signal(SIGTERM, service_action_sig_term, NULL) < 0){
+        clicon_err(OE_DAEMON, errno, "Setting signal");
+        goto done;
+    }
+    if (set_signal(SIGINT, service_action_sig_term, NULL) < 0){
         clicon_err(OE_DAEMON, errno, "Setting signal");
         goto done;
     }

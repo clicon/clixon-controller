@@ -494,7 +494,7 @@ actions_timeout_unregister(controller_transaction *ct)
  * @param[in]  h       Clixon handle
  * @param[in]  ct      Transaction
  * @param[out] services 0: There are no service configuration
- * @param[out] cvv     Vector of services that have been changed.
+ * @param[out] cvv     Vector of changed service instances, on the form name:<service> value:<instance>
  * @retval     0       OK, cb including notify msg (or not)
  * @retval    -1       Error
  */
@@ -519,6 +519,9 @@ controller_actions_diff(clixon_handle           h,
     cxobj  *x1s;
     cxobj  *xn;
     int     i;
+    char   *instance;
+    cxobj  *xi;
+    cbuf   *cb = NULL;
     
     if (xmldb_get0(h, "running", YB_MODULE, nsc, "services", 1, WITHDEFAULTS_EXPLICIT, &x0t, NULL, NULL) < 0)
         goto done;
@@ -556,27 +559,52 @@ controller_actions_diff(clixon_handle           h,
         xml_flag_set(xn, XML_FLAG_CHANGE);
         xml_apply_ancestor(xn, (xml_applyfn_t*)xml_flag_set, (void*)XML_FLAG_CHANGE);
     }
+    if ((cb = cbuf_new()) == NULL){
+        clicon_err(OE_UNIX, errno, "cbuf_new");
+        goto done;
+    }
     /* Check deleted */
     if (x0s){
         xn = NULL;
         while ((xn = xml_child_each(x0s, xn,  CX_ELMNT)) != NULL){
             if (xml_flag(xn, XML_FLAG_DEL) == 0)
                 continue;
-            cvec_add_string(cvv, xml_name(xn), NULL);
+            /* Assume first entry is key, Alt: get key via YANG 
+               XXX See also controller_actions_diff */
+            if ((xi = xml_find_type(xn, NULL, NULL, CX_ELMNT)) == NULL ||
+                (instance = xml_body(xi)) == NULL)
+                continue;
+            cprintf(cb, "%s/%s", xml_name(xn), instance);
+            if (cvec_add_string(cvv, cbuf_get(cb), NULL) < 0){
+                clicon_err(OE_UNIX, errno, "cvec_add_string");
+                goto done;
+            }
+            cbuf_reset(cb);
         }
     }
-    /* Check added  */
+    /* Check added */
     if (x1s){
         xn = NULL;
         while ((xn = xml_child_each(x1s, xn,  CX_ELMNT)) != NULL){
             if (xml_flag(xn, XML_FLAG_CHANGE|XML_FLAG_ADD) == 0)
                 continue;
-            cvec_add_string(cvv, xml_name(xn), NULL);
+            /* Assume first entry is key, Alt: get key via YANG */
+            if ((xi = xml_find_type(xn, NULL, NULL, CX_ELMNT)) == NULL ||
+                (instance = xml_body(xi)) == NULL)
+                continue;
+            cprintf(cb, "%s/%s", xml_name(xn), instance);
+            if (cvec_add_string(cvv, cbuf_get(cb), NULL) < 0){
+                clicon_err(OE_UNIX, errno, "cvec_add_string");
+                goto done;
+            }
+            cbuf_reset(cb);
         }
     }
  ok:
     retval = 0;
  done:
+    if (cb)
+        cbuf_free(cb);
     if (x0t)
         xml_free(x0t);
     if (x1t)
@@ -594,9 +622,11 @@ controller_actions_diff(clixon_handle           h,
 
 /*! XML apply function: check if any of the creators of x is in cvv
  *
+ * cvv is on the form <service><instance key>
  * 1. cvv can be NULL, then any creator applies
  * 2. Should not be removed if another creator exists, then that creator should just be removed
  * 3. Should set a flag and remove later
+ * @see text_modify
  */
 static int
 strip_device(cxobj *x,
@@ -605,7 +635,7 @@ strip_device(cxobj *x,
     cvec   *cvv = (cvec*)arg;
     cg_var *cv = NULL;
     size_t  len;
-    char   *name;
+    char   *tag;
 
     if ((len = xml_creator_len(x)) == 0)
         return 0;
@@ -614,13 +644,13 @@ strip_device(cxobj *x,
         xml_flag_set(x, XML_FLAG_MARK);
     }
     else while ((cv = cvec_each(cvv, cv)) != NULL){
-            name = cv_name_get(cv);
-            if (xml_creator_find(x, name) == 0)
+            tag = cv_name_get(cv);
+            if (xml_creator_find(x, tag) == 0)
                 continue;
             if (len == 1)
                 xml_flag_set(x, XML_FLAG_MARK);
             else 
-                xml_creator_rm(x, name);
+                xml_creator_rm(x, tag);
         }
    return 0;
 }
@@ -634,6 +664,8 @@ strip_device(cxobj *x,
  * @param[in]  cvv  Vector of services
  * @retval     0    OK
  * @retval    -1    Error
+ * @note Somewhat raw algorithm to replace the top-level tree, could do with op=REMOVE
+ *       of the sub-parts instead of marking and remove
  */
 static int
 strip_service_data_from_device_config(clixon_handle h,
@@ -664,13 +696,16 @@ strip_service_data_from_device_config(clixon_handle h,
         if (xml_tree_prune_flags(xd, XML_FLAG_MARK, XML_FLAG_MARK) < 0)
             goto done;
         if (xml_apply(xd, CX_ELMNT, (xml_applyfn_t*)xml_flag_reset, (void*)(XML_FLAG_MARK)) < 0)
-        goto done;
+            goto done;
     }
     if (veclen){
         if ((cbret = cbuf_new()) == NULL){
             clicon_err(OE_UNIX, errno, "cbuf_new");
             goto done;
         }
+        /* XXX Somewhat raw to replace the top-level tree, could do with op=REMOVE
+         * of the sub-parts instead of marking and remove
+         */
         if ((ret = xmldb_put(h, db, OP_REPLACE, xt, NULL, cbret)) < 0)
             goto done;
         if (ret == 0){
@@ -837,7 +872,7 @@ controller_commit_actions(clixon_handle           h,
 {
     int     retval = -1;
     cbuf   *notifycb = NULL;
-    cvec   *cvv = NULL;
+    cvec   *cvv = NULL;       /* Format: <service> <instance> */
     int     services = 0;
     cg_var *cv = NULL;
 
@@ -848,12 +883,13 @@ controller_commit_actions(clixon_handle           h,
     /* Get candidate and running, compute diff and get notification msg in return */
     if (controller_actions_diff(h, ct, &services, cvv) < 0)
         goto done;
-    actions = AT_FORCE; // XXX
+    //    actions = AT_FORCE; // XXX enable to always trigger actions
     if (actions == AT_FORCE)
         cvec_reset(cvv);
     /* 1) copy candidate to actions and remove all device config tagged with services */
     if (xmldb_copy(h, "candidate", "actions") < 0)
         goto done;
+    /* Strip service data in device config for services that changed */
     if (strip_service_data_from_device_config(h, "actions", cvv) < 0)
         goto done;
     if (services){
@@ -1057,7 +1093,19 @@ rpc_controller_commit(clixon_handle h,
             goto done;
         goto ok;
     }
-    if (actions == AT_NONE){ /* Bypass actions, directly to push */
+    if (actions != AT_NONE){ /* Trigger actions */
+        if (strcmp(ct->ct_sourcedb, "candidate") != 0){
+            if (netconf_operation_failed(cbret, "application", "Only candidates db supported if actions")< 0)
+                goto done;
+            if (controller_transaction_done(h, ct, TR_FAILED) < 0)
+                goto done;
+            goto ok;
+        }
+        /* Compute diff of candidate + commit and trigger service-commit notify */
+        if (controller_commit_actions(h, ct, actions) < 0)
+            goto done;
+    }
+    else{ /* Bypass actions, directly to push */
         if ((ret = controller_commit_push(h, ct, "running", &cberr)) < 0)
             goto done;
         if (ret == 0){
@@ -1074,18 +1122,6 @@ rpc_controller_commit(clixon_handle h,
             if (controller_transaction_notify(h, ct) < 0)
                 goto done;
         }        
-    }
-    else { /* Trigger actions */
-        if (strcmp(ct->ct_sourcedb, "candidate") != 0){
-            if (netconf_operation_failed(cbret, "application", "Only candidates db supported if actions")< 0)
-                goto done;
-            if (controller_transaction_done(h, ct, TR_FAILED) < 0)
-                goto done;
-            goto ok;
-        }
-        /* Compute diff of candidate + commit and trigger service-commit notify */
-        if (controller_commit_actions(h, ct, actions) < 0)
-            goto done;
     }
     cprintf(cbret, "<rpc-reply xmlns=\"%s\">", NETCONF_BASE_NAMESPACE);
     cprintf(cbret, "<tid xmlns=\"%s\">%" PRIu64"</tid>", CONTROLLER_NAMESPACE, ct->ct_id);
