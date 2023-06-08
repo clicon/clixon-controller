@@ -1,0 +1,12 @@
+[Unit]
+Description=Starts and stops Clixon controller
+
+[Service]
+Type=forking
+User=root
+RestartSec=60
+Restart=on-failure
+ExecStart=/usr/local/sbin/clixon_backend -s running -f /usr/local/etc/controller.xml
+
+[Install]
+WantedBy=multi-user.target
