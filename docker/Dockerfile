@@ -65,6 +65,7 @@ USER clicon
 RUN pip3 install -r requirements.txt --break-system-packages
 
 USER root
+WORKDIR /clixon
 
 COPY startsystem.sh /usr/local/bin/
 
