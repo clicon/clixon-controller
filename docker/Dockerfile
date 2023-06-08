@@ -66,6 +66,7 @@ RUN pip3 install -r requirements.txt --break-system-packages
 
 USER root
 WORKDIR /clixon
+RUN pip3 install -r clixon-pyapi/requirements.txt --break-system-packages
 
 COPY startsystem.sh /usr/local/bin/
 
