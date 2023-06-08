@@ -2,6 +2,7 @@
 # Setup env before test for native, start container
 # Create ssh-key pair in controller container and copy public key to device containers
 # Called from make test
+# You may need to run cleanup.sh before
 
 set -ex
 
