@@ -9,6 +9,7 @@ sudo apt install flex bison git make gcc libnghttp2-dev libssl-dev
 $ git clone https://github.com/clicon/cligen.git
 $ git clone https://github.com/clicon/clixon.git
 $ git clone https://github.com/clicon/clixon-controller.git
+$ git clone https://github.com/clicon/clixon-pyapi.git
 ```
 
 ### Build the components
@@ -36,6 +37,24 @@ cd clixon-controller
 make
 sudo make install
 sudo mkdir /usr/local/share/clixon/mounts/
+```
+
+Clixon Python API
+```console
+
+# Build and install the package
+cd clixon-pyapi
+sudo python3 setup.py install
+
+# Install the server
+sudo cp clixon_server.py /usr/local/bin/
+
+# Add a new clicon user and install the needed Python packages,
+# the backend will start the Python server and drop the privileges
+# to this user.
+sudo useradd -g clicon -m clicon
+cp requirements.txt /tmp/
+sudo -u clicon pip3 install -r /tmp/requirements.txt
 ```
 
 ### Start devices
