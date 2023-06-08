@@ -162,48 +162,6 @@ wait_backend
 # Reset controller
 . ./reset-controller.sh
 
-new "set services enabled"
-ret=$(${clixon_netconf} -qe0 -f $CFG <<EOF
-<rpc xmlns="urn:ietf:params:xml:ns:netconf:base:1.0"
-  xmlns:nc="urn:ietf:params:xml:ns:netconf:base:1.0"
-  message-id="42">
-  <edit-config>
-    <target>
-      <candidate/>
-    </target>
-    <default-operation>merge</default-operation>
-    <config>
-      <services xmlns="http://clicon.org/controller">
-        <enabled>true</enabled>
-      </services>
-    </config>
-  </edit-config>
-</rpc>]]>]]>
-EOF
-   )
-
-match=$(echo "$ret" | grep --null -Eo "<rpc-error>") || true
-if [ -n "$match" ]; then
-    echo "netconf rpc-error detected"
-    exit 1
-fi
-
-new "set services enabled commit"
-echo "Controller commit"
-ret=$(${clixon_netconf} -q0 -f $CFG <<EOF
-<rpc xmlns="urn:ietf:params:xml:ns:netconf:base:1.0" message-id="43">
-  <commit/>
-</rpc>]]>]]>
-EOF
-   )
-echo "$ret"
-
-match=$(echo "$ret" | grep --null -Eo "<rpc-error>") || true
-if [ -n "$match" ]; then
-    echo "netconf rpc-error detected"
-    exit 1
-fi
-
 DEV2="<device>
            <name>clixon-example2</name>
 	   <config>

@@ -20,12 +20,10 @@ if [ ! -d $pydir ]; then
     mkdir $pydir
 fi
 
-# If set to false, override starting of clixon_server.py in test (you bring your own)
-: ${PY:=true}
-
 cat<<EOF > $CFG
 <clixon-config xmlns="http://clicon.org/config">
   <CLICON_CONFIGFILE>/usr/local/etc/controller.xml</CLICON_CONFIGFILE>
+  <CLICON_CONFIG_EXTEND>clixon-controller-config</CLICON_CONFIG_EXTEND>
   <CLICON_FEATURE>ietf-netconf:startup</CLICON_FEATURE>
   <CLICON_FEATURE>clixon-restconf:allow-auth-none</CLICON_FEATURE>
   <CLICON_YANG_DIR>/usr/local/share/clixon</CLICON_YANG_DIR>
@@ -47,6 +45,11 @@ cat<<EOF > $CFG
   <CLICON_CLI_HELPSTRING_TRUNCATE>true</CLICON_CLI_HELPSTRING_TRUNCATE>
   <CLICON_CLI_HELPSTRING_LINES>1</CLICON_CLI_HELPSTRING_LINES>
   <CLICON_YANG_SCHEMA_MOUNT>true</CLICON_YANG_SCHEMA_MOUNT>
+  <CLICON_BACKEND_USER>clicon</CLICON_BACKEND_USER>
+  <CONTROLLER_ACTION_COMMAND xmlns="http://clicon.org/controller-config">/usr/local/bin/clixon_server.py -f $CFG -F</CONTROLLER_ACTION_COMMAND>
+  <CONTROLLER_PYAPI_MODULE_PATH xmlns="http://clicon.org/controller-config">$pydir/</CONTROLLER_PYAPI_MODULE_PATH>
+  <CONTROLLER_PYAPI_MODULE_FILTER xmlns="http://clicon.org/controller-config"></CONTROLLER_PYAPI_MODULE_FILTER>
+  <CONTROLLER_PYAPI_PIDFILE xmlns="http://clicon.org/controller-config">/tmp/clixon_server.pid</CONTROLLER_PYAPI_PIDFILE>
   <autocli>
      <module-default>true</module-default>
      <list-keyword-default>kw-nokey</list-keyword-default>
@@ -67,25 +70,25 @@ module clixon-test {
     import ietf-inet-types { prefix inet; }
     import clixon-controller { prefix ctrl; }
     revision 2023-03-22{
-        description "Initial prototype";
+	description "Initial prototype";
     }
     augment "/ctrl:services" {
-        list test {
-            key service-name;
-            leaf service-name {
-                type string;
-            }
-            description "Test service";
-            list parameter {
-                key name;
-                leaf name{
-                    type string;
-                }
-                leaf value{
-                    type inet:ipv4-address;
-                }
-            }
-        }
+	list test {
+	    key service-name;
+	    leaf service-name {
+		type string;
+	    }
+	    description "Test service";
+	    list parameter {
+		key name;
+		leaf name{
+		    type string;
+		}
+		leaf value{
+		    type inet:ipv4-address;
+		}
+	    }
+	}
     }
 }
 EOF
@@ -112,24 +115,18 @@ if $BE; then
     echo "Kill old backend"
     sudo clixon_backend -s init -f $CFG -z
 
+    # Make sure the Python server is dead
+    if [ -f "/tmp/clixon_server.pid" ]; then
+	pid=`cat /tmp/clixon_server.pid`
+	kill -9 $pid
+    fi
+
     echo "Start new backend -s init  -f $CFG -D $DBG"
     sudo clixon_backend -s init -f $CFG -D $DBG
 fi
 
 # Check backend is running
 wait_backend
-
-if $PY; then
-    new "Kill existing pyapi"
-    python3 /usr/local/bin/clixon_server.py -m $pydir -z > /dev/null || true
-    sleep 1
-
-    new "Start py server"
-    if [ ! -x /usr/local/bin/clixon_server.py ]; then
-        err1 "/usr/local/bin/clixon_server.py not found"
-    fi
-    python3 /usr/local/bin/clixon_server.py -m $pydir
-fi
 
 # Reset controller
 . ./reset-controller.sh
@@ -169,23 +166,23 @@ i=1;
 for ip in $CONTAINERS; do
     NAME=$IMG$i
     ret=$(${clixon_netconf} -qe0 -f $CFG <<EOF
-<rpc xmlns="urn:ietf:params:xml:ns:netconf:base:1.0" 
-xmlns:nc="urn:ietf:params:xml:ns:netconf:base:1.0" 
+<rpc xmlns="urn:ietf:params:xml:ns:netconf:base:1.0"
+xmlns:nc="urn:ietf:params:xml:ns:netconf:base:1.0"
 message-id="42">
   <get-config>
     <source><running/></source>
     <filter type='subtree'>
       <devices xmlns="http://clicon.org/controller">
-        <device>
-          <name>$NAME</name>
-          <config>
-            <table xmlns="urn:example:clixon">
-              <parameter>
-                 <name>x</name>
-              </parameter>
-            </table>
-          </config>
-        </device>
+	<device>
+	  <name>$NAME</name>
+	  <config>
+	    <table xmlns="urn:example:clixon">
+	      <parameter>
+		 <name>x</name>
+	      </parameter>
+	    </table>
+	  </config>
+	</device>
       </devices>
     </filter>
   </get-config>
@@ -198,23 +195,19 @@ EOF
     echo "ret:$ret"
     match=$(echo $ret | grep --null -Eo "<rpc-error>") || true
     if [ -n "$match" ]; then
-        echo "netconf rpc-error detected"
-        exit 1
+	echo "netconf rpc-error detected"
+	exit 1
     fi
     match=$(echo $ret | grep --null -Eo '<config><table xmlns="urn:example:clixon"><parameter><name>x</name><value>1.2.3.4</value></parameter></table></config>') || true
     if [ -z "$match" ]; then
-        echo "netconf rpc get-config failed"
-        exit 1
+	echo "netconf rpc get-config failed"
+	exit 1
     fi
 done
 
 if $BE; then
     echo "Kill old backend"
     sudo clixon_backend -s init -f $CFG -z
-fi
-
-if $PY; then
-    python3 /usr/local/bin/clixon_server.py -m $pydir -z > /dev/null || true
 fi
 
 echo "test-cli-edit-commit-push"
