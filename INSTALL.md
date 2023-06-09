@@ -44,6 +44,7 @@ Clixon Python API
 
 # Build and install the package
 cd clixon-pyapi
+sudo -u clicon pip3 install -r requirements.txt
 sudo python3 setup.py install
 
 # Install the server
@@ -53,8 +54,6 @@ sudo cp clixon_server.py /usr/local/bin/
 # the backend will start the Python server and drop the privileges
 # to this user.
 sudo useradd -g clicon -m clicon
-cp requirements.txt /tmp/
-sudo -u clicon pip3 install -r /tmp/requirements.txt
 ```
 
 ### Start devices
