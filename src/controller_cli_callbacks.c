@@ -996,6 +996,8 @@ cli_show_devices(clixon_handle h,
                 char *p;
                 char logstr[30];
 
+                if (strcmp(xml_name(xc), "device") != 0)
+                    continue;
                 name = xml_find_body(xc, "name");
                 if (pattern != NULL && fnmatch(pattern, name, 0) != 0)
                     continue;
