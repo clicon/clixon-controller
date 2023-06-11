@@ -31,5 +31,12 @@ module clixon-controller-config {
             type string;
             default "/tmp/clixon_pyapi.pid";
         }
+        leaf CONTROLLER_FORCE_ACTIONS{
+            description
+                "Temporary option to always force service actions instead of writing individual
+                 service instances";
+            type boolean;
+            default true;
+        }
     }
 }
