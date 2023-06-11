@@ -394,7 +394,8 @@ service_action_one(clicon_handle h,
         clicon_err(OE_XML, errno, "cbuf_new");
         goto done;
     }
-    cprintf(cb, "%s/%s", xml_name(xs), instance);
+    /* XXX See also controller_actions_diff where tags are also created */
+    cprintf(cb, "%s[%s='%s']", xml_name(xs), xml_name(xi), instance);
     if (service_loop_devices(h, s, targetdb, xdevs, xs, cbuf_get(cb)) < 0)
         goto done;
  ok:
@@ -427,8 +428,6 @@ service_action_instance(clicon_handle h,
                         cxobj        *xsi)
 {
     int     retval = -1;
-    char   *service_name = NULL;
-    char   *instance = NULL;
     char   *tag;
     cxobj  *xs;
     
@@ -436,22 +435,16 @@ service_action_instance(clicon_handle h,
         goto ok;
     if (pattern != NULL && fnmatch(pattern, tag, 0) != 0)
         goto ok;
-    if (clixon_strsplit(tag, '/', &service_name, &instance) < 0)
-        goto done;
     /* Note: Assumes single key and that key is called "name" 
      * See also controller_actions_diff()
      */
-    if ((xs = xpath_first(xservices, NULL, "%s[name='%s']", service_name, instance)) != NULL){
+    if ((xs = xpath_first(xservices, NULL, "%s", tag)) != NULL){
         if (service_loop_devices(h, s, targetdb, xdevs, xs, tag) < 0)
             goto done;
     }
  ok:
     retval = 0;
  done:
-    if (service_name)
-        free(service_name);
-    if (instance)
-        free(instance);
     return retval;
 }
 

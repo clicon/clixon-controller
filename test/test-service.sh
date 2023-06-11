@@ -48,7 +48,8 @@ cat<<EOF > $CFG
   <CLICON_FEATURE>ietf-netconf:startup</CLICON_FEATURE>
   <CLICON_FEATURE>clixon-restconf:allow-auth-none</CLICON_FEATURE>
   <CLICON_CONFIG_EXTEND>clixon-controller-config</CLICON_CONFIG_EXTEND>
-  <CONTROLLER_ACTION_COMMAND xmlns="http://clicon.org/controller-config">/usr/local/bin/services_action -f $CFG</CONTROLLER_ACTION_COMMAND> <!-- Debug: -D 1 -l s -->
+  <CONTROLLER_ACTION_COMMAND xmlns="http://clicon.org/controller-config">/usr/local/bin/services_action -f $CFG -D 0 -ls</CONTROLLER_ACTION_COMMAND> <!-- Debug: -D 3 -l s -->
+  <CONTROLLER_FORCE_ACTIONS xmlns="http://clicon.org/controller-config">false</CONTROLLER_FORCE_ACTIONS>
   <CLICON_BACKEND_USER>clicon</CLICON_BACKEND_USER>
   <CLICON_SOCK_GROUP>clicon</CLICON_SOCK_GROUP>
   <CLICON_YANG_DIR>/usr/local/share/clixon</CLICON_YANG_DIR>
@@ -127,7 +128,7 @@ module myyang {
 	    description "Test service A";
 	    leaf-list params{
 	       type string;
-	    }
+	   } 
 	}
     }
     augment "/ctrl:services" {
@@ -150,7 +151,7 @@ cat <<EOF > $dir/startup_db
 <config>
   <processes xmlns="http://clicon.org/controller">
     <services>
-      <enabled>true</enabled> // true
+      <enabled>false</enabled> // true
     </services>
   </processes>
 </config>

@@ -569,12 +569,12 @@ controller_actions_diff(clixon_handle           h,
         while ((xn = xml_child_each(x0s, xn,  CX_ELMNT)) != NULL){
             if (xml_flag(xn, XML_FLAG_DEL) == 0)
                 continue;
-            /* Assume first entry is key, Alt: get key via YANG 
-               XXX See also controller_actions_diff */
+            /* Assume first entry is key, Alt: get key via YANG */
             if ((xi = xml_find_type(xn, NULL, NULL, CX_ELMNT)) == NULL ||
                 (instance = xml_body(xi)) == NULL)
                 continue;
-            cprintf(cb, "%s/%s", xml_name(xn), instance);
+            /* XXX See also service_action_one where tags are also created */
+            cprintf(cb, "%s[%s='%s']", xml_name(xn), xml_name(xi), instance);
             if (cvec_add_string(cvv, cbuf_get(cb), NULL) < 0){
                 clicon_err(OE_UNIX, errno, "cvec_add_string");
                 goto done;
@@ -592,7 +592,8 @@ controller_actions_diff(clixon_handle           h,
             if ((xi = xml_find_type(xn, NULL, NULL, CX_ELMNT)) == NULL ||
                 (instance = xml_body(xi)) == NULL)
                 continue;
-            cprintf(cb, "%s/%s", xml_name(xn), instance);
+            /* XXX See also service_action_one where tags are also created */
+            cprintf(cb, "%s[%s='%s']", xml_name(xn), xml_name(xi), instance);
             if (cvec_add_string(cvv, cbuf_get(cb), NULL) < 0){
                 clicon_err(OE_UNIX, errno, "cvec_add_string");
                 goto done;
@@ -883,7 +884,8 @@ controller_commit_actions(clixon_handle           h,
     /* Get candidate and running, compute diff and get notification msg in return */
     if (controller_actions_diff(h, ct, &services, cvv) < 0)
         goto done;
-    actions = AT_FORCE; // XXX enable to always trigger actions
+    if (clicon_option_bool(h, "CONTROLLER_FORCE_ACTIONS"))
+        actions = AT_FORCE; /* enable to always trigger actions */
     if (actions == AT_FORCE)
         cvec_reset(cvv);
     /* 1) copy candidate to actions and remove all device config tagged with services */
@@ -903,7 +905,9 @@ controller_commit_actions(clixon_handle           h,
             cprintf(notifycb, "<source>actions</source>");
             cprintf(notifycb, "<target>actions</target>");
             while ((cv = cvec_each(cvv, cv)) != NULL){
-                cprintf(notifycb, "<service>%s</service>", cv_name_get(cv));
+                cprintf(notifycb, "<service>");
+                xml_chardata_cbuf_append(notifycb, cv_name_get(cv));
+                cprintf(notifycb, "</service>");
             }
             cprintf(notifycb, "</services-commit>");
 
