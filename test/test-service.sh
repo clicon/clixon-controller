@@ -267,6 +267,7 @@ fi
 sleep $sleep
 new "commit push"
 set +e
+
 expectpart "$(${clixon_cli} -m configure -1f $CFG commit push 2>&1)" 0 OK --not-- Error
 
 new "edit testA(2)"
@@ -318,6 +319,158 @@ fi
 match=$(echo $ret | grep --null -Eo '\- <name>Ax</name') || true
 if [ -z "$match" ]; then
     echo "commit diff failed"
+    exit 1
+fi
+
+# Delete testA completely
+new "delete testA(3)"
+ret=$(${clixon_netconf} -0 -f $CFG <<EOF
+<?xml version="1.0" encoding="UTF-8"?>
+<hello xmlns="urn:ietf:params:xml:ns:netconf:base:1.0">
+   <capabilities>
+      <capability>urn:ietf:params:netconf:base:1.0</capability>
+   </capabilities>
+</hello>]]>]]>
+<rpc xmlns="urn:ietf:params:xml:ns:netconf:base:1.0"
+     xmlns:nc="urn:ietf:params:xml:ns:netconf:base:1.0"
+     message-id="42">
+  <edit-config>
+    <target><candidate/></target>
+    <default-operation>none</default-operation>
+    <config>
+       <services xmlns="http://clicon.org/controller">
+          <testA xmlns="urn:example:test" nc:operation="delete">
+            <name>foo</name>
+          </testA>
+      </services>
+    </config>
+  </edit-config>
+</rpc>]]>]]>
+EOF
+)
+
+echo "$ret"
+match=$(echo "$ret" | grep --null -Eo "<rpc-error>") || true
+if [ -n "$match" ]; then
+    echo "netconf rpc-error detected"
+    exit 1
+fi
+
+sleep $sleep
+new "commit push"
+
+set +e
+expectpart "$(${clixon_cli} -m configure -1f $CFG commit push 2>&1)" 0 OK --not-- Error
+
+new "get-config check removed Ax"
+NAME=clixon-example1
+ret=$(${clixon_netconf} -qe0 -f $CFG <<EOF
+<rpc xmlns="urn:ietf:params:xml:ns:netconf:base:1.0"
+xmlns:nc="urn:ietf:params:xml:ns:netconf:base:1.0"
+message-id="42">
+  <get-config>
+    <source><running/></source>
+    <filter type='subtree'>
+      <devices xmlns="http://clicon.org/controller">
+	<device>
+	  <name>$NAME</name>
+	  <config>
+	    <table xmlns="urn:example:clixon"/>
+	  </config>
+	</device>
+      </devices>
+    </filter>
+  </get-config>
+</rpc>]]>]]>
+EOF
+       )
+echo "ret:$ret"
+match=$(echo $ret | grep --null -Eo "<rpc-error>") || true
+if [ -n "$match" ]; then
+    echo "netconf rpc-error detected on $NAME"
+    exit 1
+fi
+
+match=$(echo $ret | grep --null -Eo "<parameter><name>Ax</name></parameter>") || true
+echo "match:$match"
+if [ -n "$match" ]; then
+    echo "Error:Ax is not removed in $NAME as it should be"
+    exit 1
+fi
+
+
+# Delete testB completely
+new "delete testB(4)"
+ret=$(${clixon_netconf} -0 -f $CFG <<EOF
+<?xml version="1.0" encoding="UTF-8"?>
+<hello xmlns="urn:ietf:params:xml:ns:netconf:base:1.0">
+   <capabilities>
+      <capability>urn:ietf:params:netconf:base:1.0</capability>
+   </capabilities>
+</hello>]]>]]>
+<rpc xmlns="urn:ietf:params:xml:ns:netconf:base:1.0"
+     xmlns:nc="urn:ietf:params:xml:ns:netconf:base:1.0"
+     message-id="42">
+  <edit-config>
+    <target><candidate/></target>
+    <default-operation>none</default-operation>
+    <config>
+       <services xmlns="http://clicon.org/controller">
+          <testB xmlns="urn:example:test" nc:operation="delete">
+            <name>foo</name>
+          </testB>
+      </services>
+    </config>
+  </edit-config>
+</rpc>]]>]]>
+EOF
+)
+
+echo "$ret"
+match=$(echo "$ret" | grep --null -Eo "<rpc-error>") || true
+if [ -n "$match" ]; then
+    echo "netconf rpc-error detected"
+    exit 1
+fi
+
+sleep $sleep
+new "commit push"
+set +e
+expectpart "$(${clixon_cli} -m configure -1f $CFG commit push 2>&1)" 0 OK --not-- Error
+
+new "get-config check removed Ax"
+NAME=clixon-example1
+ret=$(${clixon_netconf} -qe0 -f $CFG <<EOF
+<rpc xmlns="urn:ietf:params:xml:ns:netconf:base:1.0"
+xmlns:nc="urn:ietf:params:xml:ns:netconf:base:1.0"
+message-id="42">
+  <get-config>
+    <source><running/></source>
+    <filter type='subtree'>
+      <devices xmlns="http://clicon.org/controller">
+	<device>
+	  <name>$NAME</name>
+	  <config>
+	    <table xmlns="urn:example:clixon"/>
+	  </config>
+	</device>
+      </devices>
+    </filter>
+  </get-config>
+</rpc>]]>]]>
+EOF
+       )
+echo "ret:$ret"
+match=$(echo $ret | grep --null -Eo "<rpc-error>") || true
+if [ -n "$match" ]; then
+    echo "netconf rpc-error detected on $NAME"
+    exit 1
+fi
+
+match=$(echo $ret | grep --null -Eo "<parameter><name>Bx</name></parameter>") || true
+echo "match:$match"
+if [ -n "$match" ]; then
+    echo "Error:Bx is not removed in $NAME as it should be"
     exit 1
 fi
 
