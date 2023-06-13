@@ -235,8 +235,8 @@ push_device_one(clixon_handle           h,
         goto failed;
     }
 #if 0 // debug
-    fprintf(stderr, "%s before push x1:\n", __FUNCTION__);
-    xml_creator_print(stderr, x1); // XXX
+    fprintf(stderr, "%s before push x1 db:%s:\n", __FUNCTION__, db);
+    xml_creator_print(stderr, x1);
 #endif
     if ((yspec = device_handle_yspec_get(dh)) == NULL){
         if ((*cberr = cbuf_new()) == NULL){
@@ -698,6 +698,11 @@ strip_service_data_from_device_config(clixon_handle h,
             goto done;
         if (xml_apply(xd, CX_ELMNT, (xml_applyfn_t*)xml_flag_reset, (void*)(XML_FLAG_MARK)) < 0)
             goto done;
+#if 0 // debug
+        fprintf(stderr, "%s after strip xd:\n", __FUNCTION__);
+        xml_creator_print(stderr, xd); 
+
+#endif
     }
     if (veclen){
         if ((cbret = cbuf_new()) == NULL){
