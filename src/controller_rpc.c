@@ -1643,16 +1643,22 @@ datastore_diff_device(clixon_handle      h,
         x2 = x2m = NULL;
         switch (dt2){
         case DT_RUNNING:
+            cbuf_reset(cbxpath);
+            cprintf(cbxpath, "devices/device[name='%s']/config", devname);
             if (xmldb_get0(h, "running", Y_MODULE, nsc, cbuf_get(cbxpath), 1, WITHDEFAULTS_EXPLICIT, &x2ret, NULL, NULL) < 0)
                 goto done;
             x2 = xpath_first(x2ret, nsc, "devices/device/config");
             break;
         case DT_CANDIDATE:
+            cbuf_reset(cbxpath);
+            cprintf(cbxpath, "devices/device[name='%s']/config", devname);
             if (xmldb_get0(h, "candidate", Y_MODULE, nsc, cbuf_get(cbxpath), 1, WITHDEFAULTS_EXPLICIT, &x2ret, NULL, NULL) < 0)
                 goto done;
             x2 = xpath_first(x2ret, nsc, "devices/device/config");
             break;
         case DT_ACTIONS:
+            cbuf_reset(cbxpath);
+            cprintf(cbxpath, "devices/device[name='%s']/config", devname);
             if (xmldb_get0(h, "actions", Y_MODULE, nsc, cbuf_get(cbxpath), 1, WITHDEFAULTS_EXPLICIT, &x2ret, NULL, NULL) < 0)
                 goto done;
             x2 = xpath_first(x2ret, nsc, "devices/device/config");

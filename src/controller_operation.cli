@@ -52,16 +52,17 @@ show("Show a particular state of the system"){
     compare("Compare candidate and running databases"), compare_dbs("text");{
           xml("Show comparison in xml"), compare_dbs("xml");
 	  text("Show comparison in text"), compare_dbs("text");
-          device("Compare device sync with running") [(<name:string>("device pattern")|<name:string expand_dbvar("running","/clixon-controller:devices/device/name")>("device pattern"))], compare_device_db_dev("text");{
-    		         xml("Show comparison in xml"), compare_device_db_dev("xml");
-		         text("Show comparison in text"), compare_device_db_dev("text");
-                     }
     }
     devices("Show state of devices")[
                  (<name:string>("device pattern")|
                   <name:string expand_dbvar("running","/clixon-controller:devices/device/name")>("device pattern"))
                  ], cli_show_devices();{
                  check("Check if device is in sync"), check_device_db("text");
+                 diff("Compare remote device config with local"), compare_device_db_dev("text");{
+                     	 xml("Show comparison as xml"), compare_device_db_dev("xml");
+		         text("Show comparison as text"), compare_device_db_dev("text");
+                         json("Show comparison as json"), compare_device_db_dev("json");
+                 }
                  detail("Show detailed state"), cli_show_devices("detail");
                  }
     transactions("Show state of las t transaction"), cli_show_transactions("last");{

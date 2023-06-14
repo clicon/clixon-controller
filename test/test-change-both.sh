@@ -5,6 +5,7 @@
 # Commit a change to _devices_ remove x, change y, and add z
 # Push validate to devices which should fail
 # Push commit to devices which should fail
+# make a cli show devices check and diff
 
 set -eu
 
@@ -114,13 +115,38 @@ if ! $push ; then
     exit 0
 fi
 
-# XXX remove cli, but it is difficult since we have to wait for notification, rpc-reply is not enough
+# Wanted to remove cli, but it is difficult since we have to wait for notification,
+# rpc-reply is not enough. the cli commands are more convenient
 new "push validate"
 ret=$(${clixon_cli} -1f $CFG push validate 2>&1)
 echo "ret:$ret"
 match=$(echo $ret | grep --null -Eo "failed Device") || true
 if [ -z "$match" ]; then
     echo "Error msg not detected"
+    exit 1
+fi
+
+NAME=${IMG}1
+new "check if in sync (should not be)"
+ret=$(${clixon_cli} -1f $CFG show devices $NAME check 2>&1)
+echo "ret:$ret"
+match=$(echo $ret | grep --null -Eo "out-of-sync") || true
+if [ -z "$match" ]; then
+    echo "Is in sync but should not be"
+    exit 1
+fi
+
+new "check device diff"
+ret=$(${clixon_cli} -1f $CFG show devices $NAME diff 2>&1)
+echo "ret:$ret"
+match=$(echo $ret | grep --null -Eo "+ <value>322</value>") || true
+if [ -z "$match" ]; then
+    echo "show devices diff does not match"
+    exit 1
+fi
+match=$(echo $ret | grep --null -Eo "\- <value>122</value>") || true
+if [ -z "$match" ]; then
+    echo "show devices diff does not match"
     exit 1
 fi
 
