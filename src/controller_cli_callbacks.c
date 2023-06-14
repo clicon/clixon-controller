@@ -1238,8 +1238,8 @@ compare_device_config_type(clicon_handle      h,
         /* Wait to complete transaction try ^C here */
         if (transaction_notification_poll(h, tidstr, &result) < 0)
             goto done;
-        if (result == TR_SUCCESS)
-            goto ok;
+        if (result != TR_SUCCESS)
+            goto done;
     }
     if ((cb = cbuf_new()) == NULL){
         clicon_err(OE_PLUGIN, errno, "cbuf_new");
@@ -1286,7 +1286,6 @@ compare_device_config_type(clicon_handle      h,
             goto done;
         }
     }
- ok:
     retval = 0;
  done:
     if (xret)
@@ -1332,6 +1331,7 @@ compare_device_db_sync(clicon_handle h,
  * @param[in] argv  arg: 0 as xml, 1: as text
  * @retval    0     OK
  * @retval   -1     Error
+ * @see check_device_db  only replies with boolean
  */
 int
 compare_device_db_dev(clicon_handle h, 
@@ -1353,11 +1353,13 @@ compare_device_db_dev(clicon_handle h,
 }
 
 /*! Check if device(s) is in sync
+ *
  * @param[in] h
  * @param[in] cvv  : name pattern
  * @param[in] argv 
  * @retval    0    OK
  * @retval   -1    Error
+ * @see compare_device_db_dev  with detailed diff
  */
 int
 check_device_db(clixon_handle h,
