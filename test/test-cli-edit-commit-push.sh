@@ -99,7 +99,7 @@ from clixon.clixon import rpc
 SERVICE_NAME = "test"
 
 @rpc()
-def setup(root, log):
+def setup(root, log, **kwargs):
     for device in root.devices.device:
         for service in root.services.test:
             parameter = service.parameter
