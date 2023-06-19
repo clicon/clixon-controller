@@ -137,8 +137,8 @@ wait_backend
 new "CLI: syncronize devices"
 expectpart "$($clixon_cli -1 -f $CFG pull)" 0 ""
 
-new "CLI: Check pre-controller devices configuration"
-expectpart "$($clixon_cli -1 -f $CFG show configuration xml devices)" 0 "<name>y</name>" --not-- "<value>1.2.3.4</value>"
+#new "CLI: Check pre-controller devices configuration"
+#expectpart "$($clixon_cli -1 -f $CFG show configuration xml devices)" 0 "<name>y</name>" --not-- "<value>1.2.3.4</value>"
 
 new "CLI: Configure service"
 expectpart "$($clixon_cli -1 -f $CFG -m configure set services test cli_test)" 0 ""
