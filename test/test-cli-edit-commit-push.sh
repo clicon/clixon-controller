@@ -46,6 +46,7 @@ cat<<EOF > $CFG
   <CLICON_CLI_HELPSTRING_LINES>1</CLICON_CLI_HELPSTRING_LINES>
   <CLICON_YANG_SCHEMA_MOUNT>true</CLICON_YANG_SCHEMA_MOUNT>
   <CLICON_BACKEND_USER>clicon</CLICON_BACKEND_USER>
+  <CONTROLLER_FORCE_ACTIONS xmlns="http://clicon.org/controller-config">false</CONTROLLER_FORCE_ACTIONS>
   <CONTROLLER_ACTION_COMMAND xmlns="http://clicon.org/controller-config">/usr/local/bin/clixon_server.py -f $CFG -F -d</CONTROLLER_ACTION_COMMAND>
   <CONTROLLER_PYAPI_MODULE_PATH xmlns="http://clicon.org/controller-config">$pydir/</CONTROLLER_PYAPI_MODULE_PATH>
   <CONTROLLER_PYAPI_MODULE_FILTER xmlns="http://clicon.org/controller-config"></CONTROLLER_PYAPI_MODULE_FILTER>
@@ -96,7 +97,7 @@ EOF
 cat <<EOF > $pydir/clixon_example.py
 from clixon.clixon import rpc
 
-SERVICE_NAME = "test"
+SERVICE = "test"
 
 @rpc()
 def setup(root, log, **kwargs):
