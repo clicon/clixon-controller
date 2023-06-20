@@ -20,7 +20,7 @@ install_yang() {
     echo "Installing YANG files from \"$SOURCE_PATH\" to \"$CLIXON_YANG\":"
     echo `find $SOURCE_PATH -name "*.yang"`
     if [ ! -d ${CLIXON_YANG} ]; then
-        mkdir -p ${CLIXON_YANG}
+	mkdir -p ${CLIXON_YANG}
     fi
     find $SOURCE_PATH -name "*.yang" -exec cp {} $CLIXON_YANG \;
     echo ""
@@ -30,7 +30,8 @@ install_modules() {
     echo "Installing Python files from \"$SOURCE_PATH\" to \"$CLIXON_MODULES\":"
     echo `find $SOURCE_PATH -name "*.py"`
     if [ ! -d ${CLIXON_MODULES} ]; then
-        mkdir -p ${CLIXON_MODULES}
+	mkdir -p ${CLIXON_MODULES}
+	chown clicon:clicon ${CLIXON_MODULES}
     fi
     find $SOURCE_PATH -name "*.py" -exec cp {} $CLIXON_MODULES \;
     echo ""
@@ -48,7 +49,7 @@ while getopts "s:m:y:rh" opt; do
 	    ;;
 	m)
 	    CLIXON_MODULES=$OPTARG
-	    ;;	
+	    ;;
 	y)
 	    CLIXON_YANG=$OPTARG
 	    ;;
