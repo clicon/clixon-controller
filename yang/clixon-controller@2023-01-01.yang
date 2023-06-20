@@ -17,6 +17,9 @@ module clixon-controller {
     import ietf-datastores {
         prefix ds;
     }
+    import clixon-lib {
+        prefix cl;
+    }
     description
         "Clixon controller";
     revision 2023-01-01 {
@@ -329,8 +332,7 @@ module clixon-controller {
                 type boolean;
                 default true;
                 description
-                    "This leaf contains the configured, desired state of the
-                     device.
+                    "This leaf contains the configured, desired state of the device.
                      If false, a connection to the device is not attempted and
                      conn-state remains in CLOSED state.
                      If true, a connection to the device is attempted, striving to
@@ -688,6 +690,10 @@ module clixon-controller {
                 description
                     "XPath to part of XML to compare";
                 type string;
+            }
+            leaf format {
+                type cl:datastore_format;
+                default xml;
             }
             choice datastore {
                 description

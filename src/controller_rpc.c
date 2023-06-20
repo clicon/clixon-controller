@@ -1510,14 +1510,23 @@ rpc_transactions_actions_done(clixon_handle h,
     return retval;
 }
 
-/*!
+/*! Given two datastores and xpath, return diff in textual form
+ *
+ * @param[in]   h      Clixon handle
+ * @param[in]   xpath  XPath
+ * @param[in]   db1    First datastore
+ * @param[in]   db2    Second datastore
+ * @param[in]   format Format of diff
+ * @param[out]  cbret  CLIgen buff with NETCONF reply
+ * @see datastore_diff_device   for intra-device diff
  */
 static int
-datastore_diff_dsref(clixon_handle h,
-                     char         *xpath,
-                     char         *id1,
-                     char         *id2,
-                     cbuf         *cbret)
+datastore_diff_dsref(clixon_handle    h,
+                     char            *xpath,
+                     char            *db1,
+                     char            *db2,
+                     enum format_enum format,
+                     cbuf            *cbret)
 {
     int     retval = -1;
     cbuf   *cb = NULL;
@@ -1526,17 +1535,17 @@ datastore_diff_dsref(clixon_handle h,
     cxobj  *x1;
     cxobj  *x2;
     
-    if (xmldb_get0(h, id1, YB_NONE, NULL, xpath, 1, WITHDEFAULTS_EXPLICIT, &xt1, NULL, NULL) < 0)
+    if (xmldb_get0(h, db1, YB_NONE, NULL, xpath, 1, WITHDEFAULTS_EXPLICIT, &xt1, NULL, NULL) < 0)
         goto done;
     x1 = xpath_first(xt1, NULL, "%s", xpath);
-    if (xmldb_get0(h, id2, YB_NONE, NULL, xpath, 1, WITHDEFAULTS_EXPLICIT, &xt2, NULL, NULL) < 0)
+    if (xmldb_get0(h, db2, YB_NONE, NULL, xpath, 1, WITHDEFAULTS_EXPLICIT, &xt2, NULL, NULL) < 0)
         goto done;
     x2 = xpath_first(xt2, NULL, "%s", xpath);
     if ((cb = cbuf_new()) == NULL){
         clicon_err(OE_UNIX, errno, "cbuf_new");
         goto done;
     }
-    if (xml_tree_diff_print(cb, 0, x1, x2, FORMAT_XML) < 0)
+    if (xml_tree_diff_print(cb, 0, x1, x2, format) < 0)
         goto done;
     cprintf(cbret, "<rpc-reply xmlns=\"%s\">", NETCONF_BASE_NAMESPACE);
     cprintf(cbret, "<diff xmlns=\"%s\">", CONTROLLER_NAMESPACE);
@@ -1554,7 +1563,17 @@ datastore_diff_dsref(clixon_handle h,
     return retval;
 }
 
-/*!
+/*! Given a device pattern, return diff in textual form between different device configs
+ *
+ * That is diff of configs for same device, only different variants, eg synced, transient, running, etc
+ * @param[in]   h       Clixon handle
+ * @param[in]   xpath   XPath
+ * @param[in]   pattern Glob pattern for selecting devices
+ * @param[in]   dt1     Type of device config 1
+ * @param[in]   dt2     Type of device config 2
+ * @param[in]   format Format of diff
+ * @param[out]  cbret   CLIgen buff with NETCONF reply
+ * @see datastore_diff_dsref   For inter-datastore diff
  */
 static int
 datastore_diff_device(clixon_handle      h,
@@ -1562,6 +1581,7 @@ datastore_diff_device(clixon_handle      h,
                       char              *pattern,
                       device_config_type dt1,
                       device_config_type dt2,
+                      enum format_enum   format,
                       cbuf              *cbret)
 {
     int           retval = -1;
@@ -1675,7 +1695,7 @@ datastore_diff_device(clixon_handle      h,
             }
             break;
         }
-        if (xml_tree_diff_print(cb, 0, x1?x1:x1m, x2?x2:x2m, FORMAT_XML) < 0)
+        if (xml_tree_diff_print(cb, 0, x1?x1:x1m, x2?x2:x2m, format) < 0)
             goto done;        
         if (x1m){
             xml_free(x1m);
@@ -1754,8 +1774,16 @@ rpc_datastore_diff(clixon_handle h,
     device_config_type dt2;
     char              *xpath;
     char              *devname;
+    char              *formatstr;
+    enum format_enum   format = FORMAT_XML;
                 
     xpath = xml_find_body(xe, "xpath");
+    if ((formatstr = xml_find_body(xe, "format")) != NULL){
+        if ((int)(format = format_str2int(formatstr)) < 0){
+            clicon_err(OE_PLUGIN, 0, "Not valid format: %s", formatstr);
+            goto done;
+        }
+    }
     if ((ds1 = xml_find_body(xe, "dsref1")) != NULL){ /* Regular datastores */
         if (nodeid_split(ds1, NULL, &id1) < 0)
             goto done;
@@ -1766,7 +1794,7 @@ rpc_datastore_diff(clixon_handle h,
         }
         if (nodeid_split(ds2, NULL, &id2) < 0)
             goto done;
-        if (datastore_diff_dsref(h, xpath, id1, id2, cbret) < 0)
+        if (datastore_diff_dsref(h, xpath, id1, id2, format, cbret) < 0)
             goto done;
     }
     else{ /* Device specific datastores */
@@ -1795,7 +1823,7 @@ rpc_datastore_diff(clixon_handle h,
                 goto done;
             goto ok;
         }
-        if (datastore_diff_device(h, xpath, devname, dt1, dt2, cbret) < 0)
+        if (datastore_diff_device(h, xpath, devname, dt1, dt2, format, cbret) < 0)
             goto done;
     }
  ok:

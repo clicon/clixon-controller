@@ -1251,6 +1251,7 @@ compare_device_config_type(clicon_handle      h,
             NETCONF_MESSAGE_ID_ATTR);
     cprintf(cb, "<datastore-diff xmlns=\"%s\">", CONTROLLER_NAMESPACE);
     cprintf(cb, "<xpath>config</xpath>");
+    cprintf(cb, "<format>%s</format>", formatstr);
     device_type = device_config_type_int2str(dt1);
     cprintf(cb, "<devname>%s</devname>", pattern);
     cprintf(cb, "<config-type1>%s</config-type1>", device_type);
