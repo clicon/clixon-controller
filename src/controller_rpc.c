@@ -889,8 +889,6 @@ controller_commit_actions(clixon_handle           h,
     /* Get candidate and running, compute diff and get notification msg in return */
     if (controller_actions_diff(h, ct, &services, cvv) < 0)
         goto done;
-    if (clicon_option_bool(h, "CONTROLLER_FORCE_ACTIONS"))
-        actions = AT_FORCE; /* enable to always trigger actions */
     if (actions == AT_FORCE)
         cvec_reset(cvv);
     /* 1) copy candidate to actions and remove all device config tagged with services */

@@ -1,8 +1,8 @@
 #!/bin/sh
 
 # This script is used to install Clixon controller packages.  The
-# script will take a directory as input and copy all Python files to a
-# certain target directory and YANG files to another target directory.
+# script takes a directory as input and copy all Python files to a
+# target directory and YANG files to another target directory.
 
 CLIXON_MODULES="/usr/local/share/clixon/controller/modules/"
 CLIXON_YANG="/usr/local/share/clixon/controller/"
@@ -19,6 +19,9 @@ usage() {
 install_yang() {
     echo "Installing YANG files from \"$SOURCE_PATH\" to \"$CLIXON_YANG\":"
     echo `find $SOURCE_PATH -name "*.yang"`
+    if [ ! -d ${CLIXON_YANG} ]; then
+        mkdir -p ${CLIXON_YANG}
+    fi
     find $SOURCE_PATH -name "*.yang" -exec cp {} $CLIXON_YANG \;
     echo ""
 }
@@ -26,6 +29,9 @@ install_yang() {
 install_modules() {
     echo "Installing Python files from \"$SOURCE_PATH\" to \"$CLIXON_MODULES\":"
     echo `find $SOURCE_PATH -name "*.py"`
+    if [ ! -d ${CLIXON_MODULES} ]; then
+        mkdir -p ${CLIXON_MODULES}
+    fi
     find $SOURCE_PATH -name "*.py" -exec cp {} $CLIXON_MODULES \;
     echo ""
 }
