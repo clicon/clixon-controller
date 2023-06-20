@@ -50,7 +50,7 @@ APPSRC  = services_action.c
 
 APPS	  = $(APPSRC:.c=)
 
-INSTALLER = "clixon_controller_packages.sh"
+INSTALLER = clixon_controller_packages.sh
 
 all:	$(APPS)
 
@@ -67,7 +67,7 @@ services_action: services_action.c
 install: $(APPS) $(INSTALLER)
 	install -d -m 0755 $(DESTDIR)$(bindir)
 	install -m 0755 $(INSTALLFLAGS) $(APPS) $(DESTDIR)$(bindir)
-	install -m 0755 $(INSTALLFLAGS) $(INSTALLER) $(DESTDIR)$(bindir)
+	install -m 0755 $(INSTALLER) $(DESTDIR)$(bindir)
 
 uninstall: 
 	rm -f $(DESTDIR)$(bindir)/$(APPS)
