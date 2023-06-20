@@ -50,6 +50,8 @@ APPSRC  = services_action.c
 
 APPS	  = $(APPSRC:.c=)
 
+INSTALLER = "clixon_controller_packages.sh"
+
 all:	$(APPS)
 
 clean:
@@ -62,12 +64,14 @@ distclean: clean
 services_action: services_action.c
 	$(CC) $(INCLUDES) $(CPPFLAGS) -D__PROGRAM__=\"$@\" $(CFLAGS) $(LDFLAGS) $^ $(LIBS) -o $@
 
-install: $(APPS)
+install: $(APPS) $(INSTALLER)
 	install -d -m 0755 $(DESTDIR)$(bindir)
 	install -m 0755 $(INSTALLFLAGS) $(APPS) $(DESTDIR)$(bindir)
+	install -m 0755 $(INSTALLFLAGS) $(INSTALLER) $(DESTDIR)$(bindir)
 
 uninstall: 
 	rm -f $(DESTDIR)$(bindir)/$(APPS)
+	rm -f $(DESTDIR)$(bindir)/$(INSTALLER)
 
 TAGS:
 	find $(srcdir) -name '*.[ch]' -type f | etags -
