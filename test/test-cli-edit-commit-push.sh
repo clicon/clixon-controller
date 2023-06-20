@@ -1,4 +1,5 @@
 # Controller test script using cli, pyapi, backend and two example devices
+# 0. Install package with py and yang file
 # 1a. edit a service with (local) syntax error
 # 1b. edit a service: set x=1.2.3.4
 # 2. Commit (push) service
@@ -14,11 +15,16 @@ if [ ! -d $dir ]; then
     mkdir $dir
 fi
 CFG=$dir/controller.xml
-fyang=$dir/clixon-test@2023-03-22.yang
+INSTALLDIR=$dir/install
+PYINSTALLDIR=${INSTALLDIR}/usr/local/share/clixon/controller/modules
+YANGINSTALLDIR=${INSTALLDIR}/usr/local/share/clixon/controller/yang
+
 pydir=$dir/py
 if [ ! -d $pydir ]; then
     mkdir $pydir
 fi
+# Place yang in pydir to co-locate with python for install script
+fyang=$pydir/clixon-test@2023-03-22.yang
 
 cat<<EOF > $CFG
 <clixon-config xmlns="http://clicon.org/config">
@@ -27,7 +33,7 @@ cat<<EOF > $CFG
   <CLICON_FEATURE>ietf-netconf:startup</CLICON_FEATURE>
   <CLICON_FEATURE>clixon-restconf:allow-auth-none</CLICON_FEATURE>
   <CLICON_YANG_DIR>/usr/local/share/clixon</CLICON_YANG_DIR>
-  <CLICON_YANG_MAIN_DIR>$dir</CLICON_YANG_MAIN_DIR>
+  <CLICON_YANG_MAIN_DIR>${YANGINSTALLDIR}</CLICON_YANG_MAIN_DIR>
   <CLICON_CLI_MODE>operation</CLICON_CLI_MODE>
   <CLICON_CLI_DIR>/usr/local/lib/controller/cli</CLICON_CLI_DIR>
   <CLICON_CLISPEC_DIR>/usr/local/lib/controller/clispec</CLICON_CLISPEC_DIR>
@@ -46,9 +52,8 @@ cat<<EOF > $CFG
   <CLICON_CLI_HELPSTRING_LINES>1</CLICON_CLI_HELPSTRING_LINES>
   <CLICON_YANG_SCHEMA_MOUNT>true</CLICON_YANG_SCHEMA_MOUNT>
   <CLICON_BACKEND_USER>clicon</CLICON_BACKEND_USER>
-  <CONTROLLER_FORCE_ACTIONS xmlns="http://clicon.org/controller-config">false</CONTROLLER_FORCE_ACTIONS>
   <CONTROLLER_ACTION_COMMAND xmlns="http://clicon.org/controller-config">/usr/local/bin/clixon_server.py -f $CFG -F -d</CONTROLLER_ACTION_COMMAND>
-  <CONTROLLER_PYAPI_MODULE_PATH xmlns="http://clicon.org/controller-config">$pydir/</CONTROLLER_PYAPI_MODULE_PATH>
+  <CONTROLLER_PYAPI_MODULE_PATH xmlns="http://clicon.org/controller-config">${PYINSTALLDIR}</CONTROLLER_PYAPI_MODULE_PATH>
   <CONTROLLER_PYAPI_MODULE_FILTER xmlns="http://clicon.org/controller-config"></CONTROLLER_PYAPI_MODULE_FILTER>
   <CONTROLLER_PYAPI_PIDFILE xmlns="http://clicon.org/controller-config">/tmp/clixon_server.pid</CONTROLLER_PYAPI_PIDFILE>
   <autocli>
@@ -110,6 +115,17 @@ if __name__ == "__main__":
     setup()
 EOF
 
+
+new "Install YANG and Python modules"
+rm -f ${PYINSTALLDIR}/*
+rm -f ${YANGINSTALLDIR}/*
+sudo clixon_controller_packages.sh -s $pydir -m ${PYINSTALLDIR} -y ${YANGINSTALLDIR}
+if [ ! -f ${PYINSTALLDIR}/clixon_example.py ]; then
+    err1 " ${PYINSTALLDIR}/clixon_example.py not found"
+fi
+if [ ! -f ${YANGINSTALLDIR}/clixon-test@2023-03-22.yang ]; then
+    err1 " ${YANGINSTALLDIR}/clixon-test@2023-03-22.yang not found"
+fi
 
 # Reset devices with initial config
 . ./reset-devices.sh
