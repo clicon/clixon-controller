@@ -74,11 +74,18 @@ system {
 
 ## How do I add a device in Clixon?
 
-The device should be configured to use the same user as in the configuration above. 
+The device should be configured to use the same user as in the configuration above, using the CLI:
 
 ```
 set devices device test enabled true
 set devices device test conn-type NETCONF_SSH
 set devices device test user admin
 set devices device test addr 1.2.3.4
+commit local
+```
+
+Thereafter the device must be explicitly connected:
+
+```
+connection open
 ```

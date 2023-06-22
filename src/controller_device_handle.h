@@ -40,6 +40,7 @@
 /*
  * Types
  */
+/* Abstract device handle, see struct controller_device_handle for concrete struct */
 typedef void *device_handle;
 
 /*
