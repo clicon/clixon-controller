@@ -135,7 +135,7 @@ for ip in $CONTAINERS; do
     expectpart "$($clixon_cli -1 -m configure -f $CFG $cmd)" 0 "^$"
 
     new "commit"
-    expectpart "$($clixon_cli -1 -m configure -f $CFG commit)" 0 "^$"
+    expectpart "$($clixon_cli -1 -m configure -f $CFG commit local)" 0 "^$"
 
 #    sleep $sleep
 

@@ -348,7 +348,7 @@ controller_transaction_free(clicon_handle           h,
     return 0;
 }
 
-/*! Terminate/close transaction and unlock candidate
+/*! Terminate/close transaction, unlock candidate, and unmark all devices from transaction
  *
  * @param[in]  h      Clixon handle
  * @param[in]  ct     Transaction
@@ -362,9 +362,10 @@ controller_transaction_done(clicon_handle           h,
                             controller_transaction *ct,
                             transaction_result      result)
 {
-    int      retval = -1;
-    uint32_t iddb;
-    char    *db = "candidate";
+    int           retval = -1;
+    uint32_t      iddb;
+    char         *db = "candidate";
+    device_handle dh;
 
     controller_transaction_state_set(ct, TS_DONE, result);
     iddb = xmldb_islocked(h, db);
@@ -377,6 +378,12 @@ controller_transaction_done(clicon_handle           h,
      /* user callback */
     if (clixon_plugin_lockdb_all(h, db, 0, TRANSACTION_CLIENT_ID) < 0)
         goto done;
+    /* Unmark all devices */
+    dh = NULL;
+    while ((dh = device_handle_each(h, dh)) != NULL){
+        if (device_handle_tid_get(dh) == ct->ct_id)
+            device_handle_tid_set(dh, 0);
+    }
     retval = 0;
  done:
     return retval;

@@ -1,6 +1,5 @@
 #!/usr/bin/env bash
 # Test RFC8528 YANG Schema Mount state
-# Assume backend and devics running
 # Reset devices and backend
 # Query controller of yang-schema-mount and yanglib of root and mount-points
 

@@ -1,5 +1,4 @@
 #!/usr/bin/env bash
-# Assume backend and devics running
 # Reset devices and backend
 # Commit a change to _devices_ remove x, change y, and add z
 # Make a pull transient
