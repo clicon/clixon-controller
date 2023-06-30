@@ -44,19 +44,19 @@ rollback("Discard edits (rollback 0)"), discard_changes();
 
 show("Show a particular state of the system"), @datamodelshow, cli_show_auto_mode("candidate", "text", true, false);{
       xml, cli_show_auto_mode("candidate", "xml", true, false);{
-      	   @datamodelshow, cli_show_auto_devs("candidate", "xml", true, false, "report-all");
+      	   @datamodelshow, cli_show_auto_devs("candidate", "xml", true, false);
       }
       text, cli_show_auto_mode("candidate", "text", true, false);{
-           @datamodelshow, cli_show_auto_devs("candidate", "text", true, false, "report-all");
+           @datamodelshow, cli_show_auto_devs("candidate", "text", true, false);
       }
       json, cli_show_auto_mode("candidate", "json", true, false);{
-            @datamodelshow, cli_show_auto_devs("candidate", "json", true, false, "report-all");
+            @datamodelshow, cli_show_auto_devs("candidate", "json", true, false);
       }
       netconf, cli_show_auto_mode("candidate", "netconf", true, false);{
-            @datamodelshow, cli_show_auto_devs("candidate", "netconf", true, false, "report-all");
+            @datamodelshow, cli_show_auto_devs("candidate", "netconf", true, false);
       }
-      cli, cli_show_auto_mode("candidate", "cli", true, false, "report-all", "set ");{
-           @datamodelshow, cli_show_auto_devs("candidate", "cli", true, false, "report-all", "set ");
+      cli, cli_show_auto_mode("candidate", "cli", true, false, "explicit", "set ");{
+           @datamodelshow, cli_show_auto_devs("candidate", "cli", true, false, "explicit", "set ");
       }
     compare("Compare candidate and running databases"), compare_dbs((int32)1);{
           xml("Show comparison in xml"), compare_dbs((int32)0);
