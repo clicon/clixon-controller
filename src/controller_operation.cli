@@ -21,7 +21,7 @@ debug("Debugging parts of the system"){
 shell("System command"), cli_start_shell("bash");{
   <source:rest>("Single shell command"), cli_start_shell("bash");
 }
-processes("Process operation") services("Service daemon operation") {
+processes("Process maintenace") services("Service daemon operation") {
     start, cli_process_control("Action process", "start");
     stop, cli_process_control("Action process", "stop");
     restart, cli_process_control("Action process", "restart");
@@ -98,14 +98,14 @@ save("Save running configuration to XML file") <filename:string>("Filename (loca
     netconf("Save configuration as NETCONF"), save_config_file("running","filename", "netconf");
 }
 
-pull("sync config from one or multiple devices")[
+pull("Pull config from one or multiple devices")[
                  (<name:string>("device pattern")|
                   <name:string expand_dbvar("running","/clixon-controller:devices/device/name")>("device pattern"))
                  ], cli_rpc_pull("replace");{
                     replace, cli_rpc_pull("replace");
                     merge, cli_rpc_pull("merge");
 }
-push("sync config to one or multiple devices")[
+push("Push config to one or multiple devices")[
                  (<name:string>("device pattern")|
                   <name:string expand_dbvar("running","/clixon-controller:devices/device/name")>("device pattern"))
                  ], cli_rpc_controller_commit("running", "NONE", "COMMIT");{
@@ -113,13 +113,11 @@ push("sync config to one or multiple devices")[
                     commit("Push to devices and commit"), cli_rpc_controller_commit("running", "NONE", "COMMIT");
 }
 
-connection("Reconnect one or several devices in closed state")  [<name:string>("device pattern")|
+connection("Change connection state of one or several devices")  [<name:string>("device pattern")|
               <name:string expand_dbvar("running","/clixon-controller:devices/device/name")>("device pattern")]{
               close("Close open connections"), cli_connection_change("CLOSE");
               open("Open closed connections"), cli_connection_change("OPEN");
               reconnect("Close all open connections and open all connections"), cli_connection_change("RECONNECT");
               }
-check("Check if devices are out-of-sync"){
-          [(<name:string>("device pattern")|<name:string expand_dbvar("running","/clixon-controller:devices/device/name")>("device pattern"))], check_device_db("text");
-}
+
 

@@ -251,6 +251,7 @@ module clixon-controller {
         }
     }
     container processes {
+        description "Process configuration";
         container services {
             leaf enabled {
                 description "If set, start services action daemon";
@@ -280,7 +281,7 @@ module clixon-controller {
          }
     }
     container devices{
-        description "Device configurations";
+        description "Device configuration";
         leaf device-timeout{
             description
                 "Device transient state timeout in seconds.
@@ -533,14 +534,13 @@ module clixon-controller {
              - actions parameter
              - push parameter
              The following combinations will return error:
-             1) If no devices are selected UNLESS push=NONE.
+             1) If no devices are selected UNLESS no remote validate/commit is made
                 You may want to dryrun a service for example even if no devices are present
              2) If local device fields are changed (except device mount-point - 'config')
                 These may potentially effect the device connection and should be made 
                 using regular netconf local commit followed by rpc connection-change.
-             3) A device is CLOSED UNLESS push=NONE
-                of the selected set, which means you can do local operations (like diff)
-                even when devices are down
+             3) A device is CLOSED UNLESS no remote validate/commit is made
+                which means you can do local operations (like diff) even when devices are down
              Further:
              4) Avoid doing BOTH local and remote edits simultaneously
                 The system detects local edits (see 2) but if one instead uses local commit,
