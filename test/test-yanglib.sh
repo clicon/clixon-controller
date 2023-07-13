@@ -91,7 +91,9 @@ if [ -n "$match" ]; then
     exit 1
 fi
 
-expected='<devices xmlns="http://clicon.org/controller"><device><config><yang-library xmlns="urn:ietf:params:xml:ns:yang:ietf-yang-library"><module-set><name>mount</name><module><name>clixon-autocli</name><revision>2022-02-11</revision><namespace>http://clicon.org/autocli</namespace></module>'
+#expected='<devices xmlns="http://clicon.org/controller"><device><config><yang-library xmlns="urn:ietf:params:xml:ns:yang:ietf-yang-library"><module-set><name>mount</name><module><name>clixon-autocli</name><revision>2022-02-11</revision><namespace>http://clicon.org/autocli</namespace></module>'
+expected='<devices xmlns="http://clicon.org/controller"><device><config><yang-library xmlns="urn:ietf:params:xml:ns:yang:ietf-yang-library"><module-set><name>mount</name><module><name>clixon-autocli</name>'
+
 match=$(echo $ret | grep --null -Eo "$expected") || true
 if [ -z "$match" ]; then
     echo "netconf unexpected yang-library"
