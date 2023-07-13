@@ -1,4 +1,5 @@
 # Controller test script for cli set/delete multiple, using glob '*'
+# XXX | show not work OK for cli
 
 set -u
 
@@ -58,6 +59,7 @@ cat<<EOF > $dir/controller_configure.cli
 CLICON_MODE="configure";
 CLICON_PROMPT="%U@%H[%W]# ";
 CLICON_PLUGIN="controller_cli";
+#CLICON_PIPETREE="|controller_pipe";
 
 exit("Change to operation mode"), cli_set_mode("operation");
 operation("run operational commands") @operation;
@@ -74,19 +76,30 @@ delete("Delete a configuration item") {
       all("Delete whole candidate configuration"), delete_all("candidate");
 }
 quit("Quit"), cli_quit();
-show("Show a particular state of the system"), @datamodelshow, cli_show_auto_mode("candidate", "text", true, false);{
-      xml, cli_show_auto_mode("candidate", "xml", false, false);{
-      	   @datamodelshow, cli_show_auto_devs("candidate", "xml", false, false, "report-all");
-      }
-      text, cli_show_auto_mode("candidate", "text", false, false);{
-           @datamodelshow, cli_show_auto_devs("candidate", "text", false, false, "report-all");
-      }
-      json, cli_show_auto_mode("candidate", "json", false, false);{
-            @datamodelshow, cli_show_auto_devs("candidate", "json", false, false, "report-all");
-      }
-      cli, cli_show_auto_mode("candidate", "cli", true, false, "report-all", "set ");{
-           @datamodelshow, cli_show_auto_devs("candidate", "cli", false, false, "report-all", "set ");
-      }
+show("Show a particular state of the system"), @datamodelshow, cli_show_auto_mode("candidate", "xml", true, false);{
+    @datamodelshow, cli_show_auto_devs("candidate", "xml", false, false);
+    # old syntax, but left here because | show cli  does not work properly
+    cli, cli_show_auto_mode("candidate", "cli", true, false, "report-all", "set ");{
+         @datamodelshow, cli_show_auto_devs("candidate", "cli", false, false, "report-all", "set ");
+    }
+}
+
+EOF
+
+cat<<EOF > $dir/controller_pipe.cli
+CLICON_MODE="|controller_pipe";
+
+\| { 
+   grep <arg:string>, pipe_grep_fn("-e", "arg");
+   except <arg:string>, pipe_grep_fn("-v", "arg");
+   tail, pipe_tail_fn();
+   count, pipe_wc_fn("-l");
+   show {
+     xml, pipe_showas_fn("xml", false);
+     curly, pipe_showas_fn("text", true);
+     json, pipe_showas_fn("json", false);
+     cli, pipe_showas_fn("cli", true, "set ");
+   }
 }
 EOF
 
