@@ -173,10 +173,10 @@ new "CLI: Commit"
 expectpart "$($clixon_cli -1 -f $CFG -m configure commit)" 0 ""
 
 new "CLI: Check controller services configuration"
-expectpart "$($clixon_cli -1 -f $CFG show configuration cli)" 0 "^set services test cli_test" "^set services test cli_test parameter x" "^set services test cli_test parameter x value 1.2.3.4"
+expectpart "$($clixon_cli -1 -f $CFG show configuration \| show cli)" 0 "^set services test cli_test" "^set services test cli_test parameter x" "^set services test cli_test parameter x value 1.2.3.4"
 
 new "CLI: Check controller devices configuration"
-expectpart "$($clixon_cli -1 -f $CFG show configuration xml)" 0 "<name>y</name>" "<value>1.2.3.4</value>"
+expectpart "$($clixon_cli -1 -f $CFG show configuration \| show xml)" 0 "<name>y</name>" "<value>1.2.3.4</value>"
 
 new "Verify containers"
 

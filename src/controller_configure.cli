@@ -1,6 +1,7 @@
 CLICON_MODE="configure";
 CLICON_PROMPT="%U@%H[%W]# ";
 CLICON_PLUGIN="controller_cli";
+CLICON_PIPETREE="|controller_pipe";
 
 exit("Change to operation mode"), cli_set_mode("operation");
 
@@ -42,22 +43,9 @@ debug("Debugging parts of the system"){
 discard("Discard edits (rollback 0)"), discard_changes();
 rollback("Discard edits (rollback 0)"), discard_changes();
 
-show("Show a particular state of the system"), @datamodelshow, cli_show_auto_mode("candidate", "text", true, false);{
-      xml, cli_show_auto_mode("candidate", "xml", true, false);{
-      	   @datamodelshow, cli_show_auto_devs("candidate", "xml", true, false);
-      }
-      text, cli_show_auto_mode("candidate", "text", true, false);{
-           @datamodelshow, cli_show_auto_devs("candidate", "text", true, false);
-      }
-      json, cli_show_auto_mode("candidate", "json", true, false);{
-            @datamodelshow, cli_show_auto_devs("candidate", "json", true, false);
-      }
-      netconf, cli_show_auto_mode("candidate", "netconf", true, false);{
-            @datamodelshow, cli_show_auto_devs("candidate", "netconf", true, false);
-      }
-      cli, cli_show_auto_mode("candidate", "cli", true, false, "explicit", "set ");{
-           @datamodelshow, cli_show_auto_devs("candidate", "cli", true, false, "explicit", "set ");
-      }
+
+show("Show a particular state of the system"), @datamodelshow, cli_show_auto_mode("candidate", "xml", true, false);{
+    @datamodelshow, cli_show_auto_devs("candidate", "xml", true, false);
     compare("Compare candidate and running databases"), compare_dbs((int32)1);{
           xml("Show comparison in xml"), compare_dbs((int32)0);
 	  text("Show comparison in text"), compare_dbs((int32)1);
