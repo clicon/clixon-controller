@@ -261,9 +261,9 @@ cli_show_auto_devs(clicon_handle h,
     }
     api_path_fmt = cv_string_get(cvec_i(argv, argc++));
     str = cv_string_get(cvec_i(argv, argc++));
-    /* ad-hocs to see if 2nd arg is mountpoint and if devices cmd tree is selected */
-    if (str && str[0] == '/'){ 
-        mtpoint = str;
+    /* See if 2nd arg is mountpoint and if devices cmd tree is selected */
+    if (str && strncmp(str, "mtpoint:", strlen("mtpoint:")) == 0){
+        mtpoint = str + strlen("mtpoint:");
         devices = strstr(mtpoint, "/ctrl:devices") != NULL;
         dbname = cv_string_get(cvec_i(argv, argc++));
     }
@@ -1513,7 +1513,6 @@ cli_dbxml_devs(clicon_handle       h,
     char      *api_path_fmt;    /* xml key format */
     char      *api_path_fmt01 = NULL;
     char      *api_path = NULL; 
-    cg_var    *arg;
     cg_var    *cv;
     int        cvvi = 0;
     char      *mtpoint = NULL;
@@ -1522,17 +1521,20 @@ cli_dbxml_devs(clicon_handle       h,
     cxobj     *xdev;
     char      *devname;
     int        devices = 0;
+    char      *str;
 
     if (cvec_len(argv) != 1 && cvec_len(argv) != 2){
         clicon_err(OE_PLUGIN, EINVAL, "Requires one element to be xml key format string");
         goto done;
     }
-    arg = cvec_i(argv, 0);
-    api_path_fmt = cv_string_get(arg);
-    /* ad-hocs to see if 2nd arg is mountpoint and if devices cmd tree is selected */
-    if (cvec_len(argv) > 1){ 
-        arg = cvec_i(argv, 1);
-        mtpoint = cv_string_get(arg);
+    cv = cvec_i(argv, 0);
+    api_path_fmt = cv_string_get(cv);
+    /* See if 2nd arg is mountpoint and if devices cmd tree is selected */
+    if (cvec_len(argv) > 1 &&
+        (cv = cvec_i(argv, 1)) != NULL &&
+        (str = cv_string_get(cv)) != NULL &&
+        strncmp(str, "mtpoint:", strlen("mtpoint:")) == 0){
+        mtpoint = str + strlen("mtpoint:");
         devices = strstr(mtpoint, "/ctrl:devices") != NULL;
     }
     else{
