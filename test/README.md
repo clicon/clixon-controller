@@ -23,7 +23,8 @@ If run natively, the controller runs as root, and a root public key needs to be 
 
 Bind the `CONTAINERS` env variable to the IP:s of the clixon-example containers and run tests with the CONTAINERS environment variable bound:
 ```
-    CONTAINERS=$(./containers.sh) ./sum.sh
+    export CONTAINERS=$(./containers.sh)
+    ./sum.sh
 ```
 
 ## Tests
