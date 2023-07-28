@@ -41,6 +41,7 @@ cat<<EOF > $CFG
      <module-default>true</module-default>
      <list-keyword-default>kw-nokey</list-keyword-default>
      <treeref-state-default>true</treeref-state-default>
+     <grouping-treeref>true</grouping-treeref>
      <rule>
        <name>include controller</name>
        <module-name>clixon-controller</module-name>
