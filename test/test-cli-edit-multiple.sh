@@ -1,5 +1,5 @@
 # Controller test script for cli set/delete multiple, using glob '*'
-# XXX | show not work OK for cli
+# XXX | display not work OK for cli
 
 set -u
 
@@ -79,7 +79,7 @@ delete("Delete a configuration item") {
 quit("Quit"), cli_quit();
 show("Show a particular state of the system"), @datamodelshow, cli_show_auto_mode("candidate", "xml", true, false);{
     @datamodelshow, cli_show_auto_devs("candidate", "xml", false, false);
-    # old syntax, but left here because | show cli  does not work properly
+    # old syntax, but left here because | display cli  does not work properly
     cli, cli_show_auto_mode("candidate", "cli", true, false, "report-all", "set ");{
          @datamodelshow, cli_show_auto_devs("candidate", "cli", false, false, "report-all", "set ");
     }
