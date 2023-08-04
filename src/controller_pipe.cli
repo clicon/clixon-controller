@@ -5,7 +5,7 @@ CLICON_MODE="|controller_pipe";
    except <arg:string>, pipe_grep_fn("-v", "arg");
    tail, pipe_tail_fn();
    count, pipe_wc_fn("-l");
-   show {
+   display {
      xml, pipe_showas_fn("xml", false);
      curly, pipe_showas_fn("text", true);
      json, pipe_showas_fn("json", false);
