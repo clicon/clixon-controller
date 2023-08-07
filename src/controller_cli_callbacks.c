@@ -1662,3 +1662,16 @@ cli_auto_del_devs(clicon_handle h,
         cvec_free(cvv2);
     return retval;
 }
+
+/*! Show controller and clixon version
+ */
+int
+cli_controller_show_version(clicon_handle h,
+                            cvec         *vars,
+                            cvec         *argv)
+{
+    fprintf(stdout, "Controller: \t%s\n", CONTROLLER_VERSION);
+    fprintf(stdout, "Clixon: \t%s\n", CLIXON_VERSION_STRING);
+    fprintf(stdout, "CLIgen: \t%s\n", CLIGEN_VERSION);
+    return 0;
+}

@@ -34,7 +34,7 @@ show("Show a particular state of the system"){
     }
     xpath("Show configuration") <xpath:string>("XPATH expression")
        [<ns:string>("Namespace")], show_conf_xpath("running");
-    version("Show version"), cli_show_version("running", "text", "/");
+    version("Show version"), cli_controller_show_version("running", "text", "/");
     options("Show clixon options"), cli_show_options();
     compare("Compare candidate and running databases"), compare_dbs("text");{
           xml("Show comparison in xml"), compare_dbs("xml");
