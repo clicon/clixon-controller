@@ -29,6 +29,7 @@ datarootdir     = @datarootdir@
 sysconfdir      = @sysconfdir@
 localstatedir   = @localstatedir@
 libdir          = @exec_prefix@/lib
+version         = @CONTROLLER_VERSION@
 
 APPNAME	        = controller
 
@@ -38,7 +39,7 @@ LDFLAGS 	= @LDFLAGS@
 INSTALLFLAGS  	= @INSTALLFLAGS@ 
 
 INCLUDES 	= @INCLUDES@ 
-CPPFLAGS  	= @CPPFLAGS@ -fPIC -DSSH_BIN=\"@SSH_BIN@\"
+CPPFLAGS  	= @CPPFLAGS@ -fPIC -DSSH_BIN=\"@SSH_BIN@\" -DCONTROLLER_VERSION=\"$(version)\"
 
 # Backend plugin
 # There may also be restconf/cli/netconf plugins which are not covered here, see

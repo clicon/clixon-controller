@@ -5,7 +5,7 @@
 [![Build Status](https://github.com/clicon/clixon-controller/actions/workflows/test.yml/badge.svg)](https://github.com/clicon/clixon-controller/actions/workflows/test.yml)
 
 # clixon-controller
-Clixon network controller: an open-source manager of network devices based on NETCONF and YANG.
+Clixon network controller is an open-source manager of network devices based on NETCONF and YANG.
 
 See [Install](INSTALL.md), [User guide](https://clixon-docs.readthedocs.io/en/latest/controller.html) and [FAQ](FAQ.md)
 

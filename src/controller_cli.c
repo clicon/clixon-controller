@@ -496,8 +496,8 @@ static clixon_plugin_api api = {
  * @param[in]  h    Clixon handle
  * @retval     NULL Error with clicon_err set
  * @retval     api  Pointer to API struct
- * @retval      0    OK
- * @retval     -1    Error
+ * @retval     0    OK
+ * @retval    -1    Error
  */
 clixon_plugin_api *
 clixon_plugin_init(clixon_handle h)

@@ -25,7 +25,7 @@
 # in the directory containing this script.
 #
 
-AC_INIT(controller, 0.1)
+AC_INIT([controller],[0.1])
 
 # Default CFLAGS and INSTALLFLAGS unless set by environment
 : ${CFLAGS="-O2 -Wall"}
@@ -33,6 +33,14 @@ AC_INIT(controller, 0.1)
 
 # where autotool scripts are: install-sh, config.sub, config.guess
 AC_CONFIG_AUX_DIR(aux)
+
+CONTROLLER_VERSION_MAJOR="0"
+CONTROLLER_VERSION_MINOR="0"
+CONTROLLER_VERSION_PATCH="0"
+CONTROLLER_VERSION="${CONTROLLER_VERSION_MAJOR}.${CONTROLLER_VERSION_MINOR}.${CONTROLLER_VERSION_PATCH}.PRE"
+AC_SUBST(CONTROLLER_VERSION)
+
+AC_MSG_RESULT(CONTROLLER version is ${CONTROLLER_VERSION})
 
 # Check CLIgen
 if test "$prefix" = "NONE"; then
@@ -134,9 +142,10 @@ AC_MSG_RESULT(Clixon yang files are installed in ${YANG_INSTALLDIR})
 # Dummy to disable native language support (nls) to remove warnings in buildroot
 AC_ARG_ENABLE(nls)
 
-AC_OUTPUT([Makefile
-  	  src/Makefile
-	  yang/Makefile
-    	  util/Makefile
-    	  docker/Makefile
+AC_CONFIG_FILES([Makefile
+          	 src/Makefile
+	         yang/Makefile
+                 util/Makefile
+                 docker/Makefile
 ])
+AC_OUTPUT
