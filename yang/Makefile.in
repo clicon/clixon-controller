@@ -34,7 +34,7 @@ INSTALLFLAGS  	= @INSTALLFLAGS@
 YANG_INSTALLDIR0  = @YANG_INSTALLDIR@
 YANG_INSTALLDIR  = @YANG_INSTALLDIR@/controller
 # Here is where example yang appears
-YANG_MOUNTDIR  = @YANG_INSTALLDIR@/mounts
+YANG_MOUNTDIR  = @YANG_INSTALLDIR@/controller/mounts
 
 # Local yang files to install
 # IETF
