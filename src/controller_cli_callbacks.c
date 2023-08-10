@@ -1522,13 +1522,29 @@ cli_dbxml_devs(clicon_handle       h,
     char      *devname;
     int        devices = 0;
     char      *str;
+    cbuf      *api_path_fmt_cb = NULL;    /* xml key format */
+    int        i;
 
-    if (cvec_len(argv) != 1 && cvec_len(argv) != 2){
-        clicon_err(OE_PLUGIN, EINVAL, "Requires one element to be xml key format string");
+    if (cvec_len(argv) < 1){
+        clicon_err(OE_PLUGIN, EINVAL, "Requires first element to be xml key format string");
         goto done;
     }
-    cv = cvec_i(argv, 0);
-    api_path_fmt = cv_string_get(cv);
+    if ((api_path_fmt_cb = cbuf_new()) == NULL){
+        clicon_err(OE_UNIX, errno, "cbuf_new");
+        goto done;
+    }
+    /* Concatenate all argv strings to a single string
+     * Variant of cvec_concat_cb() where api-path-fmt may be interleaved with mtpoint,
+     * eg /api-path-fmt2 mtpoint /api-path-fmt1 /api-path-fmt0
+     */
+    for (i=cvec_len(argv)-1; i>=0; i--){
+        cv = cvec_i(argv, i);
+        str = cv_string_get(cv);
+        if (str[0] != '/')
+            continue;
+        cprintf(api_path_fmt_cb, "%s", str);
+    }
+    api_path_fmt = cbuf_get(api_path_fmt_cb);
     /* See if 2nd arg is mountpoint and if devices cmd tree is selected */
     if (cvec_len(argv) > 1 &&
         (cv = cvec_i(argv, 1)) != NULL &&
@@ -1579,6 +1595,8 @@ cli_dbxml_devs(clicon_handle       h,
     }
     retval = 0;
  done:
+    if (api_path_fmt_cb)
+        cbuf_free(api_path_fmt_cb);
     if (api_path_fmt01)
         free(api_path_fmt01);
     if (api_path)
