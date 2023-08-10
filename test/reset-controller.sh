@@ -24,7 +24,6 @@ fi
 : ${IMG:=clixon-example}
 
 : ${clixon_netconf:=$(which clixon_netconf)}
-: ${clixon_cli:=clixon_cli}
 
 # Set if delete old config
 : ${delete:=true}
