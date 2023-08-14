@@ -36,7 +36,7 @@ cat<<EOF > $CFG
   <CLICON_YANG_MAIN_DIR>${YANGINSTALLDIR}</CLICON_YANG_MAIN_DIR>
   <CLICON_CLI_MODE>operation</CLICON_CLI_MODE>
   <CLICON_CLI_DIR>/usr/local/lib/controller/cli</CLICON_CLI_DIR>
-  <CLICON_CLISPEC_DIR>/usr/local/lib/controller/clispec</CLICON_CLISPEC_DIR>
+  <CLICON_CLISPEC_DIR>$dir</CLICON_CLISPEC_DIR>
   <CLICON_BACKEND_DIR>/usr/local/lib/controller/backend</CLICON_BACKEND_DIR>
   <CLICON_SOCK>/usr/local/var/controller.sock</CLICON_SOCK>
   <CLICON_BACKEND_PIDFILE>/usr/local/var/controller.pidfile</CLICON_BACKEND_PIDFILE>
@@ -117,6 +117,80 @@ if __name__ == "__main__":
 EOF
 
 
+cat<<EOF > $dir/controller_operation.cli
+CLICON_MODE="operation";
+CLICON_PROMPT="%U@%H> ";
+CLICON_PLUGIN="controller_cli";
+CLICON_PIPETREE="|controller_pipe";
+
+pull("Pull config from one or multiple devices")[
+                 (<name:string>("device pattern")|
+                  <name:string expand_dbvar("running","/clixon-controller:devices/device/name")>("device pattern"))
+                 ], cli_rpc_pull("replace");{
+                    replace, cli_rpc_pull("replace");
+                    merge, cli_rpc_pull("merge");
+}
+show("Show a particular state of the system"){
+    configuration("Show configuration"), cli_show_auto_mode("running", "text", true, false);{
+      xml, cli_show_auto_mode("running", "xml", true, false);{
+           @datamodelshow, cli_show_auto_devs("running", "xml", true, false, "report-all");
+      }
+      cli, cli_show_auto_mode("running", "cli", true, false, "report-all", "set ");{
+           @datamodelshow, cli_show_auto_devs("running", "cli", true, false, "report-all", "s
+et ");
+      }
+    }
+}
+EOF
+
+cat<<EOF > $dir/controller_configure.cli
+CLICON_MODE="configure";
+CLICON_PROMPT="%U@%H[%W]# ";
+CLICON_PLUGIN="controller_cli";
+CLICON_PIPETREE="|controller_pipe";
+
+exit("Change to operation mode"), cli_set_mode("operation");
+operation("run operational commands") @operation;
+
+# Auto edit mode
+# Autocli syntax tree operations
+edit @datamodelmode, cli_auto_edit("basemodel");
+up, cli_auto_up("basemodel");
+top, cli_auto_top("basemodel");
+set @datamodel, cli_auto_set_devs();
+merge @datamodel, cli_auto_merge_devs();
+delete("Delete a configuration item") {
+      @datamodel, cli_auto_del_devs(); 
+      all("Delete whole candidate configuration"), delete_all("candidate");
+}
+quit("Quit"), cli_quit();
+commit("Commit the changes, trigger services scripts"), cli_rpc_controller_commit("candidate", "CHANGE", "COMMIT");
+show("Show a particular state of the system"), @datamodelshow, cli_show_auto_mode("candidate", "xml", true, false);{
+    @datamodelshow, cli_show_auto_devs("candidate", "xml", false, false);
+    # old syntax, but left here because | display cli  does not work properly
+    cli, cli_show_auto_mode("candidate", "cli", true, false, "report-all", "set ");{
+         @datamodelshow, cli_show_auto_devs("candidate", "cli", false, false, "report-all", "set ");
+    }
+}
+EOF
+
+cat<<EOF > $dir/controller_pipe.cli
+CLICON_MODE="|controller_pipe";
+
+\| { 
+   grep <arg:string>, pipe_grep_fn("-e", "arg");
+   except <arg:string>, pipe_grep_fn("-v", "arg");
+   tail, pipe_tail_fn();
+   count, pipe_wc_fn("-l");
+   display {
+     xml, pipe_showas_fn("xml", false);
+     curly, pipe_showas_fn("text", true);
+     json, pipe_showas_fn("json", false);
+     cli, pipe_showas_fn("cli", true, "set ");
+   }
+}
+EOF
+
 new "Install YANG and Python modules"
 rm -f ${PYINSTALLDIR}/*
 rm -f ${YANGINSTALLDIR}/*
@@ -174,10 +248,10 @@ new "CLI: Commit"
 expectpart "$($clixon_cli -1 -f $CFG -m configure commit)" 0 ""
 
 new "CLI: Check controller services configuration"
-expectpart "$($clixon_cli -1 -f $CFG show configuration \| display cli)" 0 "^set services test cli_test" "^set services test cli_test parameter x" "^set services test cli_test parameter x value 1.2.3.4"
+expectpart "$($clixon_cli -1 -f $CFG show configuration cli)" 0 "^set services test cli_test" "^set services test cli_test parameter x" "^set services test cli_test parameter x value 1.2.3.4"
 
 new "CLI: Check controller devices configuration"
-expectpart "$($clixon_cli -1 -f $CFG show configuration \| display xml)" 0 "<name>y</name>" "<value>1.2.3.4</value>"
+expectpart "$($clixon_cli -1 -f $CFG show configuration xml)" 0 "<name>y</name>" "<value>1.2.3.4</value>"
 
 new "Verify containers"
 
