@@ -60,7 +60,7 @@ cat<<EOF > $dir/controller_configure.cli
 CLICON_MODE="configure";
 CLICON_PROMPT="%U@%H[%W]# ";
 CLICON_PLUGIN="controller_cli";
-#CLICON_PIPETREE="|controller_pipe";
+CLICON_PIPETREE="|controller_pipe";
 
 exit("Change to operation mode"), cli_set_mode("operation");
 operation("run operational commands") @operation;
@@ -95,7 +95,7 @@ CLICON_MODE="|controller_pipe";
    except <arg:string>, pipe_grep_fn("-v", "arg");
    tail, pipe_tail_fn();
    count, pipe_wc_fn("-l");
-   show {
+   display {
      xml, pipe_showas_fn("xml", false);
      curly, pipe_showas_fn("text", true);
      json, pipe_showas_fn("json", false);
