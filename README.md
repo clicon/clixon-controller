@@ -11,7 +11,7 @@ See [Install](INSTALL.md), [User guide](https://clixon-docs.readthedocs.io/en/la
 
 The clixon controller is open-source Apache License, Version 2.0, see [LICENSE](LICENSE).
 
-The controller has a main branch continuously tested with CI, first releases is planned for in June or July.
+The controller has a main branch continuously tested with CI.
 
 Clixon interaction is best done posting issues, pull requests, or joining the
 Matrix clixon forum https://matrix.to/#/#clixonforum:matrix.org.
