@@ -13,6 +13,8 @@ The clixon controller is open-source Apache License, Version 2.0, see [LICENSE](
 
 The controller has a main branch continuously tested with CI.
 
+![Alt Text](demo-min.gif)
+
 Clixon interaction is best done posting issues, pull requests, or joining the
 Matrix clixon forum https://matrix.to/#/#clixonforum:matrix.org.
 
