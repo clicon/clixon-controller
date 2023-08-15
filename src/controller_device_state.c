@@ -1434,14 +1434,14 @@ devices_statedata(clixon_handle   h,
         device_handle_conn_time_get(dh, &tv);
         if (tv.tv_sec != 0){
             char timestr[28];            
-            if (time2str(tv, timestr, sizeof(timestr)) < 0)
+            if (time2str(&tv, timestr, sizeof(timestr)) < 0)
                 goto done;
             cprintf(cb, "<conn-state-timestamp>%s</conn-state-timestamp>", timestr);
         }
         device_handle_sync_time_get(dh, &tv);
         if (tv.tv_sec != 0){
             char timestr[28];            
-            if (time2str(tv, timestr, sizeof(timestr)) < 0)
+            if (time2str(&tv, timestr, sizeof(timestr)) < 0)
                 goto done;
             cprintf(cb, "<sync-timestamp>%s</sync-timestamp>", timestr);
         }

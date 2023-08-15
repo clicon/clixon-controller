@@ -37,14 +37,14 @@ RUN useradd -m -d /home/clicon clicon
 RUN ls -l /home
 
 WORKDIR /clixon/cligen
-RUN git checkout 6.3.0
+#RUN git checkout 6.3.0
 RUN ./configure
 RUN make
 RUN make install
 RUN ldconfig
 
 WORKDIR /clixon/clixon
-RUN git checkout 6.3.1
+#RUN git checkout 6.3.1
 RUN ./configure
 RUN make
 RUN make install

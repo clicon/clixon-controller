@@ -17,7 +17,6 @@ $ git clone https://github.com/clicon/clixon-pyapi.git
 Cligen:
 ```console
 cd cligen
-git checkout 6.3.0
 ./configure
 make
 sudo make install
@@ -26,7 +25,6 @@ sudo make install
 Clixon:
 ```console
 cd clixon
-git checkout 6.3.1
 ./configure
 make
 sudo make install
