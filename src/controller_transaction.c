@@ -656,7 +656,7 @@ controller_transactions_statedata(clixon_handle   h,
             tv = &ct->ct_timestamp;
             if (tv->tv_sec != 0){
                 char timestr[28];            
-                if (time2str(*tv, timestr, sizeof(timestr)) < 0)
+                if (time2str(tv, timestr, sizeof(timestr)) < 0)
                     goto done;
                 cprintf(cb, "<timestamp>%s</timestamp>", timestr);
             }
