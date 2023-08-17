@@ -24,7 +24,7 @@ FROM debian:bookworm-slim
 MAINTAINER Kristofer Hallin <kristofer@sunet.se>
 
 RUN apt update
-RUN apt install -y emacs-nox git make gcc bison libnghttp2-dev libssl-dev flex python3 python3-pip sudo
+RUN apt install -y emacs-nox git make gcc bison libnghttp2-dev libssl-dev flex python3 python3-pip sudo sshpass
 
 RUN mkdir /clixon
 WORKDIR /clixon
@@ -63,7 +63,7 @@ WORKDIR /clixon/clixon-pyapi
 RUN python3 setup.py install
 RUN cp clixon_server.py /usr/local/bin/
 
-USER clicon
+#USER clicon
 RUN pip3 install -r requirements.txt --break-system-packages
 
 USER root
