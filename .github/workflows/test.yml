@@ -26,4 +26,4 @@ jobs:
     - name: Start containers
       run: (cd docker; docker-compose up -d)
     - name: Run tests
-      run: docker exec -it controller bash -c 'cd clixon-controller/test/;./all.sh')
+      run: docker exec -it controller bash -c 'cd clixon-controller/test/;./all.sh'
