@@ -4,17 +4,14 @@ set -u
 
 echo "change-devices"
 
-# Number of device containers to start
-: ${nr:=2}
-
-# Sleep delay in seconds between each step                                      
-: ${sleep:=2}
-
-: ${IMG:=clixon-example}
+CONFIG='<interfaces xmlns="http://openconfig.net/yang/interfaces"><interface nc:operation="remove"><name>x</name></interface><interface><name>y</name><config><type nc:operation="replace" xmlns:ianaift="urn:ietf:params:xml:ns:yang:iana-if-type">ianaift:atm</type></config></interface><interface nc_operation="merge"><name>z</name><config><name>z</name><type xmlns:ianaift="urn:ietf:params:xml:ns:yang:iana-if-type">ianaift:usb</type></config></interface></interfaces>'
 
 # Remove x, change y, and add z directly on devices
+i=1
 for ip in $CONTAINERS; do
-    ret=$(ssh $ip -l root -o StrictHostKeyChecking=no -o PasswordAuthentication=no -s netconf <<EOF
+    NAME=$IMG$i
+    echo "Check config $NAME"
+    ret=$(ssh $ip -l ${USER} -o StrictHostKeyChecking=no -o PasswordAuthentication=no -s netconf <<EOF
 <?xml version="1.0" encoding="UTF-8"?>
 <hello xmlns="urn:ietf:params:xml:ns:netconf:base:1.0">
    <capabilities>
@@ -28,19 +25,7 @@ for ip in $CONTAINERS; do
     <target><candidate/></target>
     <default-operation>none</default-operation>
     <config>
-      <table xmlns="urn:example:clixon">
-        <parameter nc:operation="remove">
-          <name>x</name>
-        </parameter>
-        <parameter>
-          <name>y</name>
-          <value nc:operation="replace">122</value>
-        </parameter>
-        <parameter nc:operation="merge">>
-          <name>z</name>
-          <value>99</value>
-        </parameter>
-      </table>
+      ${CONFIG}
     </config>
   </edit-config>
 </rpc>]]>]]>
@@ -50,8 +35,10 @@ EOF
     match=$(echo $ret | grep --null -Eo "<rpc-error>") || true
     if [ -n "$match" ]; then
         echo "netconf rpc-error detected"
+        echo "$ret"
         exit 1
     fi
+    i=$((i+1))
 done
 
 echo "change-devices OK"

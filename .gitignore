@@ -7,8 +7,10 @@ autom4te.cache/
 config.log
 config.status
 TAGS
-/controller/docker/src
-/controller/docker/yang
+controller/docker/src
+controller/docker/yang
+test/site.sh
+test/py
 
 # Prerequisites
 *.d

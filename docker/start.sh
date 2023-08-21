@@ -6,16 +6,27 @@
 
 set -ex
 
-: ${IMG:=clixon-example}
-: ${NAME:=clixon-controller}
-# Number of device containers to start
-: ${nr:=2}
+# inline site.sh
+cat <<EOF > ./site.sh
+IMG=openconfig
+USER=noc
+HOMEDIR=/home/noc
+nr=2
+sleep=2
+EOF
+. ./site.sh
 
-testdir=../test
-(cd $testdir; nr=$nr ./start-devices.sh)
+: ${NAME:=clixon-controller}
+
+#testdir=../test
+#(cd $testdir; nr=$nr ./start-devices.sh)
+../test/start-devices.sh
 
 echo "start controller"
-CONTAINERS="$(../test/containers.sh)" ./start-controller.sh
+CONTAINERS="$(../test/containers.sh)"
+echo "CONTAINERS=\"$CONTAINERS\"" >> ./site.sh
+echo "CONTAINERS:$CONTAINERS"
+CONTAINERS="$CONTAINERS" ./start-controller.sh
 
 # Create controller key and copy public key to example dockers
 echo "sudo docker exec -t $NAME bash -c 'ssh-keygen -t rsa -f /root/.ssh/id_rsa -N ""'"
@@ -27,11 +38,11 @@ sudo docker cp $NAME:/root/.ssh/id_rsa.pub ./tmpkey
 for i in $(seq 1 $nr); do
     NAME2=$IMG$i
 
-    echo "sudo docker cp ./tmpkey $NAME2:/root/.ssh/authorized_keys2"
-    sudo docker cp ./tmpkey $NAME2:/root/.ssh/authorized_keys2
+    echo "sudo docker cp ./tmpkey $NAME2:$HOMEDIR/.ssh/authorized_keys2"
+    sudo docker cp ./tmpkey $NAME2:$HOMEDIR/.ssh/authorized_keys2
 
     echo "sudo docker exec -t $NAME2 sh -c 'cat .ssh/authorized_keys2 >> .ssh/authorized_keys'"
-    sudo docker exec -t $NAME2 sh -c 'cat /root/.ssh/authorized_keys2 >> /root/.ssh/authorized_keys'
+    sudo docker exec -t $NAME2 sh -c "cat $HOMEDIR/.ssh/authorized_keys2 >> $HOMEDIR/.ssh/authorized_keys"
 done
 
 rm -f ./tmpkey

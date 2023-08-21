@@ -3,25 +3,29 @@
 # Note: dont use with sudo, you need proper ~/ $HOME set for this script to work
 set -eu
 
-# Number of device containers to start
-: ${nr:=2}
+if [ -f ./site.sh ]; then
+    . ./site.sh
+    if [ $? -ne 0 ]; then
+        return -1 # skip
+    fi
+fi
 
-# Sleep delay in seconds between each step
-: ${sleep:=2}
-
-: ${IMG:=clixon-example}
+# REAL image must be prepended by clixon/
+: ${REALIMG:=clixon/$IMG}
 
 # Generate rsa key if not exists
 test -f ~/.ssh/id_rsa.pub || ssh-keygen -t rsa -N "" -f ~/.ssh/id_rsa
 
 for i in $(seq 1 $nr); do
     NAME=$IMG$i
-    sudo docker kill $NAME || true
-    sudo docker run --name $NAME --rm -td clixon/$IMG #|| err "Error starting clixon-example"
-    sudo docker exec -t $NAME mkdir -m 700 /root/.ssh
-    sudo docker cp ~/.ssh/id_rsa.pub $NAME:/root/.ssh/authorized_keys
-    sudo docker exec -t $NAME chown root /root/.ssh/authorized_keys
-    sudo docker exec -t $NAME chgrp root /root/.ssh/authorized_keys
+    sudo docker kill $NAME 2> /dev/null || true 
+    sudo docker run --name $NAME --rm -td $REALIMG #|| err "Error starting clixon-example"
+    sudo docker exec -t $NAME sh -c "test -d ${HOMEDIR}/.ssh || mkdir -m 700 ${HOMEDIR}/.ssh"
+    sudo docker exec -t $NAME sh -c "chown $USER ${HOMEDIR}/.ssh"
+    sudo docker cp ~/.ssh/id_rsa.pub $NAME:$HOMEDIR/.ssh/authorized_keys
+    sudo docker exec -t $NAME chown $USER $HOMEDIR/.ssh/authorized_keys
+    sudo docker exec -t $NAME chgrp $USER $HOMEDIR/.ssh/authorized_keys
+    sudo docker exec -t $NAME chmod 700 $HOMEDIR/.ssh/authorized_keys
     ip=$(sudo docker inspect $NAME -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}')
     ssh-keygen -f ~/.ssh/known_hosts -R "$ip" || true
 done
@@ -36,7 +40,7 @@ for i in $(seq 1 $nr); do
     ip=$(sudo docker inspect $NAME -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}')
     
     echo "Configure $NAME w ip:$ip"
-    ssh $ip -l root -o StrictHostKeyChecking=no -o PasswordAuthentication=no -s netconf <<EOF
+    ssh $ip -l $USER -o StrictHostKeyChecking=no -o PasswordAuthentication=no -s netconf <<EOF
 <?xml version="1.0" encoding="UTF-8"?>
 <hello xmlns="urn:ietf:params:xml:ns:netconf:base:1.0">
    <capabilities>

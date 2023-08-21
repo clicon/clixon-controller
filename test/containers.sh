@@ -1,10 +1,11 @@
 #!/bin/sh
 
-# Default container name, postfixed with 1,2,..,<nr>
-: ${IMG:=clixon-example}
-
-# Number of devices to get IP from
-: ${nr:=2}
+if [ -f ./site.sh ]; then
+    . ./site.sh
+    if [ $? -ne 0 ]; then
+        return -1 # skip
+    fi
+fi
 
 # Get all IP addresses from running containers
 for i in $(seq 1 $nr); do
