@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+
 # Run test_*.sh tests, stop on error, verbose logging, no pass/fail summary.
 #
 # This script requires the user to be in the sudo group.

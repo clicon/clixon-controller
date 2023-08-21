@@ -13,8 +13,22 @@ fi
 # REAL image must be prepended by clixon/
 : ${REALIMG:=clixon/$IMG}
 
+: ${SSHKEY:=~/.ssh/id_rsa}
+
 # Generate rsa key if not exists
-test -f ~/.ssh/id_rsa.pub || ssh-keygen -t rsa -N "" -f ~/.ssh/id_rsa
+
+if [ ! -f "${SSHKEY}" ]; then
+    echo "id_rsa not fund"
+fi
+
+if [ ! -f "${SSHKEY}.pub" ]; then
+    echo "id_rsa.pub not fund"
+fi
+
+if [ ! -f "${SSHKEY}" ] && [ ! -f "${SSHKEY}.pub" ]; then
+    echo "Keys not found"
+    ssh-keygen -t rsa -N "" -f $SSHKEY
+fi
 
 for i in $(seq 1 $nr); do
     NAME=$IMG$i

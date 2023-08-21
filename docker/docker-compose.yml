@@ -3,6 +3,7 @@ services:
   controller:
     container_name: controller
     image: clixon/controller:latest
+    build: .
     ports:
       - "8082:80"
     depends_on:
