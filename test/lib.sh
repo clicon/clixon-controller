@@ -16,7 +16,7 @@ fi
 : ${IMG:=openconfig}
 
 # container user
-: ${USER:=root}
+: ${USER:=noc}
 
 # Controller config file
 : ${CFG:=/usr/local/etc/controller.xml}

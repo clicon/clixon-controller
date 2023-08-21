@@ -4,15 +4,11 @@ set -u
 
 echo "reset-devices"
 
-: ${SSHKEY:=~/.ssh/id_rsa.pub}
-
 # Data 
 # Initial config: Define two interfaces x and y
 REQ='<interfaces xmlns="http://openconfig.net/yang/interfaces"/>'
 CONFIG='<interfaces xmlns="http://openconfig.net/yang/interfaces"><interface><name>x</name><config><name>x</name><type xmlns:ianaift="urn:ietf:params:xml:ns:yang:iana-if-type">ianaift:ethernetCsmacd</type></config></interface><interface><name>y</name><config><name>y</name><type xmlns:ianaift="urn:ietf:params:xml:ns:yang:iana-if-type">ianaift:atm</type></config></interface></interfaces>'
 CHECK='<interfaces xmlns="http://openconfig.net/yang/interfaces"><interface><name>y</name><config><name>y</name><type xmlns:ianaift="urn:ietf:params:xml:ns:yang:iana-if-type">ianaift:atm</type></config></interface></interfaces>'
-
-test -f $SSHKEY || ssh-keygen -t rsa -N "" -f ~/.ssh/id_rsa
 
 # Add hostname
 i=1

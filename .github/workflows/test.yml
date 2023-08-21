@@ -21,9 +21,7 @@ jobs:
     - uses: actions/checkout@v3
     - name: Clone controller code
       run: (cd docker; git clone ../ clixon-controller)
-    - name: Build controller container
-      run: (cd docker; docker-compose build)
     - name: Start containers
-      run: (cd docker; docker-compose up -d)
+      run: (cd docker; docker-compose up --build -d)
     - name: Run tests
-      run: docker exec -it controller bash -c 'cd clixon-controller/test/;./all.sh'
+      run: sleep 5; docker exec -t controller bash -c 'cd clixon-controller/test/;detail=true ./sum.sh'
