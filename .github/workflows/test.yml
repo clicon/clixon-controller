@@ -19,9 +19,11 @@ jobs:
     timeout-minutes: 5
     steps:
     - uses: actions/checkout@v3
-    - name: Copy Makefile # Kludge: use makefile.in so we dont need to run configure
-      run: (cd docker && cp Makefile.in Makefile)
-    - name: Build docker
-      run: (cd docker; make docker)
+    - name: Clone controller code
+      run: git clone ../ clixon-controller
+    - name: Build controller container
+      run: (cd docker; docker-compose build)
+    - name: Start containers
+      run: (cd docker; docker-compose up -d)
     - name: Run tests
-      run: (cd docker; make test)
+      run: docker exec -it controller bash -c 'cd clixon-controller/test/;./all.sh')
