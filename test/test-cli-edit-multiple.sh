@@ -111,7 +111,7 @@ if $BE; then
     echo "Kill old backend"
     sudo clixon_backend -s init -f $CFG -z
 
-    echo "Start new backend -s init  -f $CFG -D $DBG"
+    echo "Start new backend -s init -f $CFG -D $DBG"
     sudo clixon_backend -s init -f $CFG -D $DBG
 fi
 
@@ -122,28 +122,28 @@ wait_backend
 . ./reset-controller.sh
 
 new "verify no z"
-expectpart "$($clixon_cli -1 -m configure -f $CFG show cli devices device clixon* config table parameter z)" 0 "clixon-example1:" "clixon-example2:" --not-- "set parameter z"
+expectpart "$($clixon_cli -1 -m configure -f $CFG show cli devices device openconfig* config interfaces interface z)" 0 "openconfig1:" "openconfig2:" --not-- "set interface interface z"
 
 new "set * z"
-expectpart "$($clixon_cli -1 -m configure -f $CFG set devices device clixon* config table parameter z value 789)" 0 "^$"
+expectpart "$($clixon_cli -1 -m configure -f $CFG set devices device openconfig* config interfaces interface z type usb)" 0 "^$"
 
-new "verify z 789"
-expectpart "$($clixon_cli -1 -m configure -f $CFG show cli devices device clixon* config table parameter z)" 0 "clixon-example1:" "clixon-example2:" "set parameter z value 789"
+new "verify z usb"
+expectpart "$($clixon_cli -1 -m configure -f $CFG show cli devices device openconfig* config interfaces interface z)" 0 "openconfig1:" "openconfig2:" "set interface z type usb"
 
-new "set *1 z 123"
-expectpart "$($clixon_cli -1 -m configure -f $CFG set devices device *1 config table parameter z value 123)" 0 "^$"
+new "set *1 z atm"
+expectpart "$($clixon_cli -1 -m configure -f $CFG set devices device *1 config interfaces interface z type atm)" 0 "^$"
 
-new "set *2 z 456"
-expectpart "$($clixon_cli -1 -m configure -f $CFG set devices device *2 config table parameter z value 456)" 0 "^$"
+new "set *2 z eth"
+expectpart "$($clixon_cli -1 -m configure -f $CFG set devices device *2 config interfaces interface z type eth)" 0 "^$"
 
-new "verify z 456 + 789"
-expectpart "$($clixon_cli -1 -m configure -f $CFG show cli devices device clixon* config table parameter z)" 0 "set parameter z value 123" "set parameter z value 456" --not-- "set parameter z value 789"
+new "verify z atm + eth"
+expectpart "$($clixon_cli -1 -m configure -f $CFG show cli devices device openconfig* config interfaces interface z)" 0 "set interface z type atm" "set interface z type eth" --not-- "set interface z type usb"
 
 new "del * z"
-expectpart "$($clixon_cli -1 -m configure -f $CFG del devices device clixon* config table parameter z)" 0 "^$"
+expectpart "$($clixon_cli -1 -m configure -f $CFG del devices device openconfig* config interfaces interface z)" 0 "^$"
 
 new "verify no z"
-expectpart "$($clixon_cli -1 -m configure -f $CFG show cli devices device clixon* config table parameter z)" 0 "clixon-example1:" "clixon-example2:" --not-- "set parameter z"
+expectpart "$($clixon_cli -1 -m configure -f $CFG show cli devices device openconfig* config interface interface z)" 0 "openconfig1:" "openconfig2:" --not-- "set interface z"
 
 if $BE; then
     echo "Kill old backend"

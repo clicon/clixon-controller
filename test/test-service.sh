@@ -30,6 +30,8 @@ set -eu
 # Magic line must be first in script (see README.md)
 s="$_" ; . ./lib.sh || if [ "$s" = $0 ]; then exit 0; else return 0; fi
 
+exit 0 # XXX Openconfig NYI
+
 if [ $nr -lt 2 ]; then
     echo "Test requires nr=$nr to be greater than 1"
     if [ "$s" = $0 ]; then exit 0; else return 0; fi

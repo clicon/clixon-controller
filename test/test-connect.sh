@@ -31,7 +31,8 @@ if [ ! -d $dir ]; then
 fi
 CFG=$dir/controller.xml
 fyang=$dir/clixon-test@2023-03-22.yang
-: ${user:=root}
+# openconfig devices have noc user
+: ${USER:=noc}
 
 cat<<EOF > $CFG
 <clixon-config xmlns="http://clicon.org/config">
@@ -127,7 +128,7 @@ for ip in $CONTAINERS; do
     new "$cmd"
     expectpart "$($clixon_cli -1 -m configure -f $CFG $cmd)" 0 "^$"
     
-    cmd="set devices device $NAME user $user"
+    cmd="set devices device $NAME user $USER"
     new "$cmd"
     expectpart "$($clixon_cli -1 -m configure -f $CFG $cmd)" 0 "^$"
     

@@ -6,25 +6,6 @@ set -u
 
 echo "reset-controller"
 
-if [[ ! -v CONTAINERS ]]; then
-    echo "CONTAINERS unset"
-    exit -1
-fi
-
-# Controller config file
-: ${CFG:=/usr/local/etc/controller.xml}
-
-# Number of devices to add config to
-: ${nr:=2}
-
-# Sleep delay in seconds between each step
-: ${sleep:=2}
-
-# Default container name, postfixed with 1,2,..,<nr>
-: ${IMG:=clixon-example}
-
-: ${clixon_netconf:=$(which clixon_netconf)}
-
 # Set if delete old config
 : ${delete:=true}
 
@@ -34,7 +15,10 @@ fi
 # Default values for controller device settings
 : ${description:="Clixon example container"}
 : ${yang_config:=VALIDATE}
-: ${user:=root}
+: ${USER:=root}
+REQ='<interfaces xmlns="http://openconfig.net/yang/interfaces"/>'
+# see reset-devices
+CONFIG='<interfaces xmlns="http://openconfig.net/yang/interfaces"><interface><name>x</name><config><name>x</name><type xmlns:ianaift="urn:ietf:params:xml:ns:yang:iana-if-type">ianaift:ethernetCsmacd</type></config></interface><interface><name>y</name><config><name>y</name><type xmlns:ianaift="urn:ietf:params:xml:ns:yang:iana-if-type">ianaift:atm</type></config></interface></interfaces>'
 
 # Send edit-config to controller with initial device meta-config
 function init_device_config()
@@ -59,7 +43,7 @@ function init_device_config()
 	  <enabled>true</enabled>
 	  <description>$description</description>
 	  <conn-type>NETCONF_SSH</conn-type>
-	  <user>$user</user>
+	  <user>$USER</user>
 	  <addr>$ip</addr>
 	  <yang-config>${yang_config}</yang-config>
 	  <config/>
@@ -106,7 +90,7 @@ for ip in $CONTAINERS; do
     i=$((i+1))
     for j in $(seq 1 5); do
 	init_device_config $NAME $ip
-	echo "$ret"
+#	echo "$ret"
 	match=$(echo "$ret" | grep --null -Eo "<rpc-error>") || true
 	if [ -z "$match" ]; then
 	    break
@@ -128,7 +112,7 @@ ret=$(${clixon_netconf} -q0 -f $CFG <<EOF
 </rpc>]]>]]>
 EOF
       )
-echo "$ret"
+#echo "$ret"
 
 match=$(echo "$ret" | grep --null -Eo "<rpc-error>") || true
 if [ -n "$match" ]; then
@@ -165,7 +149,7 @@ ret=$(${clixon_netconf} -q0 -f $CFG <<EOF
 EOF
    )
 
-echo "$ret"
+#echo "$ret"
 match=$(echo "$ret" | grep --null -Eo "<rpc-error>") || true
 if [ -n "$match" ]; then
     echo "Error: $ret"
@@ -187,7 +171,7 @@ ret=$(${clixon_netconf} -q0 -f $CFG <<EOF
 </rpc>]]>]]>
 EOF
    )
-echo "ret:$ret"
+#echo "ret:$ret"
 match=$(echo "$ret" | grep --null -Eo "<rpc-error>") || true
 if [ -n "$match" ]; then
     echo "Error: $ret"
@@ -203,8 +187,7 @@ ret=$(${clixon_netconf} -q0 -f $CFG <<EOF
 </rpc>]]>]]>
 EOF
    )
-
-echo "$ret"
+#echo "$ret"
 match=$(echo "$ret" | grep --null -Eo "<rpc-error>") || true
 if [ -n "$match" ]; then
     echo "Error: $res"
@@ -224,10 +207,11 @@ if ! $check ; then
 fi
 
 i=1
-# Only works for clixon-example, others should set check=false
+# Only works for openconfig, others should set check=false
 echo "check config"
 for ip in $CONTAINERS; do
     echo "Check config on device$i"
+    NAME=$IMG$i
     ret=$(${clixon_netconf} -qe0 -f $CFG <<EOF
 <rpc xmlns="urn:ietf:params:xml:ns:netconf:base:1.0"
   xmlns:nc="urn:ietf:params:xml:ns:netconf:base:1.0"
@@ -239,9 +223,9 @@ for ip in $CONTAINERS; do
     <filter type='subtree'>
       <devices xmlns="http://clicon.org/controller">
 	<device>
-	  <name>clixon-example$i</name>
+	  <name>$NAME</name>
 	  <config>
-	    <table xmlns="urn:example:clixon"/>
+            ${REQ}
 	  </config>
 	</device>
       </devices>
@@ -250,16 +234,17 @@ for ip in $CONTAINERS; do
 </rpc>]]>]]>
 EOF
        )
-    echo "$ret"
     match=$(echo "$ret" | grep --null -Eo "<rpc-error>") || true
     if [ -n "$match" ]; then
 	echo "netconf rpc-error detected"
 	exit 1
     fi
-    match=$(echo "$ret" | grep --null -Eo "<table xmlns=\"urn:example:clixon\"><parameter><name>x</name><value>11</value></parameter><parameter><name>y</name><value>22</value></parameter></table>") || true
+    match=$(echo "$ret" | grep --null -Eo "$CONFIG") || true
     if [ -z "$match" ]; then
 	echo "Config of device $i not matching:"
 	echo "$ret"
+        echo "Expected:"
+        echo "$CONFIG"
 	exit 1
     fi
 

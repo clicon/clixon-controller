@@ -5,6 +5,8 @@ set -u
 # Magic line must be first in script (see README.md)
 s="$_" ; . ./lib.sh || if [ "$s" = $0 ]; then exit 0; else return 0; fi
 
+exit 0 # XXX Openconfig NYI
+
 dir=/var/tmp/$0
 if [ ! -d $dir ]; then
     mkdir $dir

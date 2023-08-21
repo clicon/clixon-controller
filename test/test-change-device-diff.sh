@@ -29,7 +29,9 @@ wait_backend
 # Change device configs on devices (not controller)
 . ./change-devices.sh
 
-echo "trigger pull transient"
+CONFIG='<interfaces xmlns="http://openconfig.net/yang/interfaces"><interface><name>y</name><config><name>y</name><type xmlns:ianaift="urn:ietf:params:xml:ns:yang:iana-if-type">ianaift:atm</type></config></interface><interface><name>z</name><config><name>z</name><type xmlns:ianaift="urn:ietf:params:xml:ns:yang:iana-if-type">ianaift:usb</type></config></interface></interfaces><system xmlns="http://openconfig.net/yang/system">'
+
+new "trigger pull transient"
 ret=$(${clixon_netconf} -q0 -f $CFG <<EOF
 <rpc xmlns="urn:ietf:params:xml:ns:netconf:base:1.0" message-id="43">
   <config-pull xmlns="http://clicon.org/controller">
@@ -48,7 +50,7 @@ fi
 for i in $(seq 1 $nr); do
     NAME=$IMG$i
     # verify controller 
-    echo "get and check transient device db"
+    new "get and check transient device db"
     ret=$(${clixon_netconf} -q0 -f $CFG <<EOF
 <rpc xmlns="urn:ietf:params:xml:ns:netconf:base:1.0" message-id="43">
   <get-device-config xmlns="http://clicon.org/controller">
@@ -63,10 +65,12 @@ EOF
         echo "netconf rpc-error detected"
         exit 1
     fi
-    # XXX should it really be double: config/config?
-    match=$(echo $ret | grep --null -Eo '<rpc-reply xmlns="urn:ietf:params:xml:ns:netconf:base:1.0" message-id="43"><config xmlns="http://clicon.org/controller"><config><table xmlns="urn:example:clixon"><parameter><name>y</name><value>122</value></parameter><parameter><name>z</name><value>99</value></parameter></table></config></config></rpc-reply>') || true
+    # XXX double <config><config>
+    #    match=$(echo $ret | grep --null -Eo "<rpc-reply xmlns=\"urn:ietf:params:xml:ns:netconf:base:1.0\" message-id=\"43\"><config xmlns=\"http://clicon.org/controller\">$CONFIG</config></rpc-reply>") || true
+    match=$(echo $ret | grep --null -Eo "$CONFIG") || true
     if [ -z "$match" ]; then
         echo "netconf rpc get-device-config failed"
+        echo "$ret"
         exit 1
     fi
 done

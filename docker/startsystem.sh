@@ -39,6 +39,15 @@ DBG=${DBG:-0}
 # sudo: setrlimit(RLIMIT_CORE): Operation not permitted
 echo "Set disable_coredump false" > /etc/sudo.conf
 
+cat <<EOF > /clixon/clixon-controller/test/site.sh
+IMG=openconfig
+USER=noc
+HOMEDIR=/home/noc
+nr=2
+sleep=2
+CONTAINERS="$CONTAINERS"
+EOF
+
 # Start clixon backend
 >&2 echo "start clixon_backend:"
 /usr/local/sbin/clixon_backend -FD $DBG -f /usr/local/etc/controller.xml -l e # logs on docker logs

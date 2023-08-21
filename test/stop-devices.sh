@@ -2,10 +2,12 @@
 # Stop clixon example container devices
 set -eu
 
-# Number of device containers to start
-: ${nr:=2}
-
-: ${IMG:=clixon-example}
+if [ -f ./site.sh ]; then
+    . ./site.sh
+    if [ $? -ne 0 ]; then
+        return -1 # skip
+    fi
+fi
 
 for i in $(seq 1 $nr); do
     NAME=$IMG$i

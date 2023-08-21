@@ -1,12 +1,22 @@
 #!/usr/bin/env bash
 
+if [ -f ./site.sh ]; then
+    . ./site.sh
+    if [ $? -ne 0 ]; then
+        return -1 # skip
+    fi
+fi
+
 # Number of device containers to start
 : ${nr:=2}
 
 # Sleep delay in seconds between each step
 : ${sleep:=2}
 
-: ${IMG:=clixon-example}
+: ${IMG:=openconfig}
+
+# container user
+: ${USER:=root}
 
 # Controller config file
 : ${CFG:=/usr/local/etc/controller.xml}

@@ -22,7 +22,7 @@ if $BE; then
     echo "Kill old backend"
     sudo clixon_backend -s init -f $CFG -z
 
-    echo "Start new backend"
+    new "Start new backend"
     sudo clixon_backend -s init  -f $CFG -D $DBG
 fi
 
@@ -37,8 +37,10 @@ new "reset controller"
 new "change devices"
 . ./change-devices.sh
 
+CONFIG='<interfaces xmlns="http://openconfig.net/yang/interfaces"><interface nc:operation="remove"><name>x</name></interface><interface><name>y</name><config><type nc:operation="replace" xmlns:ianaift="urn:ietf:params:xml:ns:yang:iana-if-type">ianaift:v35</type></config></interface><interface nc:operation="merge"><name>z</name><config><name>z</name><type xmlns:ianaift="urn:ietf:params:xml:ns:yang:iana-if-type">ianaift:tunnel</type></config></interface></interfaces>'
+
 i=1
-# Change device out-of-band directly: Remove x, change y=322, and add z=399
+# Change device out-of-band directly: Remove x, change y=v35, and add z=tunnel
 for ip in $CONTAINERS; do
     NAME=$IMG$i
     new "edit device $NAME directly"
@@ -60,19 +62,7 @@ for ip in $CONTAINERS; do
         <device>
           <name>$NAME</name>
           <config>
-            <table xmlns="urn:example:clixon">
-              <parameter nc:operation="remove">
-                <name>x</name>
-              </parameter>
-              <parameter>
-                <name>y</name>
-                <value nc:operation="replace">322</value>
-               </parameter>
-               <parameter nc:operation="merge">>
-                 <name>z</name>
-                 <value>399</value>
-               </parameter>
-            </table>
+            ${CONFIG}
           </config>
         </device>
       </devices>
@@ -84,6 +74,7 @@ EOF
     match=$(echo $ret | grep --null -Eo "<rpc-error>") || true
     if [ -n "$match" ]; then
         echo "netconf rpc-error detected"
+        echo "$ret"
         exit 1
     fi
 
@@ -139,12 +130,12 @@ fi
 new "check device diff"
 ret=$(${clixon_cli} -1f $CFG show devices $NAME diff 2>&1)
 echo "ret:$ret"
-match=$(echo $ret | grep --null -Eo "+ <value>322</value>") || true
+match=$(echo $ret | grep --null -Eo "+ <type>ianaift:v35</type>") || true
 if [ -z "$match" ]; then
     echo "show devices diff does not match"
     exit 1
 fi
-match=$(echo $ret | grep --null -Eo "\- <value>122</value>") || true
+match=$(echo $ret | grep --null -Eo "\- <type>ianaift:atm</type>") || true
 if [ -z "$match" ]; then
     echo "show devices diff does not match"
     exit 1

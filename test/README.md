@@ -9,11 +9,20 @@ github actions regression tests.
 
 You can also run test natively, in which case you need to set up some things manually
 
-### Native
+### Devices
 
-Start clixon-example containers:
+Create site.sh, for example:
 ```
-    start-devices.sh      
+IMG=openconfig
+USER=noc
+HOMEDIR=/home/noc
+nr=2
+sleep=2
+```
+
+Start device containers. Default is `clixon/clixon-example` but you can also start `clixon/openconfig`:
+```
+    ./start-devices.sh
 ```
 
 If run natively, the controller runs as root, and a root public key needs to be installed in the clixon-example containers::
@@ -23,8 +32,13 @@ If run natively, the controller runs as root, and a root public key needs to be 
 
 Bind the `CONTAINERS` env variable to the IP:s of the clixon-example containers and run tests with the CONTAINERS environment variable bound:
 ```
-    export CONTAINERS=$(./containers.sh)
+    echo "CONTAINERS=$(IMG=openconfig ./containers.sh)" >> ./site.sh
     ./sum.sh
+```
+
+To stop the device containers:
+```
+    ./stop-devices.sh
 ```
 
 ## Tests

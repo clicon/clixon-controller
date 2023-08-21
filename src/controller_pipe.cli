@@ -6,9 +6,9 @@ CLICON_MODE="|controller_pipe";
    tail, pipe_tail_fn();
    count, pipe_wc_fn("-l");
    display {
-     xml, pipe_showas_fn("xml", false);
+     xml, pipe_showas_fn("xml", true);
      curly, pipe_showas_fn("text", true);
-     json, pipe_showas_fn("json", false);
+     json, pipe_showas_fn("json", true);
      cli, pipe_showas_fn("cli", true, "set ");
    }
 }

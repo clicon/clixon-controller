@@ -45,13 +45,13 @@ ret=$(${clixon_netconf} -0 -f $CFG <<EOF
 </rpc>]]>]]>
 EOF
       )
-echo "ret:$ret"
+#echo "ret:$ret"
 match=$(echo $ret | grep --null -Eo "<rpc-error>") || true
 if [ -n "$match" ]; then
     echo "netconf rpc-error detected"
     exit 1
 fi
-
+new "match mount"
 expected='<schema-mounts xmlns="urn:ietf:params:xml:ns:yang:ietf-yang-schema-mount"><mount-point><module>clixon-controller</module><label>root</label><config>true</config><inline/></mount-point></schema-mounts>'
 match=$(echo $ret | grep --null -Eo "$expected") || true
 if [ -z "$match" ]; then
@@ -59,6 +59,7 @@ if [ -z "$match" ]; then
     exit 1
 fi
 
+new "per-device yanglibs"
 # Query per-device yanglibs
 ret=$(${clixon_netconf} -0 -f $CFG <<EOF
 <?xml version="1.0" encoding="UTF-8"?>
@@ -84,21 +85,35 @@ ret=$(${clixon_netconf} -0 -f $CFG <<EOF
 </rpc>]]>]]>
 EOF
 )
-echo "ret:$ret"
+#echo "ret:$ret"
 match=$(echo $ret | grep --null -Eo "<rpc-error>") || true
 if [ -n "$match" ]; then
     echo "netconf rpc-error detected"
+    echo "$ret"
     exit 1
 fi
 
-#expected='<devices xmlns="http://clicon.org/controller"><device><config><yang-library xmlns="urn:ietf:params:xml:ns:yang:ietf-yang-library"><module-set><name>mount</name><module><name>clixon-autocli</name><revision>2022-02-11</revision><namespace>http://clicon.org/autocli</namespace></module>'
-expected='<devices xmlns="http://clicon.org/controller"><device><config><yang-library xmlns="urn:ietf:params:xml:ns:yang:ietf-yang-library"><module-set><name>mount</name><module><name>clixon-autocli</name>'
+new "match yanglib"
+
+expected='<devices xmlns="http://clicon.org/controller"><device><config><yang-library xmlns="urn:ietf:params:xml:ns:yang:ietf-yang-library"><module-set><name>mount</name><module><name>clixon-lib</name>'
 
 match=$(echo $ret | grep --null -Eo "$expected") || true
 if [ -z "$match" ]; then
-    echo "netconf unexpected yang-library"
+    echo "netconf expected yang-library"
+    echo "$ret"
     exit 1
 fi
+
+new "match openconfig-acl"
+expected='<module><name>openconfig-acl</name><revision>2023-02-06</revision><namespace>http://openconfig.net/yang/acl</namespace></module>'
+
+match=$(echo $ret | grep --null -Eo "$expected") || true
+if [ -z "$match" ]; then
+    echo "netconf expected openconfig-acl"
+    echo "$ret"
+    exit 1
+fi
+
 
 if $BE; then
     echo "Kill old backend"

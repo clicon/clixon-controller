@@ -32,9 +32,15 @@ wait_backend
 # Reset controller
 . ./reset-controller.sh
 
-i=1
+# Data 
+REQ='<interfaces xmlns="http://openconfig.net/yang/interfaces"/>'
+CONFIG='<interfaces xmlns="http://openconfig.net/yang/interfaces"><interface nc:operation="remove"><name>x</name></interface><interface><name>y</name><config><type nc:operation="replace" xmlns:ianaift="urn:ietf:params:xml:ns:yang:iana-if-type">ianaift:x213</type></config></interface><interface nc:operation="merge"><name>z</name><config><name>z</name><type xmlns:ianaift="urn:ietf:params:xml:ns:yang:iana-if-type">ianaift:vdsl</type></config></interface></interfaces>'
 
-# Change device in controller: Remove x, change y=122, and add z=99
+# XXX xmlns iana ns decl is on config once and on type the other
+CHECK='<interfaces xmlns="http://openconfig.net/yang/interfaces"><interface><name>y</name><config xmlns:ianaift="urn:ietf:params:xml:ns:yang:iana-if-type"><name>y</name><type>ianaift:x213</type></config></interface><interface><name>z</name><config><name>z</name><type xmlns:ianaift="urn:ietf:params:xml:ns:yang:iana-if-type">ianaift:vdsl</type></config></interface></interfaces>'
+
+i=1
+# Change device in controller: Remove x, change y=x213, and add z=vdsl
 for x in $CONTAINERS; do
     NAME=$IMG$i
     ret=$(${clixon_netconf} -0 -f $CFG <<EOF
@@ -55,19 +61,7 @@ for x in $CONTAINERS; do
 	<device>
 	  <name>$NAME</name>
 	  <config>
-	    <table xmlns="urn:example:clixon">
-	      <parameter nc:operation="remove">
-		<name>x</name>
-	      </parameter>
-	      <parameter>
-		<name>y</name>
-		<value nc:operation="replace">122</value>
-	       </parameter>
-	       <parameter nc:operation="merge">>
-		 <name>z</name>
-		 <value>99</value>
-	       </parameter>
-	    </table>
+            ${CONFIG}
 	  </config>
 	</device>
       </devices>
@@ -86,7 +80,7 @@ EOF
 done
 
 new "local commit"
-${clixon_netconf} -0 -f $CFG <<EOF
+${clixon_netconf} -0 -f $CFG > /dev/null <<EOF
 <?xml version="1.0" encoding="UTF-8"?>
 <hello xmlns="urn:ietf:params:xml:ns:netconf:base:1.0">
    <capabilities>
@@ -114,7 +108,7 @@ ret=$(${clixon_netconf} -q0 -f $CFG <<EOF
 </rpc>]]>]]>
 EOF
    )
-echo "ret:$ret"
+#echo "ret:$ret"
 match=$(echo $ret | grep --null -Eo "<rpc-error>") || true
 if [ -n "$match" ]; then
     echo "netconf rpc-error detected"
@@ -136,7 +130,7 @@ ret=$(${clixon_netconf} -q0 -f $CFG <<EOF
 EOF
       )
 
-echo "ret:$ret"
+# echo "ret:$ret"
 match=$(echo $ret | grep --null -Eo "<rpc-error>") || true
 if [ -n "$match" ]; then
     echo "netconf rpc-error detected"
@@ -154,7 +148,6 @@ sleep $sleep
 new "Verify controller"
 res=$(${clixon_cli} -1f $CFG show devices | grep OPEN | wc -l)
 
-echo "Verify open devices"
 ret=$(${clixon_netconf} -q0 -f $CFG <<EOF
 <rpc xmlns="urn:ietf:params:xml:ns:netconf:base:1.0" xmlns:nc="urn:ietf:params:xml:ns:netconf:base:1.0" message-id="43">
    <get cl:content="all" xmlns:cl="http://clicon.org/lib">
@@ -163,7 +156,7 @@ ret=$(${clixon_netconf} -q0 -f $CFG <<EOF
 </rpc>]]>]]>
 EOF
    )        
-echo "$ret"
+#echo "$ret"
 match=$(echo "$ret" | grep --null -Eo "<rpc-error>") || true
 if [ -n "$match" ]; then
     echo "Error: $res"
@@ -177,12 +170,9 @@ if [ "$res" != "$nr" ]; then
 fi
 
 i=1
-
-new "Verify containers"
 for x in $CONTAINERS; do
     NAME=$IMG$i
-
-    echo $NAME
+    new "Check $NAME"
 
     ret=$(${clixon_netconf} -qe0 -f $CFG <<EOF
 <rpc xmlns="urn:ietf:params:xml:ns:netconf:base:1.0"
@@ -195,7 +185,7 @@ message-id="42">
 	<device>
 	  <name>$NAME</name>
 	  <config>
-	    <table xmlns="urn:example:clixon"/>
+            ${REQ}
 	  </config>
 	</device>
       </devices>
@@ -204,15 +194,16 @@ message-id="42">
 </rpc>]]>]]>
 EOF
        )
-    echo "ret:$ret"
+#    echo "ret:$ret"
     match=$(echo $ret | grep --null -Eo "<rpc-error>") || true
     if [ -n "$match" ]; then
 	echo "netconf rpc-error detected on $NAME"
 	exit 1
     fi
-    match=$(echo $ret | grep --null -Eo '<config><table xmlns="urn:example:clixon"><parameter><name>y</name><value>122</value></parameter><parameter><name>z</name><value>99</value></parameter></table></config>') || true
+    match=$(echo $ret | grep --null -Eo "<config>${CHECK}</config>") || true
     if [ -z "$match" ]; then
-	echo "netconf rpc get-config failed on $NAME"
+	echo "netconf rpc get-config $NAME no match"
+        echo "$ret" 
 	exit 1
     fi
 
