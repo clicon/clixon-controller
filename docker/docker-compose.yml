@@ -9,8 +9,6 @@ services:
     depends_on:
       - r1
       - r2
-    environment:
-      CONTAINERS: "r1 r2"
     volumes:
       - ./prepare-ssh.sh:/prepare-ssh.sh
     entrypoint: ["/bin/bash", "/prepare-ssh.sh"]
