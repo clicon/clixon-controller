@@ -47,7 +47,7 @@ expectpart "$($clixon_cli -1 -f $CFG show devices)" 0 "openconfig1.*OPEN" "openc
 
 new "Show device diff, should be empty"
 expectpart "$($clixon_cli -1 -f $CFG show devices diff)" 0 ""
-expectpart "$($clixon_cli -1 -f $CFG 'show devices r* diff')" 0 ""
+expectpart "$($clixon_cli -1 -f $CFG 'show devices openconfig* diff')" 0 ""
 expectpart "$($clixon_cli -1 -f $CFG show devices openconfig1 diff)" 0 ""
 expectpart "$($clixon_cli -1 -f $CFG show devices openconfig2 diff)" 0 ""
 
@@ -63,22 +63,22 @@ expectpart "$($clixon_cli -1 -f $CFG -m configure commit diff)" 0 "^-    <hostna
 new "Rollback hostname on openconfig1"
 expectpart "$($clixon_cli -1 -f $CFG -m configure rollback)" 0 ""
 
-new "Configure hostnames on r*"
-expectpart "$($clixon_cli -1 -f $CFG -m configure 'set devices device r* config system config hostname test')" 0 ""
+new "Configure hostnames on openconfig*"
+expectpart "$($clixon_cli -1 -f $CFG -m configure 'set devices device openconfig* config system config hostname test')" 0 ""
 
-new "Verify show compare on r*"
+new "Verify show compare on openconfig*"
 expectpart "$($clixon_cli -1 -f $CFG -m configure show compare)" 0 "^-               hostname openconfig1;" "^\+               hostname test;" "^-               hostname openconfig2;"
 
-new "Verify commit diff on r*"
+new "Verify commit diff on openconfig*"
 expectpart "$($clixon_cli -1 -f $CFG -m configure commit diff)" 0 "^-    <hostname>openconfig1</hostname>" "^\+    <hostname>test</hostname>" "^-    <hostname>openconfig2</hostname>"
 
-new "Rollback hostnames on r*"
+new "Rollback hostnames on openconfig*"
 expectpart "$($clixon_cli -1 -f $CFG -m configure rollback)" 0 ""
 
-new "Commit hostname on r*"
-expectpart "$($clixon_cli -1 -f $CFG -m configure 'set devices device r* config system config hostname test')" 0 ""
+new "Commit hostname on openconfig*"
+expectpart "$($clixon_cli -1 -f $CFG -m configure 'set devices device openconfig* config system config hostname test')" 0 ""
 
-new "Commit on r*"
+new "Commit on openconfig*"
 expectpart "$($clixon_cli -1 -f $CFG -m configure commit)" 0 ""
 
 for container in $CONTAINERS; do
@@ -96,5 +96,5 @@ expectpart "$($clixon_cli -1 -f $CFG -m configure commit)" 0 ""
 
 for container in $CONTAINERS; do
     new "Verify hostname on $container"
-    expectpart "$(ssh -l $USER $container clixon_cli -1 show configuration cli)" 0 "system config hostname r*"
+    expectpart "$(ssh -l $USER $container clixon_cli -1 show configuration cli)" 0 "system config hostname openconfig*"
 done
