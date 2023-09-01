@@ -1,8 +1,7 @@
 CLICON_MODE="configure";
 CLICON_PROMPT="%U@%H[%W]# ";
 CLICON_PLUGIN="controller_cli";
-CLICON_PIPETREE="|pipe_show";
-#CLICON_PIPETREE="|pipe_common"; # XXX multi-pipes
+CLICON_PIPETREE="|pipe_common";
 
 exit("Change to operation mode"), cli_set_mode("operation");
 
@@ -44,9 +43,9 @@ debug("Debugging parts of the system"){
 discard("Discard edits (rollback 0)"), discard_changes();
 rollback("Discard edits (rollback 0)"), discard_changes();
 
-
 show("Show a particular state of the system"), @datamodelshow, cli_show_auto_mode("candidate", "xml", true, false);{
     @datamodelshow, cli_show_auto_devs("candidate", "xml", true, false);
+    @|pipe_show, cli_show_auto_mode("candidate", "xml", true, false);
     compare("Compare candidate and running databases"), compare_dbs((int32)1);{
           xml("Show comparison in xml"), compare_dbs((int32)0);
 	  text("Show comparison in text"), compare_dbs((int32)1);
