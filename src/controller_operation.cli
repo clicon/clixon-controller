@@ -2,8 +2,7 @@ CLICON_MODE="operation";
 #CLICON_PROMPT="%U@%H %W> ";
 CLICON_PROMPT="%U@%H> ";
 CLICON_PLUGIN="controller_cli";
-CLICON_PIPETREE="|pipe_show";
-#CLICON_PIPETREE="|pipe_common"; # XXX multi-pipes
+CLICON_PIPETREE="|pipe_common";
 
 # Al11: Auto edit mode
 # Autocli syntax tree operations
@@ -31,11 +30,13 @@ processes("Process maintenace") services("Service daemon operation") {
 }
 show("Show a particular state of the system"){
     configuration("Show configuration"), cli_show_auto_mode("running", "xml", true, false);{
-#       @|pipe_show, cli_show_auto_mode("running", "xml", true, false); # XXX multi-pipes
+       @|pipe_show, cli_show_auto_mode("running", "xml", true, false); # XXX multi-pipes
        @datamodelshow, cli_show_auto_devs("running", "xml", true, false, "explicit");
     }
     xpath("Show configuration") <xpath:string>("XPATH expression")
-       [<ns:string>("Namespace")], show_conf_xpath("running");
+       [<ns:string>("Namespace")], show_conf_xpath("running");{
+          @|pipe_show, show_conf_xpath("running");
+       }
     version("Show version"), cli_controller_show_version("running", "text", "/");
     options("Show clixon options"), cli_show_options();
     compare("Compare candidate and running databases"), compare_dbs("text");{
