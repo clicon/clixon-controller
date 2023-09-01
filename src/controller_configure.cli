@@ -1,7 +1,8 @@
 CLICON_MODE="configure";
 CLICON_PROMPT="%U@%H[%W]# ";
 CLICON_PLUGIN="controller_cli";
-CLICON_PIPETREE="|controller_pipe";
+CLICON_PIPETREE="|pipe_show";
+#CLICON_PIPETREE="|pipe_common"; # XXX multi-pipes
 
 exit("Change to operation mode"), cli_set_mode("operation");
 
