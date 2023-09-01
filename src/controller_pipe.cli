@@ -1,14 +1,7 @@
-CLICON_MODE="|controller_pipe";
-
+CLICON_MODE="|pipe_common:|pipe_show";
 \| { 
    grep <arg:string>, pipe_grep_fn("-e", "arg");
    except <arg:string>, pipe_grep_fn("-v", "arg");
-   tail, pipe_tail_fn();
+   tail <arg:string>, pipe_tail_fn("-n", "arg");
    count, pipe_wc_fn("-l");
-   display {
-     xml, pipe_showas_fn("xml", true);
-     curly, pipe_showas_fn("text", true);
-     json, pipe_showas_fn("json", true);
-     cli, pipe_showas_fn("cli", true, "set ");
-   }
 }

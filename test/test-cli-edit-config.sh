@@ -98,3 +98,11 @@ for container in $CONTAINERS; do
     new "Verify hostname on $container"
     expectpart "$(ssh -l $USER $container clixon_cli -1 show configuration cli)" 0 "system config hostname openconfig*"
 done
+
+if $BE; then
+    echo "Kill old backend"
+    sudo clixon_backend -s init -f $CFG -z
+fi
+
+echo "test-cli-edit-config"
+echo OK

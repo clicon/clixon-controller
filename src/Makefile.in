@@ -86,6 +86,7 @@ all: $(PLUGINS)
 CLISPECS  = $(APPNAME)_operation.cli
 CLISPECS += $(APPNAME)_configure.cli
 CLISPECS += $(APPNAME)_pipe.cli
+CLISPECS += $(APPNAME)_pipe_show.cli
 
 clean:
 	rm -f $(PLUGINS) $(OBJS)

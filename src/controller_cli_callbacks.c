@@ -1714,8 +1714,8 @@ cli_controller_show_version(clicon_handle h,
                             cvec         *vars,
                             cvec         *argv)
 {
-    fprintf(stdout, "Controller: \t%s\n", CONTROLLER_VERSION);
-    fprintf(stdout, "Clixon: \t%s\n", CLIXON_VERSION_STRING);
-    fprintf(stdout, "CLIgen: \t%s\n", CLIGEN_VERSION);
+    cligen_output(stdout, "Controller: \t%s\n", CONTROLLER_VERSION);
+    cligen_output(stdout, "Clixon: \t%s\n", CLIXON_VERSION_STRING);
+    cligen_output(stdout, "CLIgen: \t%s\n", CLIGEN_VERSION);
     return 0;
 }

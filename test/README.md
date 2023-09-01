@@ -30,9 +30,9 @@ If run natively, the controller runs as root, and a root public key needs to be 
     sudo ./copy-keys.sh
 ```
 
-Bind the `CONTAINERS` env variable to the IP:s of the clixon-example containers and run tests with the CONTAINERS environment variable bound:
+Bind the `CONTAINERS` env variable to the IP:s of the clixon-example containers, either manually or for example:
 ```
-    echo "CONTAINERS=$(IMG=openconfig ./containers.sh)" >> ./site.sh
+    echo "CONTAINERS=\"$(IMG=openconfig ./containers.sh)\"" >> ./site.sh
     ./sum.sh
 ```
 
