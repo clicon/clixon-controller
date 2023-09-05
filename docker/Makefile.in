@@ -49,7 +49,7 @@ push:
 
 test: docker
 	./cleanup.sh ; ./start.sh # kill (ignore error) and start it
-	sudo docker exec -t $(NAME) bash -c 'cd clixon-controller/test && detail=true ./sum.sh'
+	sudo docker exec -t $(NAME) bash -c 'cd clixon-controller/test && sleep 1 && detail=true ./sum.sh'
 
 depend:
 
