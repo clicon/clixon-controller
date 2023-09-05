@@ -72,7 +72,7 @@ cat<<EOF > $CFG
   <CLICON_CLI_HELPSTRING_LINES>1</CLICON_CLI_HELPSTRING_LINES>
   <CLICON_YANG_SCHEMA_MOUNT>true</CLICON_YANG_SCHEMA_MOUNT>
   <autocli>
-     <module-default>true</module-default>
+     <module-default>false</module-default>
      <list-keyword-default>kw-nokey</list-keyword-default>
      <treeref-state-default>true</treeref-state-default>
      <grouping-treeref>true</grouping-treeref>

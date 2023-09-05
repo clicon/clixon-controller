@@ -1,5 +1,4 @@
 # Controller test script for cli set/delete multiple, using glob '*'
-# XXX | display not work OK for cli
 
 set -u
 
@@ -12,6 +11,9 @@ if [ ! -d $dir ]; then
 fi
 CFG=$dir/controller.xml
 fin=$dir/in
+
+# source IMG/USER etc
+. ./site.sh
 
 cat<<EOF > $CFG
 <clixon-config xmlns="http://clicon.org/config">
@@ -38,7 +40,7 @@ cat<<EOF > $CFG
   <CLICON_CLI_HELPSTRING_LINES>1</CLICON_CLI_HELPSTRING_LINES>
   <CLICON_YANG_SCHEMA_MOUNT>true</CLICON_YANG_SCHEMA_MOUNT>
   <autocli>
-     <module-default>true</module-default>
+     <module-default>false</module-default>
      <list-keyword-default>kw-nokey</list-keyword-default>
      <treeref-state-default>true</treeref-state-default>
      <grouping-treeref>true</grouping-treeref>
@@ -49,7 +51,7 @@ cat<<EOF > $CFG
      </rule>
      <rule>
        <name>include example</name>
-       <module-name>clixon-example</module-name>
+       <module-name>openconfig*</module-name>
        <operation>enable</operation>
      </rule>
   </autocli>
@@ -122,28 +124,29 @@ wait_backend
 . ./reset-controller.sh
 
 new "verify no z"
-expectpart "$($clixon_cli -1 -m configure -f $CFG show cli devices device openconfig* config interfaces interface z)" 0 "openconfig1:" "openconfig2:" --not-- "set interface interface z"
+expectpart "$($clixon_cli -1 -m configure -f $CFG show cli devices device ${IMG}* config interfaces interface z)" 0 "${IMG}1:" "${IMG}2:" --not-- "set interface interface z"
 
 new "set * z"
-expectpart "$($clixon_cli -1 -m configure -f $CFG set devices device openconfig* config interfaces interface z type usb)" 0 "^$"
+expectpart "$($clixon_cli -1 -m configure -f $CFG set devices device ${IMG}* config interfaces interface z config type usb)" 0 "^$"
+#expectpart "$($clixon_cli -1 -m configure -f $CFG set devices device ${IMG}* config interfaces interface z config type ianaift:usb)" 0 "^$" # XXX namespace does not work
 
 new "verify z usb"
-expectpart "$($clixon_cli -1 -m configure -f $CFG show cli devices device openconfig* config interfaces interface z)" 0 "openconfig1:" "openconfig2:" "set interface z type usb"
+expectpart "$($clixon_cli -1 -m configure -f $CFG show cli devices device ${IMG}* config interfaces interface z)" 0 "${IMG}1:" "${IMG}2:" "set interface z config type usb"
 
 new "set *1 z atm"
-expectpart "$($clixon_cli -1 -m configure -f $CFG set devices device *1 config interfaces interface z type atm)" 0 "^$"
+expectpart "$($clixon_cli -1 -m configure -f $CFG set devices device *1 config interfaces interface z config type atm)" 0 "^$"
 
 new "set *2 z eth"
-expectpart "$($clixon_cli -1 -m configure -f $CFG set devices device *2 config interfaces interface z type eth)" 0 "^$"
+expectpart "$($clixon_cli -1 -m configure -f $CFG set devices device *2 config interfaces interface z config type eth)" 0 "^$"
 
 new "verify z atm + eth"
-expectpart "$($clixon_cli -1 -m configure -f $CFG show cli devices device openconfig* config interfaces interface z)" 0 "set interface z type atm" "set interface z type eth" --not-- "set interface z type usb"
+expectpart "$($clixon_cli -1 -m configure -f $CFG show cli devices device ${IMG}* config interfaces interface z)" 0 "set interface z config type atm" "set interface z config type eth" --not-- "set interface z config type usb"
 
 new "del * z"
-expectpart "$($clixon_cli -1 -m configure -f $CFG del devices device openconfig* config interfaces interface z)" 0 "^$"
+expectpart "$($clixon_cli -1 -m configure -f $CFG del devices device ${IMG}* config interfaces interface z)" 0 "^$"
 
 new "verify no z"
-expectpart "$($clixon_cli -1 -m configure -f $CFG show cli devices device openconfig* config interface interface z)" 0 "openconfig1:" "openconfig2:" --not-- "set interface z"
+expectpart "$($clixon_cli -1 -m configure -f $CFG show cli devices device ${IMG}* config interface interface z)" 0 "${IMG}1:" "${IMG}2:" --not-- "set interface z"
 
 if $BE; then
     echo "Kill old backend"
