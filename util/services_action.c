@@ -657,8 +657,10 @@ main(int    argc,
     /* Find, read and parse configfile */
     if (clicon_options_main(h) < 0)
         goto done;
-    if (clicon_rpc_create_subscription(h, "services-commit", NULL, &s) < 0)
+    if (clicon_rpc_create_subscription(h, "services-commit", NULL, &s) < 0){
+        clicon_log(LOG_NOTICE, "services-commit: subscription failed: %s", clicon_err_reason);    
         goto done;
+    }
     clicon_debug(CLIXON_DBG_DEFAULT, "%s notification socket:%d", __FUNCTION__, s);
     while (clicon_msg_rcv(s, 1, &notification, &eof) == 0){
         if (eof)

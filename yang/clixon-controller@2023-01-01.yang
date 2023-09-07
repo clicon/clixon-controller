@@ -444,7 +444,8 @@ module clixon-controller {
     notification services-commit {
         description
             "A commit has been made that changes the services declaration and
-             that triggers services script.";
+             that triggers services script.
+             A check is made that only one such registration is active.";
         leaf tid {
             description "Transaction id that this commit is a part of";
             type uint64;

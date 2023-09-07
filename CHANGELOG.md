@@ -5,6 +5,7 @@ Expected: October 2023
 
 ### Corrected Bugs
 
+* Fixed: [Abort transaction if more one client](https://github.com/clicon/clixon-controller/issues/35)
 * Fixed: [RPC error when using pipe](https://github.com/clicon/clixon-controller/issues/34)
 * Fixed: ['show devices | display cli' throws an error](https://github.com/clicon/clixon-controller/issues/25)
 * Fixed: [Weird things happen when piping set command](https://github.com/clicon/clixon-controller/issues/33)
