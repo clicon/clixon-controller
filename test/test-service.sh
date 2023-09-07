@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 #
 # Simple non-python service checking shared object create and delete
+# Uses util/services_action.c as C-based server
 #
 # see https://github.com/SUNET/snc-services/issues/12
 #
@@ -25,12 +26,10 @@
 # +----------------+---------------+---------------+
 # |                       Bx                       |
 # +------------------------------------------------+
-set -eu
+set -u
 
 # Magic line must be first in script (see README.md)
 s="$_" ; . ./lib.sh || if [ "$s" = $0 ]; then exit 0; else return 0; fi
-
-exit 0 # XXX Openconfig NYI
 
 if [ $nr -lt 2 ]; then
     echo "Test requires nr=$nr to be greater than 1"
@@ -44,13 +43,16 @@ fi
 CFG=$dir/controller.xml
 fyang=$dir/myyang.yang
 
+# source IMG/USER etc
+. ./site.sh
+
 cat<<EOF > $CFG
 <clixon-config xmlns="http://clicon.org/config">
   <CLICON_CONFIGFILE>/usr/local/etc/controller.xml</CLICON_CONFIGFILE>
   <CLICON_FEATURE>ietf-netconf:startup</CLICON_FEATURE>
   <CLICON_FEATURE>clixon-restconf:allow-auth-none</CLICON_FEATURE>
   <CLICON_CONFIG_EXTEND>clixon-controller-config</CLICON_CONFIG_EXTEND>
-  <CONTROLLER_ACTION_COMMAND xmlns="http://clicon.org/controller-config">/usr/local/bin/services_action -f $CFG -D 0 -ls</CONTROLLER_ACTION_COMMAND> <!-- Debug: -D 3 -l s -->
+  <CONTROLLER_ACTION_COMMAND xmlns="http://clicon.org/controller-config">/usr/local/bin/services_action -f $CFG -D 3 -ls</CONTROLLER_ACTION_COMMAND> <!-- Debug: -D 3 -l s -->
   <CLICON_BACKEND_USER>clicon</CLICON_BACKEND_USER>
   <CLICON_SOCK_GROUP>clicon</CLICON_SOCK_GROUP>
   <CLICON_YANG_DIR>/usr/local/share/clixon</CLICON_YANG_DIR>
@@ -82,23 +84,8 @@ cat<<EOF > $CFG
        <operation>enable</operation>
      </rule>
      <rule>
-       <name>include example</name>
-       <module-name>clixon-example</module-name>
-       <operation>enable</operation>
-     </rule>
-     <rule>
-       <name>include junos</name>
-       <module-name>junos-conf-root</module-name>
-       <operation>enable</operation>
-     </rule>
-     <rule>
-       <name>include arista system</name>
-       <module-name>openconfig-system</module-name>
-       <operation>enable</operation>
-     </rule>
-     <rule>
-       <name>include arista interfaces</name>
-       <module-name>openconfig-interfaces</module-name>
+       <name>include openconfig</name>
+       <module-name>openconfig*</module-name>
        <operation>enable</operation>
      </rule>
      <!-- there are many more arista/openconfig top-level modules -->
@@ -153,7 +140,7 @@ cat <<EOF > $dir/startup_db
 <config>
   <processes xmlns="http://clicon.org/controller">
     <services>
-      <enabled>false</enabled> // true
+      <enabled>true</enabled>
     </services>
   </processes>
 </config>
@@ -166,35 +153,36 @@ if $BE; then
     echo "Kill old backend $CFG"
     sudo clixon_backend -f $CFG -z
 
-    echo "Start new backend -s init -f $CFG -D $DBG"
-    sudo clixon_backend -s init -f $CFG -D $DBG
+    echo "Start new backend -s startup -f $CFG -D $DBG"
+    sudo clixon_backend -s startup -f $CFG -D $DBG
 fi
 
 # Check backend is running
 wait_backend
 
+
 # Reset controller
 . ./reset-controller.sh
 
-DEV2="<device>
-           <name>clixon-example2</name>
-	   <config>
-	     <table xmlns=\"urn:example:clixon\">
-	       <parameter>
-		 <name>0x</name>
-	       </parameter>
-	       <parameter>
-		 <name>A0x</name>
-	       </parameter>
-	       <parameter>
-		 <name>A0y</name>
-	       </parameter>
-	       <parameter>
-		 <name>A0z</name>
-	       </parameter>
-	     </table>
-	   </config>
-	 </device>"
+new "Start service process, expect fail (already started)"
+expectpart "$(services_action -f $CFG -l o)" 255 "services-commit client already registered"
+
+DEV0="<config>
+         <interfaces xmlns=\"http://openconfig.net/yang/interfaces\">
+            <interface>
+               <name>0x</name><config><name>0x</name></config>
+            </interface>
+            <interface>
+               <name>A0x</name><config><name>A0x</name></config>
+            </interface>
+            <interface>
+               <name>A0y</name><config><name>A0y</name></config>
+            </interface>
+            <interface>
+               <name>A0z</name><config><name>A0z</name></config>
+            </interface>
+         </interfaces>
+      </config>"
 
 new "edit testA(1)"
 ret=$(${clixon_netconf} -0 -f $CFG <<EOF
@@ -233,25 +221,13 @@ ret=$(${clixon_netconf} -0 -f $CFG <<EOF
       </services>
       <devices xmlns="http://clicon.org/controller">
          <device>
-           <name>clixon-example1</name>
-           <config>
-             <table xmlns="urn:example:clixon">
-               <parameter>
-                 <name>0x</name>
-               </parameter>
-               <parameter>
-                 <name>A0x</name>
-               </parameter>
-               <parameter>
-                 <name>A0y</name>
-               </parameter>
-               <parameter>
-                 <name>A0z</name>
-               </parameter>
-             </table>
-           </config>
+            <name>${IMG}1</name>
+            $DEV0
          </device>
-         $DEV2
+         <device>
+            <name>${IMG}2</name>
+            $DEV0
+         </device>
       </devices>
     </config>
   </edit-config>
@@ -266,11 +242,18 @@ if [ -n "$match" ]; then
     exit 1
 fi
 
+if $BE; then
+    new "Kill old backend"
+    sudo clixon_backend -s init -f $CFG -z
+fi
+exit 0 # XXX Openconfig NYI
+
 sleep $sleep
 new "commit push"
 set +e
 
-expectpart "$(${clixon_cli} -m configure -1f $CFG commit push 2>&1)" 0 OK --not-- Error
+#expectpart "$(${clixon_cli} -m configure -1f $CFG commit push 2>&1)" 0 OK --not-- Error
+expectpart "$(${clixon_cli} -m configure -1f $CFG commit push)" 0 OK --not-- Error
 
 new "edit testA(2)"
 ret=$(${clixon_netconf} -0 -f $CFG <<EOF

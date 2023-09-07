@@ -46,9 +46,10 @@ To stop the device containers:
 * test-change-both.sh          Change config on device and check diff
 * test-change-ctrl-push.sh     Change device config on controller and push to devices
 * test-change-device-diff.sh   Change config on device and check diff
-* test-cli-edit-commit-push.sh Baseline edit/commit/push using pyapi
-* test-cli-edit-multiple.sh    cli set/delete using glob '*'
-* test-cli-show-config.sh      cli show config tests
+* test-cli-edit-config.sh      CLI set/show
+* test-cli-edit-multiple.sh    CLI set/delete using glob '*'
+* test-cli-show-config.sh      CLI show config tests
+* test-local-commit.sh         Connect/commit/push
 * test-service.sh              Non pyapi service test 
 * test-yanglib.sh              Test RFC8528 YANG Schema Mount state
 

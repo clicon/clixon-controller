@@ -1944,6 +1944,7 @@ rpc_datastore_diff(clixon_handle h,
     char              *formatstr;
     enum format_enum   format = FORMAT_XML;
                 
+    clicon_debug(CLIXON_DBG_DEFAULT, "%s", __FUNCTION__);
     xpath = xml_find_body(xe, "xpath");
     if ((formatstr = xml_find_body(xe, "format")) != NULL){
         if ((int)(format = format_str2int(formatstr)) < 0){
@@ -2003,6 +2004,67 @@ rpc_datastore_diff(clixon_handle h,
     return retval;
 }
 
+/*! Intercept services-commit create-subscription and deny if there is already one
+ *
+ * The registration should be made from plugin-init to ensure the check is made before
+ * the regular from_client_create_subscription callback
+ * @param[in]  h       Clicon handle 
+ * @param[in]  xe      Request: <rpc><xn></rpc> 
+ * @param[out] cbret   Return xml tree, eg <rpc-reply>..., <rpc-error.. 
+ * @param[in]  arg     client-entry
+ * @param[in]  regarg  User argument given at rpc_callback_register() 
+ * @retval     0       OK
+ * @retval    -1       Error
+ * @see clixon-controller.yang notification services-commit
+ */
+int
+check_services_commit_subscription(clixon_handle h,
+                                   cxobj        *xe,
+                                   cbuf         *cbret,
+                                   void         *arg,  
+                                   void         *regarg)
+{
+    int                  retval = -1;
+    //    struct client_entry *ce = (struct client_entry *)arg;
+    char                *stream = "NETCONF";
+    cxobj               *x; /* Generic xml tree */
+    cvec                *nsc = NULL;
+    event_stream_t      *es;
+    struct stream_subscription *ss;
+    int                         i;
+        
+    clicon_debug(CLIXON_DBG_DEFAULT, "%s", __FUNCTION__);
+    /* XXX should use prefix cf edit_config */
+    if ((nsc = xml_nsctx_init(NULL, EVENT_RFC5277_NAMESPACE)) == NULL)
+        goto done;
+    if ((x = xpath_first(xe, nsc, "//stream")) == NULL ||
+        (stream = xml_find_value(x, "body")) == NULL ||
+        (es = stream_find(h, stream)) == NULL)
+        goto ok;
+    if (strcmp(stream, "services-commit") != 0)
+        goto ok;
+    if ((ss = es->es_subscription) != NULL){
+        i = 0;
+        do {
+            struct client_entry *ce = (struct client_entry *)ss->ss_arg;
+            fprintf(stderr, "%s %d\n", __FUNCTION__, ce->ce_nr);
+            ss = NEXTQ(struct stream_subscription *, ss);
+            i++;
+        } while (ss && ss != es->es_subscription);
+        if (i>0){
+            cbuf_reset(cbret);
+            if (netconf_operation_failed(cbret, "application", "services-commit client already registered")< 0)
+                goto done;
+        }
+    }
+ ok:
+    retval = 0;
+  done:
+    if (nsc)
+        xml_nsctx_free(nsc);
+    return retval;
+}
+
 /*! Register callback for rpc calls */
 int
 controller_rpc_init(clicon_handle h)
@@ -2050,6 +2112,13 @@ controller_rpc_init(clicon_handle h)
                               CONTROLLER_NAMESPACE,
                               "datastore-diff"
                               ) < 0)
+        goto done;
+    
+    /* Check that services subscriptions is just done once */
+    if (rpc_callback_register(h,
+                              check_services_commit_subscription,
+                              NULL,
+                              EVENT_RFC5277_NAMESPACE, "create-subscription") < 0)
         goto done;
     retval = 0;
  done:

@@ -226,7 +226,7 @@ controller_commit(clixon_handle    h,
     cxobj  *target;
     cvec   *nsc = NULL;
 
-    clicon_debug(1, "controller commit");
+    clicon_debug(CLIXON_DBG_DEFAULT, "controller commit");
     src = transaction_src(td);    /* existing XML tree */
     target = transaction_target(td); /* wanted XML tree */
     if ((nsc = xml_nsctx_init(NULL, CONTROLLER_NAMESPACE)) == NULL)
@@ -373,6 +373,7 @@ controller_yang_patch(clicon_handle h,
     return retval;
 }
 
+
 /*! Process rpc callback function 
  *
  * @param[in]     h   Clixon handle
@@ -386,7 +387,7 @@ controller_action_proc_cb(clicon_handle    h,
 {
     int    retval = -1;
     
-    clicon_debug(1, "%s", __FUNCTION__);
+    clicon_debug(CLIXON_DBG_DEFAULT, "%s", __FUNCTION__);
     switch (*operation){
     case PROC_OP_STOP:
         /* if RPC op is stop, stop the service */
@@ -425,7 +426,7 @@ action_daemon_register(clicon_handle h)
     char       *group;
     char       *user;
     
-    clicon_debug(1, "%s", __FUNCTION__);
+    clicon_debug(CLIXON_DBG_DEFAULT, "%s", __FUNCTION__);
     if ((cmd = clicon_option_str(h, "CONTROLLER_ACTION_COMMAND")) == NULL)
         goto ok;
     if ((argv0 = clicon_strsep(cmd, " \t", &argc0)) == NULL)
@@ -506,28 +507,18 @@ static int
 controller_reset(clicon_handle h,
                  const char   *db)
 {
-    int    retval = -1;
-    char  *xpath = "processes/services/enabled";
-    cxobj *xtop = NULL;
-    cxobj *xse = NULL;
-    cvec  *nsc = NULL;
-    
-    if ((nsc = xml_nsctx_init(NULL, CONTROLLER_NAMESPACE)) == NULL)
-        goto done;
-    if (xmldb_get(h, db, NULL, xpath, &xtop) < 0)
-        goto done;
-    if ((xse = xpath_first(xtop, 0, "processes/services/enabled")) != NULL){
-        if (strcmp(xml_body(xse), "true") == 0)
-            if (clixon_process_operation(h, ACTION_PROCESS, PROC_OP_START, 0) < 0)
-                goto done;            
-    }
-    retval = 0;
- done:
-    if (nsc)
-        cvec_free(nsc);
-    if (xtop)
-        xml_free(xtop);
-    return retval;
+    return 0;
+}
+
+/* Called when application is "started", (almost) all initialization is complete 
+ * Backend: daemon is in the background. If daemon privileges are dropped 
+ *          this callback is called *before* privileges are dropped.
+ * @param[in] h    Clixon handle
+ */
+static int
+controller_start(clixon_handle h)
+{
+    return 0;
 }
 
 /* Called just before plugin unloaded. 
@@ -540,13 +531,12 @@ controller_exit(clixon_handle h)
     return 0;
 }
 
-
-
 /* Forward declaration */
 clixon_plugin_api *clixon_plugin_init(clixon_handle h);
 
 static clixon_plugin_api api = {
     "controller backend",
+    .ca_start        = controller_start,
     .ca_exit         = controller_exit,
     .ca_reset        = controller_reset,
     .ca_extension    = controller_unknown,
@@ -567,7 +557,7 @@ clixon_plugin_init(clixon_handle h)
     if (controller_rpc_init(h) < 0)
         goto done;
     /* Register notifications
-     * see services_commit_notify */
+     * see controller_commit_actions */
     if (stream_add(h, "services-commit",
                    "A commit has been made that changes the services declaration",
                    0, NULL) < 0)
