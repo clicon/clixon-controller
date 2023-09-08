@@ -299,7 +299,8 @@ do_service(clicon_handle h,
     cprintf(cb, "<device>");
     cprintf(cb, "<name>%s</name>", devname);
     cprintf(cb, "<config>");
-    cprintf(cb, "<table xmlns=\"%s\" nc:operation=\"merge\"", "urn:example:clixon");
+    cprintf(cb, "<interfaces xmlns=\"%s\" nc:operation=\"merge\"",
+            "http://openconfig.net/yang/interfaces");
     cprintf(cb, " xmlns:%s=\"%s\"", CLIXON_LIB_PREFIX, CLIXON_LIB_NS);
     cprintf(cb, ">");
     x = NULL;
@@ -308,18 +309,21 @@ do_service(clicon_handle h,
             continue;
         if ((p = xml_body(x)) == NULL)
             continue;        
-        cprintf(cb, "<parameter %s:creator=\"%s\">", CLIXON_LIB_PREFIX, tag);
+        cprintf(cb, "<interface %s:creator=\"%s\">", CLIXON_LIB_PREFIX, tag);
         cprintf(cb, "<name>%s</name>", p);
-        cprintf(cb, "</parameter>");
+        cprintf(cb, "<config>");
+        cprintf(cb, "<name>%s</name>", p);
+        cprintf(cb, "<type xmlns:ianaift=\"%s\">ianaift:ethernetCsmacd</type>", "urn:ietf:params:xml:ns:yang:iana-if-type");
+        cprintf(cb, "</config>");
+        cprintf(cb, "</interface>");
     }
-    cprintf(cb, "</table>");
+    cprintf(cb, "</interfaces>");
     cprintf(cb, "</config>");
     cprintf(cb, "</device>");
     cprintf(cb, "</devices>");
     cprintf(cb, "</config>");
     /* (Read service and) produce device output and mark with service name */
-    if (clicon_rpc_edit_config(h,
-                               "actions xmlns=\"http://clicon.org/controller\"",
+    if (clicon_rpc_edit_config(h, "actions xmlns=\"http://clicon.org/controller\"",
                                OP_NONE, cbuf_get(cb)) < 0)
         goto done;
     retval = 0;

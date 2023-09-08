@@ -136,6 +136,7 @@ module myyang {
 EOF
 
 # Disable services process if you run a separate services_action process for debugging
+# In that case, start external with eg: /usr/local/bin/services_action -f $CFG -D 3 -ls
 cat <<EOF > $dir/startup_db
 <config>
   <processes xmlns="http://clicon.org/controller">
@@ -160,7 +161,6 @@ fi
 # Check backend is running
 wait_backend
 
-
 # Reset controller
 . ./reset-controller.sh
 
@@ -168,18 +168,34 @@ new "Start service process, expect fail (already started)"
 expectpart "$(services_action -f $CFG -l o)" 255 "services-commit client already registered"
 
 DEV0="<config>
-         <interfaces xmlns=\"http://openconfig.net/yang/interfaces\">
+         <interfaces xmlns=\"http://openconfig.net/yang/interfaces\" xmlns:ianaift=\"urn:ietf:params:xml:ns:yang:iana-if-type\">
             <interface>
-               <name>0x</name><config><name>0x</name></config>
+               <name>0x</name>
+               <config>
+                  <name>0x</name>
+                  <type>ianaift:ethernetCsmacd</type>
+               </config>
             </interface>
             <interface>
-               <name>A0x</name><config><name>A0x</name></config>
+               <name>A0x</name>
+               <config>
+                  <name>A0x</name>
+                  <type>ianaift:ethernetCsmacd</type>
+               </config>
             </interface>
             <interface>
-               <name>A0y</name><config><name>A0y</name></config>
+               <name>A0y</name>
+               <config>
+                  <name>A0y</name>
+                  <type>ianaift:ethernetCsmacd</type>
+               </config>
             </interface>
             <interface>
-               <name>A0z</name><config><name>A0z</name></config>
+               <name>A0z</name>
+               <config>
+                  <name>A0z</name>
+                  <type>ianaift:ethernetCsmacd</type>
+               </config>
             </interface>
          </interfaces>
       </config>"
@@ -242,18 +258,12 @@ if [ -n "$match" ]; then
     exit 1
 fi
 
-if $BE; then
-    new "Kill old backend"
-    sudo clixon_backend -s init -f $CFG -z
-fi
-exit 0 # XXX Openconfig NYI
+echo "/usr/local/bin/services_action -f $CFG -D 3 -ls"
 
 sleep $sleep
 new "commit push"
 set +e
-
-#expectpart "$(${clixon_cli} -m configure -1f $CFG commit push 2>&1)" 0 OK --not-- Error
-expectpart "$(${clixon_cli} -m configure -1f $CFG commit push)" 0 OK --not-- Error
+expectpart "$(${clixon_cli} -m configure -1f $CFG commit push 2>&1)" 0 OK --not-- Error
 
 new "edit testA(2)"
 ret=$(${clixon_netconf} -0 -f $CFG <<EOF
