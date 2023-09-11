@@ -3,8 +3,9 @@
 # Simple non-python service checking shared object create and delete
 # Uses util/services_action.c as C-based server
 #
-# see https://github.com/SUNET/snc-services/issues/12
+# Check starting of service (startup/disable/init)
 #
+# see https://github.com/SUNET/snc-services/issues/12
 # Assume a testA(1) --> testA(2) and a testB and a non-service 0
 # where
 # testA(1):  Ax, Ay, ABx, ABy
@@ -26,6 +27,9 @@
 # +----------------+---------------+---------------+
 # |                       Bx                       |
 # +------------------------------------------------+
+#
+# For debuggin, start service with /usr/local/bin/services_action -f $CFG
+
 set -u
 
 # Magic line must be first in script (see README.md)
@@ -135,20 +139,55 @@ module myyang {
 }
 EOF
 
-# Disable services process if you run a separate services_action process for debugging
-# In that case, start external with eg: /usr/local/bin/services_action -f $CFG -D 3 -ls
+# Reset devices with initial config
+. ./reset-devices.sh
+
+# Send process-control and check status of services daemon 
+# Args:
+# 0: stopped/running   Expected process status
+function check_services()
+{
+    status=$1
+    new "Query process-control of action process"
+    ret=$(${clixon_netconf} -0 -f $CFG <<EOF
+<?xml version="1.0" encoding="UTF-8"?>
+<hello xmlns="urn:ietf:params:xml:ns:netconf:base:1.0">
+   <capabilities>
+      <capability>urn:ietf:params:netconf:base:1.0</capability>
+   </capabilities>
+</hello>]]>]]>
+<rpc xmlns="urn:ietf:params:xml:ns:netconf:base:1.0"
+     message-id="42">
+   <process-control $LIBNS>
+      <name>Action process</name>
+      <operation>status</operation>
+   </process-control>
+</rpc>]]>]]>
+EOF
+      )
+    new "Check rpc-error"
+    match=$(echo "$ret" | grep --null -Eo "<rpc-error>") || true
+    if [ -n "$match" ]; then
+        err "<reply>" "$ret"
+    fi
+
+    new "Check rpc-error status=$status"
+    match=$(echo "$ret" | grep --null -Eo "<status $LIBNS>$status</status>") || true
+    if [ -z "$match" ]; then
+        err "<status>$status</status>" "$ret"
+    fi
+}
+
+# First disable services process
 cat <<EOF > $dir/startup_db
 <config>
   <processes xmlns="http://clicon.org/controller">
     <services>
-      <enabled>true</enabled>
+      <enabled>false</enabled>
     </services>
   </processes>
 </config>
 EOF
-
-# Reset devices with initial config
-. ./reset-devices.sh
 
 if $BE; then
     echo "Kill old backend $CFG"
@@ -161,12 +200,40 @@ fi
 # Check backend is running
 wait_backend
 
-# Reset controller
-. ./reset-controller.sh
+check_services stopped
+
+if $BE; then
+    new "Kill old backend"
+    sudo clixon_backend -s init -f $CFG -z
+fi
+# Then start from init which by default should start it
+# First disable services process
+cat <<EOF > $dir/startup_db
+<config>
+  <processes xmlns="http://clicon.org/controller">
+    <services>
+      <enabled>true</enabled>
+    </services>
+  </processes>
+</config>
+EOF
+if $BE; then
+    echo "Kill old backend $CFG"
+    sudo clixon_backend -f $CFG -z
+
+    echo "Start new backend -s init -f $CFG -D $DBG"
+    sudo clixon_backend -s startup -f $CFG -D $DBG
+fi
+
+check_services running
 
 new "Start service process, expect fail (already started)"
 expectpart "$(services_action -f $CFG -l o)" 255 "services-commit client already registered"
 
+# Reset controller by initiaiting with clixon/openconfig devices and a pull
+. ./reset-controller.sh
+
+exit
 DEV0="<config>
          <interfaces xmlns=\"http://openconfig.net/yang/interfaces\" xmlns:ianaift=\"urn:ietf:params:xml:ns:yang:iana-if-type\">
             <interface>
@@ -257,8 +324,6 @@ if [ -n "$match" ]; then
     echo "netconf rpc-error detected"
     exit 1
 fi
-
-echo "/usr/local/bin/services_action -f $CFG -D 3 -ls"
 
 sleep $sleep
 new "commit push"

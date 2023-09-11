@@ -469,7 +469,6 @@ action_daemon_register(clicon_handle h)
         clicon_err(OE_UNIX, 0, "calloc mismatatch i:%d nr:%d", i, nr);
         goto done;
     }
-
     /* The actual fork/exec is made in clixon_process_operation/clixon_proc_background */
     if (clixon_process_register(h, ACTION_PROCESS,
                                 "Controller action daemon process",
@@ -498,6 +497,8 @@ action_daemon_register(clicon_handle h)
  * is well defined. 
  * This involves creating default configuration files for various daemons, set interface
  * flags etc.
+ * In particular for the controller, check if the services daemon is configured up and 
+ * if so, ensure it is started.
  * @param[in]  h   Clicon handle
  * @param[in]  db  Database name (eg "running")
  * @retval     0   OK
@@ -507,7 +508,28 @@ static int
 controller_reset(clicon_handle h,
                  const char   *db)
 {
-    return 0;
+    int    retval = -1;
+    char  *xpath = "processes/services/enabled";
+    cxobj *xtop = NULL;
+    cxobj *xse = NULL;
+    cvec  *nsc = NULL;
+    
+    if ((nsc = xml_nsctx_init(NULL, CONTROLLER_NAMESPACE)) == NULL)
+        goto done;
+    if (xmldb_get(h, "running", nsc, xpath, &xtop) < 0)
+        goto done;
+    if ((xse = xpath_first(xtop, 0, "processes/services/enabled")) != NULL){
+        if (strcmp(xml_body(xse), "true") == 0)
+            if (clixon_process_operation(h, ACTION_PROCESS, PROC_OP_START, 0) < 0)
+                goto done;            
+    }
+    retval = 0;
+ done:
+    if (nsc)
+        cvec_free(nsc);
+    if (xtop)
+        xml_free(xtop);
+    return retval;
 }
 
 /* Called when application is "started", (almost) all initialization is complete 
