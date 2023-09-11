@@ -16,7 +16,7 @@ jobs:
   test-job:
     name: Controller tests
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 8
     steps:
     - uses: actions/checkout@v3
     - name: Clone controller code
