@@ -11,7 +11,7 @@ fi
 : ${nr:=2}
 
 # Sleep delay in seconds between each step
-: ${sleep:=2}
+: ${sleep:=4}
 
 : ${IMG:=openconfig}
 
