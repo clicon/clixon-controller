@@ -199,13 +199,14 @@ expectpart "$($clixon_cli -1 -f $cfg show devices diff)" 0 ""
 expectpart "$($clixon_cli -1 -f $cfg show devices openconfig* diff)" 0 ""
 
 # Verify that service processes are running
+new "Verify service processes are running"
+expectpart "$($clixon_cli -1 -f $cfg processes service status)" 0 ".*running.*" ""
 
-# XXX
 # Why do we need to restart the service?
 expectpart "$($clixon_cli -1 -f $cfg processes service restart)" 0 '<ok xmlns="http://clicon.org/lib"/>'
 
-# Make sure that service processes are running
-new "Verify service processes are running"
+# Make sure that service processes are running after restart
+new "Verify service processes are running after restart"
 expectpart "$($clixon_cli -1 -f $cfg processes service status)" 0 ".*running.*" ""
 
 # Configure serice
