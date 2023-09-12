@@ -46,7 +46,7 @@ INSTALLFLAGS    = @INSTALLFLAGS@
 
 # Utilities, unit testings.
 # Add more with APPSRC  += 
-APPSRC  = services_action.c
+APPSRC  = clixon_controller_service.c
 
 APPS	  = $(APPSRC:.c=)
 
@@ -61,7 +61,7 @@ distclean: clean
 	rm -f Makefile *~ .depend
 
 # APPS
-services_action: services_action.c
+clixon_controller_service: clixon_controller_service.c
 	$(CC) $(INCLUDES) $(CPPFLAGS) -D__PROGRAM__=\"$@\" $(CFLAGS) $(LDFLAGS) $^ $(LIBS) -o $@
 
 install: $(APPS) $(INSTALLER)

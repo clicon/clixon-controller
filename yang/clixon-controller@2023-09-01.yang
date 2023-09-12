@@ -20,8 +20,16 @@ module clixon-controller {
     import clixon-lib {
         prefix cl;
     }
+    import ietf-netconf-monitoring {
+        prefix ncm;
+    }
     description
         "Clixon controller";
+    revision 2023-09-01 {
+        description
+            "Added identity services for NETCONF monitoring/transport
+             Released in 0.1.0";
+    }
     revision 2023-01-01 {
         description "Initial version";
     }
@@ -30,6 +38,11 @@ module clixon-controller {
         description
             "The actions datastore is used by service actions";
     }
+    identity services {
+        base ncm:transport;
+        description
+            "Services endpoint";
+    }    
     augment '/nc:get-config/input/source/config-source' {
         description
             "The actions datastore is used by service actions";

@@ -118,12 +118,12 @@ device_state_recv_hello(clixon_handle h,
                         char         *rpcname,
                         conn_state    conn_state)
 {
-    int     retval = -1;
-    char   *rpcprefix;
-    char   *namespace = NULL;
+    int                  retval = -1;
+    char                *rpcprefix;
+    char                *namespace = NULL;
     netconf_framing_type version;
-    cvec   *nsc = NULL;
-    cxobj  *xcaps;
+    cvec                *nsc = NULL;
+    cxobj               *xcaps;
 
     clicon_debug(CLIXON_DBG_DETAIL, "%s", __FUNCTION__);
     rpcprefix = xml_prefix(xmsg);
@@ -163,7 +163,7 @@ device_state_recv_hello(clixon_handle h,
     version = 0; /* XXX hardcoded to 0 */
     device_handle_framing_type_set(dh, version);
     /* Send hello */
-    if (clixon_client_hello(s, version) < 0)
+    if (clixon_client_hello(s, device_handle_name_get(dh), version) < 0)
         goto done;
     retval = 1;
  done:

@@ -399,7 +399,7 @@ transaction_notification_handler(int                 s,
     char              *resstr;
     transaction_result result;
     
-    if (clicon_msg_rcv(s, 1, &reply, eof) < 0)
+    if (clicon_msg_rcv(s, NULL, 1, &reply, eof) < 0)
         goto done;
     if (*eof){
         clicon_err(OE_PROTO, ESHUTDOWN, "Socket unexpected close");

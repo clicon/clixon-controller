@@ -19,9 +19,9 @@
   limitations under the License.
 
   ***** END LICENSE BLOCK *****
-  * Simple service action for tests and debug.
-  * Read all test services, and add table parameter for each param
-  * Proper action scripts are in pyapi
+  * Simple service action for tests and debug based on openconfig interfaces
+  * Read all test services, and add interface for each param
+  * Proper service scripts are in pyapi
  */
 
 #include <unistd.h>
@@ -37,9 +37,9 @@
 #define CONTROLLER_NAMESPACE "http://clicon.org/controller"
 
 /* Command line options to be passed to getopt(3) */
-#define SERVICE_ACTION_OPTS "hD:f:l:s:e"
+#define SERVICE_ACTION_OPTS "hD:f:l:s:e1"
 
-/*! Read services definition, write and mark a table/param for each param in the service
+/*! Read services definition, write and mark an interface for each param in the service
  * 
  * @param[in] h        Clixon handle
  * @param[in] tidstr   Transaction id
@@ -55,7 +55,7 @@ send_transaction_actions_done(clicon_handle h,
     struct clicon_msg *msg = NULL;
     cxobj             *xt = NULL;
 
-   /* Write and mark a table/param for each param in the service */
+   /* Write and mark an interface for each param in the service */
     if ((cb = cbuf_new()) == NULL){
         clicon_err(OE_XML, errno, "cbuf_new");
         goto done;
@@ -98,7 +98,7 @@ send_transaction_error(clicon_handle h,
     struct clicon_msg *msg = NULL;
     cxobj             *xt = NULL;
 
-   /* Write and mark a table/param for each param in the service */
+   /* Write and mark an interface for each param in the service */
     if ((cb = cbuf_new()) == NULL){
         clicon_err(OE_XML, errno, "cbuf_new");
         goto done;
@@ -261,7 +261,7 @@ read_devices(clicon_handle h,
     return retval;
 }
 
-/*! Given service+instance config, send an edit-config table/param for each param in the service
+/*! Given service+instance config, send an edit-config interface for each param in the service
  * 
  * @param[in] h       Clixon handle
  * @param[in] s       Socket
@@ -289,7 +289,7 @@ do_service(clicon_handle h,
         clicon_err(OE_CFG, 0, "Unexpected datastore: %s (expected actions)", db);
         goto done;
     }
-    /* Write and mark a table/param for each param in the service */
+    /* Write and mark a interface for each param in the service */
     if ((cb = cbuf_new()) == NULL){
         clicon_err(OE_XML, errno, "cbuf_new");
         goto done;
@@ -586,7 +586,8 @@ usage(clicon_handle h,
             "\t-f <file> \tConfig-file (mandatory)\n"
             "\t-l <s|e|o|n|f<file>> \tLog on (s)yslog, std(e)rr, std(o)ut, (n)one or (f)ile (syslog is default)\n"
             "\t-s <pattern> \tGlob pattern of services served, (default *)\n"
-            "\t-e  \tSend an error instead of done\n",
+            "\t-e  \tSend an error instead of done\n"
+            "\t-1\t\tRun once and then quit (dont wait for events)\n",
             argv0
             );
     exit(-1);
@@ -607,6 +608,7 @@ main(int    argc,
     int                  eof = 0;
     char                *service_pattern = "*";
     int                  send_error = 0;
+    int                  once = 0;
 
     clicon_log_init(__PROGRAM__, LOG_INFO, logdst);
     if ((h = clicon_handle_init()) == NULL)
@@ -646,6 +648,9 @@ main(int    argc,
         case 'e': /* error */
             send_error++;
             break;
+        case '1' : /* Quit after reading database once - dont wait for events */
+            once = 1;
+            break;
         }
     clicon_log_init(__PROGRAM__, dbg?LOG_DEBUG:LOG_INFO, logdst);
     clicon_debug_init(dbg, NULL);
@@ -661,21 +666,27 @@ main(int    argc,
     /* Find, read and parse configfile */
     if (clicon_options_main(h) < 0)
         goto done;
+    /* Set RFC6022 session parameters that will be sent in first hello,
+     * @see clicon_hello_req
+     */
+    //    clicon_data_set(h, "session-transport", "cl:services");
     if (clicon_rpc_create_subscription(h, "services-commit", NULL, &s) < 0){
         clicon_log(LOG_NOTICE, "services-commit: subscription failed: %s", clicon_err_reason);    
         goto done;
     }
     clicon_debug(CLIXON_DBG_DEFAULT, "%s notification socket:%d", __FUNCTION__, s);
-    while (clicon_msg_rcv(s, 1, &notification, &eof) == 0){
-        if (eof)
-            break;
-        if (service_action_handler(h, s, notification, service_pattern, send_error) < 0)
-            goto done;
-        if (notification){
-            free(notification);
-            notification = NULL;
+
+    if (!once)
+        while (clicon_msg_rcv(s, NULL, 1, &notification, &eof) == 0){
+            if (eof)
+                break;
+            if (service_action_handler(h, s, notification, service_pattern, send_error) < 0)
+                goto done;
+            if (notification){
+                free(notification);
+                notification = NULL;
+            }
         }
-    }
     retval = 0;
   done:
     if (ch)
