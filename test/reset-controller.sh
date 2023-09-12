@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Reset controller by initiaiting with clixon-example devices and a pull
+# Reset controller by initiating with clixon/openconfig devices and a pull
 # Only use netconf (not cli)
 
 set -u

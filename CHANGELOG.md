@@ -3,6 +3,11 @@
 ## 0.1.0
 Expected: October 2023
 
+### API changes on existing protocol/config features
+
+* New `clixon-controller@2023-09-01.yang` revision
+  * Added identity services for NETCONF monitoring/transport
+
 ### Corrected Bugs
 
 * Fixed: [Abort transaction if more one client](https://github.com/clicon/clixon-controller/issues/35)

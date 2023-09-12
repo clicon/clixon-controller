@@ -38,7 +38,7 @@ YANG_MOUNTDIR  = @YANG_INSTALLDIR@/controller/mounts
 
 # Local yang files to install
 # IETF
-YANGSPECS  = clixon-controller@2023-01-01.yang
+YANGSPECS  = clixon-controller@2023-09-01.yang # 0.1.0
 
 # Extends config (not data)
 YANGSPECS0  = clixon-controller-config@2023-01-01.yang

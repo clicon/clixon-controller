@@ -261,7 +261,7 @@ device_input_cb(int   s,
             /* Extra data to read, save data and continue on next round */
             break;
         }
-        clicon_debug(CLIXON_DBG_MSG, "Recv dev %s: %s", name, cbuf_get(cbmsg));
+        clicon_debug(CLIXON_DBG_MSG, "Recv from %s: %s", name, cbuf_get(cbmsg));
         if ((ret = netconf_input_frame2(cbmsg, YB_NONE, NULL, &xtop, &xerr)) < 0)
             goto done;
         clicon_debug(1, "%s ret:%d", __FUNCTION__, ret);
@@ -1024,7 +1024,7 @@ device_state_handler(clixon_handle h,
                                     name, device_state_int2str(conn_state));
             break;
         }
-        if (clicon_msg_send1(s, cbmsg) < 0)
+        if (clicon_msg_send1(s, device_handle_name_get(dh), cbmsg) < 0)
             goto done;
         if (device_state_set(dh, CS_PUSH_EDIT) < 0)
             goto done;        

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 #
 # Simple non-python service checking shared object create and delete
-# Uses util/services_action.c as C-based server
+# Uses util/controller_service.c as C-based server
 #
 # Check starting of service (startup/disable/init)
 #
@@ -28,7 +28,7 @@
 # |                       Bx                       |
 # +------------------------------------------------+
 #
-# For debuggin, start service with /usr/local/bin/services_action -f $CFG
+# For debug start service daemon externally: /usr/local/bin/controller_service -f $CFG
 
 set -u
 
@@ -56,7 +56,7 @@ cat<<EOF > $CFG
   <CLICON_FEATURE>ietf-netconf:startup</CLICON_FEATURE>
   <CLICON_FEATURE>clixon-restconf:allow-auth-none</CLICON_FEATURE>
   <CLICON_CONFIG_EXTEND>clixon-controller-config</CLICON_CONFIG_EXTEND>
-  <CONTROLLER_ACTION_COMMAND xmlns="http://clicon.org/controller-config">/usr/local/bin/services_action -f $CFG -D 3 -ls</CONTROLLER_ACTION_COMMAND> <!-- Debug: -D 3 -l s -->
+  <CONTROLLER_ACTION_COMMAND xmlns="http://clicon.org/controller-config">/usr/local/bin/clixon_controller_service -f $CFG -D 3 -ls</CONTROLLER_ACTION_COMMAND> <!-- Debug: -D 3 -l s -->
   <CLICON_BACKEND_USER>clicon</CLICON_BACKEND_USER>
   <CLICON_SOCK_GROUP>clicon</CLICON_SOCK_GROUP>
   <CLICON_YANG_DIR>/usr/local/share/clixon</CLICON_YANG_DIR>
@@ -178,7 +178,8 @@ EOF
     fi
 }
 
-# First disable services process
+# Enable services process to check for already running
+# if you run a separate debug clixon_controller_service process for debugging, set this to false
 cat <<EOF > $dir/startup_db
 <config>
   <processes xmlns="http://clicon.org/controller">
@@ -190,6 +191,7 @@ cat <<EOF > $dir/startup_db
 EOF
 
 if $BE; then
+
     echo "Kill old backend $CFG"
     sudo clixon_backend -f $CFG -z
 
@@ -228,7 +230,8 @@ fi
 check_services running
 
 new "Start service process, expect fail (already started)"
-expectpart "$(services_action -f $CFG -l o)" 255 "services-commit client already registered"
+#echo "/usr/local/bin/clixon_controller_service -f $CFG -1"
+expectpart "$(clixon_controller_service -f $CFG -1 -l o)" 255 "services-commit client already registered"
 
 # Reset controller by initiaiting with clixon/openconfig devices and a pull
 . ./reset-controller.sh
@@ -318,7 +321,7 @@ ret=$(${clixon_netconf} -0 -f $CFG <<EOF
 EOF
       )
 
-echo "$ret"
+#echo "$ret"
 match=$(echo "$ret" | grep --null -Eo "<rpc-error>") || true
 if [ -n "$match" ]; then
     echo "netconf rpc-error detected"
@@ -369,8 +372,8 @@ if [ -n "$match" ]; then
 fi
 
 new "commit diff"
-ret=$(${clixon_cli} -m configure -1f $CFG commit diff)
-echo "$ret"
+ret=$(${clixon_cli} -m configure -1f $CFG commit diff 2> /dev/null) 
+#echo "$ret"
 match=$(echo $ret | grep --null -Eo '+ <name>Az</name>') || true
 if [ -z "$match" ]; then
     echo "commit diff failed"
@@ -409,7 +412,7 @@ ret=$(${clixon_netconf} -0 -f $CFG <<EOF
 EOF
 )
 
-echo "$ret"
+#echo "$ret"
 match=$(echo "$ret" | grep --null -Eo "<rpc-error>") || true
 if [ -n "$match" ]; then
     echo "netconf rpc-error detected"
@@ -444,7 +447,7 @@ message-id="42">
 </rpc>]]>]]>
 EOF
        )
-echo "ret:$ret"
+#echo "ret:$ret"
 match=$(echo $ret | grep --null -Eo "<rpc-error>") || true
 if [ -n "$match" ]; then
     echo "netconf rpc-error detected on $NAME"
@@ -452,7 +455,6 @@ if [ -n "$match" ]; then
 fi
 
 match=$(echo $ret | grep --null -Eo "<parameter><name>Ax</name></parameter>") || true
-echo "match:$match"
 if [ -n "$match" ]; then
     echo "Error:Ax is not removed in $NAME as it should be"
     exit 1
@@ -486,7 +488,7 @@ ret=$(${clixon_netconf} -0 -f $CFG <<EOF
 EOF
 )
 
-echo "$ret"
+#echo "$ret"
 match=$(echo "$ret" | grep --null -Eo "<rpc-error>") || true
 if [ -n "$match" ]; then
     echo "netconf rpc-error detected"
@@ -520,7 +522,7 @@ message-id="42">
 </rpc>]]>]]>
 EOF
        )
-echo "ret:$ret"
+#echo "ret:$ret"
 match=$(echo $ret | grep --null -Eo "<rpc-error>") || true
 if [ -n "$match" ]; then
     echo "netconf rpc-error detected on $NAME"
@@ -528,7 +530,6 @@ if [ -n "$match" ]; then
 fi
 
 match=$(echo $ret | grep --null -Eo "<parameter><name>Bx</name></parameter>") || true
-echo "match:$match"
 if [ -n "$match" ]; then
     echo "Error:Bx is not removed in $NAME as it should be"
     exit 1
