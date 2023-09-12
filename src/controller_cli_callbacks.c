@@ -987,7 +987,7 @@ cli_show_devices(clixon_handle h,
             clicon_err(OE_PLUGIN, 0, "Error when accessing argument <detail>");
             goto done;
         }
-        detail = strcmp(cv_string_get(cv),"detail")==0;
+        detail = strcmp(cv_string_get(cv), "detail")==0;
     }
     if ((cv = cvec_find(cvv, "name")) != NULL)
         pattern = cv_string_get(cv);
@@ -1010,8 +1010,16 @@ cli_show_devices(clixon_handle h,
             goto done;
         xn = xc;
         if (detail){
-            if (clixon_xml2file(stdout, xn, 0, 1, NULL, cligen_output, 0, 1) < 0)
-                goto done;
+            xc = NULL;
+            while ((xc = xml_child_each(xn, xc, CX_ELMNT)) != NULL) {
+                if (strcmp(xml_name(xc), "device") != 0)
+                    continue;
+                name = xml_find_body(xc, "name");
+                if (pattern != NULL && fnmatch(pattern, name, 0) != 0)
+                    continue;
+                if (clixon_xml2file(stdout, xc, 0, 1, NULL, cligen_output, 0, 1) < 0)
+                    goto done;
+            }
         }
         else {
             cligen_output(stdout, "%-23s %-10s %-22s %-30s\n", "Name", "State", "Time", "Logmsg");
