@@ -10,6 +10,8 @@ Expected: October 2023
 
 ### Corrected Bugs
 
+* Fixed: [XML parse error](https://github.com/clicon/clixon-controller/issues/36)
+  * Changed show output to start from root
 * Fixed: ["show devices <device> detail" returns data for all devices](https://github.com/clicon/clixon-controller/issues/27)
 * Fixed: [Abort transaction if more one client](https://github.com/clicon/clixon-controller/issues/35)
 * Fixed: [RPC error when using pipe](https://github.com/clicon/clixon-controller/issues/34)
