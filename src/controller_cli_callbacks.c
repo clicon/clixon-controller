@@ -199,35 +199,7 @@ rpc_get_yanglib_mount_match(clicon_handle h,
 
 /*! Specialization of clixon cli_show_auto to handle device globs
  *
- * Can be used only in context of an autocli generated syntax tree, such as:
- *   show @datamodel, cli_show_auto();
- * This show command can use expansion to "TAB" inside the syntax tree to show
- * portions of the syntax.
- * @param[in]  h     Clixon handle
- * @param[in]  cvv   Vector of variables from CLIgen command-line
- * @param[in]  argv  String vector of show options, format:
- *   <api_path_fmt>  Generated API PATH (this is added implicitly, not actually given in the cvv)
- *  [<api-path-fmt>] Extra api-path from mount-point
- *   <dbname>        Name of datastore, such as "running"
- * -- from here optional:
- *   <format>        "text"|"xml"|"json"|"cli"|"netconf" (see format_enum), default: xml
- *   <pretty>        true|false: pretty-print or not
- *   <state>         true|false: also print state
- *   <default>       Retrieval mode: report-all, trim, explicit, report-all-tagged, 
- *                   NULL, report-all-tagged-default, report-all-tagged-strip (extended)
- *   <prepend>       CLI prefix: prepend before cli syntax output
- * @code
- *   clispec: 
- *      show config @datamodelshow, cli_show_auto("candidate", "xml");
- *   cli run:
- *      > set table parameter a value x
- *      > show config table parameter a
- *        <parameter>
- *           <name>a</name>
- *           <value>x</value>
- *        </parameter>
- * @endcode
- * @see cli_show_auto  Original function
+ * @see cli_show_auto  Original function for description, arguments etc
  * @see cli_dbxml_devs Similar controller handling
  */
 int 
@@ -257,6 +229,7 @@ cli_show_auto_devs(clicon_handle h,
     int              devices = 0;
     cbuf            *api_path_fmt_cb = NULL;    /* xml key format */
     int              i;
+    int              fromroot = 0;
     
     if (cvec_len(argv) < 2){
         clicon_err(OE_PLUGIN, EINVAL, "Received %d arguments. Expected:: <api-path-fmt>* <datastore> [<format> <pretty> <state> <default> <prepend>]", cvec_len(argv));
@@ -312,6 +285,10 @@ cli_show_auto_devs(clicon_handle h,
     if (cvec_len(argv) > argc){
         prepend = cv_string_get(cvec_i(argv, argc++));
     }
+    if (cvec_len(argv) > argc){
+        if (cli_show_option_bool(argv, argc++, &fromroot) < 0)
+            goto done;
+    }
     /* ad-hoc if devices device <name> is selected */
     if (devices && (cv = cvec_find(cvv, "name")) != NULL){
         pattern = cv_string_get(cv);
@@ -322,7 +299,7 @@ cli_show_auto_devs(clicon_handle h,
                 goto done;        
             if (cli_show_common(h, dbname, format, pretty, state,
                                 withdefault, extdefault,
-                                prepend, xpath, nsc, 0) < 0)
+                                prepend, xpath, fromroot, nsc, 0) < 0)
                 goto done;
         }
         else {
@@ -334,10 +311,14 @@ cli_show_auto_devs(clicon_handle h,
                 /* aggregate to composite xpath */
                 if (cli_apipath2xpath(h, cvv, mtpoint, api_path_fmt, &xpath, &nsc) < 0)
                     goto done;
-                cligen_output(stdout, "%s:\n", devname);
+                /* Meta-info /comment need to follow language, but only for XML here */
+                if (format == FORMAT_XML)
+                    cligen_output(stdout, "<!-- %s: -->\n", devname);
+                else
+                    cligen_output(stdout, "%s:", devname);
                 if (cli_show_common(h, dbname, format, pretty, state,
                                     withdefault, extdefault,
-                                    prepend, xpath, nsc, 0) < 0)
+                                    prepend, xpath, fromroot, nsc, 0) < 0)
                     goto done;
                 if (xpath){
                     free(xpath);
@@ -355,7 +336,7 @@ cli_show_auto_devs(clicon_handle h,
             goto done;        
         if (cli_show_common(h, dbname, format, pretty, state,
                             withdefault, extdefault,
-                            prepend, xpath, nsc, 0) < 0)
+                            prepend, xpath, fromroot, nsc, 0) < 0)
             goto done;
     }
     retval = 0;

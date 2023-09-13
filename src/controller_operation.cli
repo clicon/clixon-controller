@@ -31,7 +31,7 @@ processes("Process maintenace") services("Service daemon operation") {
 show("Show a particular state of the system"){
     configuration("Show configuration"), cli_show_auto_mode("running", "xml", true, false);{
        @|pipe_show, cli_show_auto_mode("running", "xml", true, false); # XXX multi-pipes
-       @datamodelshow, cli_show_auto_devs("running", "xml", true, false, "explicit");
+       @datamodelshow, cli_show_auto_devs("running", "xml", true, false, "explicit", "set ", true);
     }
     xpath("Show configuration") <xpath:string>("XPATH expression")
        [<ns:string>("Namespace")], show_conf_xpath("running");{
