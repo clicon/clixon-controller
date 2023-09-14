@@ -10,6 +10,7 @@ Expected: October 2023
 
 ### Corrected Bugs
 
+* Fixed: [OpenConfig: Error when validating/committing](https://github.com/clicon/clixon-controller/issues/32)
 * Fixed: [XML parse error](https://github.com/clicon/clixon-controller/issues/36)
   * Changed show output to start from root
 * Fixed: ["show devices <device> detail" returns data for all devices](https://github.com/clicon/clixon-controller/issues/27)
