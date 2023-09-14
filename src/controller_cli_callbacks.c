@@ -1397,12 +1397,15 @@ check_device_db(clixon_handle h,
     return retval;    
 }
 
-/*!
+/*! Sub-routine for device dbxml: api-path to xml and send edit-config
+ *
  * @param[in]  h     Clicon handle
  * @param[in]  cvv   Vector of cli string and instantiated variables 
  * @param[in]  op    Operation to perform on datastore
  * @param[in]  nsctx Namespace context for last value added
  * @param[in]  api_path
+ * @retval     0     OK
+ * @retval    -1     Error
  */
 static int
 cli_dbxml_devs_sub(clicon_handle       h,
@@ -1417,6 +1420,7 @@ cli_dbxml_devs_sub(clicon_handle       h,
     cxobj     *xbot = NULL;     /* xpath, NULL if datastore */
     cxobj     *xerr = NULL;
     yang_stmt *yspec0;
+    yang_stmt *yspec;
     cbuf      *cb = NULL;
     yang_stmt *y = NULL;        /* yang spec of xpath */
     cg_var    *cv;
@@ -1459,9 +1463,10 @@ cli_dbxml_devs_sub(clicon_handle       h,
          * Discussion: one can claim (1) is "bad" usage but one could see cases where
          * you would want to delete a value if it has a specific value but not otherwise
          */
-        if (cvvi != cvec_len(cvv))
+        if (cvvi != cvec_len(cvv)){
             if (dbxml_body(xbot, cvv) < 0)
                 goto done;
+        }
         /* Loop over namespace context and add them to this leaf node */
         cv = NULL;
         while ((cv = cvec_each(nsctx, cv)) != NULL){
@@ -1474,7 +1479,11 @@ cli_dbxml_devs_sub(clicon_handle       h,
     /* Special handling of identityref:s whose body may be: <namespace prefix>:<id>
      * Ensure the namespace is declared if it exists in YANG
      */
-    if ((ret = xml_apply0(xbot, CX_ELMNT, identityref_add_ns, yspec0)) < 0)
+    if (y)
+        yspec =  ys_spec(y);
+    else
+        yspec = yspec0;
+    if ((ret = xml_apply0(xbot, CX_ELMNT, identityref_add_ns, yspec)) < 0)
         goto done;
     if ((cb = cbuf_new()) == NULL){
         clicon_err(OE_XML, errno, "cbuf_new");
@@ -1502,6 +1511,8 @@ cli_dbxml_devs_sub(clicon_handle       h,
  * @param[in]  argv  Vector: <apipathfmt> [<mointpt>], eg "/aaa/%s"
  * @param[in]  op    Operation to perform on datastore
  * @param[in]  nsctx Namespace context for last value added
+ * @retval     0     OK
+ * @retval    -1     Error
  * cvv first contains the complete cli string, and then a set of optional
  * instantiated variables.
  * If the last node is a leaf, the last cvv element is added as a value. This value

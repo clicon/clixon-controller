@@ -27,21 +27,21 @@ wait_backend
 new "reset controller"
 (. ./reset-controller.sh)
 
-# new "Close all devices"
+new "Close all devices"
 expectpart "$($clixon_cli -1 -f $CFG connection close)" 0 ""
 expectpart "$($clixon_cli -1 -f $CFG show devices)" 0 "openconfig1.*CLOSED" "openconfig2.*CLOSED"
 
-# new "Connect to devices"
+new "Connect to devices"
 expectpart "$($clixon_cli -1 -f $CFG connection open)" 0 ""
 
-# new "Verify devices are open"
+new "Sleep and verify devices are open"
 sleep 10
 expectpart "$($clixon_cli -1 -f $CFG show devices)" 0 "openconfig1.*OPEN" "openconfig2.*OPEN"
 
-# new "Reconnect to devices"
+new "Reconnect to devices"
 expectpart "$($clixon_cli -1 -f $CFG connection reconnect)" 0 ""
 
-# new "Verify devices are open"
+new "Verify devices are open"
 sleep 10
 expectpart "$($clixon_cli -1 -f $CFG show devices)" 0 "openconfig1.*OPEN" "openconfig2.*OPEN"
 
@@ -98,6 +98,16 @@ for container in $CONTAINERS; do
     new "Verify hostname on $container"
     expectpart "$(ssh -l $USER $container clixon_cli -1 show configuration cli)" 0 "system config hostname openconfig*"
 done
+
+# identityrefs in mountpoints, see https://github.com/clicon/clixon-controller/issues/32
+new "set interface"
+expectpart "$($clixon_cli -1 -m configure -f $CFG set devices device o* config interfaces interface test config name test)" 0 ""
+
+new "set identityref type"
+expectpart "$($clixon_cli -1 -m configure -f $CFG set devices device o* config interfaces interface test config type ianaift:ethernetCsmacd)" 0 ""
+
+new "validate"
+expectpart "$($clixon_cli -1 -m configure -f $CFG validate)" 0 ""
 
 if $BE; then
     echo "Kill old backend"
