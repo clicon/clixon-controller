@@ -402,7 +402,7 @@ controller_cli_yang_mount(clicon_handle   h,
         goto done;
     cprintf(cb, "%s/yanglib:yang-library/yanglib:module-set[yanglib:name='mount']", str);
     recursion++;
-    if (clicon_rpc_get(h, cbuf_get(cb), nsc, CONTENT_ALL, -1, "explicit", &xt) < 0){
+    if (clicon_rpc_get2(h, cbuf_get(cb), nsc, CONTENT_ALL, -1, "explicit", 0, &xt) < 0){
         recursion--;
         goto done;
     }
