@@ -35,8 +35,8 @@ if $BE; then
     echo "Kill old backend"
     sudo clixon_backend -s init -f $CFG -z
 
-    new "Start new backend"
-    sudo clixon_backend -s init  -f $CFG -D $DBG
+    new "Start new backend -f $CFG -D $DBG"
+    sudo clixon_backend -s init -f $CFG -D $DBG
 fi
 
 # Check backend is running

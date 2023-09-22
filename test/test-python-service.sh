@@ -169,11 +169,30 @@ if __name__ == "__main__":
     setup()
 EOF
 
+# Sleep and verify devices are open
+function sleep_open()
+{
+    for j in $(seq 1 10); do
+        new "Verify devices are open"
+        ret=$($clixon_cli -1 -f $CFG show devices)
+        match1=$(echo "$ret" | grep --null -Eo "openconfig1.*OPEN") || true
+        match2=$(echo "$ret" | grep --null -Eo "openconfig2.*OPEN") || true
+        if [ -n "$match1" -a -n "$match2" ]; then
+            break;
+        fi
+        echo "retry after sleep"
+        sleep 1
+    done
+    if [ $j -eq 10 ]; then
+        err "device openconfig OPEN" "Timeout" 
+    fi
+}
+
 if $BE; then
     echo "Kill old backend"
     sudo clixon_backend -s init -f $cfg -z
 
-    new "Start new backend"
+    new "Start new backend -s init  -f $cfg -D $DBG"
     sudo clixon_backend -s init  -f $cfg -D $DBG
 fi
 
@@ -190,9 +209,8 @@ expectpart "$($clixon_cli -1 -f $cfg connection close)" 0 ""
 new "Connect to devices"
 expectpart "$($clixon_cli -1 -f $cfg connection open)" 0 ""
 
-new "Verify devices are open"
-sleep 3
-expectpart "$($clixon_cli -1 -f $cfg show devices)" 0 "openconfig1.*OPEN" "openconfig2.*OPEN"
+new "Sleep and verify devices are open"
+sleep_open
 
 new "Show device diff, should be empty"
 expectpart "$($clixon_cli -1 -f $cfg show devices diff)" 0 ""
