@@ -1712,8 +1712,20 @@ datastore_diff_dsref(clixon_handle    h,
         clicon_err(OE_UNIX, errno, "cbuf_new");
         goto done;
     }
-    if (xml_tree_diff_print(cb, 0, x1, x2, format) < 0)
-        goto done;
+    switch (format){
+    case FORMAT_XML:
+        if (clixon_xml_diff2cbuf(cb, x1, x2) < 0)
+            goto done;
+        break;
+    case FORMAT_TEXT:
+        if (clixon_text_diff2cbuf(cb, x1, x2) < 0)
+            goto done;
+        break;
+    case FORMAT_JSON:
+    case FORMAT_CLI:
+    default:
+        break;
+    }
     cprintf(cbret, "<rpc-reply xmlns=\"%s\">", NETCONF_BASE_NAMESPACE);
     cprintf(cbret, "<diff xmlns=\"%s\">", CONTROLLER_NAMESPACE);
     xml_chardata_cbuf_append(cbret, cbuf_get(cb));
@@ -1862,8 +1874,20 @@ datastore_diff_device(clixon_handle      h,
             }
             break;
         }
-        if (xml_tree_diff_print(cb, 0, x1?x1:x1m, x2?x2:x2m, format) < 0)
-            goto done;        
+        switch (format){
+        case FORMAT_XML:
+            if (clixon_xml_diff2cbuf(cb, x1?x1:x1m, x2?x2:x2m) < 0)
+                goto done;
+            break;
+        case FORMAT_TEXT:
+            if (clixon_text_diff2cbuf(cb, x1?x1:x1m, x2?x2:x2m) < 0)
+                goto done;
+            break;
+        case FORMAT_JSON:
+        case FORMAT_CLI:
+        default:
+            break;
+        }
         if (x1m){
             xml_free(x1m);
             x1m = NULL;
@@ -1951,7 +1975,13 @@ rpc_datastore_diff(clixon_handle h,
             clicon_err(OE_PLUGIN, 0, "Not valid format: %s", formatstr);
             goto done;
         }
+        if (format != FORMAT_XML && format != FORMAT_TEXT){
+            if (netconf_operation_failed(cbret, "application", "Format not supported")< 0)
+                goto done;
+            goto ok;
+        }
     }
+
     if ((ds1 = xml_find_body(xe, "dsref1")) != NULL){ /* Regular datastores */
         if (nodeid_split(ds1, NULL, &id1) < 0)
             goto done;

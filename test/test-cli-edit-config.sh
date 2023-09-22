@@ -12,6 +12,25 @@ s="$_" ; . ./lib.sh || if [ "$s" = $0 ]; then exit 0; else return 0; fi
 # Reset devices with initial config
 (. ./reset-devices.sh)
 
+# Sleep and verify devices are open
+function sleep_open()
+{
+    for j in $(seq 1 10); do
+        new "Verify devices are open"
+        ret=$($clixon_cli -1 -f $CFG show devices)
+        match1=$(echo "$ret" | grep --null -Eo "openconfig1.*OPEN") || true
+        match2=$(echo "$ret" | grep --null -Eo "openconfig2.*OPEN") || true
+        if [ -n "$match1" -a -n "$match2" ]; then
+            break;
+        fi
+        echo "retry after sleep"
+        sleep 1
+    done
+    if [ $j -eq 10 ]; then
+        err "device openconfig OPEN" "Timeout" 
+    fi
+}
+
 if $BE; then
     echo "Kill old backend"
     sudo clixon_backend -s init -f $CFG -z
@@ -35,15 +54,13 @@ new "Connect to devices"
 expectpart "$($clixon_cli -1 -f $CFG connection open)" 0 ""
 
 new "Sleep and verify devices are open"
-sleep 10
-expectpart "$($clixon_cli -1 -f $CFG show devices)" 0 "openconfig1.*OPEN" "openconfig2.*OPEN"
+sleep_open
 
 new "Reconnect to devices"
 expectpart "$($clixon_cli -1 -f $CFG connection reconnect)" 0 ""
 
-new "Verify devices are open"
-sleep 10
-expectpart "$($clixon_cli -1 -f $CFG show devices)" 0 "openconfig1.*OPEN" "openconfig2.*OPEN"
+new "Sleep and verify devices are open"
+sleep_open
 
 new "Show device diff, should be empty"
 expectpart "$($clixon_cli -1 -f $CFG show devices diff)" 0 ""
@@ -55,10 +72,10 @@ new "Configure hostname on openconfig1"
 expectpart "$($clixon_cli -1 -f $CFG -m configure set devices device openconfig1 config system config hostname test1)" 0 ""
 
 new "Verify show compare on openconfig1"
-expectpart "$($clixon_cli -1 -f $CFG -m configure show compare)" 0 "^-               hostname openconfig1;" "^\+               hostname test1;"
+expectpart "$($clixon_cli -1 -f $CFG -m configure show compare)" 0 "^-\ *hostname openconfig1;" "^+\ *hostname test1;"
 
 new "Verify commit diff on openconfig1"
-expectpart "$($clixon_cli -1 -f $CFG -m configure commit diff)" 0 "^-    <hostname>openconfig1</hostname>" "^\+    <hostname>test1</hostname>"
+expectpart "$($clixon_cli -1 -f $CFG -m configure commit diff)" 0 "^\-\ *<hostname>openconfig1</hostname>" "^+\ *<hostname>test1</hostname>"
 
 new "Rollback hostname on openconfig1"
 expectpart "$($clixon_cli -1 -f $CFG -m configure rollback)" 0 ""
@@ -67,10 +84,10 @@ new "Configure hostnames on openconfig*"
 expectpart "$($clixon_cli -1 -f $CFG -m configure 'set devices device openconfig* config system config hostname test')" 0 ""
 
 new "Verify show compare on openconfig*"
-expectpart "$($clixon_cli -1 -f $CFG -m configure show compare)" 0 "^-               hostname openconfig1;" "^\+               hostname test;" "^-               hostname openconfig2;"
+expectpart "$($clixon_cli -1 -f $CFG -m configure show compare)" 0 "^\-\ *hostname openconfig1;" "^+\ *hostname test;" "^\-\ *hostname openconfig2;"
 
 new "Verify commit diff on openconfig*"
-expectpart "$($clixon_cli -1 -f $CFG -m configure commit diff)" 0 "^-    <hostname>openconfig1</hostname>" "^\+    <hostname>test</hostname>" "^-    <hostname>openconfig2</hostname>"
+expectpart "$($clixon_cli -1 -f $CFG -m configure commit diff)" 0 "^\-\ *<hostname>openconfig1</hostname>" "^+\ *<hostname>test</hostname>" "^\-\ *<hostname>openconfig2</hostname>"
 
 new "Rollback hostnames on openconfig*"
 expectpart "$($clixon_cli -1 -f $CFG -m configure rollback)" 0 ""

@@ -22,7 +22,7 @@ if $BE; then
     echo "Kill old backend"
     sudo clixon_backend -s init -f $CFG -z
 
-    new "Start new backend"
+    new "Start new backend -s init  -f $CFG -D $DBG"
     sudo clixon_backend -s init  -f $CFG -D $DBG
 fi
 
@@ -110,26 +110,21 @@ fi
 # rpc-reply is not enough. the cli commands are more convenient
 new "push validate"
 ret=$(${clixon_cli} -1f $CFG push validate 2>&1)
-echo "ret:$ret"
 match=$(echo $ret | grep --null -Eo "failed Device") || true
 if [ -z "$match" ]; then
-    echo "Error msg not detected"
-    exit 1
+    err1 "failed Device"
 fi
 
 NAME=${IMG}1
 new "check if in sync (should not be)"
 ret=$(${clixon_cli} -1f $CFG show devices $NAME check 2>&1)
-echo "ret:$ret"
 match=$(echo $ret | grep --null -Eo "out-of-sync") || true
 if [ -z "$match" ]; then
-    echo "Is in sync but should not be"
-    exit 1
+    err1 "out-of-sync"
 fi
 
 new "check device diff"
 ret=$(${clixon_cli} -1f $CFG show devices $NAME diff 2>&1)
-echo "ret:$ret"
 match=$(echo $ret | grep --null -Eo "+ <type>ianaift:v35</type>") || true
 if [ -z "$match" ]; then
     echo "show devices diff does not match"

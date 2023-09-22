@@ -46,9 +46,9 @@ rollback("Discard edits (rollback 0)"), discard_changes();
 show("Show a particular state of the system"), @datamodelshow, cli_show_auto_mode("candidate", "xml", true, false);{
     @datamodelshow, cli_show_auto_devs("candidate", "xml", true, false, "explicit", "set ", true);
     @|pipe_show, cli_show_auto_mode("candidate", "xml", true, false);
-    compare("Compare candidate and running databases"), compare_dbs((int32)1);{
-          xml("Show comparison in xml"), compare_dbs((int32)0);
-	  text("Show comparison in text"), compare_dbs((int32)1);
+    compare("Compare candidate and running databases"), compare_dbs("running", "candidate", "text");{
+          xml("Show comparison in xml"), compare_dbs("running", "candidate", "xml");
+	  text("Show comparison in text"), compare_dbs("running", "candidate", "text");
     }
 }
 
