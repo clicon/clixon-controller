@@ -77,6 +77,9 @@ show("Show a particular state of the system"){
       brief, cli_show_statistics();
       modules, cli_show_statistics("modules");
     }
+    services, cli_show_services_process();{
+       detail("Show detailed process status"), cli_process_control("Action process", "status");
+    }
 }
 
 save("Save running configuration to XML file") <filename:string>("Filename (local filename)"), save_config_file("running","filename", "xml");{

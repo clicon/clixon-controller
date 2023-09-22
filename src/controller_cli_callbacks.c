@@ -1046,6 +1046,69 @@ cli_show_devices(clixon_handle h,
 
 /*! Show controller device states
  * @param[in] h
+ * @param[in] cvv  : name pattern
+ * @param[in] argv : "detail"?
+ * @retval    0    OK
+ * @retval   -1    Error
+ * @see cli_process_control
+ */
+int
+cli_show_services_process(clixon_handle h,
+                          cvec         *cvv,
+                          cvec         *argv)
+{
+    int            retval = -1;
+    char          *name;
+    char          *opstr;
+    cbuf          *cb = NULL;
+    cxobj         *xret = NULL;
+    cxobj         *xerr;
+    cxobj         *x;
+    char          *active = "false";
+    char          *status = "unknown";
+    
+    name = "Action process";
+    opstr = "status";
+    if (clixon_process_op_str2int(opstr) == -1){
+        clicon_err(OE_UNIX, 0, "No such process op: %s", opstr);
+        goto done;
+    }
+    if ((cb = cbuf_new()) == NULL){
+        clicon_err(OE_UNIX, errno, "cbuf_new");
+        goto done;
+    }
+    cprintf(cb, "<rpc xmlns=\"%s\"", NETCONF_BASE_NAMESPACE);
+    cprintf(cb, " %s", NETCONF_MESSAGE_ID_ATTR);
+    cprintf(cb, ">");
+    cprintf(cb, "<process-control xmlns=\"%s\">", CLIXON_LIB_NS);
+    cprintf(cb, "<name>%s</name>", name);
+    cprintf(cb, "<operation>%s</operation>", opstr);
+    cprintf(cb, "</process-control>");
+    cprintf(cb, "</rpc>");
+    if (clicon_rpc_netconf(h, cbuf_get(cb), &xret, NULL) < 0)
+        goto done;
+    if ((xerr = xpath_first(xret, NULL, "//rpc-error")) != NULL){
+        clixon_netconf_error(xerr, "Get configuration", NULL);
+        goto done;
+    }
+    if ((x = xpath_first(xret, 0, "rpc-reply/active")) != NULL){
+        active = xml_body(x);
+    }
+    if ((x = xpath_first(xret, 0, "rpc-reply/status")) != NULL){
+        status = xml_body(x);
+    }
+    cligen_output(stdout, "Services status: %s, active: %s\n", status, active);
+    retval = 0;
+ done:
+    if (xret)
+        xml_free(xret);
+    if (cb)
+        cbuf_free(cb);
+    return retval;
+}
+
+/*! Show controller device states
+ * @param[in] h
  * @param[in] cvv  
  * @param[in] argv : "last" or "all"
  * @retval    0    OK

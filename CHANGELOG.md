@@ -8,6 +8,10 @@ Expected: October 2023
 * New `clixon-controller@2023-09-01.yang` revision
   * Added identity services for NETCONF monitoring/transport
 
+### Minor features
+
+* Added: [Add show command for processes ](https://github.com/clicon/clixon-controller/issues/42)
+
 ### Corrected Bugs
 
 * Fixed: [OpenConfig: Error when validating/committing](https://github.com/clicon/clixon-controller/issues/32)
