@@ -6,6 +6,7 @@ on:
       - main
       - test-actions
       - docker
+      - tests_scaling
   pull_request:
     branches:
       - main
