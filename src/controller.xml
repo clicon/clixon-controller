@@ -49,13 +49,8 @@
        <operation>enable</operation>
      </rule>
      <rule>
-       <name>include arista system</name>
-       <module-name>openconfig-system</module-name>
-       <operation>enable</operation>
-     </rule>
-     <rule>
-       <name>include arista interfaces</name>
-       <module-name>openconfig-interfaces</module-name>
+       <name>include arista/openconfig system</name>
+       <module-name>openconfig*</module-name>
        <operation>enable</operation>
      </rule>
   </autocli>
