@@ -316,7 +316,7 @@ controller_cligen_treeref_wrap(cligen_handle ch,
         if ((devname = xml_find_body(xdev, "name")) == NULL)
             continue;
         cbuf_reset(cb);
-        //cprintf(cb, "mountpoint-%s", devname);
+        cprintf(cb, "mountpoint-%s", devname);
         newtree = cbuf_get(cb);
         if (firsttree == NULL &&
             (firsttree= strdup(newtree)) == NULL){
@@ -324,7 +324,6 @@ controller_cligen_treeref_wrap(cligen_handle ch,
             goto done;
         }
         if ((ph = cligen_ph_find(ch, newtree)) == NULL){ // XXX FINNS EJ FÖR clixon-example1
-	    //fprintf(stderr, "%s %s\n", __FUNCTION__, newtree);
             /* No such cligen specs, generate them */
             if (create_autocli_mount_tree(h, xdev, newtree, &yspec1) < 0)
                 goto done;
