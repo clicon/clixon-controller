@@ -22,7 +22,7 @@ if [ ! -f "${SSHKEY}" ]; then
 fi
 
 if [ ! -f "${SSHKEY}.pub" ]; then
-    echo "id_rsa.pub not fund"
+    echo "id_rsa.pub not found"
 fi
 
 if [ ! -f "${SSHKEY}" ] && [ ! -f "${SSHKEY}.pub" ]; then

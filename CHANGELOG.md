@@ -13,7 +13,8 @@ Expected: October 2023
 * Added: [Add show command for processes ](https://github.com/clicon/clixon-controller/issues/42)
 
 ### Corrected Bugs
-
+	
+* Fixed: [Tab completion with configuration for multiple vendors](https://github.com/clicon/clixon-controller/issues/40)
 * Fixed: [OpenConfig: Error when validating/committing](https://github.com/clicon/clixon-controller/issues/32)
 * Fixed: [XML parse error](https://github.com/clicon/clixon-controller/issues/36)
   * Changed show output to start from root

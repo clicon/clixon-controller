@@ -207,6 +207,39 @@ create_autocli_mount_tree(clicon_handle h,
     return retval;
 }
 
+/*! Check one level of parsetree equivalence
+ */
+static int
+pt_eq1(parse_tree *pt1,
+       parse_tree *pt2)
+{
+    int     ptlen;
+    int     eq;
+    cg_obj *co1;
+    cg_obj *co2;
+    int     i;
+
+    ptlen = pt_len_get(pt1);
+    if ((eq = ptlen - pt_len_get(pt1)) == 0)
+        for (i=0; i<ptlen; i++){
+            co1 = pt_vec_i_get(pt1, i);
+            co2 = pt_vec_i_get(pt2, i);
+            if (co1 == NULL && co2 == NULL)
+                continue;
+            else if (co1 == NULL){
+                eq = -1;
+                break;
+            }
+            else if (co2 == NULL){
+                eq = 1;
+                break;
+            }
+            if ((eq = co_eq(co1, co2)) != 0)
+                break;
+        }
+    return eq;
+}
+
 /*! CLIgen wrap function for making treeref lookup
  *
  * This adds an indirection based on name and context
@@ -240,6 +273,7 @@ controller_cligen_treeref_wrap(cligen_handle ch,
     cxobj        *xdevs = NULL;
     cxobj        *xdev;
     pt_head      *ph;
+    int           nomatch = 0;
 
     h = cligen_userhandle(ch);
     if (strcmp(name, "mountpoint") != 0)
@@ -289,29 +323,34 @@ controller_cligen_treeref_wrap(cligen_handle ch,
             clicon_err(OE_UNIX, errno, "strdup");
             goto done;
         }
-        if (cligen_ph_find(ch, newtree) != NULL)
-            continue;
-        /* No such cligen specs, generate them */
-        if (create_autocli_mount_tree(h, xdev, newtree, &yspec1) < 0)
-            goto done;
-        if (yspec1 == NULL){
-            clicon_err(OE_YANG, 0, "No yang spec");
-            goto done;
-        }
-        if (strcmp(firsttree, newtree) == 0){
-            /* XXX: Only first match (one could generate all?) */
+        if ((ph = cligen_ph_find(ch, newtree)) == NULL){ // XXX FINNS EJ FÖR clixon-example1
+            fprintf(stderr, "%s %s\n", __FUNCTION__, newtree);
+            /* No such cligen specs, generate them */
+            if (create_autocli_mount_tree(h, xdev, newtree, &yspec1) < 0)
+                goto done;
+            if (yspec1 == NULL){
+                clicon_err(OE_YANG, 0, "No yang spec");
+                goto done;
+            }
             /* Generate auto-cligen tree from the specs */
             if (yang2cli_yspec(h, yspec1, newtree) < 0)
                 goto done;
             /* Sanity */
-            if (cligen_ph_find(ch, newtree) == NULL){
+            if ((ph = cligen_ph_find(ch, newtree)) == NULL){
                 clicon_err(OE_YANG, 0, "autocli should have been generated but is not?");
                 goto done;
             }
         }
+        /* Check if multiple trees are equal */
+        if (strcmp(firsttree, newtree) != 0){
+            parse_tree *pt0 = cligen_ph_parsetree_get(cligen_ph_find(ch, firsttree));
+            parse_tree *pt1 = cligen_ph_parsetree_get(ph);
+            if (pt_eq1(pt0, pt1) != 0)
+                nomatch++;
+        }
     }
     if (namep){
-        if (firsttree){
+        if (firsttree && nomatch == 0){
             *namep = firsttree;
             firsttree = NULL;
         }
