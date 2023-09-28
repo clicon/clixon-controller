@@ -134,10 +134,12 @@ new "verify z usb"
 expectpart "$($clixon_cli -1 -m configure -f $CFG show cli devices device ${IMG}* config interfaces interface z)" 0 "${IMG}1:" "${IMG}2:" "set interface z config type usb"
 
 new "set *1 z atm"
-expectpart "$($clixon_cli -1 -m configure -f $CFG set devices device *1 config interfaces interface z config type atm)" 0 "^$"
+expectpart "$($clixon_cli -1 -m configure -f $CFG set devices device ${IMG}1 config interfaces interface z config type atm)" 0 "^$"
 
-new "set *2 z eth"
-expectpart "$($clixon_cli -1 -m configure -f $CFG set devices device *2 config interfaces interface z config type eth)" 0 "^$"
+for i in $(seq 2 $nr); do
+    new "set *$i z eth"
+    expectpart "$($clixon_cli -1 -m configure -f $CFG set devices device ${IMG}$i config interfaces interface z config type eth)" 0 "^$"
+done
 
 new "verify z atm + eth"
 expectpart "$($clixon_cli -1 -m configure -f $CFG show cli devices device ${IMG}* config interfaces interface z)" 0 "set interface z config type atm" "set interface z config type eth" --not-- "set interface z config type usb"

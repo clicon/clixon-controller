@@ -103,13 +103,11 @@ for container in $CONTAINERS; do
     expectpart "$(ssh -l $USER $container clixon_cli -1 show configuration cli)" 0 "system config hostname test"
 done
 
-new "Commit hostname on openconfig1"
-expectpart "$($clixon_cli -1 -f $CFG -m configure set devices device openconfig1 config system config hostname openconfig1)" 0 ""
-expectpart "$($clixon_cli -1 -f $CFG -m configure commit)" 0 ""
-
-new "Commit hostname on openconfig2"
-expectpart "$($clixon_cli -1 -f $CFG -m configure set devices device openconfig2 config system config hostname openconfig2)" 0 ""
-expectpart "$($clixon_cli -1 -f $CFG -m configure commit)" 0 ""
+for j in $(seq 1 $nr); do
+    new "Commit hostname on openconfig1"
+    expectpart "$($clixon_cli -1 -f $CFG -m configure set devices device openconfig$i config system config hostname openconfig$nr)" 0 ""
+    expectpart "$($clixon_cli -1 -f $CFG -m configure commit)" 0 ""
+done
 
 for container in $CONTAINERS; do
     new "Verify hostname on $container"
