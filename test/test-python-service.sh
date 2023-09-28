@@ -189,11 +189,11 @@ function sleep_open()
 }
 
 if $BE; then
-    echo "Kill old backend"
+    new "Kill old backend"
     sudo clixon_backend -s init -f $cfg -z
 
-    new "Start new backend -s init  -f $cfg -D $DBG"
-    sudo clixon_backend -s init  -f $cfg -D $DBG
+    new "Start new backend -s init -f $cfg"
+    start_backend -s init -f $cfg
 fi
 
 # Check backend is running
@@ -415,9 +415,8 @@ for container in $CONTAINERS; do
 done
 
 if $BE; then
-    echo "Kill old backend"
-    sudo clixon_backend -s init -f $cfg -z
+    new "Kill old backend"
+    stop_backend -f $cfg
 fi
 
-echo "test-python-service: OK"
-echo OK
+endtest

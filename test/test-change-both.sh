@@ -22,8 +22,8 @@ if $BE; then
     echo "Kill old backend"
     sudo clixon_backend -s init -f $CFG -z
 
-    new "Start new backend -s init  -f $CFG -D $DBG"
-    sudo clixon_backend -s init  -f $CFG -D $DBG
+    new "Start new backend -s init  -f $CFG"
+    start_backend -s init  -f $CFG
 fi
 
 # Check backend is running
@@ -137,11 +137,11 @@ if [ -z "$match" ]; then
 fi
 
 if $BE; then
-    echo "Kill old backend"
-    sudo clixon_backend -s init -f $CFG -z
+    new "Kill old backend"
+    stop_backend -f $CFG
 fi
 
 unset push
 
-echo "test-change-both OK"
+endtest
 

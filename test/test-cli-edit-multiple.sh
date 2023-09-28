@@ -113,8 +113,9 @@ if $BE; then
     echo "Kill old backend"
     sudo clixon_backend -s init -f $CFG -z
 
-    echo "Start new backend -s init -f $CFG -D $DBG"
-    sudo clixon_backend -s init -f $CFG -D $DBG
+    new "Start new backend -s init -f $CFG -D $DBG"
+    start_backend -s init -f $CFG
+
 fi
 
 # Check backend is running
@@ -151,9 +152,8 @@ new "verify no z"
 expectpart "$($clixon_cli -1 -m configure -f $CFG show cli devices device ${IMG}* config interface interface z)" 0 "${IMG}1:" "${IMG}2:" --not-- "set interface z"
 
 if $BE; then
-    echo "Kill old backend"
-    sudo clixon_backend -s init -f $CFG -z
+    new "Kill old backend"
+    stop_backend -f $CFG
 fi
 
-echo "test-cli-edit-multiple"
-echo OK
+endtest

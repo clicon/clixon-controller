@@ -192,11 +192,11 @@ EOF
 
 if $BE; then
 
-    echo "Kill old backend $CFG"
+    new "Kill old backend $CFG"
     sudo clixon_backend -f $CFG -z
 
-    echo "Start new backend -s startup -f $CFG -D $DBG"
-    sudo clixon_backend -s startup -f $CFG -D $DBG
+    new "Start new backend -s startup -f $CFG"
+    start_backend -s startup -f $CFG
 fi
 
 # Check backend is running
@@ -537,7 +537,7 @@ fi
 
 if $BE; then
     new "Kill old backend"
-    sudo clixon_backend -s init -f $CFG -z
+    start_backend -f $CFG
 fi
 
-echo "test-service OK"
+endtest

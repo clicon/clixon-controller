@@ -1175,7 +1175,7 @@ rpc_controller_commit(clixon_handle h,
     char                   *str;
     char                   *device;
     char                   *device_group;
-    char                   *sourcedb;
+    char                   *sourcedb = NULL;
     actions_type            actions = AT_NONE;
     push_type               pusht = PT_NONE;
     int                     ret;

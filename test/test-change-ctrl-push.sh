@@ -19,11 +19,11 @@ s="$_" ; . ./lib.sh || if [ "$s" = $0 ]; then exit 0; else return 0; fi
 . ./reset-devices.sh
 
 if $BE; then
-    echo "Kill old backend"
+    new "Kill old backend"
     sudo clixon_backend -s init -f $CFG -z
 
-    echo "Start new backend"
-    sudo clixon_backend -s init  -f $CFG -D $DBG
+    new "Start new backend -s init -f $CFG"
+    start_backend -s init -f $CFG
 fi
 
 # Check backend is running
@@ -211,11 +211,11 @@ EOF
 done
 
 if $BE; then
-    echo "Kill old backend"
-    sudo clixon_backend -s init -f $CFG -z
+    new "Kill old backend"
+    stop_backend -f $CFG
 fi
 
 unset push
 unset commit
 
-echo "test-change-ctrl OK"
+endtest
