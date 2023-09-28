@@ -14,7 +14,8 @@ s="$_" ; . ./lib.sh || if [ "$s" = $0 ]; then exit 0; else return 0; fi
 # Sleep and verify devices are open
 function sleep_open()
 {
-    for j in $(seq 1 10); do
+    jmax=10
+    for j in $(seq 1 $jmax); do
         new "Verify devices are open"
         ret=$($clixon_cli -1 -f $CFG show devices)
         match1=$(echo "$ret" | grep --null -Eo "openconfig1.*OPEN") || true
@@ -25,7 +26,7 @@ function sleep_open()
         echo "retry after sleep"
         sleep 1
     done
-    if [ $j -eq 10 ]; then
+    if [ $j -eq $jmax ]; then
         err "device openconfig OPEN" "Timeout" 
     fi
 }
