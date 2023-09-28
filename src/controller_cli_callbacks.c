@@ -745,12 +745,12 @@ cli_rpc_commit_diff(clixon_handle h)
  * @param[in] h     Clixon handle
  * @param[in] cvv   Name pattern
  * @param[in] argv  Source:running/candidate, actions:NONE/CHANGE/FORCE, push:NONE/VALIDATE/COMMIT, 
- * @retval    0      OK
- * @retval   -1      Error
+ * @retval    0     OK
+ * @retval   -1     Error
  * @see controller-commit in clixon-controller.yang
  */
 int
-cli_rpc_controller_commit(clixon_handle h, 
+cli_rpc_controller_commit(clixon_handle h,
                           cvec         *cvv, 
                           cvec         *argv)
 {
@@ -1270,7 +1270,7 @@ send_pull_transient(clicon_handle h,
  * @retval      0       OK
  * @retval     -1       Error
  */
-int
+static int
 compare_device_config_type(clicon_handle      h, 
                            cvec              *cvv, 
                            cvec              *argv,
@@ -1364,6 +1364,93 @@ compare_device_config_type(clicon_handle      h,
             goto done;
         }
     }
+    retval = 0;
+ done:
+    if (xret)
+        xml_free(xret);
+    if (xtop)
+        xml_free(xtop);
+    if (cb)
+        cbuf_free(cb);
+    return retval;
+}
+
+/*! Compare datastores uses special diff rpc
+ *
+ * Use specialized rpc to reduce bandwidth
+ * @param[in]   h     Clicon handle
+ * @param[in]   cvv  
+ * @param[in]   argv  <db1> <db2> <format>
+ * @retval      0     OK
+ * @retval     -1     Error
+ * @see compare_dbs  original function
+ */
+int
+compare_dbs_rpc(clicon_handle h, 
+                       cvec         *cvv, 
+                       cvec         *argv)
+{
+    int    retval = -1;
+    char  *db1;
+    char  *db2;
+    char  *formatstr;
+    cxobj *xtop = NULL;
+    cxobj *xret = NULL;
+    cxobj *xrpc;
+    cxobj *xreply;
+    cxobj *xerr;
+    cxobj *xdiff;
+    cbuf  *cb = NULL;
+
+    if (cvec_len(argv) != 3){
+        clicon_err(OE_PLUGIN, EINVAL, "Expected arguments: <db1> <db2> <format>");
+        goto done;
+    }
+    db1 = cv_string_get(cvec_i(argv, 0));
+    db2 = cv_string_get(cvec_i(argv, 1));
+    formatstr = cv_string_get(cvec_i(argv, 2));
+    if (format_str2int(formatstr) < 0){
+        clicon_err(OE_XML, 0, "format not found %s", formatstr);
+        goto done;
+    }
+    if ((cb = cbuf_new()) == NULL){
+        clicon_err(OE_PLUGIN, errno, "cbuf_new");
+        goto done;
+    }
+    cprintf(cb, "<rpc xmlns=\"%s\" username=\"%s\" %s>",
+            NETCONF_BASE_NAMESPACE,
+            clicon_username_get(h),
+            NETCONF_MESSAGE_ID_ATTR);
+    cprintf(cb, "<datastore-diff xmlns=\"%s\">", CONTROLLER_NAMESPACE);
+    cprintf(cb, "<xpath>devices</xpath>");
+    cprintf(cb, "<format>%s</format>", formatstr);
+    cprintf(cb, "<dsref1>ds:%s</dsref1>", db1);
+    cprintf(cb, "<dsref2>ds:%s</dsref2>", db2);
+    cprintf(cb, "</datastore-diff>");
+    cprintf(cb, "</rpc>");
+    if (xtop){
+        xml_free(xtop);
+        xtop = NULL;
+    }
+    if (clixon_xml_parse_string(cbuf_get(cb), YB_NONE, NULL, &xtop, NULL) < 0)
+        goto done;
+    xrpc = xml_child_i(xtop, 0);
+    /* Send to backend */
+    if (clicon_rpc_netconf_xml(h, xrpc, &xret, NULL) < 0)
+        goto done;
+    if ((xreply = xpath_first(xret, NULL, "rpc-reply")) == NULL){
+        clicon_err(OE_CFG, 0, "Malformed rpc reply");
+        goto done;
+    }
+    if ((xerr = xpath_first(xreply, NULL, "rpc-error")) != NULL){
+        clixon_netconf_error(xerr, "Get configuration", NULL);
+        goto done;
+    }
+    if ((xdiff = xpath_first(xreply, NULL, "diff")) == NULL){
+        clicon_err(OE_CFG, 0, "No returned diff");
+        goto done;
+    }
+    cligen_output(stdout, "%s", xml_body(xdiff));
     retval = 0;
  done:
     if (xret)

@@ -39,9 +39,9 @@ show("Show a particular state of the system"){
        }
     version("Show version"), cli_controller_show_version("running", "text", "/");
     options("Show clixon options"), cli_show_options();
-    compare("Compare candidate and running databases"), compare_dbs("running", "candidate", "text");{
-       xml("Show comparison in xml"), compare_dbs("running", "candidate","xml");
-       text("Show comparison in text"), compare_dbs("running", "candidate", "text");
+    compare("Compare candidate and running databases"), compare_dbs_rpc("running", "candidate", "text");{
+       xml("Show comparison in xml"), compare_dbs_rpc("running", "candidate","xml");
+       text("Show comparison in text"), compare_dbs_rpc("running", "candidate", "text");
     }
     devices("Show state of devices")[
                  (<name:string>("device pattern")|

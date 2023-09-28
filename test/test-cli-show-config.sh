@@ -51,7 +51,12 @@ cat<<EOF > $CFG
      </rule>
      <rule>
        <name>include example</name>
-       <module-name>openconfig*</module-name>
+       <module-name>openconfig-interfaces</module-name>
+       <operation>enable</operation>
+     </rule>
+     <rule>
+       <name>include example</name>
+       <module-name>openconfig-system</module-name>
        <operation>enable</operation>
      </rule>
   </autocli>
