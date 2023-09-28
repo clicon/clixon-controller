@@ -46,7 +46,7 @@ The controller requires its public key to be installed on the devices and perfor
 
 ## How to configure JunOS and the Clixon controller?
 
-JunOS must be configured with SSH-keys and a few other settings before being used with Clixon. The SSH-key belongs to the user which clixon_backend run as. We must also configure the rfc-compliant option for the netconf server:
+JunOS must be configured with SSH-keys and a few other settings before being used with Clixon. The SSH-key belongs to the user which clixon_backend run as. The rfc-compliant option for the netconf server must also be set:
 
 ```
 root@junos> show configuration

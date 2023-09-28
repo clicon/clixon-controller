@@ -88,7 +88,8 @@ i=1
 for ip in $CONTAINERS; do
     NAME="$IMG$i"
     i=$((i+1))
-    for j in $(seq 1 5); do
+    jmax=5
+    for j in $(seq 1 $jmax); do
 	init_device_config $NAME $ip
 #	echo "$ret"
 	match=$(echo "$ret" | grep --null -Eo "<rpc-error>") || true
@@ -138,9 +139,10 @@ if [ -n "$match" ]; then
 fi
 
 sleep $sleep
-
-echo "Verify open devices 1"
-ret=$(${clixon_netconf} -q0 -f $CFG <<EOF
+jmax=5
+for j in $(seq 1 $jmax); do
+    new "Verify open devices 1"
+    ret=$(${clixon_netconf} -q0 -f $CFG <<EOF
 <rpc xmlns="urn:ietf:params:xml:ns:netconf:base:1.0" xmlns:nc="urn:ietf:params:xml:ns:netconf:base:1.0" message-id="43">
    <get cl:content="all" xmlns:cl="http://clicon.org/lib">
       <nc:filter nc:type="xpath" nc:select="co:devices/co:device/co:conn-state" xmlns:co="http://clicon.org/controller"/>
@@ -148,18 +150,22 @@ ret=$(${clixon_netconf} -q0 -f $CFG <<EOF
 </rpc>]]>]]>
 EOF
    )
+    #echo "$ret"
+    match=$(echo "$ret" | grep --null -Eo "<rpc-error>") || true
+    if [ -n "$match" ]; then
+        err1 "Error: $ret"
+    fi
 
-#echo "$ret"
-match=$(echo "$ret" | grep --null -Eo "<rpc-error>") || true
-if [ -n "$match" ]; then
-    echo "Error: $ret"
-    exit -1;
-fi
+    res=$(echo "$ret" | sed 's/OPEN/OPEN\n/g' | grep "$IMG" | grep -c "OPEN") || true
+    if [ "$res" != "$nr" ]; then
+        echo "retry after sleep"
+        sleep $sleep
+    fi
+    break
 
-res=$(echo "$ret" | sed 's/OPEN/OPEN\n/g' | grep "$IMG" | grep -c "OPEN") || true
-if [ "$res" != "$nr" ]; then
-    echo "Error: $res devices open, expected $nr"
-    exit -1;
+done # verify open
+if [ $j -eq $jmax ]; then
+    err "$nr devices open" "$res devices open"
 fi
 
 echo "Netconf pull"
