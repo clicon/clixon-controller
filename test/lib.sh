@@ -1,5 +1,10 @@
 #!/usr/bin/env bash
 
+# Testfile (not including path)
+: ${testfile:=$(basename $0)}
+
+>&2 echo "Running $testfile"
+
 if [ -f ./site.sh ]; then
     . ./site.sh
     if [ $? -ne 0 ]; then
@@ -36,8 +41,9 @@ DEFAULTONLY="xmlns=\"$BASENS\""
 DEFAULTNS="$DEFAULTONLY message-id=\"42\""
 
 # Multiplication factor to sleep less than whole seconds
-DEMSLEEP=0.2
-DEMLOOP=5
+DEMSLEEP=1
+
+DEMLOOP=10
 
 : ${clixon_cli:=clixon_cli}
 
@@ -73,6 +79,28 @@ testname=
 
 #----------------------- Functions
 
+# Test is previous test had valgrind errors if so quit
+function checkvalgrind(){
+    echo "checkvalgrind"
+    echo "valgrindfile:$valgrindfile"
+    if [ -f $valgrindfile ]; then
+        cat $valgrindfile
+        res=$(cat $valgrindfile | grep -e "Invalid" |awk '{print  $4}' | grep -v '^0$')
+        if [ -n "$res" ]; then
+            >&2 cat $valgrindfile
+#            sudo rm -f $valgrindfile
+            exit -1         
+        fi
+        res=$(cat $valgrindfile | grep -e "reachable" -e "lost:"|awk '{print  $4}' | grep -v '^0$')
+        if [ -n "$res" ]; then
+            >&2 cat $valgrindfile
+#            sudo rm -f $valgrindfile
+            exit -1         
+        fi
+#        sudo rm -f $valgrindfile
+    fi
+}
+
 # Given a string, add RFC6242 chunked franing around it
 # Args:
 # 0: string
@@ -92,12 +120,12 @@ function wait_backend(){
     #    chunked_equal "$reply" "$freply"
     let i=0 || true
     while [[ $reply != *"<rpc-reply"* ]]; do
-	echo "sleep $DEMSLEEP"
+#	echo "sleep $DEMSLEEP"
 	sleep $DEMSLEEP
         freq=$(chunked_framing "<rpc $DEFAULTNS><ping $LIBNS/></rpc>")
         reply=$(echo "$freq" | ${clixon_netconf} -q1ef $CFG) || true
 	let i++ || true
-	echo "wait_backend  $i"
+#	echo "wait_backend  $i"
 	if [ $i -ge $DEMLOOP ]; then
 	    err "backend timeout $DEMLOOP loops" ""
 	fi
@@ -113,6 +141,47 @@ function new(){
     testi=`expr $testi + 1`
     testname=$1
     >&2 echo "Test $testi($testnr) [$1]"
+}
+
+# Start backend with all varargs.
+# If valgrindtest == 2, start valgrind
+function start_backend(){
+    if [ $valgrindtest -eq 2 ]; then
+        # Start in background since daemon version creates two traces: parent,
+        # child. If background then only the single relevant.
+        echo "$clixon_backend -F -D $DBG $* &"
+        sudo $clixon_backend -F -D $DBG $* &
+    else
+        echo "sudo $clixon_backend -D $DBG $*"
+        sudo $clixon_backend -D $DBG $*
+    fi
+    if [ $? -ne 0 ]; then
+        err
+    fi
+}
+
+function stop_backend(){
+    sudo clixon_backend -z $*
+    if [ $? -ne 0 ]; then
+        err "kill backend"
+    fi
+    if [ $valgrindtest -eq 2 ]; then 
+        sleep 5
+        checkvalgrind
+    fi
+#    sudo pkill -f clixon_backend # extra ($BUSER?)
+}
+
+function endtest()
+{
+    # Commented from now, it is unclear what destroys the tty, if something does the original
+    # problem should be fixed at the origin.
+    #    stty $STTYSETTINGS >/dev/null
+    if [ $valgrindtest -eq 1 ]; then 
+        checkvalgrind
+    fi
+    >&2 echo "End $testfile"
+    >&2 echo "OK"
 }
 
 # Evaluate and return

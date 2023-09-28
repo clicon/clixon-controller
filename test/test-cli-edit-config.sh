@@ -32,11 +32,11 @@ function sleep_open()
 }
 
 if $BE; then
-    echo "Kill old backend"
+    new "Kill old backend"
     sudo clixon_backend -s init -f $CFG -z
 
-    new "Start new backend -f $CFG -D $DBG"
-    sudo clixon_backend -s init -f $CFG -D $DBG
+    new "Start new backend -s init -f $CFG"
+    start_backend -s init -f $CFG
 fi
 
 # Check backend is running
@@ -125,9 +125,8 @@ new "validate"
 expectpart "$($clixon_cli -1 -m configure -f $CFG validate)" 0 ""
 
 if $BE; then
-    echo "Kill old backend"
-    sudo clixon_backend -s init -f $CFG -z
+    new "Kill old backend"
+    stop_backend -f $CFG
 fi
 
-echo "test-cli-edit-config"
-echo OK
+endtest
