@@ -4838,7 +4838,7 @@ then :
 fi
 
 
-ac_config_files="$ac_config_files Makefile src/Makefile yang/Makefile util/Makefile docker/Makefile"
+ac_config_files="$ac_config_files Makefile src/Makefile yang/Makefile util/Makefile docker/Makefile doc/Makefile"
 
 cat >confcache <<\_ACEOF
 # This file is a shell script that caches the results of configure
@@ -5546,6 +5546,7 @@ do
     "yang/Makefile") CONFIG_FILES="$CONFIG_FILES yang/Makefile" ;;
     "util/Makefile") CONFIG_FILES="$CONFIG_FILES util/Makefile" ;;
     "docker/Makefile") CONFIG_FILES="$CONFIG_FILES docker/Makefile" ;;
+    "doc/Makefile") CONFIG_FILES="$CONFIG_FILES doc/Makefile" ;;
 
   *) as_fn_error $? "invalid argument: \`$ac_config_target'" "$LINENO" 5;;
   esac
