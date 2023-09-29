@@ -8,6 +8,8 @@ s="$_" ; . ./lib.sh || if [ "$s" = $0 ]; then exit 0; else return 0; fi
 dir=/var/tmp/$0
 if [ ! -d $dir ]; then
     mkdir $dir
+else
+    rm -rf $dir/*
 fi
 CFG=$dir/controller.xml
 fin=$dir/in

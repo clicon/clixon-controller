@@ -160,12 +160,15 @@ function start_backend(){
 }
 
 function stop_backend(){
+    if [ $valgrindtest -eq 2 ]; then
+        sleep 1         # This is to give backend time to settle into idle
+    fi
     sudo clixon_backend -z $*
     if [ $? -ne 0 ]; then
         err "kill backend"
     fi
     if [ $valgrindtest -eq 2 ]; then 
-        sleep 5
+        sleep 5         # This is to give valgrind time to dump log file
         checkvalgrind
     fi
 #    sudo pkill -f clixon_backend # extra ($BUSER?)

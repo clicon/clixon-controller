@@ -43,6 +43,8 @@ fi
 dir=/var/tmp/$0
 if [ ! -d $dir ]; then
     mkdir $dir
+else
+    rm -rf $dir/*
 fi
 CFG=$dir/controller.xml
 fyang=$dir/myyang.yang
@@ -102,9 +104,6 @@ module myyang {
     yang-version 1.1;
     namespace "urn:example:test";
     prefix test;
-    import ietf-inet-types {
-      prefix inet;
-    }
     import clixon-controller {
       prefix ctrl;
     }
@@ -138,9 +137,6 @@ module myyang {
     }
 }
 EOF
-
-# Reset devices with initial config
-. ./reset-devices.sh
 
 # Send process-control and check status of services daemon 
 # Args:
@@ -191,7 +187,6 @@ cat <<EOF > $dir/startup_db
 EOF
 
 if $BE; then
-
     new "Kill old backend $CFG"
     sudo clixon_backend -f $CFG -z
 
@@ -219,6 +214,10 @@ cat <<EOF > $dir/startup_db
   </processes>
 </config>
 EOF
+
+# Reset devices with initial config
+. ./reset-devices.sh
+
 if $BE; then
     echo "Kill old backend $CFG"
     sudo clixon_backend -f $CFG -z
@@ -236,7 +235,6 @@ expectpart "$(clixon_controller_service -f $CFG -1 -l o)" 255 "services-commit c
 # Reset controller by initiaiting with clixon/openconfig devices and a pull
 . ./reset-controller.sh
 
-exit
 DEV0="<config>
          <interfaces xmlns=\"http://openconfig.net/yang/interfaces\" xmlns:ianaift=\"urn:ietf:params:xml:ns:yang:iana-if-type\">
             <interface>
@@ -537,7 +535,7 @@ fi
 
 if $BE; then
     new "Kill old backend"
-    start_backend -f $CFG
+    stop_backend -f $CFG
 fi
 
 endtest
