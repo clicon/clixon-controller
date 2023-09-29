@@ -147,5 +147,6 @@ AC_CONFIG_FILES([Makefile
 	         yang/Makefile
                  util/Makefile
                  docker/Makefile
+                 doc/Makefile
 ])
 AC_OUTPUT

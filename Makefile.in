@@ -46,7 +46,7 @@ SUBDIRS += yang
 SUBDIRS += util
 #SUBDIRS += docker
 
-.PHONY:	all clean $(SUBDIRS) test install uninstall docker push TAGS .config.status
+.PHONY:	all clean $(SUBDIRS) test install uninstall docker push TAGS .config.status doc
 
 all:	$(SUBDIRS)
 
@@ -54,16 +54,19 @@ $(SUBDIRS):
 	(cd $@ && $(MAKE) $(MFLAGS) all)
 
 install:  
-	for i in $(SUBDIRS) ; \
+	for i in $(SUBDIRS) doc ; \
 	do (cd $$i; $(MAKE) $(MFLAGS) $@)||exit 1; done; 
 
 uninstall:
-	for i in $(SUBDIRS) ; \
+	for i in $(SUBDIRS) doc; \
 	do (cd $$i && $(MAKE) $(MFLAGS) $@)||exit 1; done;
 
 docker:
 	(cd docker; $(MAKE) $(MFLAGS) $@)
 	echo "make push to push images to dockerhub"
+
+doc:
+	cd $@; $(MAKE) $(MFLAGS) $@
 
 test:
 	$(MAKE) -C docker $(MFLAGS) $@
@@ -78,16 +81,16 @@ configure:	configure.ac
 	cd $(srcdir) && autoconf
 
 clean:
-	for i in $(SUBDIRS) ; \
+	for i in $(SUBDIRS) doc; \
 	do (cd $$i && $(MAKE) $(MFLAGS) $@); done; 
 
 distclean:
 	rm -f Makefile TAGS config.status config.log *~
 	rm -rf autom4te.cache
-	for i in $(SUBDIRS) ; \
+	for i in $(SUBDIRS) doc util docker; \
 	do (cd $$i && $(MAKE) $(MFLAGS) $@); done
 
 TAGS:
-	find $(srcdir) -name '*.[chyl]' -type f | grep -v \.tab\.[ch] | grep -v lex.*.c | grep -v .yy.c | etags -
+	find $(srcdir) -name '*.[ch]' -type f | grep -v \.tab\.[ch] | grep -v lex.*.c | grep -v .yy.c | etags -
 
 
