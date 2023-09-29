@@ -84,8 +84,8 @@ controller_statedata(clixon_handle   h,
 /*! Disconnect device
  */
 static int
-controller_disconnect(clixon_handle h,
-                      cxobj        *xn)
+disconnect_device_byxml(clixon_handle h,
+                        cxobj        *xn)
 {
     char         *name;
     device_handle dh;
@@ -186,7 +186,7 @@ controller_commit_device(clixon_handle h,
                        &vec1, &veclen1) < 0)
         goto done;
     for (i=0; i<veclen1; i++){
-        if (controller_disconnect(h, vec1[i]) < 0)
+        if (disconnect_device_byxml(h, vec1[i]) < 0)
             goto done;
     }
     /* 2a) if enable changed to false, disconnect, to true connect
@@ -198,7 +198,7 @@ controller_commit_device(clixon_handle h,
     for (i=0; i<veclen2; i++){
         if ((body = xml_body(vec2[i])) != NULL){
             if (strcmp(body, "false") == 0){
-                if (controller_disconnect(h, xml_parent(vec2[i])) < 0)
+                if (disconnect_device_byxml(h, xml_parent(vec2[i])) < 0)
                     goto done;
             }
         }
@@ -549,6 +549,11 @@ controller_start(clixon_handle h)
 static int
 controller_exit(clixon_handle h)
 {
+    device_handle dh = NULL;
+    
+    controller_transaction_free_all(h);
+    while ((dh = device_handle_each(h, dh)) != NULL)
+        device_close_connection(dh, "controller exit");
     device_handle_free_all(h);
     return 0;
 }

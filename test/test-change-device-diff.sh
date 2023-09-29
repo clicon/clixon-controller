@@ -76,7 +76,7 @@ EOF
 done
 
 if $BE; then
-    stop "Kill old backend"
+    new "Kill old backend"
     stop_backend -f $CFG
 fi
 

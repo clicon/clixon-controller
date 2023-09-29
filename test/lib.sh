@@ -81,23 +81,22 @@ testname=
 
 # Test is previous test had valgrind errors if so quit
 function checkvalgrind(){
-    echo "checkvalgrind"
-    echo "valgrindfile:$valgrindfile"
+    echo "checkvalgrind $valgrindfile"
     if [ -f $valgrindfile ]; then
-        cat $valgrindfile
+        set +e
         res=$(cat $valgrindfile | grep -e "Invalid" |awk '{print  $4}' | grep -v '^0$')
         if [ -n "$res" ]; then
             >&2 cat $valgrindfile
-#            sudo rm -f $valgrindfile
+            sudo rm -f $valgrindfile
             exit -1         
         fi
         res=$(cat $valgrindfile | grep -e "reachable" -e "lost:"|awk '{print  $4}' | grep -v '^0$')
         if [ -n "$res" ]; then
             >&2 cat $valgrindfile
-#            sudo rm -f $valgrindfile
+            sudo rm -f $valgrindfile
             exit -1         
         fi
-#        sudo rm -f $valgrindfile
+        sudo rm -f $valgrindfile
     fi
 }
 

@@ -96,6 +96,7 @@ struct controller_device_handle{
 };
 
 /*! Check struct magic number for sanity checks
+ *
  * @param[in]  dh  Device handle
  * @retval     0   Sanity check OK
  * @retval    -1   Sanity check failed
@@ -110,6 +111,7 @@ device_handle_check(device_handle dh)
 }
 
 /*! Create new controller device handle given clixon handle and add it to global list
+ *
  * @param[in]  h    Clixon  handle
  * @retval     dh   Controller device handle
  */
@@ -149,7 +151,7 @@ device_handle_new(clixon_handle h,
 /*! Free handle itself
  */
 static int
-device_handle_handle_free(struct controller_device_handle *cdh)
+device_handle_free1(struct controller_device_handle *cdh)
 {
     if (cdh->cdh_name)
         free(cdh->cdh_name);
@@ -194,7 +196,7 @@ device_handle_free(device_handle dh)
         do {
             if (cdh == c) {
                 DELQ(c, cdh_list, struct controller_device_handle *);
-                device_handle_handle_free(c);
+                device_handle_free1(c);
                 break;
             }
             c = NEXTQ(struct controller_device_handle *, c);
@@ -205,6 +207,7 @@ device_handle_free(device_handle dh)
 }
 
 /*! Free all controller's device handles
+ *
  * @param[in]  h   Clixon handle
  */
 int
@@ -216,7 +219,7 @@ device_handle_free_all(clixon_handle h)
     clicon_ptr_get(h, "client-list", (void**)&cdh_list);
     while ((c = cdh_list) != NULL) {
         DELQ(c, cdh_list, struct controller_device_handle *);
-        device_handle_handle_free(c);
+        device_handle_free1(c);
     }
     clicon_ptr_set(h, "client-list", (void*)cdh_list);
     return 0;
@@ -247,6 +250,9 @@ device_handle_find(clixon_handle h,
 }
 
 /*! Iterator over device-handles
+ *
+ * @param[in]  h      Clixon handle
+ * @param[in]  dhprev iteration handle, init with NULL
  * @code
  *    device_handle dh = NULL;
  *    while ((dh = device_handle_each(h, dh)) != NULL){
@@ -271,6 +277,7 @@ device_handle_each(clixon_handle h,
 }
 
 /*! Connect client to clixon backend according to config and return a socket
+ *
  * @param[in]  h        Clixon handle
  * @param[in]  socktype Type of socket, internal/external/netconf/ssh
  * @param[in]  dest     Destination for some types
@@ -324,6 +331,7 @@ device_handle_connect(device_handle      dh,
 }
 
 /*! Connect client to clixon backend according to config and return a socket
+ *
  * @param[in]    dh        Clixon client session handle
  * @see clixon_client_connect where the handle is created
  * The handle is deallocated
@@ -373,7 +381,8 @@ device_handle_name_get(device_handle dh)
     return cdh->cdh_name;
 }
 
-/*! get socket
+/*! Get socket
+ *
  * @param[in]  dh     Device handle
  * @retval     s      Open socket
  * @retval    -1      No/closed socket
@@ -436,6 +445,7 @@ device_handle_handle_get(device_handle dh)
 }
 
 /*! Get yang config
+ *
  * @param[in]  dh          Device handle
  * @retval     yang-config How to bind device configuration to YANG
  * @note mirror of config
@@ -449,6 +459,7 @@ device_handle_yang_config_get(device_handle dh)
 }
 
 /*! Set yang config
+ *
  * @param[in]  dh     Device handle
  * @param[in]  yfstr  Yang config setting as string
  * @retval     0      OK
@@ -467,6 +478,7 @@ device_handle_yang_config_set(device_handle dh,
 }
 
 /*! Get connection state
+ *
  * @param[in]  dh     Device handle
  * @retval     state
  */
@@ -479,6 +491,7 @@ device_handle_conn_state_get(device_handle dh)
 }
 
 /*! Set connection state also timestamp
+ *
  * @param[in]  dh     Device handle
  * @param[in]  state  State
  * @retval     0      OK
@@ -507,6 +520,7 @@ device_handle_conn_state_set(device_handle dh,
 }
 
 /*! Get connection timestamp
+ *
  * @param[in]  dh     Device handle
  * @param[out] t      Connection timestamp
  */
@@ -521,6 +535,7 @@ device_handle_conn_time_get(device_handle   dh,
 }
 
 /*! Set connection timestamp
+ *
  * @param[in]  dh     Device handle
  * @param[in]  t      Timestamp, if NULL set w gettimeofday
  */
@@ -538,6 +553,7 @@ device_handle_conn_time_set(device_handle   dh,
 }
 
 /*! Access frame state get 
+ *
  * @param[in]  dh     Device handle
  * @retval     state
  */
@@ -550,6 +566,7 @@ device_handle_frame_state_get(device_handle dh)
 }
 
 /*! Access state get 
+ *
  * @param[in]  dh     Device handle
  * @retval     state  State
  * @retval     0      OK
@@ -565,6 +582,7 @@ device_handle_frame_state_set(device_handle dh,
 }
 
 /*! Get Netconf frame size, part of dynamic framing detection
+ *
  * @param[in]  dh    Device handle
  * @retval     fs    Frame size
  */
@@ -592,7 +610,8 @@ device_handle_frame_size_set(device_handle dh,
 }
 
 
-/*!
+/*! Get Netconf framing type of device
+ *
  * @param[in]  dh     Device handle
  */
 cbuf *
@@ -632,6 +651,7 @@ device_handle_framing_type_set(device_handle        dh,
 }
 
 /*! Get capabilities as xml tree
+ *
  * @param[in]  dh     Device handle
  * @retval     xcaps  XML tree
  */
@@ -644,6 +664,7 @@ device_handle_capabilities_get(device_handle dh)
 }
 
 /*! Set capabilities as xml tree
+ *
  * @param[in]  dh     Device handle
  * @param[in]  xcaps  XML tree, is consumed
  * @retval     0      OK
@@ -684,6 +705,7 @@ device_handle_capabilities_find(clixon_handle dh,
 }
 
 /*! Get RFC 8525 yang-lib as xml tree
+ *
  * @param[in]  dh     Device handle
  * @retval     yang_lib  XML tree
  * On the form: yang-library/module-set/name=<name>/module/name,revision,namespace  RFC 8525
@@ -697,6 +719,7 @@ device_handle_yang_lib_get(device_handle dh)
 }
 
 /*! Set RFC 8525 yang library as xml tree
+ *
  * @param[in]  dh      Device handle
  * @param[in]  yanglib XML tree, is consumed
  * @retval     0       OK
@@ -714,6 +737,7 @@ device_handle_yang_lib_set(device_handle dh,
 }
 
 /*! Get sync timestamp
+ *
  * @param[in]  dh     Device handle
  * @param[out] t      Sync timestamp (=0 if uninitialized)
  */
@@ -728,6 +752,7 @@ device_handle_sync_time_get(device_handle    dh,
 }
 
 /*! Set sync timestamp
+ *
  * @param[in]  dh     Device handle
  * @param[in]  t      Timestamp, if NULL set w gettimeofday
  */
@@ -745,6 +770,7 @@ device_handle_sync_time_set(device_handle   dh,
 }
 
 /*! Get device-specific top-level yang spec
+ *
  * @param[in]  dh     Device handle
  * @retval     yspec
  * @retval     NULL
@@ -758,6 +784,7 @@ device_handle_yspec_get(device_handle dh)
 }
 
 /*! Set device-specific top-level yang spec
+ *
  * @param[in]  dh     Device handle
  * @param[in]  yspec
  */
@@ -774,6 +801,7 @@ device_handle_yspec_set(device_handle dh,
 }
 
 /*! Get nr of schemas
+ *
  * @param[in]  dh     Device handle
  * @retval     nr
  */
@@ -786,6 +814,7 @@ device_handle_nr_schemas_get(device_handle dh)
 }
 
 /*! Set nr of schemas
+ *
  * @param[in]  dh   Device handle
  * @param[in]  nr   Number of schemas  
  */
@@ -800,6 +829,7 @@ device_handle_nr_schemas_set(device_handle dh,
 }
 
 /*! Get pending schema name, strdup
+ *
  * @param[in]  dh     Device handle
  * @retval     schema-name
  * @retval     NULL
@@ -813,6 +843,7 @@ device_handle_schema_name_get(device_handle dh)
 }
 
 /*! Set pending schema name, strdup
+ *
  * @param[in]  dh     Device handle
  * @param[in]  schema-name Is copied
  */
@@ -829,6 +860,7 @@ device_handle_schema_name_set(device_handle dh,
 }
 
 /*! Get pending schema rev, strdup
+ *
  * @param[in]  dh     Device handle
  * @retval     schema-rev
  * @retval     NULL
@@ -842,6 +874,7 @@ device_handle_schema_rev_get(device_handle dh)
 }
 
 /*! Set pending schema rev, strdup
+ *
  * @param[in]  dh     Device handle
  * @param[in]  schema-rev Is copied
  */
@@ -858,6 +891,7 @@ device_handle_schema_rev_set(device_handle dh,
 }
 
 /*! Get logmsg, direct pointer into struct
+ *
  * @param[in]  dh     Device handle
  * @retval     logmsg
  * @retval     NULL
@@ -871,6 +905,7 @@ device_handle_logmsg_get(device_handle dh)
 }
 
 /*! Set logmsg, consume string
+ *
  * @param[in]  dh     Device handle
  * @param[in]  logmsg Logmsg (is consumed)
  */
