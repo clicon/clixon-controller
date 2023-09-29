@@ -17,6 +17,8 @@ modules=$dir/modules
 
 if [ ! -d $dir ]; then
     mkdir $dir
+else
+    rm -rf $dir/*
 fi
 
 if [ ! -d $modules ]; then

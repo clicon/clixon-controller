@@ -28,6 +28,8 @@ fi
 dir=/var/tmp/$0
 if [ ! -d $dir ]; then
     mkdir $dir
+else
+    rm -rf $dir/*
 fi
 CFG=$dir/controller.xml
 fyang=$dir/clixon-test@2023-03-22.yang
