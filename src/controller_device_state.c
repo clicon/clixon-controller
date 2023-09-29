@@ -187,10 +187,13 @@ device_close_connection(device_handle dh,
         va_end(ap);
         device_handle_logmsg_set(dh, str);
         clicon_debug(1, "%s %s: %s", __FUNCTION__, name, str);
+        str = NULL;
     }
     retval = 0;
  done:
     clicon_debug(1, "%s retval: %d", __FUNCTION__, retval);
+    if (str)
+        free(str);
     return retval;
 }
 

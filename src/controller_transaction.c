@@ -264,6 +264,10 @@ controller_transaction_new(clicon_handle            h,
     uint32_t                iddb;
     char                   *db = "candidate";
     
+    if (ctp == NULL){
+        clicon_err(OE_PLUGIN, EINVAL, "ctp is NULL");
+        goto done;
+    }
     clicon_debug(1, "%s", __FUNCTION__);
     if ((iddb = xmldb_islocked(h, db)) != 0){
         if (cberr){
@@ -315,16 +319,35 @@ controller_transaction_new(clicon_handle            h,
      /* user callback */
     if (clixon_plugin_lockdb_all(h, db, 1, TRANSACTION_CLIENT_ID) < 0)
         goto done;
-    if (ctp)
-        *ctp = ct;
+    *ctp = ct;
+    ct = NULL;
     retval = 1;
  done:
+    if (ct)
+        free(ct);
     return retval;
  failed:
     retval = 0;
     goto done;
 }
 
+/*! Free transaction itself
+ */
+static int
+controller_transaction_free1(controller_transaction *ct)
+{
+    if (ct->ct_description)
+        free(ct->ct_description);
+    if (ct->ct_origin)
+        free(ct->ct_origin);
+    if (ct->ct_reason)
+        free(ct->ct_reason);
+    if (ct->ct_sourcedb)
+        free(ct->ct_sourcedb);
+    free(ct);
+    return 0;
+}
+    
 /*! Remove and free single controller transaction
  */
 int
@@ -336,16 +359,26 @@ controller_transaction_free(clicon_handle           h,
     if (clicon_ptr_get(h, "controller-transaction-list", (void**)&ct_list) == 0){
         DELQ(ct, ct_list, controller_transaction *);
     }
-    if (ct->ct_description)
-        free(ct->ct_description);
-    if (ct->ct_origin)
-        free(ct->ct_origin);
-    if (ct->ct_reason)
-        free(ct->ct_reason);
-    if (ct->ct_sourcedb)
-        free(ct->ct_sourcedb);
-    free(ct);
-    return 0;
+    return controller_transaction_free1(ct);
+}
+
+/*! Free all controller transactions
+ *
+ * @param[in]  h   Clixon handle
+ */
+int
+controller_transaction_free_all(clicon_handle h)
+{
+    controller_transaction *ct_list = NULL;
+    controller_transaction *ct;
+    
+    clicon_ptr_get(h, "controller-transaction-list", (void**)&ct_list);
+    while ((ct = ct_list) != NULL) {
+        DELQ(ct, ct_list, controller_transaction *);
+        controller_transaction_free1(ct);
+    }
+    clicon_ptr_set(h, "controller-transaction-list", (void*)ct_list);
+    return 0;   
 }
 
 /*! Terminate/close transaction, unlock candidate, and unmark all devices from transaction

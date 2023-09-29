@@ -74,6 +74,7 @@ int   controller_transaction_state_set(controller_transaction *ct, transaction_s
 int   controller_transaction_notify(clixon_handle h, controller_transaction *ct);
 int   controller_transaction_new(clicon_handle h, char *description, controller_transaction **ct, cbuf **cberr);
 int   controller_transaction_free(clicon_handle h, controller_transaction *ct);
+int   controller_transaction_free_all(clicon_handle h);
 int   controller_transaction_done(clicon_handle h, controller_transaction *ct, transaction_result result);
 
 controller_transaction *controller_transaction_find(clixon_handle h, const uint64_t id);

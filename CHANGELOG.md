@@ -3,6 +3,11 @@
 ## 0.1.0
 Expected: October 2023
 
+The focus of the clixon-controller 0.1.0 is multiple different
+devices, it has been tested with openconfig, arista and juniper
+routers. It is still experimental. The next focus will be competing
+the feature set and optimization.
+
 ### API changes on existing protocol/config features
 
 * New `clixon-controller@2023-09-01.yang` revision
@@ -10,6 +15,8 @@ Expected: October 2023
 
 ### Minor features
 
+* Changed and extended CI (github actions) with openconfig devices
+* Checked and fixed memeory leaks
 * Added: [Add show command for processes ](https://github.com/clicon/clixon-controller/issues/42)
 
 ### Corrected Bugs
