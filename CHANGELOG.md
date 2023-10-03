@@ -1,8 +1,12 @@
 # Clixon Controller Changelog
 
+## 0.2.0
+Expected: December 2023
+
 ## 0.1.0
 30 September 2023
 
+Based on CLIgen/Clixon 6.4.0.
 This release focuses on testing with openconfig, arista and juniper
 routers. It is still experimental.
 
