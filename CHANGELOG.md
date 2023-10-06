@@ -3,6 +3,15 @@
 ## 0.2.0
 Expected: December 2023
 
+### Minor features
+
+* Added new configuration feature: device-class
+
+### API changes on existing protocol/config features
+
+* New `clixon-controller@2023-11-01.yang` revision
+  * Added Added device-class list
+  
 ## 0.1.0
 30 September 2023
 
