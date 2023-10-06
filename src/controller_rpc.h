@@ -44,7 +44,6 @@
 extern "C" {
 #endif
 
-int controller_connect(clixon_handle h, cxobj *xn, controller_transaction *ct);
 int controller_rpc_init(clicon_handle h);
     
 #ifdef __cplusplus

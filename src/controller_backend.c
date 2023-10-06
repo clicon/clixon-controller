@@ -91,7 +91,8 @@ disconnect_device_byxml(clixon_handle h,
     device_handle dh;
     
     if ((name = xml_find_body(xn, "name")) != NULL &&
-        (dh = device_handle_find(h, name)) != NULL)
+        (dh = device_handle_find(h, name)) != NULL &&
+        device_handle_conn_state_get(dh) != CS_CLOSED)
         device_close_connection(dh, NULL); /* Regular disconnect, no reason */
     return 0;
 }

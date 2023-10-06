@@ -6,6 +6,7 @@
 # Start w no config
 # 1. Open first device
 # 2. Open second device
+# Reset and do same with device-class
 
 set -u
 
@@ -157,12 +158,81 @@ for ip in $CONTAINERS; do
     fi
 
     ii=$((ii+1))
-
 done
+
+new "connection close"
+expectpart "$($clixon_cli -1 -f $CFG connection close)" 0 "^$"
+
+new "Delete devices config"
+expectpart "$($clixon_cli -1 -m configure -f $CFG delete devices)" 0 "^$"
+
+new "commit local"
+expectpart "$($clixon_cli -1 -m configure -f $CFG commit local)" 0 "^$"
+
+new "Verify controller"
+res=$(${clixon_cli} -1f $CFG show devices | grep OPEN | wc -l)
+
+if [ "$res" != "0" ]; then
+    echo "Error: $res devices open, expected 0"
+    exit -1;
+fi
+
+# Create device-class myclass
+cmd="set devices device-class myclass conn-type NETCONF_SSH"
+new "$cmd"
+expectpart "$($clixon_cli -1 -m configure -f $CFG $cmd)" 0 "^$"
+
+cmd="set devices device-class myclass user $USER"
+new "$cmd"
+expectpart "$($clixon_cli -1 -m configure -f $CFG $cmd)" 0 "^$"
+
+cmd="set devices device-class myclass addr $ip"
+new "$cmd"
+expectpart "$($clixon_cli -1 -m configure -f $CFG $cmd)" 0 "^$"
+
+new "commit"
+expectpart "$($clixon_cli -1 -m configure -f $CFG commit local)" 0 "^$"
+
+ii=1
+for ip in $CONTAINERS; do
+    NAME="$IMG$ii"
+    cmd="set devices device $NAME device-class myclass"
+    new "$cmd"
+    expectpart "$($clixon_cli -1 -m configure -f $CFG $cmd)" 0 "^$"
+    
+    cmd="set devices device $NAME enabled true"
+    new "$cmd"
+    expectpart "$($clixon_cli -1 -m configure -f $CFG $cmd)" 0 "^$"
+
+    cmd="set devices device $NAME addr $ip"
+    new "$cmd"
+    expectpart "$($clixon_cli -1 -m configure -f $CFG $cmd)" 0 "^$"
+    
+    ii=$((ii+1))
+done
+
+new "commit"
+expectpart "$($clixon_cli -1 -m configure -f $CFG commit local)" 0 "^$"
+    
+new "connection open"
+expectpart "$($clixon_cli -1 -f $CFG connection open)" 0 "^$"
+
+sleep $sleep
+    
+new "Verify controller"
+res=$(${clixon_cli} -1f $CFG show devices | grep OPEN | wc -l)
+
+nr=$((ii-1))
+if [ "$res" != "$nr" ]; then
+    err1 "$nr devices" "$res"
+fi
 
 if $BE; then
     new "Kill old backend"
     stop_backend -f $CFG
 fi
+
+unset nr
+unset ii
 
 endtest

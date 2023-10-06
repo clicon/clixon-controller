@@ -107,16 +107,19 @@ connect_netconf_ssh(clixon_handle h,
 /*! Connect to device 
  *
  * Typically called from commit
- * @param[in] h    Clixon handle
- * @param[in] xn   XML of device config
- * @param[in] ct   Transaction
- * @retval    0    OK
- * @retval   -1    Error
+ * @param[in]  h      Clixon handle
+ * @param[in]  xn     XML of device config
+ * @param[in]  ct     Transaction
+ * @param[out] reason reason, if retval is 0
+ * @retval     1      OK
+ * @retval     0      Connection can not be set up, see reason
+ * @retval    -1      Error
  */
-int
+static int
 controller_connect(clixon_handle           h,
                    cxobj                  *xn,
-                   controller_transaction *ct)
+                   controller_transaction *ct,
+                   char                  **reason)
 {
     int           retval = -1;
     char         *name;
@@ -127,13 +130,14 @@ controller_connect(clixon_handle           h,
     char         *user;
     char         *enablestr;
     char         *yfstr;
+    cxobj        *xb;
+    cxobj        *xdevclass = NULL;
     
     clicon_debug(1, "%s", __FUNCTION__);
     if ((name = xml_find_body(xn, "name")) == NULL)
         goto ok;
-    if ((enablestr = xml_find_body(xn, "enabled")) == NULL){
+    if ((enablestr = xml_find_body(xn, "enabled")) == NULL)
         goto ok;
-    }
     dh = device_handle_find(h, name); /* can be NULL */
     if (strcmp(enablestr, "false") == 0){
         if ((dh = device_handle_new(h, name)) == NULL)
@@ -144,31 +148,64 @@ controller_connect(clixon_handle           h,
     if (dh != NULL &&
         device_handle_conn_state_get(dh) != CS_CLOSED)
         goto ok;
+    /* Find device-class object if any */
+    if ((xb = xml_find_type(xn, NULL, "device-class", CX_ELMNT)) != NULL){
+        xdevclass = xpath_first(xn, NULL, "../device-class[name='%s']", xml_body(xb));
+    }
+    if ((xb = xml_find_type(xn, NULL, "conn-type", CX_ELMNT)) == NULL)
+        goto ok;
+    /* If not explicit value (default value set) AND device-class set, use that */
+    if (xml_flag(xb, XML_FLAG_DEFAULT) &&
+        xdevclass)
+        xb = xml_find_type(xdevclass, NULL, "conn-type", CX_ELMNT);
     /* Only handle netconf/ssh */
-    if ((type = xml_find_body(xn, "conn-type")) == NULL ||
-        strcmp(type, "NETCONF_SSH"))
-        goto ok;
-    if ((addr = xml_find_body(xn, "addr")) == NULL)
-        goto ok;
-    user = xml_find_body(xn, "user");
+    if ((type = xml_body(xb)) == NULL ||
+        strcmp(type, "NETCONF_SSH")){
+        if ((*reason = strdup("Connect failed: conn-type missing or not NETCONF_SSH")) == NULL)
+            goto done;
+        goto failed;
+    }
+    if ((addr = xml_find_body(xn, "addr")) == NULL){
+        if ((*reason = strdup("Connect failed: addr missing")) == NULL)
+            goto done;
+        goto failed;
+    }
+    if ((xb = xml_find_type(xn, NULL, "user", CX_ELMNT)) == NULL &&
+        xdevclass){
+        xb = xml_find_type(xdevclass, NULL, "user", CX_ELMNT);
+    }
+    if (xb != NULL)
+        user = xml_body(xb);
     /* Now dh is either NULL or in closed state and with correct type 
      * First create it if still NULL
      */
     if (dh == NULL &&
         (dh = device_handle_new(h, name)) == NULL)
         goto done;
-    if ((yfstr = xml_find_body(xn, "yang-config")) != NULL)
-        device_handle_yang_config_set(dh, yfstr); /* Cache yang config */    
+    if ((xb = xml_find_type(xn, NULL, "yang-config", CX_ELMNT)) == NULL)
+        goto ok;
+    if (xml_flag(xb, XML_FLAG_DEFAULT) &&
+        xdevclass)
+        xb = xml_find_type(xdevclass, NULL, "yang-config", CX_ELMNT);
+    if ((yfstr = xml_body(xb)) == NULL){
+        if ((*reason = strdup("Connect failed: yang-config missing from device config")) == NULL)
+            goto done;
+        goto failed;
+    }
+    device_handle_yang_config_set(dh, yfstr); /* Cache yang config */
     /* Point of no return: assume errors handled in device_input_cb */
     device_handle_tid_set(dh, ct->ct_id);
     if (connect_netconf_ssh(h, dh, user, addr) < 0) /* match */
         goto done;
  ok:
-    retval = 0;
+    retval = 1;
  done:
     if (cb)
         cbuf_free(cb);
     return retval;
+ failed:
+    retval = 0;
+    goto done;
 }
 
 /*! Compute diff, construct edit-config and send to device
@@ -606,7 +643,7 @@ strip_device(cxobj *x,
             else 
                 xml_creator_rm(x, tag);
         }
-   return 0;
+    return 0;
 }
 
 /*! Strip all service data in device config
@@ -1300,11 +1337,11 @@ rpc_controller_commit(clixon_handle h,
  ok:
     retval = 0;
  done:
-     if (td){
-         xmldb_get0_free(h, &td->td_target);
-         xmldb_get0_free(h, &td->td_src);
-         transaction_free(td);
-     }
+    if (td){
+        xmldb_get0_free(h, &td->td_target);
+        xmldb_get0_free(h, &td->td_src);
+        transaction_free(td);
+    }
     if (sourcedb)
         free(sourcedb);
     if (cbtr)
@@ -1457,9 +1494,10 @@ rpc_connection_change(clixon_handle h,
     controller_transaction *ct = NULL;
     client_entry           *ce;
     char                   *operation;
-    int                     ret;
     cbuf                   *cberr = NULL;
     cbuf                   *cbtr = NULL;
+    char                   *reason = NULL;
+    int                     ret;
     
     clicon_debug(1, "%s", __FUNCTION__);
     ce = (client_entry *)arg;
@@ -1505,8 +1543,13 @@ rpc_connection_change(clixon_handle h,
             /* Open if enabled and handle does not exist or it exists and is closed  */
             if (enabled &&
                 (dh == NULL || device_handle_conn_state_get(dh) == CS_CLOSED)){
-                if (controller_connect(h, xn, ct) < 0)
+                if ((ret = controller_connect(h, xn, ct, &reason)) < 0)
                     goto done;
+                if (ret == 0){
+                    if (netconf_operation_failed(cbret, "application", reason)< 0)
+                        goto done;
+                    goto ok;
+                }
             }
         }
         else if (strcmp(operation, "RECONNECT") == 0){
@@ -1517,8 +1560,13 @@ rpc_connection_change(clixon_handle h,
             }
             /* Then open if enabled */
             if (enabled){
-                if (controller_connect(h, xn, ct) < 0)
+                if ((ret = controller_connect(h, xn, ct, &reason)) < 0)
                     goto done;
+                if (ret == 0){
+                    if (netconf_operation_failed(cbret, "application", reason)< 0)
+                        goto done;
+                    goto ok;
+                }
             }
         }
         else {
@@ -1539,6 +1587,8 @@ rpc_connection_change(clixon_handle h,
  ok:
     retval = 0;
  done:
+    if (reason)
+        free(reason);
     if (cbtr)
         cbuf_free(cbtr);
     if (cberr)
@@ -2089,7 +2139,7 @@ check_services_commit_subscription(clixon_handle h,
     }
  ok:
     retval = 0;
-  done:
+ done:
     if (nsc)
         xml_nsctx_free(nsc);
     return retval;

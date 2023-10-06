@@ -160,7 +160,10 @@ device_close_connection(device_handle dh,
 
     name = device_handle_name_get(dh);
     clicon_debug(1, "%s %s", __FUNCTION__, name);
-    s = device_handle_socket_get(dh);
+    if ((s = device_handle_socket_get(dh)) == -1){
+        clicon_err(OE_UNIX, errno, "%s: socket is -1", device_handle_name_get(dh));
+        goto done;
+    }
     clixon_event_unreg_fd(s, device_input_cb); /* deregister events */
     if (device_handle_disconnect(dh) < 0) /* close socket, reap sub-processes */
         goto done;
