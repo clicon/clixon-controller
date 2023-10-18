@@ -297,23 +297,78 @@ schema_list2yang_library(cxobj  *xschemas,
     return retval;
 }
 
+/*! Translate from controller device modules to RFC8525 yang-library
+ *
+ * @param[in]  xmodset  Device/module-set with potential <module> list
+ * @param[out] xyanglib Allocated, xml_free:d by caller
+ * @retval     0        OK
+ * @retval    -1        Error
+ */
+int
+xdev2yang_library(cxobj  *xmodset,
+                  cxobj **xyanglib)
+{
+    int    retval = -1;
+    cbuf  *cb = NULL;
+    cxobj *x;
+    char  *name;
+    char  *revision;
+    char  *namespace;
+
+    if ((cb = cbuf_new()) == NULL){
+        clicon_err(OE_UNIX, errno, "cbuf_new");
+        goto done;
+    }
+    cprintf(cb, "<yang-library xmlns=\"urn:ietf:params:xml:ns:yang:ietf-yang-library\">");
+    cprintf(cb, "<module-set>");
+    cprintf(cb, "<name>mount</name>");
+    x = NULL;
+    while ((x = xml_child_each(xmodset, x, CX_ELMNT)) != NULL) {
+        if (strcmp(xml_name(x), "module") != 0)
+            continue;
+        if ((name = xml_find_body(x, "name")) == NULL){
+            clicon_debug(CLIXON_DBG_DEFAULT, "%s: no name in module", __FUNCTION__);
+            continue;
+        }
+        revision = xml_find_body(x, "revision");
+        namespace = xml_find_body(x, "namespace");
+        cprintf(cb, "<module>");
+        cprintf(cb, "<name>%s</name>", name);
+        if (revision)
+            cprintf(cb, "<revision>%s</revision>", revision);
+        if (namespace)
+            cprintf(cb, "<namespace>%s</namespace>", namespace);
+        cprintf(cb, "</module>");
+    }
+    cprintf(cb, "</module-set>");
+    cprintf(cb, "</yang-library>");
+    /* Need yspec to make YB_MODULE */
+    if (clixon_xml_parse_string(cbuf_get(cb), YB_NONE, NULL, xyanglib, NULL) < 0)
+        goto done;
+    retval = 0;
+ done:
+    if (cb)
+        cbuf_free(cb);
+    return retval;
+}
+
 #ifdef CONTROLLER_JUNOS_ADD_COMMAND_FORWARDING
 /*! Rewrite of junos YANGs after parsing
  *
  * Add grouping command-forwarding in junos-rpc yangs if not exists
  * tried to make other less intrusive solutions or make a generic way in the
  * original function, but the easiest was just to rewrite the function.
- * @param[in] h       Clicon handle
- * @param[in] yanglib XML tree on the form <yang-lib>...
- * @param[in] yspec   Will be populated with YANGs, is consumed
- * @retval    1       OK
- * @retval    0       Parse error
- * @retval    -1      Error
+ * @param[in] h        Clicon handle
+ * @param[in] xyanglib XML tree on the form <yang-lib>...
+ * @param[in] yspec    Will be populated with YANGs, is consumed
+ * @retval    1        OK
+ * @retval    0        Failed: Parse error or no matching modules
+ * @retval   -1        Error
  * @see yang_lib2yspec  the original function
  */
 int
 yang_lib2yspec_junos_patch(clicon_handle h,
-                           cxobj        *yanglib,
+                           cxobj        *xyanglib,
                            yang_stmt    *yspec)
 {
     int        retval = -1;
@@ -329,14 +384,13 @@ yang_lib2yspec_junos_patch(clicon_handle h,
     int        modmin = 0;
     
     clicon_debug(1, "%s", __FUNCTION__);
-    if (xpath_vec(yanglib, nsc, "module-set/module", &vec, &veclen) < 0) 
+    if (xpath_vec(xyanglib, nsc, "module-set/module", &vec, &veclen) < 0) 
         goto done;
     for (i=0; i<veclen; i++){
         xi = vec[i];
         if ((name = xml_find_body(xi, "name")) == NULL)
             continue;
-        if ((revision = xml_find_body(xi, "revision")) == NULL)
-            continue;
+        revision = xml_find_body(xi, "revision");
         if ((ymod = yang_find(yspec, Y_MODULE, name)) != NULL ||
             (ymod = yang_find(yspec, Y_SUBMODULE, name)) != NULL){
             /* Skip if matching or no revision 
@@ -346,7 +400,7 @@ yang_lib2yspec_junos_patch(clicon_handle h,
                 modmin++;
                 continue;
             }
-            if (strcmp(yang_argument_get(yrev), revision) == 0){
+            if (revision == NULL || strcmp(yang_argument_get(yrev), revision) == 0){
                 modmin++;
                 continue;
             }
@@ -363,8 +417,10 @@ yang_lib2yspec_junos_patch(clicon_handle h,
     else if (yang_parse_module(h, "ietf-yang-library", "2019-01-04", yspec, NULL) < 0)
         goto fail;
     clicon_debug(1, "%s yang_parse_post", __FUNCTION__);
-    if (yang_parse_post(h, yspec, yang_len_get(yspec) - (1+veclen - modmin)) < 0)
-        goto done;
+    if ((modmin = yang_len_get(yspec) - (1+veclen - modmin)) >= 0){
+        if (yang_parse_post(h, yspec, modmin) < 0)
+            goto done;
+    }
     retval = 1;
  done:
     clicon_debug(1, "%s %d", __FUNCTION__, retval);

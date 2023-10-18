@@ -53,7 +53,7 @@
  */
 #define CLIXON_NETCONF_BIN "/usr/local/bin/clixon_netconf"
 
-/*! Connect to backend using internal netconf
+/*! Connect using internal netconf
  *
  * @param[in]  h     Clixon  handle
  * @param[in]  name  Client name
@@ -111,7 +111,7 @@ clixon_client_connect_netconf(clixon_handle  h,
     return retval;
 }
 
-/*! Connect to backend using NETCONF over SSH
+/*! Connect using NETCONF over SSH
  */
 int
 clixon_client_connect_ssh(clixon_handle  h,

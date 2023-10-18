@@ -131,8 +131,10 @@ controller_connect(clixon_handle           h,
     char         *enablestr;
     char         *yfstr;
     cxobj        *xb;
-    cxobj        *xdevclass = NULL;
-    
+    cxobj        *xdevprofile = NULL;
+    cxobj        *xmod = NULL;
+    cxobj        *xyanglib = NULL;
+
     clicon_debug(1, "%s", __FUNCTION__);
     if ((name = xml_find_body(xn, "name")) == NULL)
         goto ok;
@@ -148,16 +150,16 @@ controller_connect(clixon_handle           h,
     if (dh != NULL &&
         device_handle_conn_state_get(dh) != CS_CLOSED)
         goto ok;
-    /* Find device-class object if any */
-    if ((xb = xml_find_type(xn, NULL, "device-class", CX_ELMNT)) != NULL){
-        xdevclass = xpath_first(xn, NULL, "../device-class[name='%s']", xml_body(xb));
+    /* Find device-profile object if any */
+    if ((xb = xml_find_type(xn, NULL, "device-profile", CX_ELMNT)) != NULL){
+        xdevprofile = xpath_first(xn, NULL, "../device-profile[name='%s']", xml_body(xb));
     }
     if ((xb = xml_find_type(xn, NULL, "conn-type", CX_ELMNT)) == NULL)
         goto ok;
-    /* If not explicit value (default value set) AND device-class set, use that */
+    /* If not explicit value (default value set) AND device-profile set, use that */
     if (xml_flag(xb, XML_FLAG_DEFAULT) &&
-        xdevclass)
-        xb = xml_find_type(xdevclass, NULL, "conn-type", CX_ELMNT);
+        xdevprofile)
+        xb = xml_find_type(xdevprofile, NULL, "conn-type", CX_ELMNT);
     /* Only handle netconf/ssh */
     if ((type = xml_body(xb)) == NULL ||
         strcmp(type, "NETCONF_SSH")){
@@ -171,8 +173,8 @@ controller_connect(clixon_handle           h,
         goto failed;
     }
     if ((xb = xml_find_type(xn, NULL, "user", CX_ELMNT)) == NULL &&
-        xdevclass){
-        xb = xml_find_type(xdevclass, NULL, "user", CX_ELMNT);
+        xdevprofile){
+        xb = xml_find_type(xdevprofile, NULL, "user", CX_ELMNT);
     }
     if (xb != NULL)
         user = xml_body(xb);
@@ -185,14 +187,28 @@ controller_connect(clixon_handle           h,
     if ((xb = xml_find_type(xn, NULL, "yang-config", CX_ELMNT)) == NULL)
         goto ok;
     if (xml_flag(xb, XML_FLAG_DEFAULT) &&
-        xdevclass)
-        xb = xml_find_type(xdevclass, NULL, "yang-config", CX_ELMNT);
+        xdevprofile)
+        xb = xml_find_type(xdevprofile, NULL, "yang-config", CX_ELMNT);
     if ((yfstr = xml_body(xb)) == NULL){
         if ((*reason = strdup("Connect failed: yang-config missing from device config")) == NULL)
             goto done;
         goto failed;
     }
     device_handle_yang_config_set(dh, yfstr); /* Cache yang config */
+    /* Parse and save local methods into RFC 8525 yang-lib module-set/module */
+    if ((xmod = xml_find_type(xn, NULL, "module-set", CX_ELMNT)) == NULL)
+        xmod = xml_find_type(xdevprofile, NULL, "module-set", CX_ELMNT);
+    if (xmod){
+        xyanglib = device_handle_yang_lib_get(dh);
+        if (xdev2yang_library(xmod, &xyanglib) < 0)
+            goto done;
+        if (xyanglib){
+            if (xml_rootchild(xyanglib, 0, &xyanglib) < 0)
+                goto done;
+            if (device_handle_yang_lib_set(dh, xyanglib) < 0)
+                goto done;
+        }
+    }
     /* Point of no return: assume errors handled in device_input_cb */
     device_handle_tid_set(dh, ct->ct_id);
     if (connect_netconf_ssh(h, dh, user, addr) < 0) /* match */
@@ -465,7 +481,7 @@ actions_timeout(int   s,
     controller_transaction *ct = (controller_transaction *)arg;
     
     clicon_debug(1, "%s", __FUNCTION__);
-    if (controller_transaction_failed(ct->ct_h, ct->ct_id, ct, NULL, 0, "Actions", "Timeout waiting for action daemon") < 0)
+    if (controller_transaction_failed(ct->ct_h, ct->ct_id, ct, NULL, TR_FAILED_DEV_IGNORE, "Actions", "Timeout waiting for action daemon") < 0)
         goto done;
     if (ct->ct_state == TS_INIT){ /* 1.3 The transition is not in an error state */
         controller_transaction_state_set(ct, TS_RESOLVED, TR_FAILED);
@@ -823,7 +839,7 @@ commit_push_after_actions(clixon_handle           h,
                         goto done;
                     if (netconf_err2cb(xerr, cberr2) < 0)
                         goto done;
-                    if (controller_transaction_failed(h, ct->ct_id, ct, NULL, 1,
+                    if (controller_transaction_failed(h, ct->ct_id, ct, NULL, TR_FAILED_DEV_LEAVE,
                                                       NULL,
                                                       cbuf_get(cberr2)) < 0)
                         goto done;
@@ -1646,7 +1662,7 @@ rpc_transaction_error(clixon_handle h,
     }
     origin = xml_find_body(xe, "origin");
     reason = xml_find_body(xe, "reason");
-    if (controller_transaction_failed(h, tid, ct, NULL, 0, origin, reason) < 0)
+    if (controller_transaction_failed(h, tid, ct, NULL, TR_FAILED_DEV_IGNORE, origin, reason) < 0)
         goto done;
     if (controller_transaction_done(h, ct, TR_FAILED) < 0)
         goto done;

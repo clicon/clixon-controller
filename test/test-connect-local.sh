@@ -1,12 +1,9 @@
-# Controller initial connect and push when no devices are still present,
-# I.e., boostrapping from empty config
-# See also https://github.com/clicon/clixon-controller/issues/5
-# The test is essentially a precursor to test-cli-edit-commit-push but with no pre-configuration
-# I.e., run reset-controller.sh from cli
-# Start w no config
-# 1. Open first device
-# 2. Open second device
-# Reset and do same with device-profile
+# Controller connect of static yang modules, ie no get-schame
+# Boostrapping from empty config
+# Note that the test restarts devices backends with CLICON_NETCONF_MONITORING=false to disable RFC 6025
+# 1. Non-complete module, check YANG bind failed
+# 2. Non-existent module, check No yangs found
+# 3. Full module
 
 set -u
 
@@ -105,94 +102,43 @@ module clixon-test {
 EOF
 
 # Reset devices with initial config
+NETCONF_MONITORING=false
 . ./reset-devices.sh
+NETCONF_MONITORING=true
+
+# Preset device-profile with a non-complete yang (openconfig-interfaces)
+cat <<EOF > $dir/startup_db
+<config>
+   <devices xmlns="http://clicon.org/controller">
+      <device-profile>
+         <name>myprofile</name>
+         <user>$USER</user>
+         <conn-type>NETCONF_SSH</conn-type>
+         <yang-config>BIND</yang-config>
+         <module-set>
+           <module>
+              <name>openconfig-interfaces</name>
+           </module>
+         </module-set>
+      </device-profile>
+   </devices>
+</config>
+EOF
 
 if $BE; then
     new "Kill old backend"
-    sudo clixon_backend -s init -f $CFG -z
+    sudo clixon_backend -f $CFG -z
 
-    new "Start new backend -s init -f $CFG"
-    start_backend -s init -f $CFG
+    new "Start new backend -s startup -f $CFG"
+    start_backend -s startup -f $CFG
 fi
 
 # Check backend is running
 wait_backend
 
-# Reset controller
-ii=1
+ii=0
 for ip in $CONTAINERS; do
-    NAME="$IMG$ii"
-    cmd="set devices device $NAME enabled true"
-    new "$cmd"
-    expectpart "$($clixon_cli -1 -m configure -f $CFG $cmd)" 0 "^$"
-
-    cmd="set devices device $NAME conn-type NETCONF_SSH"
-    new "$cmd"
-    expectpart "$($clixon_cli -1 -m configure -f $CFG $cmd)" 0 "^$"
-    
-    cmd="set devices device $NAME user $USER"
-    new "$cmd"
-    expectpart "$($clixon_cli -1 -m configure -f $CFG $cmd)" 0 "^$"
-    
-    cmd="set devices device $NAME addr $ip"
-    new "$cmd"
-    expectpart "$($clixon_cli -1 -m configure -f $CFG $cmd)" 0 "^$"
-
-    new "commit"
-    expectpart "$($clixon_cli -1 -m configure -f $CFG commit local)" 0 "^$"
-
-#    sleep $sleep
-
-    new "connection open"
-    expectpart "$($clixon_cli -1 -f $CFG connection open)" 0 "^$"
-    
-    sleep $sleep
-    
-    new "Verify controller"
-    res=$(${clixon_cli} -1f $CFG show devices | grep OPEN | wc -l)
-
-    if [ "$res" != "$ii" ]; then
-        err1 "$ii open devices" "$res"
-    fi
-
     ii=$((ii+1))
-done
-
-new "connection close"
-expectpart "$($clixon_cli -1 -f $CFG connection close)" 0 "^$"
-
-new "Delete devices config"
-expectpart "$($clixon_cli -1 -m configure -f $CFG delete devices)" 0 "^$"
-
-new "commit local"
-expectpart "$($clixon_cli -1 -m configure -f $CFG commit local)" 0 "^$"
-
-new "Verify controller"
-res=$(${clixon_cli} -1f $CFG show devices | grep OPEN | wc -l)
-
-if [ "$res" != "0" ]; then
-    echo "Error: $res devices open, expected 0"
-    exit -1;
-fi
-
-# Create device-profile myprofile
-cmd="set devices device-profile myprofile user $USER"
-new "$cmd"
-expectpart "$($clixon_cli -1 -m configure -f $CFG $cmd)" 0 "^$"
-
-cmd="set devices device-profile myprofile conn-type NETCONF_SSH"
-new "$cmd"
-expectpart "$($clixon_cli -1 -m configure -f $CFG $cmd)" 0 "^$"
-
-cmd="set devices device-profile myprofile yang-config BIND"
-new "$cmd"
-expectpart "$($clixon_cli -1 -m configure -f $CFG $cmd)" 0 "^$"
-
-new "commit"
-expectpart "$($clixon_cli -1 -m configure -f $CFG commit local)" 0 "^$"
-
-ii=1
-for ip in $CONTAINERS; do
     NAME="$IMG$ii"
     cmd="set devices device $NAME device-profile myprofile"
     new "$cmd"
@@ -205,24 +151,82 @@ for ip in $CONTAINERS; do
     cmd="set devices device $NAME addr $ip"
     new "$cmd"
     expectpart "$($clixon_cli -1 -m configure -f $CFG $cmd)" 0 "^$"
-    
-    ii=$((ii+1))
 done
 
-new "commit"
+new "commit local"
 expectpart "$($clixon_cli -1 -m configure -f $CFG commit local)" 0 "^$"
     
 new "connection open"
 expectpart "$($clixon_cli -1 -f $CFG connection open)" 0 "^$"
 
 sleep $sleep
+
+# Not complete YANG
+new "Verify controller: all closed"
+res=$(${clixon_cli} -1f $CFG show devices | grep CLOSED | wc -l)
+
+if [ "$res" != "$ii" ]; then
+    err1 "$ii closed devices" "$res"
+fi
+
+new "Verify reason: YANG bind failed"
+res=$(${clixon_cli} -1f $CFG show devices | grep "YANG bind failed" | wc -l)
+if [ "$res" != "$ii" ]; then
+    err1 "$ii bind failed" "$res"
+fi
+
+# 2. YANG file not found
+cmd="delete devices device-profile myprofile module-set"
+new "$cmd"
+expectpart "$($clixon_cli -1 -m configure -f $CFG $cmd)" 0 "^$"
+
+cmd="set devices device-profile myprofile module-set module openconfig-xxx"
+new "$cmd"
+expectpart "$($clixon_cli -1 -m configure -f $CFG $cmd)" 0 "^$"
+
+new "commit local"
+expectpart "$($clixon_cli -1 -m configure -f $CFG commit local)" 0 "^$"
     
-new "Verify controller"
+new "connection open"
+expectpart "$($clixon_cli -1 -f $CFG connection open)" 0 "^$"
+
+sleep $sleep
+
+new "Verify controller: all closed"
+res=$(${clixon_cli} -1f $CFG show devices | grep CLOSED | wc -l)
+
+if [ "$res" != "$ii" ]; then
+    err1 "$ii closed devices" "$res"
+fi
+
+new "Verify reason: No yang files found"
+res=$(${clixon_cli} -1f $CFG show devices | grep " No yang files found" | wc -l)
+if [ "$res" != "$ii" ]; then
+    err1 "$ii bind failed" "$res"
+fi
+
+# Add proper yang
+cmd="delete devices device-profile myprofile module-set"
+new "$cmd"
+expectpart "$($clixon_cli -1 -m configure -f $CFG $cmd)" 0 "^$"
+
+cmd="set devices device-profile myprofile module-set module openconfig-system"
+new "$cmd"
+expectpart "$($clixon_cli -1 -m configure -f $CFG $cmd)" 0 "^$"
+
+new "commit local"
+expectpart "$($clixon_cli -1 -m configure -f $CFG commit local)" 0 "^$"
+    
+new "connection open"
+expectpart "$($clixon_cli -1 -f $CFG connection open)" 0 "^$"
+
+sleep $sleep
+
+new "Verify controller: all open"
 res=$(${clixon_cli} -1f $CFG show devices | grep OPEN | wc -l)
 
-nr=$((ii-1))
-if [ "$res" != "$nr" ]; then
-    err1 "$nr devices" "$res"
+if [ "$res" != "$ii" ]; then
+    err1 "$ii open devices" "$res"
 fi
 
 if $BE; then
@@ -230,6 +234,7 @@ if $BE; then
     stop_backend -f $CFG
 fi
 
+unset NAME
 unset nr
 unset ii
 

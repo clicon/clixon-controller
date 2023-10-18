@@ -196,7 +196,7 @@ device_send_get_schema_next(clixon_handle h,
         /* Check if already loaded */
         if (yang_find_module_by_name_revision(yspec, name, revision) != NULL)
             continue;
-        /* Chekc if exists as local file */
+        /* Check if exists as local file */
         if ((ret = yang_file_find_match(h, name, revision, NULL)) < 0)
             goto done;
         if (ret == 1)
