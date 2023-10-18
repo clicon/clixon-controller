@@ -720,21 +720,22 @@ device_handle_yang_lib_get(device_handle dh)
 
 /*! Set RFC 8525 yang library as xml tree
  *
- * @param[in]  dh      Device handle
- * @param[in]  yanglib XML tree, is consumed
- * @retval     0       OK
+ * @param[in]  dh     Device handle
+ * @param[in]  xylib  XML tree, is consumed
+ * @retval     0      OK
  */
 int
 device_handle_yang_lib_set(device_handle dh,
-                           cxobj        *yang_lib)
+                           cxobj        *xylib)
 {
     struct controller_device_handle *cdh = devhandle(dh);
 
     if (cdh->cdh_yang_lib != NULL)
         xml_free(cdh->cdh_yang_lib);
-    cdh->cdh_yang_lib = yang_lib;
+    cdh->cdh_yang_lib = xylib;
     return 0;
 }
+
 
 /*! Get sync timestamp
  *

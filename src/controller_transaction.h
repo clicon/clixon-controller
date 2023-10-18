@@ -63,6 +63,20 @@ struct controller_transaction_t{
 };
 typedef struct controller_transaction_t controller_transaction;
     
+/*! transaction failed device close parameter
+ * If device handle is set, one can either:
+ * - Ignore the device just fail transaction. Typically if device is already closed or handled 
+ *   elsewhere
+ * - Device leaves the transaction
+ * - Close the device and leave the transaction
+ */
+enum tr_failed_devclose_t {
+    TR_FAILED_DEV_IGNORE,
+    TR_FAILED_DEV_LEAVE,
+    TR_FAILED_DEV_CLOSE
+};
+typedef enum tr_failed_devclose_t tr_failed_devclose;
+
 /*
  * Prototypes
  */
@@ -80,7 +94,7 @@ int   controller_transaction_done(clicon_handle h, controller_transaction *ct, t
 controller_transaction *controller_transaction_find(clixon_handle h, const uint64_t id);
 int   controller_transaction_devices(clicon_handle h, uint64_t tid);
 int   controller_transaction_failed(clicon_handle h, uint64_t tid, controller_transaction *ct, device_handle dh,
-                                    int devclose, char *origin, char *reason);
+                                    tr_failed_devclose devclose, char *origin, char *reason);
 int   controller_transaction_wait(clicon_handle h, uint64_t tid);
 int   controller_transaction_wait_trigger(clicon_handle h, uint64_t tid, int commit);
 int   controller_transactions_statedata(clixon_handle h, cvec *nsc, char *xpath, cxobj *xstate);

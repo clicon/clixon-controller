@@ -6,6 +6,10 @@ echo "reset-devices"
 
 # Set if also check, which only works for clixon-example
 : ${check:=true}
+: ${dir:=/var/tmp}
+
+# Netconf monitoring on device config (affects clients not backend)
+: ${NETCONF_MONITORING:=true}
 
 # Data
 
@@ -14,6 +18,13 @@ REQ='<interfaces xmlns="http://openconfig.net/yang/interfaces"/>'
 
 CONFIG='<interfaces xmlns="http://openconfig.net/yang/interfaces"><interface><name>x</name><config><name>x</name><type xmlns:ianaift="urn:ietf:params:xml:ns:yang:iana-if-type">ianaift:ethernetCsmacd</type></config></interface><interface><name>y</name><config><name>y</name><type xmlns:ianaift="urn:ietf:params:xml:ns:yang:iana-if-type">ianaift:atm</type></config></interface></interfaces>'
 CHECK='<interfaces xmlns="http://openconfig.net/yang/interfaces"><interface><name>y</name><config><name>y</name><type xmlns:ianaift="urn:ietf:params:xml:ns:yang:iana-if-type">ianaift:atm</type></config></interface></interfaces>'
+
+# Reset devices backends with RFC 6022 enabled
+cat <<EOF > $dir/extra.xml
+<clixon-config xmlns="http://clicon.org/config">
+   <CLICON_NETCONF_MONITORING>${NETCONF_MONITORING}</CLICON_NETCONF_MONITORING>
+</clixon-config>
+EOF
 
 # Add hostname
 i=1
@@ -56,6 +67,9 @@ EOF
         exit 1
     fi
     i=$((i+1))
+
+    new "Reset CLICON_NETCONF_MONITORING=true"
+    sudo docker cp -q $dir/extra.xml $NAME:/usr/local/etc/clixon/openconfig/extra.xml
 done
 
 # Early exit point, do not check pulled config

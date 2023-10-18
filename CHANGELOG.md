@@ -3,14 +3,20 @@
 ## 0.2.0
 Expected: December 2023
 
-### Minor features
+### New features
 
-* Added new configuration feature: device-class
+* [Support a loadable mechanism for device profiles](https://github.com/clicon/clixon-controller/issues/21)
+  * The mechanism loads a set of configured modules locally from disk,
+  * Instead of using RFC 6022 NETCONF monitoring get-schema method to devices
+  * Modified the controller yang with device-profile and device-common
+  * Remains: combination of local load and NETCONF monitoring
 
 ### API changes on existing protocol/config features
 
 * New `clixon-controller@2023-11-01.yang` revision
-  * Added Added device-class list
+  * Added device-profile list
+  * Added device-common grouping, for common device/device-profile fields
+  * Added module-set to device-common
   
 ## 0.1.0
 30 September 2023

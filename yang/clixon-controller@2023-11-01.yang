@@ -23,11 +23,16 @@ module clixon-controller {
     import ietf-netconf-monitoring {
         prefix ncm;
     }
+    import ietf-yang-library {
+        prefix yanglib;
+    }
     description
         "Clixon controller";
     revision 2023-11-01 {
         description
-            "Added device-class list
+            "Added device-profile list
+             Added device-common grouping, for common device/device-profile fields
+             Added module-set to device-common
              Released in 0.2.0";
     }
     revision 2023-09-01 {
@@ -268,6 +273,37 @@ module clixon-controller {
             }
         }
     }
+    grouping device-common {
+        description "Common fields for devices and device-profiles";
+        leaf user{
+            description
+                "Which use to connect as to the device, if applicable";
+            type string;
+        }
+        leaf conn-type{
+            description
+                "Connection type, eg how to connect to (or from) the device";
+            type connection-type;
+            default NETCONF_SSH;
+        }
+        leaf yang-config{
+            description "How to bind device configuration to YANG.";
+            type yang-config;
+            default BIND;
+        }
+        container module-set {
+            list module {
+                key "name";
+                description
+                    "Yang schemas statically required for this device/profile.
+                     Must exist on local storage accessible via the YANG_DIR options.
+                     An entry in this list represents a module implemented by the
+                     server, as per Section 5.6.5 of RFC 7950, with a particular
+                     set of supported features and deviations.";
+                uses yanglib:module-identification-leafs;
+            }
+        }
+    }
     container processes {
         description "Process configuration";
         container services {
@@ -308,43 +344,6 @@ module clixon-controller {
             default 60;
             units s;
         }
-        list device-class{
-            description
-                "Device class containing common config for devices.
-                 A device can belong to one (or no) class.
-                 The fields in the class are default values, that can be overridden
-                 by fields given in the device section.";
-            key name;
-            leaf name{
-                type string;
-            }
-            leaf description{
-                description
-                    "Description of device-class";
-                type string;
-            }
-            leaf conn-type{
-                description
-                    "Connection type, eg how to connect to (or from) the device";
-                type connection-type;
-                default NETCONF_SSH;
-            }
-            leaf user{
-                description
-                    "Which use to connect as to the device, if applicable";
-                type string;
-            }
-            leaf addr{
-                description
-                    "DNS name or ip address of device for connection setup (see also user)";
-                type string;
-            }
-            leaf yang-config{
-                description "How to bind device configuration to YANG.";
-                type yang-config;
-                default BIND;
-            }
-        }
         list device-group{
             description "Groups of devices";
             key name;
@@ -372,6 +371,18 @@ module clixon-controller {
                 }
             }
         }
+        list device-profile {
+            key name;
+            leaf name{
+                type string;
+            }
+            description
+                "Device profile containing common config for devices.
+                 A device can belong to one (or no) profile.
+                 The fields in the profile are default values, that can be overridden
+                 by fields given in the device section.";
+            uses device-common;
+        }
         list device{
             key name;
             leaf name{
@@ -380,20 +391,6 @@ module clixon-controller {
             leaf description{
                 description
                     "Description of device";
-                type string;
-            }
-            leaf device-class {
-                description "Absolute references existing interfaces in if module";
-                type leafref {
-                    path "../../device-class/name";
-                    require-instance true;
-                }
-            }
-            leaf device-type{
-                description
-                    "General-purpose field to characterize a device. 
-                     This is a freetext field for manual editing  where info such as
-                     vendor, version etc could be added";
                 type string;
             }
             leaf enabled {
@@ -406,32 +403,29 @@ module clixon-controller {
                      If true, a connection to the device is attempted, striving to
                      reach the state OPEN";
             }
-            leaf conn-type{
-                description
-                    "Connection type, eg how to connect to (or from) the device
-                     If device-class given, use that value as default";
-                type connection-type;
-                default NETCONF_SSH;
+            leaf device-profile {
+                description "Absolute references existing interfaces in if module";
+                type leafref {
+                    path "../../device-profile/name";
+                    require-instance true;
+                }
             }
-            leaf user{
+            uses device-common;
+            leaf device-type{
                 description
-                    "Which use to connect as to the device, if applicable.
-                     If device-class given, use that value as default";
+                    "General-purpose field to characterize a device. 
+                     This is a freetext field for manual editing  where info such as
+                     vendor, version etc could be added";
                 type string;
             }
+
             leaf addr{
                 description
                     "DNS name or ip address of device for connection setup (see also user)";
                 mandatory true;
                 type string;
             }
-            leaf yang-config{
-                description
-                    "How to bind device configuration to YANG.
-                     If device-class given, use that value as default";
-                type yang-config;
-                default BIND;
-            }
+            /* From here, state data */
             leaf conn-state {
                 description
                     "State of connection";

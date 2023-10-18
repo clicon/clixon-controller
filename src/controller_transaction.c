@@ -490,23 +490,21 @@ controller_transaction_devices(clicon_handle h,
  * @param[in]  reason Reason for terminating transaction. If set && !recover -> close device
  * @retval     0      OK
  * @retval    -1      Error
- * @note devclose=0 means either that the device is already closed or is handled by the caller
- *       It also means that the caller must ensure the device leaves the transaction and marks it done if last
  */
 int
 controller_transaction_failed(clicon_handle           h,
                               uint64_t                tid,
                               controller_transaction *ct,                              
                               device_handle           dh,
-                              int                     devclose,
+                              tr_failed_devclose      devclose,
                               char                   *origin,
                               char                   *reason)
 {
     int retval = -1;
 
     clicon_debug(1, "%s", __FUNCTION__);
-    if (dh != NULL && devclose){
-        if (devclose == 2){
+    if (dh != NULL && devclose != TR_FAILED_DEV_IGNORE){
+        if (devclose == TR_FAILED_DEV_CLOSE){
             /* 1.2 The error is not recoverable */
             /* 1.2.1 close the device */
             if (device_close_connection(dh, "%s", reason) < 0)

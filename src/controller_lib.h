@@ -114,6 +114,7 @@ push_type push_type_str2int(char *str);
 char *actions_type_int2str(actions_type t);
 actions_type actions_type_str2int(char *str);
 int schema_list2yang_library(cxobj *xschemas, cxobj **xyanglib);
+int xdev2yang_library(cxobj *xdev, cxobj **xyanglib);
 int yang_lib2yspec_junos_patch(clicon_handle h, cxobj *yanglib, yang_stmt *yspec);
     
 #ifdef __cplusplus

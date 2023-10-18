@@ -146,6 +146,9 @@ yang_config_str2int(char *str)
  * @param[in]  format  Format string for Log message or NULL
  * @retval     0       OK
  * @retval    -1       Error
+ * @note If device is part of transaction, you should call controller_transaction_failed() either:
+ *       - instead with devclose = TR_FAILED_DEV_CLOSE
+ *       - sfter with devclose = TR_FAILED_DEV_LEAVE
  */
 int
 device_close_connection(device_handle dh,
@@ -159,7 +162,7 @@ device_close_connection(device_handle dh,
     char          *name;
 
     name = device_handle_name_get(dh);
-    clicon_debug(1, "%s %s", __FUNCTION__, name);
+    clicon_debug(CLIXON_DBG_DETAIL, "%s %s", __FUNCTION__, name);
     if ((s = device_handle_socket_get(dh)) == -1){
         clicon_err(OE_UNIX, errno, "%s: socket is -1", device_handle_name_get(dh));
         goto done;
@@ -189,12 +192,12 @@ device_close_connection(device_handle dh,
         }
         va_end(ap);
         device_handle_logmsg_set(dh, str);
-        clicon_debug(1, "%s %s: %s", __FUNCTION__, name, str);
+        clicon_debug(CLIXON_DBG_DEFAULT, "%s %s: %s", __FUNCTION__, name, str);
         str = NULL;
     }
     retval = 0;
  done:
-    clicon_debug(1, "%s retval: %d", __FUNCTION__, retval);
+    clicon_debug(CLIXON_DBG_DETAIL, "%s retval: %d", __FUNCTION__, retval);
     if (str)
         free(str);
     return retval;
@@ -244,7 +247,7 @@ device_input_cb(int   s,
         goto done;
     if (eof){
         if (ct){
-            if (controller_transaction_failed(h, tid, ct, dh, 2, name, "Closed by device") < 0)
+            if (controller_transaction_failed(h, tid, ct, dh, TR_FAILED_DEV_CLOSE, name, "Closed by device") < 0)
                 goto done;
         }
         else
@@ -270,7 +273,6 @@ device_input_cb(int   s,
         clicon_debug(CLIXON_DBG_MSG, "Recv from %s: %s", name, cbuf_get(cbmsg));
         if ((ret = netconf_input_frame2(cbmsg, YB_NONE, NULL, &xtop, &xerr)) < 0)
             goto done;
-        clicon_debug(1, "%s ret:%d", __FUNCTION__, ret);
         cbuf_reset(cbmsg);
         if (ret == 0){
             if ((cberr = cbuf_new()) == NULL){
@@ -281,7 +283,7 @@ device_input_cb(int   s,
                 goto done;
             if (ct){
                 // use XXX cberr but its XML
-                if (controller_transaction_failed(h, tid, ct, dh, 2, name, "Invalid frame") < 0)
+                if (controller_transaction_failed(h, tid, ct, dh, TR_FAILED_DEV_CLOSE, name, "Invalid frame") < 0)
                     goto done;
             }
             else
@@ -353,56 +355,63 @@ device_state_mount_point_get(char      *devicename,
     return retval;
 }
 
-/*! All schemas ready from one device, parse the locally
+/*! All schemas (yang_lib) ready from one device, load them from file into yspec mount
  *
- * @param[in] h          Clixon handle.
- * @param[in] dh         Clixon client handle.
- * @retval    1          OK
- * @retval    0          YANG parse error
- * @retval   -1          Error
+ * @param[in] h        Clixon handle.
+ * @param[in] dh       Clixon client handle.
+ * @param[in] yspec0   Top-level Yang specs
+ * @param[in] xyanglib XML tree of yang module-set
+ * @retval    1        OK
+ * @retval    0        Fail, pare or other error, device is closed
+ * @retval   -1        Error
  */
 static int
-device_state_schemas_ready(clixon_handle h,
-                           device_handle dh,
-                           yang_stmt    *yspec0)
+device_schemas_load_mount(clixon_handle h,
+                          device_handle dh,
+                          cxobj        *xyanglib,
+                          yang_stmt    *yspec0)
 {
     int        retval = -1;
     yang_stmt *yspec1;
-    cxobj     *yanglib;
     cxobj     *xt = NULL;
     cxobj     *xmount;
     char      *devname;
     int        ret;
     
-    clicon_debug(1, "%s", __FUNCTION__);
+    clicon_debug(CLIXON_DBG_DETAIL, "%s", __FUNCTION__);
+    if (xpath_first(xyanglib, 0, "module-set/module") == NULL){
+        /* No modules: No local and no */
+        device_close_connection(dh, "Empty set of YANG modules");
+        goto fail;        
+    }
     if ((yspec1 = device_handle_yspec_get(dh)) == NULL){
         clicon_err(OE_YANG, 0, "No yang spec");
         goto done;
     }
-    yanglib = device_handle_yang_lib_get(dh);
     /* Given yang-lib, parse all modules into yspec */
 #ifdef CONTROLLER_JUNOS_ADD_COMMAND_FORWARDING
     /* Added extra JUNOS patch to mod YANGs */
-    if ((ret = yang_lib2yspec_junos_patch(h, yanglib, yspec1)) < 0)
+    if ((ret = yang_lib2yspec_junos_patch(h, xyanglib, yspec1)) < 0)
         goto done;
 #else
-    if ((ret = yang_lib2yspec(h, yanglib, yspec1)) < 0)
+    if ((ret = yang_lib2yspec(h, xyanglib, yspec1)) < 0)
         goto done;
 #endif
-    if (ret == 0)
+    if (ret == 0){
+        device_close_connection(dh, "%s", clicon_err_reason);
+        clicon_err_reset();
         goto fail;
+    }
     devname = device_handle_name_get(dh);
     /* Create XML tree and device mount-point */
     if (device_state_mount_point_get(devname, yspec0, &xt, &xmount) < 0)
         goto done;
     if (xml_yang_mount_set(xmount, yspec1) < 0)
         goto done;    
-    if (ret == 0)
-        goto fail;
     yspec1 = NULL;
     retval = 1;
  done:
-    clicon_debug(1, "%s retval %d", __FUNCTION__, retval);
+    clicon_debug(CLIXON_DBG_DETAIL, "%s retval %d", __FUNCTION__, retval);
     if (retval<0 && yspec1)
         ys_free(yspec1);
     if (xt)
@@ -428,13 +437,13 @@ device_state_timeout(int   s,
     char                   *name;
     
     name = device_handle_name_get(dh);
-    clicon_debug(1, "%s %s", __FUNCTION__, name);
+    clicon_debug(CLIXON_DBG_DEFAULT, "%s %s", __FUNCTION__, name);
     h = device_handle_handle_get(dh);
 
     if ((tid = device_handle_tid_get(dh)) != 0)
         ct = controller_transaction_find(h, tid);
     if (ct){
-        if (controller_transaction_failed(device_handle_handle_get(dh), tid, ct, dh, 2, name, "Timeout waiting for remote peer") < 0)
+        if (controller_transaction_failed(device_handle_handle_get(dh), tid, ct, dh, TR_FAILED_DEV_CLOSE, name, "Timeout waiting for remote peer") < 0)
             goto done;
     }
     else if (device_close_connection(dh, "Timeout waiting for remote peer") < 0)
@@ -459,7 +468,6 @@ device_state_timeout_register(device_handle dh)
     char                   *name;
     
     name = device_handle_name_get(dh);
-    clicon_debug(1, "%s %s", __FUNCTION__, name);
     gettimeofday(&t, NULL);
     h = device_handle_handle_get(dh);
     d = clicon_data_int_get(h, "controller-device-timeout");
@@ -468,7 +476,7 @@ device_state_timeout_register(device_handle dh)
     else
         t1.tv_sec = 60;
     t1.tv_usec = 0;
-    clicon_debug(1, "%s timeout:%ld s", __FUNCTION__, t1.tv_sec);
+    clicon_debug(CLIXON_DBG_DETAIL, "%s timeout:%ld s", __FUNCTION__, t1.tv_sec);
     timeradd(&t, &t1, &t);
     if ((cb = cbuf_new()) == NULL){
         clicon_err(OE_UNIX, errno, "cbuf_new");
@@ -494,7 +502,7 @@ device_state_timeout_unregister(device_handle dh)
     char *name;
     
     name = device_handle_name_get(dh);
-    clicon_debug(1, "%s %s", __FUNCTION__, name);
+    clicon_debug(CLIXON_DBG_DETAIL, "%s %s", __FUNCTION__, name);
     (void)clixon_event_unreg_timeout(device_state_timeout, dh);
     return 0;
 }
@@ -800,6 +808,7 @@ device_state_handler(clixon_handle h,
     controller_transaction *ct = NULL;
     cbuf       *cberr = NULL;
     cbuf       *cbmsg;
+    cxobj     *xyanglib;
 
     rpcname = xml_name(xmsg);
     conn_state = device_handle_conn_state_get(dh);
@@ -815,7 +824,7 @@ device_state_handler(clixon_handle h,
             break;
         }
         if (ct->ct_state != TS_INIT && ct->ct_state != TS_RESOLVED){
-            clicon_debug(1, "%s %s: Unexpected msg %s in state %s",
+            clicon_debug(CLIXON_DBG_DEFAULT, "%s %s: Unexpected msg %s in state %s",
                          __FUNCTION__, name, rpcname, transaction_state_int2str(ct->ct_state));
             break;
         }
@@ -823,7 +832,7 @@ device_state_handler(clixon_handle h,
         if ((ret = device_state_recv_hello(h, dh, s, xmsg, rpcname, conn_state)) < 0)
             goto done;
         if (ret == 0){ /* closed */
-            if (controller_transaction_failed(h, tid, ct, dh, 1, name, device_handle_logmsg_get(dh)) < 0)
+            if (controller_transaction_failed(h, tid, ct, dh, TR_FAILED_DEV_LEAVE, name, device_handle_logmsg_get(dh)) < 0)
                 goto done;
             break;
         }
@@ -839,9 +848,35 @@ device_state_handler(clixon_handle h,
             device_handle_yspec_set(dh, yspec1);
         }
         if (!device_handle_capabilities_find(dh, "urn:ietf:params:xml:ns:yang:ietf-netconf-monitoring")){
-            device_close_connection(dh, "No method to get schemas");
+            clicon_debug(CLIXON_DBG_DEFAULT, "%s Device %s: Netconf monitoring capability not announced", __FUNCTION__, name);
+            if ((xyanglib = device_handle_yang_lib_get(dh)) == NULL){
+                if (controller_transaction_failed(h, tid, ct, dh, TR_FAILED_DEV_CLOSE, name, "No YANG device lib") < 0)
+                    goto done;
+                break;
+            }
+            if (xpath_first(xyanglib, 0, "module-set/module") == NULL){
+                /* see controller_connect/xdev2yang_library */
+                if (controller_transaction_failed(h, tid, ct, dh, TR_FAILED_DEV_CLOSE, name, "No monitor caps or local YANGs") < 0)
+                    goto done;
+                break;
+            }
+            /* All schemas ready, parse them (may do device_close) */
+            if ((ret = device_schemas_load_mount(h, dh, xyanglib, yspec0)) < 0)
+                goto done;
+            if (ret == 0){
+                if (controller_transaction_failed(h, tid, ct, dh, TR_FAILED_DEV_LEAVE, name, device_handle_logmsg_get(dh)) < 0)
+                    goto done;
+                break;
+            }
+            /* Unconditionally sync */
+            if (device_send_get_config(h, dh, s) < 0)
+                goto done;
+            if (device_state_set(dh, CS_DEVICE_SYNC) < 0)
+                goto done;
             break;
         }
+        else
+            clicon_debug(CLIXON_DBG_DEFAULT, "%s Device %s: Netconf monitoring capability announced", __FUNCTION__, name);
         if ((ret = device_send_get_schema_list(h, dh, s)) < 0)
             goto done;
         if (device_state_set(dh, CS_SCHEMA_LIST) < 0)
@@ -854,7 +889,7 @@ device_state_handler(clixon_handle h,
             break;
         }
         if (ct->ct_state != TS_INIT && ct->ct_state != TS_RESOLVED){
-            clicon_debug(1, "%s %s: Unexpected msg %s in state %s",
+            clicon_debug(CLIXON_DBG_DEFAULT, "%s %s: Unexpected msg %s in state %s",
                          __FUNCTION__, name, rpcname, transaction_state_int2str(ct->ct_state));
             break;
         }
@@ -862,7 +897,7 @@ device_state_handler(clixon_handle h,
         if ((ret = device_state_recv_schema_list(dh, xmsg, rpcname, conn_state)) < 0)
             goto done;
         if (ret == 0){ /* closed */
-            if (controller_transaction_failed(h, tid, ct, dh, 1, name, device_handle_logmsg_get(dh)) < 0)
+            if (controller_transaction_failed(h, tid, ct, dh, TR_FAILED_DEV_LEAVE, name, device_handle_logmsg_get(dh)) < 0)
                 goto done;
             break;
         }
@@ -876,10 +911,16 @@ device_state_handler(clixon_handle h,
             goto done;
         if (ret == 0){ /* None found */
             /* All schemas ready, parse them */
-            if ((ret = device_state_schemas_ready(h, dh, yspec0)) < 0)
+            if ((xyanglib = device_handle_yang_lib_get(dh)) == NULL){
+                if (controller_transaction_failed(h, tid, ct, dh, TR_FAILED_DEV_LEAVE, name, "No YANG device lib") < 0)
+                    goto done;
+                break;
+            }
+            if ((ret = device_schemas_load_mount(h, dh, xyanglib, yspec0)) < 0)
                 goto done;
             if (ret == 0){
-                device_close_connection(dh, "YANG parse error");
+                if (controller_transaction_failed(h, tid, ct, dh, TR_FAILED_DEV_LEAVE, name, device_handle_logmsg_get(dh)) < 0)
+                    goto done;
                 break;
             }
             /* Unconditionally sync */
@@ -900,7 +941,7 @@ device_state_handler(clixon_handle h,
             break;
         }
         if (ct->ct_state != TS_INIT && ct->ct_state != TS_RESOLVED){
-            clicon_debug(1, "%s %s: Unexpected msg %s in state %s",
+            clicon_debug(CLIXON_DBG_DEFAULT, "%s %s: Unexpected msg %s in state %s",
                          __FUNCTION__, name, rpcname, transaction_state_int2str(ct->ct_state));
             break;
         }
@@ -908,7 +949,7 @@ device_state_handler(clixon_handle h,
         if ((ret = device_state_recv_get_schema(dh, xmsg, rpcname, conn_state)) < 0)
             goto done;
         if (ret == 0){ /* closed */
-            if (controller_transaction_failed(h, tid, ct, dh, 1, name, device_handle_logmsg_get(dh)) < 0)
+            if (controller_transaction_failed(h, tid, ct, dh, TR_FAILED_DEV_LEAVE, name, device_handle_logmsg_get(dh)) < 0)
                 goto done;
             break;
         }
@@ -923,10 +964,16 @@ device_state_handler(clixon_handle h,
             goto done;
         if (ret == 0){ /* None sent, done */
             /* All schemas ready, parse them */
-            if ((ret = device_state_schemas_ready(h, dh, yspec0)) < 0)
+            if ((xyanglib = device_handle_yang_lib_get(dh)) == NULL){
+                if (controller_transaction_failed(h, tid, ct, dh, TR_FAILED_DEV_CLOSE, name, "No YANG device lib") < 0)
+                    goto done;
+                break;
+            }
+            if ((ret = device_schemas_load_mount(h, dh, xyanglib, yspec0)) < 0)
                 goto done;
             if (ret == 0){
-                device_close_connection(dh, "YANG parse error");
+                if (controller_transaction_failed(h, tid, ct, dh, TR_FAILED_DEV_LEAVE, name, device_handle_logmsg_get(dh)) < 0)
+                    goto done;
                 break;
             }
             /* Unconditionally sync */
@@ -938,7 +985,7 @@ device_state_handler(clixon_handle h,
         }
         device_handle_nr_schemas_set(dh, nr);
         device_state_timeout_restart(dh);
-        clicon_debug(1, "%s: %s(%d) -> %s(%d)",
+        clicon_debug(CLIXON_DBG_DEFAULT, "%s: %s(%d) -> %s(%d)",
                      name,
                      device_state_int2str(conn_state), nr-1,
                      device_state_int2str(conn_state), nr);
@@ -950,7 +997,7 @@ device_state_handler(clixon_handle h,
             break;
         }
         if (ct->ct_state != TS_INIT && ct->ct_state != TS_RESOLVED){
-            clicon_debug(1, "%s %s: Unexpected msg %s in state %s",
+            clicon_debug(CLIXON_DBG_DEFAULT, "%s %s: Unexpected msg %s in state %s",
                          __FUNCTION__, name, rpcname, transaction_state_int2str(ct->ct_state));
             break;
         }
@@ -958,7 +1005,7 @@ device_state_handler(clixon_handle h,
         if ((ret = device_state_recv_config(h, dh, xmsg, yspec0, rpcname, conn_state, 0, 0)) < 0)
             goto done;
         if (ret == 0){ /* closed */
-            if (controller_transaction_failed(h, tid, ct, dh, 1, name, device_handle_logmsg_get(dh)) < 0)
+            if (controller_transaction_failed(h, tid, ct, dh, TR_FAILED_DEV_LEAVE, name, device_handle_logmsg_get(dh)) < 0)
                 goto done;
             break;
         }
@@ -989,7 +1036,7 @@ device_state_handler(clixon_handle h,
             break;
         }
         if (ct->ct_state != TS_INIT && ct->ct_state != TS_RESOLVED){
-            clicon_debug(1, "%s %s: Unexpected msg %s in state %s",
+            clicon_debug(CLIXON_DBG_DEFAULT, "%s %s: Unexpected msg %s in state %s",
                          __FUNCTION__, name, rpcname, transaction_state_int2str(ct->ct_state));
             break;
         }
@@ -1000,12 +1047,12 @@ device_state_handler(clixon_handle h,
         if (ret && (ret = device_config_compare(h, dh, name, ct, &cberr)) < 0)
             goto done;
         if (ret == 0){ /* closed */
-            if (controller_transaction_failed(h, tid, ct, dh, 1, name, device_handle_logmsg_get(dh)) < 0)
+            if (controller_transaction_failed(h, tid, ct, dh, TR_FAILED_DEV_LEAVE, name, device_handle_logmsg_get(dh)) < 0)
                 goto done;
             break;
         }
         else if (ret == 1){ /* unequal */
-            if (controller_transaction_failed(h, tid, ct, dh, 0, name, cbuf_get(cberr)) < 0)
+            if (controller_transaction_failed(h, tid, ct, dh, TR_FAILED_DEV_IGNORE, name, cbuf_get(cberr)) < 0)
                 goto done;
             if (device_state_set(dh, CS_OPEN) < 0)
                 goto done;
@@ -1028,6 +1075,9 @@ device_state_handler(clixon_handle h,
         if ((cbmsg = device_handle_outmsg_get(dh)) == NULL){
             device_close_connection(dh, "Device %s no edit-msg in state %s",
                                     name, device_state_int2str(conn_state));
+
+            if (controller_transaction_failed(h, tid, ct, dh, TR_FAILED_DEV_LEAVE, name, device_handle_logmsg_get(dh)) < 0)
+                goto done;
             break;
         }
         if (clicon_msg_send1(s, device_handle_name_get(dh), cbmsg) < 0)
@@ -1042,14 +1092,14 @@ device_state_handler(clixon_handle h,
             break;
         }
         if (ct->ct_state != TS_INIT && ct->ct_state != TS_RESOLVED){
-            clicon_debug(1, "%s %s: Unexpected msg %s in state %s",
+            clicon_debug(CLIXON_DBG_DEFAULT, "%s %s: Unexpected msg %s in state %s",
                          __FUNCTION__, name, rpcname, transaction_state_int2str(ct->ct_state));
             break;
         }
         if ((ret = device_state_recv_ok(dh, xmsg, rpcname, conn_state, &cberr)) < 0)
             goto done;
         if (ret == 0){      /* 1. The device has failed: received rpc-error/not <ok>  */
-            if (controller_transaction_failed(h, tid, ct, dh, 0, name, cbuf_get(cberr)) < 0)
+            if (controller_transaction_failed(h, tid, ct, dh, TR_FAILED_DEV_IGNORE, name, cbuf_get(cberr)) < 0)
                 goto done;
             /* 1.1 The error is "recoverable" (eg validate fail) */
             /* --> 1.1.1 Trigger DISCARD of the device */
@@ -1060,7 +1110,7 @@ device_state_handler(clixon_handle h,
             break;
         }
         else if (ret == 1){ /* 1. The device has failed and is closed */
-            if (controller_transaction_failed(h, tid, ct, dh, 1, name, NULL) < 0)
+            if (controller_transaction_failed(h, tid, ct, dh, TR_FAILED_DEV_LEAVE, name, NULL) < 0)
                 goto done;
             break;
         }
@@ -1089,14 +1139,14 @@ device_state_handler(clixon_handle h,
             break;
         }
         if (ct->ct_state != TS_INIT && ct->ct_state != TS_RESOLVED){
-            clicon_debug(1, "%s %s: Unexpected msg %s in state %s",
+            clicon_debug(CLIXON_DBG_DEFAULT, "%s %s: Unexpected msg %s in state %s",
                          __FUNCTION__, name, rpcname, transaction_state_int2str(ct->ct_state));
             break;
         }
         if ((ret = device_state_recv_ok(dh, xmsg, rpcname, conn_state, &cberr)) < 0)
             goto done;
         if (ret == 0){      /* 1. The device has failed: received rpc-error/not <ok>  */
-            if (controller_transaction_failed(h, tid, ct, dh, 0, name, cbuf_get(cberr)) < 0)
+            if (controller_transaction_failed(h, tid, ct, dh, TR_FAILED_DEV_IGNORE, name, cbuf_get(cberr)) < 0)
                 goto done;
             /* 1.1 The error is "recoverable" (eg validate fail) */
             /* --> 1.1.1 Trigger DISCARD of the device */
@@ -1107,7 +1157,7 @@ device_state_handler(clixon_handle h,
             break;
         }
         else if (ret == 1){ /* 1. The device has failed and is closed */
-            if (controller_transaction_failed(h, tid, ct, dh, 1, name, NULL) < 0)
+            if (controller_transaction_failed(h, tid, ct, dh, TR_FAILED_DEV_LEAVE, name, NULL) < 0)
                 goto done;
             break;
         }
@@ -1154,7 +1204,7 @@ device_state_handler(clixon_handle h,
                     cprintf(cberr, "%s: Commit error", name);
                     if (strlen(clicon_err_reason) > 0)
                         cprintf(cberr, " %s", clicon_err_reason);
-                    if (controller_transaction_failed(h, ct->ct_id, ct, dh, 1, name, cbuf_get(cberr)) < 0)
+                    if (controller_transaction_failed(h, ct->ct_id, ct, dh, TR_FAILED_DEV_LEAVE, name, cbuf_get(cberr)) < 0)
                         goto done;
                     break;
                 }
@@ -1169,7 +1219,7 @@ device_state_handler(clixon_handle h,
                         goto done;
                     if (netconf_err2cb(xerr, cberr2) < 0)
                         goto done;
-                    if (controller_transaction_failed(h, ct->ct_id, ct, dh, 1, name, cbuf_get(cberr2)) < 0)
+                    if (controller_transaction_failed(h, ct->ct_id, ct, dh, TR_FAILED_DEV_LEAVE, name, cbuf_get(cberr2)) < 0)
                         goto done;
                     if (xerr)
                         xml_free(xerr);
@@ -1187,19 +1237,19 @@ device_state_handler(clixon_handle h,
             break;
         }
         if (ct->ct_state != TS_INIT && ct->ct_state != TS_RESOLVED){
-            clicon_debug(1, "%s %s: Unexpected msg %s in state %s",
+            clicon_debug(CLIXON_DBG_DEFAULT, "%s %s: Unexpected msg %s in state %s",
                          __FUNCTION__, name, rpcname, transaction_state_int2str(ct->ct_state));
             break;
         }
         if ((ret = device_state_recv_ok(dh, xmsg, rpcname, conn_state, &cberr)) < 0)
             goto done;
         if (ret == 0){      /* 1. The device has failed: received rpc-error/not <ok>  */
-            if (controller_transaction_failed(h, tid, ct, dh, 2, name, cbuf_get(cberr)) < 0)
+            if (controller_transaction_failed(h, tid, ct, dh, TR_FAILED_DEV_CLOSE, name, cbuf_get(cberr)) < 0)
                 goto done;
             break;
         }
         else if (ret == 1){ /* 1. The device has failed and is closed */
-            if (controller_transaction_failed(h, tid, ct, dh, 1, name, NULL) < 0)
+            if (controller_transaction_failed(h, tid, ct, dh, TR_FAILED_DEV_LEAVE, name, NULL) < 0)
                 goto done;
             break;
         }
@@ -1273,19 +1323,19 @@ device_state_handler(clixon_handle h,
             break;
         }
         if (ct->ct_state != TS_INIT && ct->ct_state != TS_RESOLVED){
-            clicon_debug(1, "%s %s: Unexpected msg %s in state %s",
+            clicon_debug(CLIXON_DBG_DEFAULT, "%s %s: Unexpected msg %s in state %s",
                          __FUNCTION__, name, rpcname, transaction_state_int2str(ct->ct_state));
             break;
         }
         if ((ret = device_state_recv_ok(dh, xmsg, rpcname, conn_state, &cberr)) < 0)
             goto done;
         if (ret == 0){      /* 1. The device has failed: received rpc-error/not <ok>  */
-            if (controller_transaction_failed(h, tid, ct, dh, 2, name, cbuf_get(cberr)) < 0)
+            if (controller_transaction_failed(h, tid, ct, dh, TR_FAILED_DEV_CLOSE, name, cbuf_get(cberr)) < 0)
                 goto done;
             break;
         }
         else if (ret == 1){ /* 1. The device has failed and is closed */
-            if (controller_transaction_failed(h, tid, ct, dh, 1, name, NULL) < 0)
+            if (controller_transaction_failed(h, tid, ct, dh, TR_FAILED_DEV_LEAVE, name, NULL) < 0)
                 goto done;
             break;
         }
@@ -1323,7 +1373,7 @@ device_state_handler(clixon_handle h,
             break;
         }
         if (ct->ct_state != TS_INIT && ct->ct_state != TS_RESOLVED){
-            clicon_debug(1, "%s %s: Unexpected msg %s in state %s",
+            clicon_debug(CLIXON_DBG_DEFAULT, "%s %s: Unexpected msg %s in state %s",
                          __FUNCTION__, name, rpcname, transaction_state_int2str(ct->ct_state));
             break;
         }
@@ -1331,7 +1381,7 @@ device_state_handler(clixon_handle h,
         if ((ret = device_state_recv_config(h, dh, xmsg, yspec0, rpcname, conn_state, 0, 1)) < 0)
             goto done;
         if (ret == 0){ /* closed */
-            if (controller_transaction_failed(h, tid, ct, dh, 1, name, device_handle_logmsg_get(dh)) < 0)
+            if (controller_transaction_failed(h, tid, ct, dh, TR_FAILED_DEV_LEAVE, name, device_handle_logmsg_get(dh)) < 0)
                 goto done;
             break;
         }
@@ -1360,12 +1410,14 @@ device_state_handler(clixon_handle h,
     case CS_CLOSED:
     case CS_OPEN:
     default:
-        clicon_debug(1, "%s %s: Unexpected msg %s in state %s",
+        clicon_debug(CLIXON_DBG_DEFAULT, "%s %s: Unexpected msg %s in state %s",
                      __FUNCTION__, name, rpcname,
                      device_state_int2str(conn_state));
         clicon_debug_xml(2, xmsg, "Message");
         device_close_connection(dh, "Unexpected msg %s in state %s",
                                 rpcname, device_state_int2str(conn_state));
+        if (controller_transaction_failed(h, tid, ct, dh, TR_FAILED_DEV_LEAVE, name, device_handle_logmsg_get(dh)) < 0)
+            goto done;
         break;
     }
     retval = 0;
