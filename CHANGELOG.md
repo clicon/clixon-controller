@@ -17,7 +17,11 @@ Expected: December 2023
   * Added device-profile list
   * Added device-common grouping, for common device/device-profile fields
   * Added module-set to device-common
-  
+
+### Corrected Bugs
+
+* Fixed: [Validation errors not shown in CLI](https://github.com/clicon/clixon-controller/issues/48)
+
 ## 0.1.0
 30 September 2023
 

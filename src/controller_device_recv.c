@@ -141,6 +141,7 @@ device_state_recv_hello(clixon_handle h,
     }
     if (xml_nsctx_node(xmsg, &nsc) < 0)
         goto done;
+    // XXX not prefix/namespace independent
     if ((xcaps = xpath_first(xmsg, nsc, "/hello/capabilities")) == NULL){
         clicon_err(OE_PROTO, ESHUTDOWN, "No capabilities found");
         goto done;
@@ -265,6 +266,7 @@ device_state_recv_config(clixon_handle h,
             goto done;
         }
         cprintf(cberr, "YANG bind failed at mountpoint:");
+        // XXX not prefix/namespace independent
         if ((x=xpath_first(xerr, NULL, "//error-message"))!=NULL)
             cprintf(cberr, "%s", xml_body(x));
         if (device_close_connection(dh, "%s", cbuf_get(cberr)) < 0)
@@ -408,7 +410,6 @@ device_state_recv_schema_list(device_handle dh,
         device_close_connection(dh, "No schemas returned");
         goto closed;
     }
-
     /* Destructive, actually move subtree from xmsg */
     if (xml_rm(xschemas) < 0)
         goto done;
@@ -551,8 +552,8 @@ device_state_recv_ok(device_handle dh,
         goto done;
     if (ret == 0)
         goto closed;
-    if ((xerr = xpath_first(xmsg, NULL, "rpc-error")) != NULL){
-        x = xpath_first(xerr, NULL, "error-message");
+    if ((xerr = xml_find_type(xmsg, NULL, "rpc-error", CX_ELMNT)) != NULL){
+        x = xml_find_type(xerr, NULL, "error-message", CX_ELMNT);
         if ((cb = cbuf_new()) == NULL){
             clicon_err(OE_UNIX, errno, "cbuf_new");
             goto done;

@@ -127,7 +127,7 @@ controller_connect(clixon_handle           h,
     cbuf         *cb = NULL;
     char         *type;
     char         *addr;
-    char         *user;
+    char         *user = NULL;
     char         *enablestr;
     char         *yfstr;
     cxobj        *xb;
