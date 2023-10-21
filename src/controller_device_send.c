@@ -263,6 +263,31 @@ device_send_get_schema_list(clixon_handle h,
     return retval;
 }
 
+/*! Remove any subtree under xn (expect for list keys) 
+ */
+static int
+remove_subtree(cxobj *xn)
+{
+    int     retval = -1;
+    cvec   *cvk; /* vector of index keys */
+    cg_var *cvi = NULL;
+    char   *keyname;
+    cxobj  *xk;
+            
+    cvk = yang_cvec_get(xml_spec(xn)); /* Use Y_LIST cache, see ys_populate_list() */
+    while ((cvi = cvec_each(cvk, cvi)) != NULL) {
+        keyname = cv_string_get(cvi);
+        if ((xk = xml_find_type(xn, NULL, keyname, CX_ELMNT)) != NULL)
+            xml_flag_set(xk, XML_FLAG_MARK);
+    }
+    /* Remove all non-key children */
+    if (xml_tree_prune_flagged_sub(xn, XML_FLAG_MARK, 1, NULL) < 0)
+        goto done;
+    retval = 0;
+ done:
+    return retval;
+}
+
 /*! Create edit-config to a device given a diff between two XML trees x0 and x1
  *
  * 1. Add netconf operation attributes to add/del/change nodes in x0 and x1 and mark
@@ -331,6 +356,9 @@ device_create_edit_config_diff(clixon_handle h,
         if (xml_value_set(xa, xml_operation2str(OP_REMOVE)) < 0)
             goto done;
         xml_flag_set(xn, XML_FLAG_MARK);
+        /* Remove any subtree under xn (expect for list keys) */
+        if (remove_subtree(xn) < 0)
+            goto done;
     }
     for (i=0; i<alen; i++){
         xn = avec[i];
@@ -357,7 +385,7 @@ device_create_edit_config_diff(clixon_handle h,
         goto done;
     if (xml_tree_prune_flagged_sub(x1, XML_FLAG_MARK, 1, NULL) < 0)
         goto done;
-    /* 3. Merge deleted nodes in x0 with added/changed nods in x1 (diff-tree)*/
+    /* 3. Merge deleted nodes in x0 with added/changed nodes in x1 (diff-tree)*/
     if ((ret = xml_merge(x0, x1, yspec, &reason)) < 0)
         goto done;
     // XXX validate
