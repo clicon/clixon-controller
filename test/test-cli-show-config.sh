@@ -1,9 +1,9 @@
 # Controller test script for cli show commands
 
-set -u
-
 # Magic line must be first in script (see README.md)
 s="$_" ; . ./lib.sh || if [ "$s" = $0 ]; then exit 0; else return 0; fi
+
+set -u
 
 dir=/var/tmp/$0
 if [ ! -d $dir ]; then

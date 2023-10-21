@@ -7,10 +7,10 @@
 # Push commit to devices which should fail
 # make a cli show devices check and diff
 
-set -eu
-
 # Magic line must be first in script (see README.md)
 s="$_" ; . ./lib.sh || if [ "$s" = $0 ]; then exit 0; else return 0; fi
+
+set -eu
 
 # Set if also push, not only change (useful for manually doing push)
 : ${push:=true}

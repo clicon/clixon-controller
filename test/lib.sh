@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
 
+set -u
+
 # Testfile (not including path)
 : ${testfile:=$(basename $0)}
 
