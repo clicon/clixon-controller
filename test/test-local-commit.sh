@@ -5,10 +5,10 @@
 # 2) If local device fields are changed (except device mount-point - 'config')
 # 3) If a matching device is CLOSED UNLESS push=NONE
 
-set -eu
-
 # Magic line must be first in script (see README.md)
 s="$_" ; . ./lib.sh || if [ "$s" = $0 ]; then exit 0; else return 0; fi
+
+set -eu
 
 # Reset devices with initial config
 . ./reset-devices.sh

@@ -3,10 +3,10 @@
 # Reset devices and backend
 # Query controller of yang-schema-mount and yanglib of root and mount-points
 
-set -eu
-
 # Magic line must be first in script (see README.md)
 s="$_" ; . ./lib.sh || if [ "$s" = $0 ]; then exit 0; else return 0; fi
+
+set -eu
 
 # Reset devices 
 . ./reset-devices.sh
