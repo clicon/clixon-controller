@@ -20,6 +20,7 @@ Expected: December 2023
 
 ### Corrected Bugs
 
+* Fixed: [NETCONF delete messages include extra XML](https://github.com/clicon/clixon-controller/issues/53)
 * Fixed: [Validation errors not shown in CLI](https://github.com/clicon/clixon-controller/issues/48)
 
 ## 0.1.0
