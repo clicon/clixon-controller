@@ -167,6 +167,8 @@ controller_transaction_state_set(controller_transaction *ct,
  * @param[in]  h      Clixon handle
  * @param[in]  ct     Controller transaction
  * @param[in]  result 0:error, 1:success
+ * @retval     0      OK
+ * @retval    -1      Error
  */
 int
 controller_transaction_notify(clixon_handle           h,
@@ -640,9 +642,9 @@ controller_transaction_wait_trigger(clicon_handle h,
 
 /*! Get transactions statedata
  *
- * @param[in]    h        Clicon handle
+ * @param[in]    h        Clixon handle
  * @param[in]    nsc      External XML namespace context, or NULL
- * @param[in]    xpath    String with XPATH syntax. or NULL for all
+ * @param[in]    xpath    String with XPath syntax. or NULL for all
  * @param[out]   xstate   XML tree, <config/> on entry. 
  * @retval       0        OK
  * @retval      -1        Error

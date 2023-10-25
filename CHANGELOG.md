@@ -5,18 +5,21 @@ Expected: December 2023
 
 ### New features
 
+* [Add device / profile ignore fields](https://github.com/clicon/clixon-controller/issues/55)
 * [Support a loadable mechanism for device profiles](https://github.com/clicon/clixon-controller/issues/21)
   * The mechanism loads a set of configured modules locally from disk,
   * Instead of using RFC 6022 NETCONF monitoring get-schema method to devices
   * Modified the controller yang with device-profile and device-common
-  * Remains: combination of local load and NETCONF monitoring
 
 ### API changes on existing protocol/config features
 
+* New `clixon-controller-config@2023-11-01.yang` revision
+  * Added CONTROLLER_YANG_SCHEMA_MOUNT_DIR
 * New `clixon-controller@2023-11-01.yang` revision
   * Added device-profile list
   * Added device-common grouping, for common device/device-profile fields
   * Added module-set to device-common
+  * Added ignore-compare extension
 
 ### Corrected Bugs
 

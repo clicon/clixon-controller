@@ -301,6 +301,12 @@ module clixon-controller {
                      server, as per Section 5.6.5 of RFC 7950, with a particular
                      set of supported features and deviations.";
                 uses yanglib:module-identification-leafs;
+                leaf namespace {
+                    type inet:uri;
+                    mandatory true;
+                    description
+                        "The XML namespace identifier for this module.";
+                }
             }
         }
     }

@@ -199,7 +199,6 @@ controller_connect(clixon_handle           h,
     if ((xmod = xml_find_type(xn, NULL, "module-set", CX_ELMNT)) == NULL)
         xmod = xml_find_type(xdevprofile, NULL, "module-set", CX_ELMNT);
     if (xmod){
-        xyanglib = device_handle_yang_lib_get(dh);
         if (xdev2yang_library(xmod, &xyanglib) < 0)
             goto done;
         if (xyanglib){
@@ -230,7 +229,7 @@ controller_connect(clixon_handle           h,
  * 2) get current and compute diff with previous
  * 3) construct an edit-config, send it and validate it
  * 4) phase 2 commit
- * @param[in]  h       Clicon handle 
+ * @param[in]  h       Clixon handle 
  * @param[in]  xe      Request: <rpc><xn></rpc> 
  * @param[in]  ct      Transaction 
  * @param[in]  db      Device datastore
@@ -350,7 +349,7 @@ push_device_one(clixon_handle           h,
 
 /*! Incoming rpc handler to sync from one or several devices
  *
- * @param[in]  h       Clicon handle 
+ * @param[in]  h       Clixon handle 
  * @param[in]  xe      Request: <rpc><xn></rpc> 
  * @param[in]  tid     Transaction id
  * @param[out] cbret   Return xml tree, eg <rpc-reply>..., <rpc-error.. if retval = 0
@@ -381,7 +380,7 @@ pull_device_one(clixon_handle h,
 
 /*! Read the config of one or several remote devices
  *
- * @param[in]  h       Clicon handle 
+ * @param[in]  h       Clixon handle 
  * @param[in]  xe      Request: <rpc><xn></rpc> 
  * @param[out] cbret   Return xml tree, eg <rpc-reply>..., <rpc-error.. 
  * @param[in]  arg     Domain specific arg, ec client-entry or FCGX_Request 
@@ -666,7 +665,7 @@ strip_device(cxobj *x,
  * 
  * Read a datastore, for each device in the datastore, strip data created by services 
  * as defined by the services vector cvv. Write back the changed datasrtore
- * @param[in]  h    Clicon handle 
+ * @param[in]  h    Clixon handle 
  * @param[in]  db   Database
  * @param[in]  cvv  Vector of services
  * @retval     0    OK
@@ -873,7 +872,7 @@ commit_push_after_actions(clixon_handle           h,
 
 /*! Compute diff of candidate + commit and trigger service-commit notify
  *
- * @param[in]  h         Clicon handle 
+ * @param[in]  h         Clixon handle 
  * @param[in]  ct        Transaction
  * @param[in]  actions   How to trigger service-commit notifications
  * @retval     0         OK
@@ -955,7 +954,7 @@ controller_commit_actions(clixon_handle           h,
  * Read running config and compare configured devices with the selection pattern
  * and its state is open, then set the tid on that device
  * If state of a selected device is not open, then return first closed device
- * @param[in]  h       Clicon handle 
+ * @param[in]  h       Clixon handle 
  * @param[in]  device  Name of device to push to, can use wildchars for several, or NULL for all
  * @param[in]  tid     Transaction id
  * @param[out] closed  Device handle of first closed device, if any
@@ -1206,7 +1205,7 @@ device_error(clicon_handle           h,
 
 /*! Extended commit: trigger actions and device push
  *
- * @param[in]  h       Clicon handle 
+ * @param[in]  h       Clixon handle 
  * @param[in]  xe      Request: <rpc><xn></rpc> 
  * @param[out] cbret   Return xml tree, eg <rpc-reply>..., <rpc-error.. 
  * @param[in]  arg     Domain specific arg, ec client-entry or FCGX_Request 
@@ -1372,7 +1371,7 @@ rpc_controller_commit(clixon_handle h,
  * Typically this db is retrieved by the pull rpc
  * Should probably be replaced by a more generic function.
  * Possibly just extend get-config with device dbs?";
- * @param[in]  h       Clicon handle 
+ * @param[in]  h       Clixon handle 
  * @param[in]  xe      Request: <rpc><xn></rpc> 
  * @param[out] cbret   Return xml tree, eg <rpc-reply>..., <rpc-error.. 
  * @param[in]  arg     Domain specific arg, ec client-entry or FCGX_Request 
@@ -1480,7 +1479,7 @@ rpc_get_device_config(clixon_handle h,
 /*! (Re)connect try an enabled device in CLOSED state.
  *
  * If closed due to error it may need to be cleared and reconnected
- * @param[in]  h       Clicon handle 
+ * @param[in]  h       Clixon handle 
  * @param[in]  xe      Request: <rpc><xn></rpc> 
  * @param[out] cbret   Return xml tree, eg <rpc-reply>..., <rpc-error.. 
  * @param[in]  arg     Domain specific arg, ec client-entry or FCGX_Request 
@@ -1619,7 +1618,7 @@ rpc_connection_change(clixon_handle h,
 /*! Terminate an ongoing transaction with an error condition
  *
  * If closed due to error it may need to be cleared and reconnected
- * @param[in]  h       Clicon handle 
+ * @param[in]  h       Clixon handle 
  * @param[in]  xe      Request: <rpc><xn></rpc> 
  * @param[out] cbret   Return xml tree, eg <rpc-reply>..., <rpc-error.. 
  * @param[in]  arg     Domain specific arg, ec client-entry or FCGX_Request 
@@ -1677,7 +1676,7 @@ rpc_transaction_error(clixon_handle h,
 
 /*! Action scripts signal to backend that all actions are completed
  *
- * @param[in]  h       Clicon handle 
+ * @param[in]  h       Clixon handle 
  * @param[in]  xe      Request: <rpc><xn></rpc> 
  * @param[out] cbret   Return xml tree, eg <rpc-reply>..., <rpc-error.. 
  * @param[in]  arg     Domain specific arg, ec client-entry or FCGX_Request 
@@ -2007,7 +2006,7 @@ datastore_diff_device(clixon_handle      h,
  * There are two variants: 
  *  1) Regular datastore references, such as running/candidate according to ietf-datastores YANG
  *  2) Clixon-controller specific device datastores
- * @param[in]  h       Clicon handle 
+ * @param[in]  h       Clixon handle 
  * @param[in]  xe      Request: <rpc><xn></rpc> 
  * @param[out] cbret   Return xml tree, eg <rpc-reply>..., <rpc-error.. 
  * @param[in]  arg     Domain specific arg
@@ -2104,7 +2103,7 @@ rpc_datastore_diff(clixon_handle h,
  *
  * The registration should be made from plugin-init to ensure the check is made before
  * the regular from_client_create_subscription callback
- * @param[in]  h       Clicon handle 
+ * @param[in]  h       Clixon handle 
  * @param[in]  xe      Request: <rpc><xn></rpc> 
  * @param[out] cbret   Return xml tree, eg <rpc-reply>..., <rpc-error.. 
  * @param[in]  arg     client-entry

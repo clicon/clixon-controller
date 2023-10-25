@@ -16,6 +16,9 @@ echo "reset-controller"
 : ${description:="Clixon example container"}
 : ${yang_config:=VALIDATE}
 : ${USER:=root}
+
+: ${EXTRA:=} # Extra top-level device config
+
 REQ='<interfaces xmlns="http://openconfig.net/yang/interfaces"/>'
 # see reset-devices
 CONFIG='<interfaces xmlns="http://openconfig.net/yang/interfaces"><interface><name>x</name><config><name>x</name><type xmlns:ianaift="urn:ietf:params:xml:ns:yang:iana-if-type">ianaift:ethernetCsmacd</type></config></interface><interface><name>y</name><config><name>y</name><type xmlns:ianaift="urn:ietf:params:xml:ns:yang:iana-if-type">ianaift:atm</type></config></interface></interfaces>'
@@ -46,6 +49,7 @@ function init_device_config()
 	  <user>$USER</user>
 	  <addr>$ip</addr>
 	  <yang-config>${yang_config}</yang-config>
+          ${EXTRA}
 	  <config/>
 	</device>
       </devices>

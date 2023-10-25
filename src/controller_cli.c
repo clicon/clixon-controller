@@ -129,7 +129,7 @@ controller_cli_exit(clicon_handle h)
  * 4. Get yang specs of mountpoint from controller
  * 5. Parse YANGs locally from the yang specs
  * 6. Generate auto-cligen tree from the specs 
- * @param[in]  h         Clicon handle
+ * @param[in]  h         Clixon handle
  * @param[in]  xdev      XML device tree 
  * @param[in]  devname   Device name
  * @param[in]  treename  Autocli treename

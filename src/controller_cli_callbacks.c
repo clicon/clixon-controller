@@ -487,7 +487,7 @@ send_transaction_error(clicon_handle h,
 
 /*! Poll controller notification socket
  *
- * param[in]  h      Clicon handle
+ * param[in]  h      Clixon handle
  * param[in]  tidstr Transaction identifier
  * param[out] result
  * @retval    0      OK
@@ -1261,7 +1261,7 @@ send_pull_transient(clicon_handle h,
 
 /*! Compare device config types: running with last saved synced or current device (transient)
  *
- * @param[in]   h       Clicon handle
+ * @param[in]   h       Clixon handle
  * @param[in]   cvv     name: device pattern
  * @param[in]   argv    <format>        "text"|"xml"|"json"|"cli"|"netconf" (see format_enum)
  * @param[in]   dt1     First device config config 
@@ -1378,7 +1378,7 @@ compare_device_config_type(clicon_handle      h,
 /*! Compare datastores uses special diff rpc
  *
  * Use specialized rpc to reduce bandwidth
- * @param[in]   h     Clicon handle
+ * @param[in]   h     Clixon handle
  * @param[in]   cvv  
  * @param[in]   argv  <db1> <db2> <format>
  * @retval      0     OK
@@ -1464,7 +1464,7 @@ compare_dbs_rpc(clicon_handle h,
 
 /*! Compare device dbs: running with (last) synced db
  *
- * @param[in]   h     Clicon handle
+ * @param[in]   h     Clixon handle
  * @param[in]   cvv  
  * @param[in]   argv  arg: 0 as xml, 1: as text
  * @retval      0     OK
@@ -1491,7 +1491,7 @@ compare_device_db_sync(clicon_handle h,
 
 /*! Compare device dbs: running with current device (transient)
  *
- * @param[in] h     Clicon handle
+ * @param[in] h     Clixon handle
  * @param[in] cvv  : name pattern or NULL
  * @param[in] argv  arg: 0 as xml, 1: as text
  * @retval    0     OK
@@ -1549,7 +1549,7 @@ check_device_db(clixon_handle h,
 
 /*! Sub-routine for device dbxml: api-path to xml and send edit-config
  *
- * @param[in]  h     Clicon handle
+ * @param[in]  h     Clixon handle
  * @param[in]  cvv   Vector of cli string and instantiated variables 
  * @param[in]  op    Operation to perform on datastore
  * @param[in]  nsctx Namespace context for last value added
@@ -1656,7 +1656,7 @@ cli_dbxml_devs_sub(clicon_handle       h,
 
 /*! Modify xml datastore from a callback using xml key format strings
  *
- * @param[in]  h     Clicon handle
+ * @param[in]  h     Clixon handle
  * @param[in]  cvv   Vector of cli string and instantiated variables 
  * @param[in]  argv  Vector: <apipathfmt> [<mointpt>], eg "/aaa/%s"
  * @param[in]  op    Operation to perform on datastore
@@ -1782,7 +1782,7 @@ cli_dbxml_devs(clicon_handle       h,
 
 /*! CLI callback: set auto db item, specialization for controller devices
  *
- * @param[in]  h    Clicon handle
+ * @param[in]  h    Clixon handle
  * @param[in]  cvv  Vector of cli string and instantiated variables 
  * @param[in]  argv Vector. First element xml key format string, eg "/aaa/%s"
  * Format of argv:
@@ -1809,7 +1809,7 @@ cli_auto_set_devs(clicon_handle h,
 
 /*! Merge datastore xml entry, specialization for controller devices
  *
- * @param[in]  h    Clicon handle
+ * @param[in]  h    Clixon handle
  * @param[in]  cvv  Vector of cli string and instantiated variables 
  * @param[in]  argv Vector. First element xml key format string, eg "/aaa/%s"
  * @see cli_auto_merge  original callback
@@ -1834,7 +1834,7 @@ cli_auto_merge_devs(clicon_handle h,
 
 /*! Delete datastore xml, specialization for controller devices
  *
- * @param[in]  h    Clicon handle
+ * @param[in]  h    Clixon handle
  * @param[in]  cvv  Vector of cli string and instantiated variables 
  * @param[in]  argv Vector. First element xml key format string, eg "/aaa/%s"
  * @see cli_auto_del  original callback

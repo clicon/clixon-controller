@@ -12,9 +12,6 @@ fi
 CFG=$dir/controller.xml
 fin=$dir/in
 
-# source IMG/USER etc
-. ./site.sh
-
 cat<<EOF > $CFG
 <clixon-config xmlns="http://clicon.org/config">
   <CLICON_CONFIGFILE>/usr/local/etc/controller.xml</CLICON_CONFIGFILE>

@@ -362,7 +362,7 @@ device_state_mount_point_get(char      *devicename,
  * @param[in] yspec0   Top-level Yang specs
  * @param[in] xyanglib XML tree of yang module-set
  * @retval    1        OK
- * @retval    0        Fail, pare or other error, device is closed
+ * @retval    0        Fail, parse or other error, device is closed
  * @retval   -1        Error
  */
 static int
@@ -416,6 +416,57 @@ device_schemas_load_mount(clixon_handle h,
         ys_free(yspec1);
     if (xt)
         xml_free(xt);
+    return retval;
+ fail:
+    retval = 0;
+    goto done;
+}
+
+/*! Check local yang schemas exist
+ *
+ * @param[in] h        Clixon handle.
+ * @param[in] dh       Clixon client handle.
+ * @param[in] yspec0   Top-level Yang specs
+ * @param[in] xyanglib XML tree of yang module-set
+ * @retval    1        OK
+ * @retval    0        A yang is not found locally, device is closed
+ * @retval   -1        Error
+ */
+static int
+device_schemas_local_check(clixon_handle h,
+                           device_handle dh,
+                           cxobj        *xyanglib)
+
+{
+    int     retval = -1;
+    cxobj **vec = NULL;
+    size_t  veclen;
+    cxobj  *xi;
+    int     i;
+    int     ret;
+    char   *name;
+    char   *revision;
+    cvec   *nsc = NULL;
+
+    if (xpath_vec(xyanglib, nsc, "module-set/module", &vec, &veclen) < 0) 
+        goto done;
+    for (i=0; i<veclen; i++){
+        xi = vec[i];
+        if ((name = xml_find_body(xi, "name")) == NULL)
+            continue;
+        revision = xml_find_body(xi, "revision");
+        if ((ret = yang_file_find_match(h, name, revision, NULL)) < 0)
+            goto done;
+        if (ret == 0){
+            if (device_close_connection(dh, "Yang \"%s\" not found in the list of CLICON_YANG_DIRs", name) < 0)
+                goto done;
+            goto fail;
+        }
+    }
+    retval = 1;
+ done:
+    if (vec)
+        free(vec);
     return retval;
  fail:
     retval = 0;
@@ -718,15 +769,13 @@ device_config_compare(clicon_handle           h,
                       controller_transaction *ct,
                       cbuf                  **cberr0)
 {
-    int    retval = -1;
-    cxobj *x0 = NULL;
-    cxobj *x1 = NULL;
-    cbuf  *cberr = NULL;
-    int    eq;
-    int    ret;
+    int     retval = -1;
+    cxobj  *x0 = NULL;
+    cxobj  *x1 = NULL;
+    cbuf   *cberr = NULL;
+    int     eq;
+    int     ret;
     cxobj **vec = NULL;
-    size_t  veclen;
-    int     i;
             
     if ((ret = device_config_read(h, name, "SYNCED", &x0, &cberr)) < 0)
         goto done;
@@ -737,24 +786,6 @@ device_config_compare(clicon_handle           h,
             goto done;
         goto closed;
     } 
-#ifdef CONTROLLER_JUNOS_XPATH_SKIP
-    if (xpath_vec(x0, NULL, CONTROLLER_JUNOS_XPATH_SKIP, &vec, &veclen) < 0)
-        goto done;
-    for (i=0; i<veclen; i++)
-        xml_flag_set(vec[i], XML_FLAG_MARK);
-    if (xml_tree_prune_flags(x0, XML_FLAG_MARK, XML_FLAG_MARK) < 0)
-        goto done;
-    if (vec){
-        free(vec);
-        vec = NULL;
-    }
-    if (xpath_vec(x1, NULL, CONTROLLER_JUNOS_XPATH_SKIP, &vec, &veclen) < 0)
-        goto done;
-    for (i=0; i<veclen; i++)
-        xml_flag_set(vec[i], XML_FLAG_MARK);
-    if (xml_tree_prune_flags(x1, XML_FLAG_MARK, XML_FLAG_MARK) < 0)
-        goto done;
-#endif // CONTROLLER_JUNOS_XPATH_SKIP
     if ((eq = xml_tree_equal(x0, x1)) != 0 && cberr0){
         if ((*cberr0 = cbuf_new()) == NULL){
             clicon_err(OE_UNIX, errno, "cbuf_new");
@@ -847,9 +878,20 @@ device_state_handler(clixon_handle h,
                 goto done;
             device_handle_yspec_set(dh, yspec1);
         }
+        if ((xyanglib = device_handle_yang_lib_get(dh)) != NULL){
+            /* If local schemas, check if they exist as local file */
+            if ((ret = device_schemas_local_check(h, dh, xyanglib)) < 0)
+                goto done;
+            if (ret == 0){
+                if (controller_transaction_failed(h, tid, ct, dh, TR_FAILED_DEV_LEAVE, name, device_handle_logmsg_get(dh)) < 0)
+
+                    goto done;
+                break;
+            }
+        }
         if (!device_handle_capabilities_find(dh, "urn:ietf:params:xml:ns:yang:ietf-netconf-monitoring")){
             clicon_debug(CLIXON_DBG_DEFAULT, "%s Device %s: Netconf monitoring capability not announced", __FUNCTION__, name);
-            if ((xyanglib = device_handle_yang_lib_get(dh)) == NULL){
+            if (xyanglib != NULL){
                 if (controller_transaction_failed(h, tid, ct, dh, TR_FAILED_DEV_CLOSE, name, "No YANG device lib") < 0)
                     goto done;
                 break;
@@ -1429,9 +1471,9 @@ device_state_handler(clixon_handle h,
 
 /*! Get netconf device statedata
  *
- * @param[in]    h        Clicon handle
+ * @param[in]    h        Clixon handle
  * @param[in]    nsc      External XML namespace context, or NULL
- * @param[in]    xpath    String with XPATH syntax. or NULL for all
+ * @param[in]    xpath    String with XPath syntax. or NULL for all
  * @param[out]   xstate   XML tree, <config/> on entry. 
  * @retval       0        OK
  * @retval      -1        Error
