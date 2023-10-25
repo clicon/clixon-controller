@@ -44,29 +44,22 @@
 #define CONTROLLER_NAMESPACE "http://clicon.org/controller"
 
 /*! Skip junos-configuration-metadata.yang
+ *
  * cRPD gives error if you request it with get-schema:
  * <error-message>invalid schema identifier : junos-configuration-metadata</error-message>
  */
 #define CONTROLLER_JUNOS_SKIP_METADATA
 
 /*! Add grouping command-forwarding in junos-rpc yangs if not exists
+ *
  * cRPD YANGs do not have groupimg command-grouping in junos-rpc YANGs so that
  * uses command-grouping fails.
  * Insert an empty grouping command-forwarding if it does not exist
  */
 #define CONTROLLER_JUNOS_ADD_COMMAND_FORWARDING
 
-/*! XPATH to skip for junos
- * Primitive patch for single xpath to ignore when comparing remote and local device configs
- */
-#define CONTROLLER_JUNOS_XPATH_SKIP "/configuration/system/login/user/uid"
-
-/*! Where to write all yangs from devices 
- * Move to clixon as option?
- */
-#define YANG_SCHEMA_MOUNT_DIR "/usr/local/share/clixon/controller/mounts"
-
 /*! Top-symbol in clixon datastores
+ *
  * Duplicate of constant in clixon_custom.h
  */
 #define DATASTORE_TOP_SYMBOL "config"

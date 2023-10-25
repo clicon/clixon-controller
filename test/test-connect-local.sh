@@ -5,9 +5,6 @@
 # 2. Non-existent module, check No yangs found
 # 3. Full module
 
-# Skip for now due to dock NETCONF_MONITORING=false bug
-s="$_" ; echo $s; if [ "$s" = $0 ]; then exit 0; else return 0; fi
-
 # Magic line must be first in script (see README.md)
 s="$_" ; . ./lib.sh || if [ "$s" = $0 ]; then exit 0; else return 0; fi
 
@@ -18,6 +15,12 @@ fi
 
 if [[ ! -v CONTAINERS ]]; then
     err1 "CONTAINERS variable set" "not set"
+fi
+
+dockerbin=$(which docker)
+if [ -z "$dockerbin" ]; then
+    echo "Skip test since inside docker"
+    exit 0
 fi
 
 # Default container name, postfixed with 1,2,..,<nr>
@@ -119,6 +122,7 @@ cat <<EOF > $dir/startup_db
          <module-set>
            <module>
               <name>openconfig-interfaces</name>
+              <namespace>http://openconfig.net/yang/interfaces</namespace>
            </module>
          </module-set>
       </device-profile>

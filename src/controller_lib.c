@@ -358,7 +358,7 @@ xdev2yang_library(cxobj  *xmodset,
  * Add grouping command-forwarding in junos-rpc yangs if not exists
  * tried to make other less intrusive solutions or make a generic way in the
  * original function, but the easiest was just to rewrite the function.
- * @param[in] h        Clicon handle
+ * @param[in] h        Clixon handle
  * @param[in] xyanglib XML tree on the form <yang-lib>...
  * @param[in] yspec    Will be populated with YANGs, is consumed
  * @retval    1        OK

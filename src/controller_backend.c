@@ -57,9 +57,9 @@
 
 /*! Called to get state data from plugin by programmatically adding state
  *
- * @param[in]    h        Clicon handle
+ * @param[in]    h        Clixon handle
  * @param[in]    nsc      External XML namespace context, or NULL
- * @param[in]    xpath    String with XPATH syntax. or NULL for all
+ * @param[in]    xpath    String with XPath syntax. or NULL for all
  * @param[out]   xstate   XML tree, <config/> on entry. 
  * @retval       0        OK
  * @retval      -1        Error
@@ -500,7 +500,7 @@ action_daemon_register(clicon_handle h)
  * flags etc.
  * In particular for the controller, check if the services daemon is configured up and 
  * if so, ensure it is started.
- * @param[in]  h   Clicon handle
+ * @param[in]  h   Clixon handle
  * @param[in]  db  Database name (eg "running")
  * @retval     0   OK
  * @retval    -1   Fatal error

@@ -723,6 +723,7 @@ device_handle_yang_lib_get(device_handle dh)
  * @param[in]  dh     Device handle
  * @param[in]  xylib  XML tree, is consumed
  * @retval     0      OK
+ * On the form: yang-library/module-set/name=<name>/module/name,revision,namespace  RFC 8525
  */
 int
 device_handle_yang_lib_set(device_handle dh,
@@ -730,12 +731,65 @@ device_handle_yang_lib_set(device_handle dh,
 {
     struct controller_device_handle *cdh = devhandle(dh);
 
+    /* Sanity check */
+    if (xylib)
+        assert(xml_find_type(xylib, NULL, "module-set", CX_ELMNT));
     if (cdh->cdh_yang_lib != NULL)
         xml_free(cdh->cdh_yang_lib);
     cdh->cdh_yang_lib = xylib;
     return 0;
 }
 
+/*! Set RFC 8525 yang library as xml tree
+ *
+ * @param[in]  dh     Device handle
+ * @param[in]  xylib  XML tree to append merge with existing if any
+ * @retval     0      OK
+ * @retval    -1      Error
+ * On the form: yang-library/module-set/name=<name>/module/name,revision,namespace  RFC 8525
+ */
+int
+device_handle_yang_lib_append(device_handle dh,
+                              cxobj        *xylib)
+{
+    int                              retval = -1;
+    struct controller_device_handle *cdh = devhandle(dh);
+    cxobj                           *x;
+    cxobj                           *xms0;
+    cxobj                           *xms = NULL;
+    
+    /* Sanity check */
+    if (xylib){
+        if ((xms = xml_find_type(xylib, NULL, "module-set", CX_ELMNT)) == NULL){
+            clicon_err(OE_XML, EINVAL, "yang-lib top-level malformed: not module-set");
+            return -1;
+        }
+    }
+    if (cdh->cdh_yang_lib) {
+        //        cdh->cdh_yang_lib = xylib;
+        if (xylib){
+            if ((xms0 = xml_find_type(cdh->cdh_yang_lib, NULL, "module-set", CX_ELMNT)) == NULL){
+                clicon_err(OE_XML, EINVAL, "yang-lib top-level malformed: not module-set");
+                goto done;
+            }
+            x = NULL;
+            while ((x = xml_child_each(xms, x, CX_ELMNT)) != NULL) {
+                if (strcmp(xml_name(x), "module") != 0)
+                    continue;
+                xml_rm(x);
+                if (xml_addsub(xms0, x) < 0)
+                    goto done;
+                x = NULL; /* reset loop after removal */
+            }
+            free(xylib);
+        }
+    }
+    else
+        cdh->cdh_yang_lib = xylib;
+    retval = 0;
+ done:
+    return retval;
+}
 
 /*! Get sync timestamp
  *

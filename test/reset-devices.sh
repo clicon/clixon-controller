@@ -67,6 +67,11 @@ EOF
         exit 1
     fi
     i=$((i+1))
+    dockerbin=$(which docker) || true
+    if [ -n "$dockerbin" ]; then
+        new "Set CLICON_NETCONF_MONITORING"
+        sudo docker cp -q $dir/extra.xml $NAME:/usr/local/etc/clixon/openconfig/extra.xml
+    fi
 done
 
 # Early exit point, do not check pulled config

@@ -414,7 +414,7 @@ device_state_recv_schema_list(device_handle dh,
     if (xml_rm(xschemas) < 0)
         goto done;
     /* "Wash" it from other elements: eg. junos may sneak in errors
-     * XXX Maybe this can be skipped ? v
+     * XXX Maybe this can be skipped ?
      */
     x = NULL;
     while ((x = xml_child_each(xschemas, x, CX_ELMNT)) != NULL) {
@@ -432,7 +432,7 @@ device_state_recv_schema_list(device_handle dh,
         goto done;
     if (xml_rootchild(xyanglib, 0, &xyanglib) < 0)
         goto done;
-    if (device_handle_yang_lib_set(dh, xyanglib) < 0)
+    if (device_handle_yang_lib_append(dh, xyanglib) < 0)
         goto done;
     retval = 1;
  done:
@@ -462,18 +462,21 @@ device_state_recv_get_schema(device_handle dh,
                              char         *rpcname,
                              conn_state    conn_state)
 {
-    int         retval = -1;
-    char       *ystr;
-    char       *ydec = NULL;
-    char       *modname;
-    char       *revision = NULL;
-    cbuf       *cb = cbuf_new();
-    FILE       *f = NULL;
-    size_t      sz;
-    yang_stmt  *yspec = NULL;
-    int         ret;
+    int           retval = -1;
+    clixon_handle h;
+    char         *ystr;
+    char         *ydec = NULL;
+    char         *modname;
+    char         *revision = NULL;
+    cbuf         *cb = cbuf_new();
+    FILE         *f = NULL;
+    size_t        sz;
+    yang_stmt    *yspec = NULL;
+    char         *dir;
+    int           ret;
 
     clicon_debug(1, "%s", __FUNCTION__);
+    h = device_handle_handle_get(dh);
     if ((ret = rpc_reply_sanity(dh, xmsg, rpcname, conn_state)) < 0)
         goto done;
     if (ret == 0)
@@ -492,7 +495,11 @@ device_state_recv_get_schema(device_handle dh,
         clicon_err(OE_UNIX, errno, "cbuf_new");
         goto done;
     }
-    cprintf(cb, "%s/%s", YANG_SCHEMA_MOUNT_DIR, modname);
+    if ((dir = clicon_option_str(h, "CONTROLLER_YANG_SCHEMA_MOUNT_DIR")) == NULL){
+        clicon_err(OE_YANG, 0, "schema mount dir not set");
+        goto done;
+    }
+    cprintf(cb, "%s/%s", dir, modname);
     if (revision)
         cprintf(cb, "@%s", revision);
     cprintf(cb, ".yang");

@@ -63,7 +63,8 @@ struct controller_transaction_t{
 };
 typedef struct controller_transaction_t controller_transaction;
     
-/*! transaction failed device close parameter
+/*! Transaction failed device close parameter
+ *
  * If device handle is set, one can either:
  * - Ignore the device just fail transaction. Typically if device is already closed or handled 
  *   elsewhere
