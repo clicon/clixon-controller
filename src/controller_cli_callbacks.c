@@ -167,7 +167,7 @@ rpc_get_yanglib_mount_match(clicon_handle h,
     if (clicon_rpc_netconf_xml(h, xrpc, &xret, NULL) < 0)
         goto done;
     if ((xerr = xpath_first(xret, NULL, "rpc-reply/rpc-error")) != NULL){
-        clixon_netconf_error(xerr, "Get configuration", NULL);
+        clixon_netconf_error(h, xerr, "Get configuration", NULL);
         goto done;
     }
     if ((xdevs = xpath_first(xret, NULL, "rpc-reply/data/devices")) != NULL){
@@ -471,7 +471,7 @@ send_transaction_error(clicon_handle h,
         goto done;
     }
     if ((xerr = xpath_first(xreply, NULL, "rpc-error")) != NULL){
-        clixon_netconf_error(xerr, "Get configuration", NULL);
+        clixon_netconf_error(h, xerr, "Get configuration", NULL);
         goto done;
     }
     retval = 0;
@@ -608,7 +608,7 @@ cli_rpc_pull(clixon_handle h,
         goto done;
     }
     if ((xerr = xpath_first(xreply, NULL, "rpc-error")) != NULL){
-        clixon_netconf_error(xerr, "Get configuration", NULL);
+        clixon_netconf_error(h, xerr, "Get configuration", NULL);
         goto done;
     }
     if ((xid = xpath_first(xreply, NULL, "tid")) == NULL){
@@ -677,7 +677,7 @@ cli_rpc_commit_diff_one(clicon_handle h,
         goto done;
     }
     if ((xerr = xpath_first(xreply, NULL, "rpc-error")) != NULL){
-        clixon_netconf_error(xerr, "Get configuration", NULL);
+        clixon_netconf_error(h, xerr, "Get configuration", NULL);
         goto done;
     }
     if ((xdiff = xpath_first(xreply, NULL, "diff")) == NULL){
@@ -827,7 +827,7 @@ cli_rpc_controller_commit(clixon_handle h,
         goto done;
     }
     if ((xerr = xpath_first(xreply, NULL, "rpc-error")) != NULL){
-        clixon_netconf_error(xerr, "Get configuration", NULL);
+        clixon_netconf_error(h, xerr, "Get configuration", NULL);
         goto done;
     }
     if ((xid = xpath_first(xreply, NULL, "tid")) == NULL){
@@ -919,7 +919,7 @@ cli_connection_change(clixon_handle h,
         goto done;
     }
     if ((xerr = xpath_first(xreply, NULL, "rpc-error")) != NULL){
-        clixon_netconf_error(xerr, "Get configuration", NULL);
+        clixon_netconf_error(h, xerr, "Get configuration", NULL);
         goto done;
     }
     retval = 0;
@@ -982,7 +982,7 @@ cli_show_devices(clixon_handle h,
     if (clicon_rpc_get(h, "co:devices", nsc, CONTENT_ALL, -1, "report-all", &xn) < 0)
         goto done;
     if ((xerr = xpath_first(xn, NULL, "/rpc-error")) != NULL){
-        clixon_netconf_error(xerr, "Get devices", NULL);
+        clixon_netconf_error(h, xerr, "Get devices", NULL);
         goto done;
     }
     /* Change top from "data" to "devices" */
@@ -1088,7 +1088,7 @@ cli_show_services_process(clixon_handle h,
     if (clicon_rpc_netconf(h, cbuf_get(cb), &xret, NULL) < 0)
         goto done;
     if ((xerr = xpath_first(xret, NULL, "//rpc-error")) != NULL){
-        clixon_netconf_error(xerr, "Get configuration", NULL);
+        clixon_netconf_error(h, xerr, "Get configuration", NULL);
         goto done;
     }
     if ((x = xpath_first(xret, 0, "rpc-reply/active")) != NULL){
@@ -1147,7 +1147,7 @@ cli_show_transactions(clixon_handle h,
     if (clicon_rpc_get(h, "co:transactions", nsc, CONTENT_ALL, -1, "report-all", &xn) < 0)
         goto done;
     if ((xerr = xpath_first(xn, NULL, "/rpc-error")) != NULL){
-        clixon_netconf_error(xerr, "Get devices", NULL);
+        clixon_netconf_error(h, xerr, "Get devices", NULL);
         goto done;
     }
     /* Change top from "data" to "devices" */
@@ -1229,7 +1229,7 @@ send_pull_transient(clicon_handle h,
         goto done;
     }
     if ((xerr = xpath_first(xreply, NULL, "rpc-error")) != NULL){
-        clixon_netconf_error(xerr, "Get configuration", NULL);
+        clixon_netconf_error(h, xerr, "Get configuration", NULL);
         goto done;
     }
     if ((xid = xpath_first(xreply, NULL, "tid")) == NULL){
@@ -1351,7 +1351,7 @@ compare_device_config_type(clicon_handle      h,
         goto done;
     }
     if ((xerr = xpath_first(xreply, NULL, "rpc-error")) != NULL){
-        clixon_netconf_error(xerr, "Get configuration", NULL);
+        clixon_netconf_error(h, xerr, "Get configuration", NULL);
         goto done;
     }
     if ((xdiff = xpath_first(xreply, NULL, "diff")) == NULL){
@@ -1443,7 +1443,7 @@ compare_dbs_rpc(clicon_handle h,
         goto done;
     }
     if ((xerr = xpath_first(xreply, NULL, "rpc-error")) != NULL){
-        clixon_netconf_error(xerr, "Get configuration", NULL);
+        clixon_netconf_error(h, xerr, "Get configuration", NULL);
         goto done;
     }
     if ((xdiff = xpath_first(xreply, NULL, "diff")) == NULL){
@@ -1594,7 +1594,7 @@ cli_dbxml_devs_sub(clicon_handle       h,
                 goto done;
             }
             cprintf(cb, "api-path syntax error \"%s\": ", api_path);
-            if (netconf_err2cb(xerr, cb) < 0)
+            if (netconf_err2cb(h, xerr, cb) < 0)
                 goto done;
             clicon_err(OE_CFG, EINVAL, "%s", cbuf_get(cb));
             goto done;

@@ -279,7 +279,7 @@ device_input_cb(int   s,
                 clicon_err(OE_UNIX, errno, "cbuf_new");
                 goto done;
             }
-            if (netconf_err2cb(xerr, cberr) < 0)
+            if (netconf_err2cb(h, xerr, cberr) < 0)
                 goto done;
             if (ct){
                 // use XXX cberr but its XML
@@ -1259,7 +1259,7 @@ device_state_handler(clixon_handle h,
                     }
                     if (clixon_xml_parse_string(cbuf_get(cberr), YB_NONE, NULL, &xerr, NULL) < 0)
                         goto done;
-                    if (netconf_err2cb(xerr, cberr2) < 0)
+                    if (netconf_err2cb(h, xerr, cberr2) < 0)
                         goto done;
                     if (controller_transaction_failed(h, ct->ct_id, ct, dh, TR_FAILED_DEV_LEAVE, name, cbuf_get(cberr2)) < 0)
                         goto done;

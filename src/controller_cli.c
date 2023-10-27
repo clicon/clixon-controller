@@ -446,7 +446,7 @@ controller_cli_yang_mount(clicon_handle   h,
     }
     recursion--;
     if ((xerr = xpath_first(xt, NULL, "/rpc-error")) != NULL){
-        clixon_netconf_error(xerr, "clicon_rpc_get", NULL);
+        clixon_netconf_error(h, xerr, "clicon_rpc_get", NULL);
         goto done;
     }
     if ((xmodset = xpath_first(xt, nsc, "%s", cbuf_get(cb))) == NULL)
