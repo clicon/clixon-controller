@@ -836,7 +836,7 @@ commit_push_after_actions(clixon_handle           h,
                     }
                     if (clixon_xml_parse_string(cbuf_get(cberr), YB_NONE, NULL, &xerr, NULL) < 0)
                         goto done;
-                    if (netconf_err2cb(xerr, cberr2) < 0)
+                    if (netconf_err2cb(h, xerr, cberr2) < 0)
                         goto done;
                     if (controller_transaction_failed(h, ct->ct_id, ct, NULL, TR_FAILED_DEV_LEAVE,
                                                       NULL,

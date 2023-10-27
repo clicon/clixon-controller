@@ -330,7 +330,7 @@ device_state_recv_config(clixon_handle h,
             /* Manoever to get some errinfo from cberr */
             if (clixon_xml_parse_string(cbuf_get(cbret), YB_NONE, NULL, &xerr, NULL) != -1){
                 cbuf_reset(cbret);
-                if (netconf_err2cb(xerr, cbret) < 0)
+                if (netconf_err2cb(h, xerr, cbret) < 0)
                     goto done;
             }
         }
@@ -584,7 +584,7 @@ device_state_recv_ok(device_handle dh,
                 device_handle_name_get(dh),
                 device_state_int2str(conn_state));
         /* XXX: following fn does not support prefixes properly, so the err msg from XML does not appear as it should */
-        if (netconf_err2cb(xml_find(xmsg, "rpc-error"), cb) < 0)
+        if (netconf_err2cb(dh, xml_find(xmsg, "rpc-error"), cb) < 0)
             goto done;
         if (cberr){
             *cberr = cb;
