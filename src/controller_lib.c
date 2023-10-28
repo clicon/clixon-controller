@@ -47,6 +47,7 @@
 #include "controller_lib.h"
 
 /*! Mapping between enum transaction_state and yang transaction-state
+ *
  * @see clixon-controller@2023-01-01.yang
  */
 static const map_str2int tsmap[] = {
@@ -58,6 +59,7 @@ static const map_str2int tsmap[] = {
 };
 
 /*! Mapping between enum transaction_result and yang transaction-result
+ *
  * @see clixon-controller@2023-01-01.yang
  */
 static const map_str2int trmap[] = {
@@ -69,6 +71,7 @@ static const map_str2int trmap[] = {
 };
 
 /*! Mapping between enum device_config_type_t and yang device-config-type
+ *
  * @see clixon-controller@2023-01-01.yang
  */
 static const map_str2int dtmap[] = {
@@ -81,6 +84,7 @@ static const map_str2int dtmap[] = {
 };
 
 /*! Mapping between enum push_type_t and yang push-type
+ *
  * @see clixon-controller@2023-01-01.yang
  */
 static const map_str2int ptmap[] = {
@@ -91,6 +95,7 @@ static const map_str2int ptmap[] = {
 };
 
 /*! Mapping between enum actions_type_t and yang actions-type
+ *
  * @see clixon-controller@2023-01-01.yang
  */
 static const map_str2int atmap[] = {

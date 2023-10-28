@@ -100,13 +100,15 @@ disconnect_device_byxml(clixon_handle h,
 /*! Changes in processes
  *
  * Start/stop services daemon
+ * @retval    0    OK
+ * @retval   -1    Error
  * @see clixon-controller.yang: processes/services
  */
 static int
 controller_commit_processes(clixon_handle h,
-                           cvec         *nsc,
-                           cxobj        *src,
-                           cxobj        *target)
+                            cvec         *nsc,
+                            cxobj        *src,
+                            cxobj        *target)
 {
     int      retval = -1;
     cxobj  **vec = NULL;
@@ -141,8 +143,8 @@ controller_commit_processes(clixon_handle h,
  * @param[in] nsc  Namespace context
  * @param[in] src  pre-existing xml tree
  * @param[in] target  Post target xml tree
- * @retval   -1    Error
  * @retval    0    OK
+ * @retval   -1    Error
  * Logic:
  * 1) if device removed, disconnect
  * 2a) if enable changed to false, disconnect
@@ -248,8 +250,8 @@ controller_commit(clixon_handle    h,
  * @param[in] h    Clixon handle
  * @param[in] yext Yang node of extension 
  * @param[in] ys   Yang node of (unknown) statement belonging to extension
- * @retval     0   OK
- * @retval    -1   Error
+ * @retval    0    OK
+ * @retval   -1    Error
  */
 int
 controller_unknown(clicon_handle h,
@@ -380,6 +382,8 @@ controller_yang_patch(clicon_handle h,
  * @param[in]     h   Clixon handle
  * @param[in]     pe  Process entry
  * @param[in,out] op  Process operation
+ * @retval        0   OK
+ * @retval       -1   Error
  */
 int
 controller_action_proc_cb(clicon_handle    h,
@@ -408,6 +412,8 @@ controller_action_proc_cb(clicon_handle    h,
 /*! Register action daemon (eg pyapi)
  *
  * Need generic options for other solutions
+ * @retval    0    OK
+ * @retval   -1    Error
  */
 static int
 action_daemon_register(clicon_handle h)

@@ -332,7 +332,9 @@ device_handle_connect(device_handle      dh,
 
 /*! Connect client to clixon backend according to config and return a socket
  *
- * @param[in]    dh        Clixon client session handle
+ * @param[in]  dh   Clixon client session handle
+ * @retval     0    OK
+ * @retval    -1    Error
  * @see clixon_client_connect where the handle is created
  * The handle is deallocated
  */

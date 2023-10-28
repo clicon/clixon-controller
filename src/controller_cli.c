@@ -47,10 +47,12 @@
 #include "controller_lib.h"
 #include "controller_cli_callbacks.h"
 
-/* Called when application is "started", (almost) all initialization is complete 
+/*! Called when application is "started", (almost) all initialization is complete 
  *
  * Create a global transaction notification handler and socket
  * @param[in] h    Clixon handle
+ * @retval    0    OK
+ * @retval   -1    Error
  */
 int
 controller_cli_start(clicon_handle h)
@@ -73,9 +75,11 @@ controller_cli_start(clicon_handle h)
     return retval;
 }
 
-/* Called just before plugin unloaded. 
+/*! Called just before plugin unloaded. 
  *
  * @param[in] h    Clixon handle
+ * @retval    0    OK
+ * @retval   -1    Error
  */
 int
 controller_cli_exit(clicon_handle h)
@@ -208,6 +212,13 @@ create_autocli_mount_tree(clicon_handle h,
 }
 
 /*! Check one level of parsetree equivalence
+ * 
+ * @param[in]  pt1
+ * @param[in]  pt2
+ * @retval     0    If equal
+ * @retval    <0    If co1 is less than co2
+ * @retval    >0    If co1 is greater than co2
+
  */
 static int
 pt_eq1(parse_tree *pt1,

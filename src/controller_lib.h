@@ -38,6 +38,7 @@
 #define _CONTROLLER_LIB_H
 
 /*! Transaction state
+ *
  * @see clixon-controller@2023-01-01.yang transaction-state
  * @see tsmap translation table
  */
@@ -50,6 +51,7 @@ enum transaction_state_t{
 typedef enum transaction_state_t transaction_state;
 
 /*! Transaction result
+ *
  * @see clixon-controller@2023-01-01.yang transaction-result
  * @see trmap translation table
  */
@@ -62,6 +64,7 @@ enum transaction_result_t{
 typedef enum transaction_result_t transaction_result;
 
 /*! Device config type
+ *
  * @see clixon-controller@2023-01-01.yang device-config-type
  * @see dtmap translation table
  */
@@ -75,6 +78,7 @@ enum device_config_type_t{
 typedef enum device_config_type_t device_config_type;
 
 /*! Device push type
+ *
  * @see clixon-controller@2023-01-01.yang push-type
  * @see ptmap translation table
  */
@@ -86,6 +90,7 @@ enum push_type_t{
 typedef enum push_type_t push_type;
 
 /*! Actions trigger type
+ *
  * @see clixon-controller@2023-01-01.yang actions-type
  * @see atmap translation table
  */

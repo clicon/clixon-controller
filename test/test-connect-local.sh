@@ -29,8 +29,7 @@ fi
 dir=/var/tmp/$0
 if [ ! -d $dir ]; then
     mkdir $dir
-else
-    rm -rf $dir/*
+
 fi
 CFG=$dir/controller.xml
 fyang=$dir/clixon-test@2023-03-22.yang
@@ -160,7 +159,7 @@ done
 
 new "commit local"
 expectpart "$($clixon_cli -1 -m configure -f $CFG commit local)" 0 "^$"
-    
+
 new "connection open"
 expectpart "$($clixon_cli -1 -f $CFG connection open)" 0 "^$"
 
@@ -185,7 +184,7 @@ cmd="delete devices device-profile myprofile module-set"
 new "$cmd"
 expectpart "$($clixon_cli -1 -m configure -f $CFG $cmd)" 0 "^$"
 
-cmd="set devices device-profile myprofile module-set module openconfig-xxx"
+cmd="set devices device-profile myprofile module-set module openconfig-xxx namespace xxx:uri"
 new "$cmd"
 expectpart "$($clixon_cli -1 -m configure -f $CFG $cmd)" 0 "^$"
 
@@ -205,7 +204,7 @@ if [ "$res" != "$ii" ]; then
 fi
 
 new "Verify reason: No yang files found"
-res=$(${clixon_cli} -1f $CFG show devices | grep " No yang files found" | wc -l)
+res=$(${clixon_cli} -1f $CFG show devices detail | grep "<logmsg>Yang \"openconfig-xxx\" not found in the list of CLICON_YANG_DIRs</logmsg>" | wc -l)
 if [ "$res" != "$ii" ]; then
     err1 "$ii bind failed" "$res"
 fi
@@ -215,13 +214,13 @@ cmd="delete devices device-profile myprofile module-set"
 new "$cmd"
 expectpart "$($clixon_cli -1 -m configure -f $CFG $cmd)" 0 "^$"
 
-cmd="set devices device-profile myprofile module-set module openconfig-system"
+cmd="set devices device-profile myprofile module-set module openconfig-system namespace http://openconfig.net/yang/system"
 new "$cmd"
 expectpart "$($clixon_cli -1 -m configure -f $CFG $cmd)" 0 "^$"
 
 new "commit local"
 expectpart "$($clixon_cli -1 -m configure -f $CFG commit local)" 0 "^$"
-    
+
 new "connection open"
 expectpart "$($clixon_cli -1 -f $CFG connection open)" 0 "^$"
 

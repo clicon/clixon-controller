@@ -75,6 +75,7 @@
 #include "controller_transaction.h"
 
 /*! Mapping between enum conn_state and yang connection-state
+ *
  * @see clixon-controller@2023-01-01.yang connection-state
  */
 static const map_str2int csmap[] = {
@@ -170,7 +171,7 @@ device_close_connection(device_handle dh,
     clixon_event_unreg_fd(s, device_input_cb); /* deregister events */
     if (device_handle_disconnect(dh) < 0) /* close socket, reap sub-processes */
         goto done;
-    device_handle_yang_lib_set(dh, NULL);
+    //    device_handle_yang_lib_set(dh, NULL); XXX mem-error: caller using xylib
     if (device_state_set(dh, CS_CLOSED) < 0)
         goto done;
     device_handle_outmsg_set(dh, NULL);
@@ -891,7 +892,7 @@ device_state_handler(clixon_handle h,
         }
         if (!device_handle_capabilities_find(dh, "urn:ietf:params:xml:ns:yang:ietf-netconf-monitoring")){
             clicon_debug(CLIXON_DBG_DEFAULT, "%s Device %s: Netconf monitoring capability not announced", __FUNCTION__, name);
-            if (xyanglib != NULL){
+            if (xyanglib == NULL){
                 if (controller_transaction_failed(h, tid, ct, dh, TR_FAILED_DEV_CLOSE, name, "No YANG device lib") < 0)
                     goto done;
                 break;

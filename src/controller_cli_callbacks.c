@@ -48,6 +48,11 @@
 #include "controller_lib.h"
 #include "controller_cli_callbacks.h"
 
+/*!
+ *
+ * @retval     0    OK
+ * @retval    -1    Error
+ */
 static int
 cli_apipath(clicon_handle h,
             cvec         *cvv,
@@ -82,6 +87,12 @@ cli_apipath(clicon_handle h,
     return retval;
 }
 
+/*!
+ *
+ * @param[in]  h    Clixon handle
+ * @retval     0    OK
+ * @retval    -1    Error
+ */
 static int
 cli_apipath2xpath(clicon_handle h,
                   cvec         *cvv,
@@ -199,6 +210,11 @@ rpc_get_yanglib_mount_match(clicon_handle h,
 
 /*! Specialization of clixon cli_show_auto to handle device globs
  *
+ * @param[in]  h    Clixon handle
+ * @param[in]  cvv  Vector of cli string and instantiated variables 
+ * @param[in]  argv Vector of function arguments
+ * @retval     0    OK
+ * @retval    -1    Error
  * @see cli_show_auto  Original function for description, arguments etc
  * @see cli_dbxml_devs Similar controller handling
  */
@@ -699,7 +715,10 @@ cli_rpc_commit_diff_one(clicon_handle h,
 
 /*! Make a controller commit diff variant
  * 
- * @param[in] h     Clixon handle
+ * @param[in] h    Clixon handle
+ * @retval    0    OK
+ * @retval   -1    Error
+
  */
 static int
 cli_rpc_commit_diff(clixon_handle h)
@@ -861,6 +880,7 @@ cli_rpc_controller_commit(clixon_handle h,
 }
 
 /*! Read the config of one or several devices
+ *
  * @param[in] h
  * @param[in] cvv  : name pattern
  * @param[in] argv : 0: close, 1: open, 2: reconnect
@@ -934,7 +954,8 @@ cli_connection_change(clixon_handle h,
 }
 
 /*! Show controller device states
- * @param[in] h
+ *
+ * @param[in]  h    Clixon handle
  * @param[in] cvv  : name pattern
  * @param[in] argv : "detail"?
  * @retval    0    OK
@@ -1045,6 +1066,7 @@ cli_show_devices(clixon_handle h,
 }
 
 /*! Show controller device states
+ *
  * @param[in] h
  * @param[in] cvv  : name pattern
  * @param[in] argv : "detail"?
@@ -1108,6 +1130,7 @@ cli_show_services_process(clixon_handle h,
 }
 
 /*! Show controller device states
+ *
  * @param[in] h
  * @param[in] cvv  
  * @param[in] argv : "last" or "all"
