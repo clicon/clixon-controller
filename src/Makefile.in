@@ -92,25 +92,31 @@ clean:
 	rm -f $(PLUGINS) $(OBJS)
 
 distclean: clean
-	rm -f Makefile *~ .depend $(DESTDIR)$(libdir)/$(APPNAME)/backend/$(BE_PLUGIN) $(DESTDIR)$(libdir)/$(APPNAME)/cli/$(CLI_PLUGIN) $(DESTDIR)$(sysconfdir)/$(APPNAME).xml $(DESTDIR)$(libdir)/$(APPNAME)/clispec/* $(DESTDIR)$(datarootdir)/clixon/controller/mounts/*
+	rm -f Makefile *~ .depend $(DESTDIR)$(libdir)/$(APPNAME)/backend/$(BE_PLUGIN) $(DESTDIR)$(libdir)/$(APPNAME)/cli/$(CLI_PLUGIN) $(DESTDIR)$(sysconfdir)/$(APPNAME).xml $(DESTDIR)$(libdir)/$(APPNAME)/clispec/* $(DESTDIR)$(datarootdir)/clixon/controller/mounts # See YANG_SCHEMA_MOUNT_DIR
 
-install: $(CLISPECS) $(PLUGINS) $(APPNAME).xml
-	install -d -m 0755 $(DESTDIR)$(sysconfdir)
-	install -m 0644 $(APPNAME).xml $(DESTDIR)$(sysconfdir)
+# See also controller.xml.in
+install: $(CLISPECS) $(PLUGINS) $(APPNAME).xml autocli.xml
+	install -d -m 0755 $(DESTDIR)$(sysconfdir)/clixon
+	install -d -m 0755 $(DESTDIR)$(sysconfdir)/clixon/$(APPNAME)
+	install -m 0644 $(APPNAME).xml $(DESTDIR)$(sysconfdir)/clixon
+	install -m 0644 autocli.xml $(DESTDIR)$(sysconfdir)/clixon/$(APPNAME)
 	install -d -m 0755 $(DESTDIR)$(libdir)/$(APPNAME)
 	install -d -m 0755 $(DESTDIR)$(libdir)/$(APPNAME)/clispec
+	install -d -m 0755 $(DESTDIR)$(libdir)/$(APPNAME)/backend
+	install -d -m 0755 $(DESTDIR)$(libdir)/$(APPNAME)/cli
 	install -m 0644 $(CLISPECS) $(DESTDIR)$(libdir)/$(APPNAME)/clispec
 	install -d -m 0755 $(DESTDIR)$(localstatedir)
 	install -d -m 0755 $(DESTDIR)$(localstatedir)/$(APPNAME)
-	install -d -m 0755 $(DESTDIR)$(libdir)/$(APPNAME)/cli
-	install -m 0644 $(INSTALLFLAGS) $(CLI_PLUGIN) $(DESTDIR)$(libdir)/$(APPNAME)/cli
-	install -d -m 0755 $(DESTDIR)$(libdir)/$(APPNAME)/backend
 	install -m 0644 $(INSTALLFLAGS) $(BE_PLUGIN) $(DESTDIR)$(libdir)/$(APPNAME)/backend
+	install -m 0644 $(INSTALLFLAGS) $(CLI_PLUGIN) $(DESTDIR)$(libdir)/$(APPNAME)/cli
 	install -d -m 0755 $(DESTDIR)$(datarootdir)/clixon/controller/mounts # See YANG_SCHEMA_MOUNT_DIR
+	install -d -m 0755 $(DESTDIR)$(localstatedir)/run # for pidfiles
 	install -d -m 0755 -o clicon -g clicon $(DESTDIR)$(datarootdir)/clixon/controller/modules/
 
+
 uninstall: 
-	rm -rf $(DESTDIR)$(sysconfdir)/$(APPNAME).xml
+	rm -f $(DESTDIR)$(sysconfdir)/clixon/$(APPNAME).xml
+	rm -rf $(DESTDIR)$(sysconfdir)/clixon/$(APPNAME)
 	rm -rf $(DESTDIR)$(libdir)/$(APPNAME)
 	rm -rf $(DESTDIR)$(localstatedir)/$(APPNAME)
 

@@ -646,9 +646,19 @@ ac_includes_default="\
 ac_header_c_list=
 ac_subst_vars='LTLIBOBJS
 LIBOBJS
+CLICON_GROUP
+CLICON_USER
 YANG_INSTALLDIR
 SSH_BIN
 CPP
+SYSCONFDIR
+SBINDIR
+LOCALSTATEDIR
+LIBEXECDIR
+LIBDIR
+INCLUDEDIR
+DATADIR
+BINDIR
 SH_SUFFIX
 INSTALLFLAGS
 INSTALL
@@ -725,6 +735,8 @@ with_cligen
 with_clixon
 with_yang_installdir
 enable_nls
+with_clicon_user
+with_clicon_group
 '
       ac_precious_vars='build_alias
 host_alias
@@ -1367,6 +1379,9 @@ Optional Packages:
   --with-cligen=dir       Use CLIGEN here
   --with-clixon=dir       Use Clixon here
   --with-yang-installdir=DIR  Install yang files here (default: ${prefix}/share/clixon)
+  --with-clicon-user=user Run as this user in configuration files
+  --with-clicon-group=group
+                          Run as this group in configuration files
 
 Some influential environment variables:
   CC          C compiler command
@@ -3688,6 +3703,15 @@ test -z "$INSTALL_DATA" && INSTALL_DATA='${INSTALL} -m 644'
 
 
 
+# Used in expansion in, e.g., example/main/example.xml.in
+
+
+
+
+
+
+
+
 
 #
 ac_ext=c
@@ -4636,6 +4660,9 @@ fi
 if test "$prefix" = "NONE"; then
      prefix=${ac_default_prefix}
 fi
+if test "$exec_prefix" = "NONE"; then
+     exec_prefix=${prefix}
+fi
 
 # This is for cligen
 
@@ -4838,7 +4865,49 @@ then :
 fi
 
 
-ac_config_files="$ac_config_files Makefile src/Makefile yang/Makefile util/Makefile docker/Makefile doc/Makefile"
+# who we run as in our examples and tests
+CLICON_USER="clicon"
+
+# Check whether --with-clicon-user was given.
+if test ${with_clicon_user+y}
+then :
+  withval=$with_clicon_user;
+  CLICON_USER="$withval"
+
+fi
+
+
+if test -n "${CLICON_USER}"; then
+    echo "Using CLICON_USER here: ${CLICON_USER}"
+fi
+
+CLICON_GROUP="clicon"
+
+# Check whether --with-clicon-group was given.
+if test ${with_clicon_group+y}
+then :
+  withval=$with_clicon_group;
+  CLICON_GROUP="$withval"
+
+fi
+
+
+if test -n "${CLICON_GROUP}"; then
+    echo "Using CLICON_GROUP here: ${CLICON_GROUP}"
+fi
+
+# Expand for easy replacement in example/main/example.xml.in
+# Special case is $libdir, which is composed from $exec_prefix
+BINDIR=`eval echo $bindir`
+SBINDIR=`eval echo $sbindir`
+SYSCONFDIR=`eval echo $sysconfdir`
+DATADIR=`eval echo \`eval echo $datadir\``
+INCLUDEDIR=`eval echo $includedir`
+LIBDIR=`eval echo \`eval echo $libdir\``
+LIBEXECDIR=`eval echo $libexecdir`
+LOCALSTATEDIR=`eval echo $localstatedir`
+
+ac_config_files="$ac_config_files Makefile src/Makefile src/controller.xml yang/Makefile util/Makefile docker/Makefile doc/Makefile"
 
 cat >confcache <<\_ACEOF
 # This file is a shell script that caches the results of configure
@@ -5543,6 +5612,7 @@ do
   case $ac_config_target in
     "Makefile") CONFIG_FILES="$CONFIG_FILES Makefile" ;;
     "src/Makefile") CONFIG_FILES="$CONFIG_FILES src/Makefile" ;;
+    "src/controller.xml") CONFIG_FILES="$CONFIG_FILES src/controller.xml" ;;
     "yang/Makefile") CONFIG_FILES="$CONFIG_FILES yang/Makefile" ;;
     "util/Makefile") CONFIG_FILES="$CONFIG_FILES util/Makefile" ;;
     "docker/Makefile") CONFIG_FILES="$CONFIG_FILES docker/Makefile" ;;

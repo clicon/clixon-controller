@@ -26,7 +26,7 @@ fi
 : ${USER:=noc}
 
 # Controller config file
-: ${CFG:=/usr/local/etc/controller.xml}
+: ${CFG:=/usr/local/etc/clixon/controller.xml}
 
 : ${DBG:=0}
 

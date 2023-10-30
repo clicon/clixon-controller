@@ -29,7 +29,7 @@ cat<<EOF > $CFG
   <CLICON_FEATURE>clixon-restconf:allow-auth-none</CLICON_FEATURE>
   <CLICON_YANG_DIR>/usr/local/share/clixon</CLICON_YANG_DIR>
   <CLICON_YANG_DIR>$dir</CLICON_YANG_DIR>
-  <CLICON_YANG_MODULE_MAIN>clixon-controller</CLICON_YANG_MODULE_MAIN>
+  <CLICON_YANG_MAIN_DIR>/usr/local/share/clixon/controller/main</CLICON_YANG_MAIN_DIR>
   <CLICON_CLI_MODE>operation</CLICON_CLI_MODE>
   <CLICON_CLI_DIR>/usr/local/lib/controller/cli</CLICON_CLI_DIR>
   <CLICON_CLISPEC_DIR>/usr/local/lib/controller/clispec</CLICON_CLISPEC_DIR>

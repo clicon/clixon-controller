@@ -30,18 +30,19 @@ libdir          = @exec_prefix@/lib
 
 INSTALLFLAGS  	= @INSTALLFLAGS@ 
 
-# Here is where example yang appears
-YANG_INSTALLDIR0  = @YANG_INSTALLDIR@
-YANG_INSTALLDIR  = @YANG_INSTALLDIR@/controller
-# Here is where example yang appears
-YANG_MOUNTDIR  = @YANG_INSTALLDIR@/controller/mounts
+# Top level controller yangdir
+YANG_CONTROLLERDIR  = @YANG_INSTALLDIR@/controller
+# All YANGs here are loaded at controller startup
+YANG_MAINDIR  = $(YANG_CONTROLLERDIR)/main
+# Here is where device YANGs appear via get-schema
+YANG_MOUNTDIR  = $(YANG_CONTROLLERDIR)/mounts
 
 # Local yang files to install
 # IETF
-YANGSPECS  = clixon-controller@2023-11-01.yang # 0.2.0
+YANGSPECS_DATA  = clixon-controller@2023-11-01.yang # 0.2.0
 
 # Extends config (not data)
-YANGSPECS0  = clixon-controller-config@2023-11-01.yang # 0.2.0
+YANGSPECS_CFG  = clixon-controller-config@2023-11-01.yang # 0.2.0
 
 .PHONY: all clean distclean install uninstall depend
 
@@ -52,16 +53,15 @@ clean:
 distclean: clean
 	rm -f Makefile *~ .depend
 
-install: $(YANGSPECS) $(YANGSPECS0)
-	install -d -m 0755 $(DESTDIR)$(YANG_INSTALLDIR)
-	install -m 0644 $(YANGSPECS) $(DESTDIR)$(YANG_INSTALLDIR)
-	install -d -m 0755 $(DESTDIR)$(YANG_INSTALLDIR0)
-	install -m 0644 $(YANGSPECS0) $(DESTDIR)$(YANG_INSTALLDIR0)
+install: $(YANGSPECS_DATA) $(YANGSPECS_CFG)
+	install -d -m 0755 $(DESTDIR)$(YANG_CONTROLLERDIR)
+	install -d -m 0755 $(DESTDIR)$(YANG_MAINDIR)
 	install -d -m 0755 $(DESTDIR)$(YANG_MOUNTDIR)
+	install -m 0644 $(YANGSPECS_DATA) $(DESTDIR)$(YANG_MAINDIR)
+	install -m 0644 $(YANGSPECS_CFG) $(DESTDIR)$(YANG_CONTROLLERDIR)
 
 uninstall: 
-	for i in $(YANGSPEC) ; \
-	do rm $(DESTDIR)$(YANG_INSTALLDIR)/$$i; done
+	rm -rf $(DESTDIR)$(YANG_CONTROLLERDIR)
 
 depend:
 	$(CC) $(DEPENDFLAGS) $(INCLUDES) $(CFLAGS) -MM $(SRC) > .depend

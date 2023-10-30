@@ -14,11 +14,11 @@ fin=$dir/in
 
 cat<<EOF > $CFG
 <clixon-config xmlns="http://clicon.org/config">
-  <CLICON_CONFIGFILE>/usr/local/etc/controller.xml</CLICON_CONFIGFILE>
+  <CLICON_CONFIGFILE>$CFG</CLICON_CONFIGFILE>
   <CLICON_FEATURE>ietf-netconf:startup</CLICON_FEATURE>
   <CLICON_FEATURE>clixon-restconf:allow-auth-none</CLICON_FEATURE>
   <CLICON_YANG_DIR>/usr/local/share/clixon</CLICON_YANG_DIR>
-  <CLICON_YANG_MODULE_MAIN>clixon-controller</CLICON_YANG_MODULE_MAIN>
+  <CLICON_YANG_MAIN_DIR>/usr/local/share/clixon/controller/main</CLICON_YANG_MAIN_DIR>
   <CLICON_CLI_MODE>configure</CLICON_CLI_MODE>
   <CLICON_CLI_DIR>/usr/local/lib/controller/cli</CLICON_CLI_DIR>
   <CLICON_CLISPEC_DIR>$dir</CLICON_CLISPEC_DIR>

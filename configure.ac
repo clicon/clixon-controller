@@ -71,6 +71,15 @@ AC_SUBST(INSTALL_PROGRAM)
 AC_SUBST(INSTALLFLAGS)
 AC_SUBST(LIBS)
 AC_SUBST(SH_SUFFIX)
+# Used in expansion in, e.g., example/main/example.xml.in
+AC_SUBST(BINDIR)
+AC_SUBST(DATADIR)
+AC_SUBST(INCLUDEDIR)
+AC_SUBST(LIBDIR)
+AC_SUBST(LIBEXECDIR)
+AC_SUBST(LOCALSTATEDIR)
+AC_SUBST(SBINDIR)
+AC_SUBST(SYSCONFDIR)
 
 #
 AC_PROG_CC()
@@ -102,6 +111,9 @@ AC_PATH_PROG(SSH_BIN, ssh)
 
 if test "$prefix" = "NONE"; then
      prefix=${ac_default_prefix}
+fi
+if test "$exec_prefix" = "NONE"; then
+     exec_prefix=${prefix}
 fi
 
 # This is for cligen
@@ -142,8 +154,39 @@ AC_MSG_RESULT(Clixon yang files are installed in ${YANG_INSTALLDIR})
 # Dummy to disable native language support (nls) to remove warnings in buildroot
 AC_ARG_ENABLE(nls)
 
+# who we run as in our examples and tests
+CLICON_USER="clicon"
+AC_ARG_WITH([clicon-user], [AS_HELP_STRING([--with-clicon-user=user], [Run as this user in configuration files])], [
+  CLICON_USER="$withval"
+])
+AC_SUBST(CLICON_USER)
+if test -n "${CLICON_USER}"; then
+    echo "Using CLICON_USER here: ${CLICON_USER}"
+fi
+
+CLICON_GROUP="clicon"
+AC_ARG_WITH([clicon-group], [AS_HELP_STRING([--with-clicon-group=group], [Run as this group in configuration files])], [
+  CLICON_GROUP="$withval"
+])
+AC_SUBST(CLICON_GROUP)
+if test -n "${CLICON_GROUP}"; then
+    echo "Using CLICON_GROUP here: ${CLICON_GROUP}"
+fi
+
+# Expand for easy replacement in example/main/example.xml.in
+# Special case is $libdir, which is composed from $exec_prefix
+BINDIR=`eval echo $bindir`
+SBINDIR=`eval echo $sbindir`
+SYSCONFDIR=`eval echo $sysconfdir`
+DATADIR=`eval echo \`eval echo $datadir\``
+INCLUDEDIR=`eval echo $includedir`
+LIBDIR=`eval echo \`eval echo $libdir\``
+LIBEXECDIR=`eval echo $libexecdir`
+LOCALSTATEDIR=`eval echo $localstatedir`
+
 AC_CONFIG_FILES([Makefile
           	 src/Makefile
+                 src/controller.xml
 	         yang/Makefile
                  util/Makefile
                  docker/Makefile

@@ -52,7 +52,7 @@ fyang=$dir/myyang.yang
 
 cat<<EOF > $CFG
 <clixon-config xmlns="http://clicon.org/config">
-  <CLICON_CONFIGFILE>/usr/local/etc/controller.xml</CLICON_CONFIGFILE>
+  <CLICON_CONFIGFILE>$CFG</CLICON_CONFIGFILE>
   <CLICON_FEATURE>ietf-netconf:startup</CLICON_FEATURE>
   <CLICON_FEATURE>clixon-restconf:allow-auth-none</CLICON_FEATURE>
   <CLICON_CONFIG_EXTEND>clixon-controller-config</CLICON_CONFIG_EXTEND>

@@ -6,6 +6,7 @@
   * [My devices are CLOSED](#my-devices-are-closed)
   * [How to configure JunOS and the Clixon controller?](#how-to-configure-junos-and-the-clixon-controller)
   * [How do I add a device in Clixon?](#how-do-i-add-a-device-in-clixon)
+  * [What about directory structure?](#what-about-directory-structure)
 
 ## What is the Clixon controller?
 
@@ -89,3 +90,13 @@ Thereafter the device must be explicitly connected:
 ```
 connection open
 ```
+
+## What is the directory structure?
+
+Following clixon, the main controller config file is typically in /usr/local/etc/clixon/controller.xml. Extra config files are placed in /usr/local/etc/clixon/controller/. All directories are in this configure file.
+
+The top-level YANG directory is in /usr/local/share/clixon/controller/. YANGs are available in the search path if placed here. Howevere there are three sub-directories with specific meanings:
+
+  - main. Main controller YANGs for the top-level. Note: only place YANGs here if you want them loaded to the top-level.
+  - mounts. Yangs retreived from devices
+  - modules. YANGs for the pyapi
