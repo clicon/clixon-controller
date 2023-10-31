@@ -48,7 +48,7 @@
 #include "controller_lib.h"
 #include "controller_cli_callbacks.h"
 
-/*!
+/*! 
  *
  * @retval     0    OK
  * @retval    -1    Error
@@ -672,7 +672,6 @@ cli_rpc_commit_diff_one(clicon_handle h,
             clicon_username_get(h),
             NETCONF_MESSAGE_ID_ATTR);
     cprintf(cb, "<datastore-diff xmlns=\"%s\">", CONTROLLER_NAMESPACE);
-    //    cprintf(cb, "<xpath>devices</xpath>");
     cprintf(cb, "<devname>%s</devname>", name);
     cprintf(cb, "<config-type1>RUNNING</config-type1>");
     cprintf(cb, "<config-type2>ACTIONS</config-type2>");
@@ -718,7 +717,6 @@ cli_rpc_commit_diff_one(clicon_handle h,
  * @param[in] h    Clixon handle
  * @retval    0    OK
  * @retval   -1    Error
-
  */
 static int
 cli_rpc_commit_diff(clixon_handle h)
@@ -1410,8 +1408,8 @@ compare_device_config_type(clicon_handle      h,
  */
 int
 compare_dbs_rpc(clicon_handle h,
-                       cvec  *cvv,
-                       cvec  *argv)
+                cvec  *cvv,
+                cvec  *argv)
 {
     int    retval = -1;
     char  *db1;
@@ -1445,7 +1443,6 @@ compare_dbs_rpc(clicon_handle h,
             clicon_username_get(h),
             NETCONF_MESSAGE_ID_ATTR);
     cprintf(cb, "<datastore-diff xmlns=\"%s\">", CONTROLLER_NAMESPACE);
-    cprintf(cb, "<xpath>devices</xpath>");
     cprintf(cb, "<format>%s</format>", formatstr);
     cprintf(cb, "<dsref1>ds:%s</dsref1>", db1);
     cprintf(cb, "<dsref2>ds:%s</dsref2>", db2);

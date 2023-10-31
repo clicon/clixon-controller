@@ -23,6 +23,7 @@ Expected: December 2023
 
 ### Corrected Bugs
 
+* Fixed: [Command 'show compare' broken](https://github.com/clicon/clixon-controller/issues/46)
 * Fixed: [Possible to get stuck in an lock-denied state with no way to recover](https://github.com/clicon/clixon-controller/issues/47)
 * Fixed: [NETCONF delete messages include extra XML](https://github.com/clicon/clixon-controller/issues/53)
 * Fixed: [Validation errors not shown in CLI](https://github.com/clicon/clixon-controller/issues/48)

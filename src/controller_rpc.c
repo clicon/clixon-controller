@@ -1787,10 +1787,16 @@ datastore_diff_dsref(clixon_handle    h,
 
     if (xmldb_get0(h, db1, YB_NONE, NULL, xpath, 1, WITHDEFAULTS_EXPLICIT, &xt1, NULL, NULL) < 0)
         goto done;
-    x1 = xpath_first(xt1, NULL, "%s", xpath);
+    if (xpath)
+        x1 = xpath_first(xt1, NULL, "%s", xpath);
+    else
+        x1 = xt1;
     if (xmldb_get0(h, db2, YB_NONE, NULL, xpath, 1, WITHDEFAULTS_EXPLICIT, &xt2, NULL, NULL) < 0)
         goto done;
-    x2 = xpath_first(xt2, NULL, "%s", xpath);
+    if (xpath)
+        x2 = xpath_first(xt2, NULL, "%s", xpath);
+    else
+        x2 = xt2;
     if ((cb = cbuf_new()) == NULL){
         clicon_err(OE_UNIX, errno, "cbuf_new");
         goto done;

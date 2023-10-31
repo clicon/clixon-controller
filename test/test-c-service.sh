@@ -195,7 +195,6 @@ cat <<EOF > $dir/startup_db
 </config>
 EOF
 
-if false; then
 if $BE; then
     new "Kill old backend $CFG"
     sudo clixon_backend -f $CFG -z
@@ -213,8 +212,6 @@ if $BE; then
     new "Kill old backend"
     sudo clixon_backend -s init -f $CFG -z
 fi
-
-fi # XXX
 
 # Then start from init which by default should start it
 # First disable services process
@@ -249,7 +246,7 @@ expectpart "$(clixon_controller_service -f $CFG -1 -l o)" 255 "services-commit c
 
 # Reset controller by initiaiting with clixon/openconfig devices and a pull
 . ./reset-controller.sh
-exit
+
 DEV0="<config>
          <interfaces xmlns=\"http://openconfig.net/yang/interfaces\" xmlns:ianaift=\"urn:ietf:params:xml:ns:yang:iana-if-type\">
             <interface>
