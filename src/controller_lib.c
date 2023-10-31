@@ -388,7 +388,7 @@ yang_lib2yspec_junos_patch(clicon_handle h,
     yang_stmt *yrev;
     int        modmin = 0;
 
-    ,clicon_debug(1, "%s", __FUNCTION__);
+    clicon_debug(1, "%s", __FUNCTION__);
     if (xpath_vec(xyanglib, nsc, "module-set/module", &vec, &veclen) < 0)
         goto done;
     for (i=0; i<veclen; i++){

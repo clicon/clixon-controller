@@ -697,5 +697,5 @@ main(int    argc,
     if (notification)
         free(notification);
     printf("done\n"); /* for test output */
-    Return retval;
+    return retval;
 }
