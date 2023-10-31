@@ -1,7 +1,7 @@
 /*
  *
   ***** BEGIN LICENSE BLOCK *****
- 
+
   Copyright (C) 2023 Olof Hagsand
 
   This file is part of CLIXON.
@@ -48,7 +48,7 @@
 /*
  * Constants
  */
-/* Netconf binary default, override with environment variable: CLIXON_NETCONF_BIN 
+/* Netconf binary default, override with environment variable: CLIXON_NETCONF_BIN
  * Could try to get path from install/makefile data
  */
 #define CLIXON_NETCONF_BIN "/usr/local/bin/clixon_netconf"
@@ -83,7 +83,7 @@ clixon_client_connect_netconf(clixon_handle  h,
     if ((netconf_bin = getenv("CLIXON_NETCONF_BIN")) == NULL)
         netconf_bin = CLIXON_NETCONF_BIN;
     if (stat(netconf_bin, &st) < 0){
-        clicon_err(OE_NETCONF, errno, "netconf binary %s. Set with CLIXON_NETCONF_BIN=", 
+        clicon_err(OE_NETCONF, errno, "netconf binary %s. Set with CLIXON_NETCONF_BIN=",
                    netconf_bin);
         goto done;
     }

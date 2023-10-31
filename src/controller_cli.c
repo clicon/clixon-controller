@@ -1,7 +1,7 @@
 /*
  *
   ***** BEGIN LICENSE BLOCK *****
- 
+
   Copyright (C) 2023 Olof Hagsand
 
   This file is part of CLIXON.
@@ -19,7 +19,7 @@
   limitations under the License.
 
   ***** END LICENSE BLOCK *****
- * 
+ *
  */
 #include <stdio.h>
 #include <stdlib.h>
@@ -47,7 +47,7 @@
 #include "controller_lib.h"
 #include "controller_cli_callbacks.h"
 
-/*! Called when application is "started", (almost) all initialization is complete 
+/*! Called when application is "started", (almost) all initialization is complete
  *
  * Create a global transaction notification handler and socket
  * @param[in] h    Clixon handle
@@ -75,7 +75,7 @@ controller_cli_start(clicon_handle h)
     return retval;
 }
 
-/*! Called just before plugin unloaded. 
+/*! Called just before plugin unloaded.
  *
  * @param[in] h    Clixon handle
  * @retval    0    OK
@@ -111,7 +111,7 @@ controller_cli_exit(clicon_handle h)
         if ((msg = clicon_msg_encode(session_id, "%s", cbuf_get(cb))) == NULL)
             goto done;
         if (clicon_rpc_msg(h, msg, NULL) < 0)
-            goto done;        
+            goto done;
         close(s);
         clicon_data_int_del(h, "controller-transaction-notify-socket");
     }
@@ -132,9 +132,9 @@ controller_cli_exit(clicon_handle h)
  * 3. Check if yspec associated to that mountpoint exists
  * 4. Get yang specs of mountpoint from controller
  * 5. Parse YANGs locally from the yang specs
- * 6. Generate auto-cligen tree from the specs 
+ * 6. Generate auto-cligen tree from the specs
  * @param[in]  h         Clixon handle
- * @param[in]  xdev      XML device tree 
+ * @param[in]  xdev      XML device tree
  * @param[in]  devname   Device name
  * @param[in]  treename  Autocli treename
  * @param[out] yspec1p   yang spec
@@ -188,7 +188,7 @@ create_autocli_mount_tree(clicon_handle h,
         /* 4. Get yang specs of mountpoint from controller */
         yanglib = xpath_first(xdev, 0, "config/yang-library");
 #ifdef CONTROLLER_JUNOS_ADD_COMMAND_FORWARDING
-        /* 5. Parse YANGs locally from the yang specs 
+        /* 5. Parse YANGs locally from the yang specs
            Added extra JUNOS patch to mod YANGs */
         if ((ret = yang_lib2yspec_junos_patch(h, yanglib, yspec1)) < 0)
             goto done;
@@ -212,7 +212,7 @@ create_autocli_mount_tree(clicon_handle h,
 }
 
 /*! Check one level of parsetree equivalence
- * 
+ *
  * @param[in]  pt1
  * @param[in]  pt2
  * @retval     0    If equal
@@ -376,7 +376,7 @@ controller_cligen_treeref_wrap(cligen_handle ch,
                 if (cligen_ph_parsetree_set(ph, pt0) < 0){
                     clicon_err(OE_UNIX, 0, "cligen_ph_parsetree_set");
                     goto done;
-                }                
+                }
             }
         }
     }
@@ -397,7 +397,7 @@ controller_cligen_treeref_wrap(cligen_handle ch,
 /*! YANG schema mount
  *
  * Given an XML mount-point xt, return XML yang-lib modules-set
- * Return yanglib as XML tree on the RFC8525 form: 
+ * Return yanglib as XML tree on the RFC8525 form:
  *   <yang-library>
  *      <module-set>
  *         <module>...</module>
@@ -421,7 +421,7 @@ int
 controller_cli_yang_mount(clicon_handle   h,
                           cxobj          *xm,
                           int            *config,
-                          validate_level *vl, 
+                          validate_level *vl,
                           cxobj         **yanglib)
 {
     int    retval = -1;
@@ -430,7 +430,7 @@ controller_cli_yang_mount(clicon_handle   h,
     cxobj *xmodset;
     cvec  *nsc = NULL;
     char  *xpath = NULL;
-    cbuf  *cb = NULL;    
+    cbuf  *cb = NULL;
     char  *str;
     static int recursion = 0; /* clicon_rpc_get() -> bind back to here */
 
@@ -542,6 +542,7 @@ static clixon_plugin_api api = {
 };
 
 /*! CLI plugin initialization
+ *
  * @param[in]  h    Clixon handle
  * @retval     NULL Error with clicon_err set
  * @retval     api  Pointer to API struct

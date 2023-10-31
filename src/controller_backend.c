@@ -1,7 +1,7 @@
 /*
  *
   ***** BEGIN LICENSE BLOCK *****
- 
+
   Copyright (C) 2023 Olof Hagsand
 
   This file is part of CLIXON.
@@ -60,12 +60,12 @@
  * @param[in]    h        Clixon handle
  * @param[in]    nsc      External XML namespace context, or NULL
  * @param[in]    xpath    String with XPath syntax. or NULL for all
- * @param[out]   xstate   XML tree, <config/> on entry. 
+ * @param[out]   xstate   XML tree, <config/> on entry.
  * @retval       0        OK
  * @retval      -1        Error
  */
-int 
-controller_statedata(clixon_handle   h, 
+int
+controller_statedata(clixon_handle   h,
                      cvec           *nsc,
                      char           *xpath,
                      cxobj          *xstate)
@@ -89,7 +89,7 @@ disconnect_device_byxml(clixon_handle h,
 {
     char         *name;
     device_handle dh;
-    
+
     if ((name = xml_find_body(xn, "name")) != NULL &&
         (dh = device_handle_find(h, name)) != NULL &&
         device_handle_conn_state_get(dh) != CS_CLOSED)
@@ -168,7 +168,7 @@ controller_commit_device(clixon_handle h,
     int       i;
     char     *body;
     uint32_t  dt;
-    
+
     if (xpath_vec_flag(target, nsc, "devices/device-timeout",
                        XML_FLAG_ADD | XML_FLAG_CHANGE,
                        &vec0, &veclen0) < 0)
@@ -245,10 +245,10 @@ controller_commit(clixon_handle    h,
     return retval;
 }
 
-/*! Callback for yang extensions controller 
- * 
+/*! Callback for yang extensions controller
+ *
  * @param[in] h    Clixon handle
- * @param[in] yext Yang node of extension 
+ * @param[in] yext Yang node of extension
  * @param[in] ys   Yang node of (unknown) statement belonging to extension
  * @retval    0    OK
  * @retval   -1    Error
@@ -264,7 +264,7 @@ controller_unknown(clicon_handle h,
 /*! YANG schema mount
  *
  * Given an XML mount-point xt, return XML yang-lib modules-set
- * Return yanglib as XML tree on the RFC8525 form: 
+ * Return yanglib as XML tree on the RFC8525 form:
  *   <yang-library>
  *      <module-set>
  *         <module>...</module>
@@ -286,7 +286,7 @@ int
 controller_yang_mount(clicon_handle   h,
                       cxobj          *xt,
                       int            *config,
-                      validate_level *vl, 
+                      validate_level *vl,
                       cxobj         **yanglib)
 {
     int           retval = -1;
@@ -296,7 +296,7 @@ controller_yang_mount(clicon_handle   h,
     cxobj        *xy1 = NULL;
 
     /* Return yangs only if device connection is open.
-     * This could be discussed: one could want to mount also in a 
+     * This could be discussed: one could want to mount also in a
      * disconnected state.
      * But there is an error case where there is YANG parse error in which
      * case it will re-try mounting repeatedy.
@@ -376,8 +376,7 @@ controller_yang_patch(clicon_handle h,
     return retval;
 }
 
-
-/*! Process rpc callback function 
+/*! Process rpc callback function
  *
  * @param[in]     h   Clixon handle
  * @param[in]     pe  Process entry
@@ -391,14 +390,14 @@ controller_action_proc_cb(clicon_handle    h,
                           proc_operation  *operation)
 {
     int    retval = -1;
-    
+
     clicon_debug(CLIXON_DBG_DEFAULT, "%s", __FUNCTION__);
     switch (*operation){
     case PROC_OP_STOP:
         /* if RPC op is stop, stop the service */
         break;
     case PROC_OP_START:
-        /* RPC op is start & enable is true, then start the service, 
+        /* RPC op is start & enable is true, then start the service,
                            & enable is false, error or ignore it */
         break;
     default:
@@ -420,7 +419,7 @@ action_daemon_register(clicon_handle h)
 {
     int         retval = -1;
     char       *cmd;
-    char       *pgm;    
+    char       *pgm;
     struct stat fstat;
     int         i;
     int         j;
@@ -432,7 +431,7 @@ action_daemon_register(clicon_handle h)
     uid_t       uid = -1;
     char       *group;
     char       *user;
-    
+
     clicon_debug(CLIXON_DBG_DEFAULT, "%s", __FUNCTION__);
     if ((cmd = clicon_option_str(h, "CONTROLLER_ACTION_COMMAND")) == NULL)
         goto ok;
@@ -442,7 +441,7 @@ action_daemon_register(clicon_handle h)
         goto ok;
     pgm = argv0[0];
     /* Sanity check of executable */
-    if (stat(pgm, &fstat) < 0){   
+    if (stat(pgm, &fstat) < 0){
         clicon_err(OE_XML, 0, "%s not found", pgm);
         goto done;
     }
@@ -495,16 +494,16 @@ action_daemon_register(clicon_handle h)
     return retval;
 }
 
-/*! Reset system status 
+/*! Reset system status
  *
  * Add xml or set state in backend system.
- * plugin_reset in each backend plugin after all plugins have been initialized. 
- * This gives the application a chance to reset system state back to a base state. 
+ * plugin_reset in each backend plugin after all plugins have been initialized.
+ * This gives the application a chance to reset system state back to a base state.
  * This is generally done when a system boots up to make sure the initial system state
- * is well defined. 
+ * is well defined.
  * This involves creating default configuration files for various daemons, set interface
  * flags etc.
- * In particular for the controller, check if the services daemon is configured up and 
+ * In particular for the controller, check if the services daemon is configured up and
  * if so, ensure it is started.
  * @param[in]  h   Clixon handle
  * @param[in]  db  Database name (eg "running")
@@ -520,7 +519,7 @@ controller_reset(clicon_handle h,
     cxobj *xtop = NULL;
     cxobj *xse = NULL;
     cvec  *nsc = NULL;
-    
+
     if ((nsc = xml_nsctx_init(NULL, CONTROLLER_NAMESPACE)) == NULL)
         goto done;
     if (xmldb_get(h, "running", nsc, xpath, &xtop) < 0)
@@ -528,7 +527,7 @@ controller_reset(clicon_handle h,
     if ((xse = xpath_first(xtop, 0, "processes/services/enabled")) != NULL){
         if (strcmp(xml_body(xse), "true") == 0)
             if (clixon_process_operation(h, ACTION_PROCESS, PROC_OP_START, 0) < 0)
-                goto done;            
+                goto done;
     }
     retval = 0;
  done:
@@ -539,8 +538,9 @@ controller_reset(clicon_handle h,
     return retval;
 }
 
-/* Called when application is "started", (almost) all initialization is complete 
- * Backend: daemon is in the background. If daemon privileges are dropped 
+/*! Called when application is "started", (almost) all initialization is complete
+ *
+ * Backend: daemon is in the background. If daemon privileges are dropped
  *          this callback is called *before* privileges are dropped.
  * @param[in] h    Clixon handle
  */
@@ -550,14 +550,15 @@ controller_start(clixon_handle h)
     return 0;
 }
 
-/* Called just before plugin unloaded. 
+/*! Called just before plugin unloaded.
+ *
  * @param[in] h    Clixon handle
  */
 static int
 controller_exit(clixon_handle h)
 {
     device_handle dh = NULL;
-    
+
     controller_transaction_free_all(h);
     while ((dh = device_handle_each(h, dh)) != NULL)
         device_close_connection(dh, "controller exit");
@@ -565,7 +566,7 @@ controller_exit(clixon_handle h)
     return 0;
 }
 
-/* Forward declaration */
+/*! Forward declaration */
 clixon_plugin_api *clixon_plugin_init(clixon_handle h);
 
 static clixon_plugin_api api = {

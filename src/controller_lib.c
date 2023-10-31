@@ -1,7 +1,7 @@
 /*
  *
   ***** BEGIN LICENSE BLOCK *****
- 
+
   Copyright (C) 2023 Olof Hagsand
 
   This file is part of CLIXON.
@@ -20,7 +20,7 @@
 
   ***** END LICENSE BLOCK *****
   *
-  * Common functions, for backend, cli, etc 
+  * Common functions, for backend, cli, etc
 */
 
 #include <stdio.h>
@@ -105,7 +105,7 @@ static const map_str2int atmap[] = {
     {NULL,      -1}
 };
 
-/*! Map controller transaction state from int to string 
+/*! Map controller transaction state from int to string
  *
  * @param[in]  state  Transaction state as int
  * @retval     str    Transaction state as string
@@ -116,7 +116,7 @@ transaction_state_int2str(transaction_state state)
     return (char*)clicon_int2str(tsmap, state);
 }
 
-/*! Map controller transaction state from string to int 
+/*! Map controller transaction state from string to int
  *
  * @param[in]  str    Transaction state as string
  * @retval     state  Transaction state as int
@@ -127,7 +127,7 @@ transaction_state_str2int(char *str)
     return clicon_str2int(tsmap, str);
 }
 
-/*! Map controller transaction result from int to string 
+/*! Map controller transaction result from int to string
  *
  * @param[in]  result Transaction result as int
  * @retval     str    Transaction result as string
@@ -138,7 +138,7 @@ transaction_result_int2str(transaction_result result)
     return (char*)clicon_int2str(trmap, result);
 }
 
-/*! Map controller transaction result from string to int 
+/*! Map controller transaction result from string to int
  *
  * @param[in]  str    Transaction result as string
  * @retval     result Transaction result as int
@@ -149,7 +149,7 @@ transaction_result_str2int(char *str)
     return clicon_str2int(trmap, str);
 }
 
-/*! Map device config type from int to string 
+/*! Map device config type from int to string
  *
  * @param[in]  typ    Device config type as int
  * @retval     str    Device config type as string
@@ -160,7 +160,7 @@ device_config_type_int2str(device_config_type t)
     return (char*)clicon_int2str(dtmap, t);
 }
 
-/*! Map device config type from string to int 
+/*! Map device config type from string to int
  *
  * @param[in]  str    Device config type as string
  * @retval     type   Device config type as int
@@ -171,7 +171,7 @@ device_config_type_str2int(char *str)
     return clicon_str2int(dtmap, str);
 }
 
-/*! Map device push type from int to string 
+/*! Map device push type from int to string
  *
  * @param[in]  typ    Push type as int
  * @retval     str    Push type as string
@@ -182,7 +182,7 @@ push_type_int2str(push_type t)
     return (char*)clicon_int2str(ptmap, t);
 }
 
-/*! Map device push type from string to int 
+/*! Map device push type from string to int
  *
  * @param[in]  str    Push type as string
  * @retval     type   Push type as int
@@ -193,7 +193,7 @@ push_type_str2int(char *str)
     return clicon_str2int(ptmap, str);
 }
 
-/*! Map actions type from int to string 
+/*! Map actions type from int to string
  *
  * @param[in]  typ    Actions type as int
  * @retval     str    Actions type as string
@@ -204,7 +204,7 @@ actions_type_int2str(actions_type t)
     return (char*)clicon_int2str(atmap, t);
 }
 
-/*! Map actions type from string to int 
+/*! Map actions type from string to int
  *
  * @param[in]  str    Actions type as string
  * @retval     type   Actions type as int
@@ -387,9 +387,9 @@ yang_lib2yspec_junos_patch(clicon_handle h,
     yang_stmt *ymod;
     yang_stmt *yrev;
     int        modmin = 0;
-    
-    clicon_debug(1, "%s", __FUNCTION__);
-    if (xpath_vec(xyanglib, nsc, "module-set/module", &vec, &veclen) < 0) 
+
+    ,clicon_debug(1, "%s", __FUNCTION__);
+    if (xpath_vec(xyanglib, nsc, "module-set/module", &vec, &veclen) < 0)
         goto done;
     for (i=0; i<veclen; i++){
         xi = vec[i];
@@ -398,7 +398,7 @@ yang_lib2yspec_junos_patch(clicon_handle h,
         revision = xml_find_body(xi, "revision");
         if ((ymod = yang_find(yspec, Y_MODULE, name)) != NULL ||
             (ymod = yang_find(yspec, Y_SUBMODULE, name)) != NULL){
-            /* Skip if matching or no revision 
+            /* Skip if matching or no revision
              * Note this algorithm does not work for multiple revisions
              */
             if ((yrev = yang_find(ymod, Y_REVISION, NULL)) == NULL){

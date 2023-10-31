@@ -1,7 +1,7 @@
 /*
  *
   ***** BEGIN LICENSE BLOCK *****
- 
+
   Copyright (C) 2023 Olof Hagsand
 
   This file is part of CLIXON.
@@ -74,7 +74,7 @@ rpc_reply_sanity(device_handle dh,
     cvec *nsc = NULL;
     char *rpcprefix;
     char *namespace;
-    
+
     if (strcmp(rpcname, "rpc-reply") != 0){
         device_close_connection(dh, "Unexpected msg %s in state %s",
                                 rpcname, device_state_int2str(conn_state));
@@ -322,7 +322,7 @@ device_state_recv_config(clixon_handle h,
     if (ret == 1){
         /* XXX trigger plugin which starts a commit transaction */
         if ((ret = candidate_commit(h, NULL, "candidate", 0, 0, cbret)) < 0){
-            /* Handle that candidate_commit can return < 0 if transaction ongoing */        
+            /* Handle that candidate_commit can return < 0 if transaction ongoing */
             cprintf(cbret, "%s", clicon_err_reason);
             ret = 0;
         }
@@ -336,7 +336,7 @@ device_state_recv_config(clixon_handle h,
         }
     }
     if (ret == 0){ /* discard */
-        xmldb_copy(h, "running", "candidate");            
+        xmldb_copy(h, "running", "candidate");
         xmldb_modified_set(h, "candidate", 0); /* reset dirty bit */
         clicon_debug(CLIXON_DBG_DEFAULT, "%s", cbuf_get(cbret));
         if (device_close_connection(dh, "Failed to commit: %s", cbuf_get(cbret)) < 0)

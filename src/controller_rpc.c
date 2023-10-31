@@ -1,7 +1,7 @@
 /*
  *
   ***** BEGIN LICENSE BLOCK *****
- 
+
   Copyright (C) 2023 Olof Hagsand
 
   This file is part of CLIXON.
@@ -61,6 +61,8 @@
  * @param[in]  name Device name
  * @param[in]  user Username for ssh login
  * @param[in]  addr Address for ssh to connect to
+ * @retval     0    OK
+ * @retval    -1    Error
  */
 static int
 connect_netconf_ssh(clixon_handle h,
@@ -91,7 +93,7 @@ connect_netconf_ssh(clixon_handle h,
         goto done;
     if (device_state_set(dh, CS_CONNECTING) < 0)
         goto done;
-    s = device_handle_socket_get(dh);    
+    s = device_handle_socket_get(dh);
     device_handle_framing_type_set(dh, NETCONF_SSH_EOM);
     cbuf_reset(cb); /* reuse cb for event dbg str */
     cprintf(cb, "Netconf ssh %s", addr);
@@ -104,7 +106,7 @@ connect_netconf_ssh(clixon_handle h,
     return retval;
 }
 
-/*! Connect to device 
+/*! Connect to device
  *
  * Typically called from commit
  * @param[in]  h      Clixon handle
@@ -178,7 +180,7 @@ controller_connect(clixon_handle           h,
     }
     if (xb != NULL)
         user = xml_body(xb);
-    /* Now dh is either NULL or in closed state and with correct type 
+    /* Now dh is either NULL or in closed state and with correct type
      * First create it if still NULL
      */
     if (dh == NULL &&
@@ -229,9 +231,9 @@ controller_connect(clixon_handle           h,
  * 2) get current and compute diff with previous
  * 3) construct an edit-config, send it and validate it
  * 4) phase 2 commit
- * @param[in]  h       Clixon handle 
- * @param[in]  xe      Request: <rpc><xn></rpc> 
- * @param[in]  ct      Transaction 
+ * @param[in]  h       Clixon handle
+ * @param[in]  xe      Request: <rpc><xn></rpc>
+ * @param[in]  ct      Transaction
  * @param[in]  db      Device datastore
  * @param[out] cberr   Error message
  * @retval     1       OK
@@ -239,7 +241,7 @@ controller_connect(clixon_handle           h,
  * @retval    -1       Error
  * @see devices_diff  for top-level all devices
  */
-static int 
+static int
 push_device_one(clixon_handle           h,
                 device_handle           dh,
                 controller_transaction *ct,
@@ -283,7 +285,7 @@ push_device_one(clixon_handle           h,
         if ((*cberr = cbuf_new()) == NULL){
             clicon_err(OE_UNIX, errno, "cbuf_new");
             goto done;
-        }   
+        }
         cprintf(*cberr, "Device not configured");
         goto failed;
     }
@@ -295,7 +297,7 @@ push_device_one(clixon_handle           h,
         if ((*cberr = cbuf_new()) == NULL){
             clicon_err(OE_UNIX, errno, "cbuf_new");
             goto done;
-        }   
+        }
         cprintf(*cberr, "No YANGs in device");
         goto failed;
     }
@@ -349,15 +351,15 @@ push_device_one(clixon_handle           h,
 
 /*! Incoming rpc handler to sync from one or several devices
  *
- * @param[in]  h       Clixon handle 
- * @param[in]  xe      Request: <rpc><xn></rpc> 
+ * @param[in]  h       Clixon handle
+ * @param[in]  xe      Request: <rpc><xn></rpc>
  * @param[in]  tid     Transaction id
  * @param[out] cbret   Return xml tree, eg <rpc-reply>..., <rpc-error.. if retval = 0
  * @retval     1       OK
  * @retval     0       Fail, cbret set
  * @retval    -1       Error
  */
-static int 
+static int
 pull_device_one(clixon_handle h,
                 device_handle dh,
                 uint64_t      tid,
@@ -380,19 +382,19 @@ pull_device_one(clixon_handle h,
 
 /*! Read the config of one or several remote devices
  *
- * @param[in]  h       Clixon handle 
- * @param[in]  xe      Request: <rpc><xn></rpc> 
- * @param[out] cbret   Return xml tree, eg <rpc-reply>..., <rpc-error.. 
- * @param[in]  arg     Domain specific arg, ec client-entry or FCGX_Request 
- * @param[in]  regarg  User argument given at rpc_callback_register() 
+ * @param[in]  h       Clixon handle
+ * @param[in]  xe      Request: <rpc><xn></rpc>
+ * @param[out] cbret   Return xml tree, eg <rpc-reply>..., <rpc-error..
+ * @param[in]  arg     Domain specific arg, ec client-entry or FCGX_Request
+ * @param[in]  regarg  User argument given at rpc_callback_register()
  * @retval     0       OK
  * @retval    -1       Error
  */
-static int 
+static int
 rpc_config_pull(clixon_handle h,
                 cxobj        *xe,
                 cbuf         *cbret,
-                void         *arg,  
+                void         *arg,
                 void         *regarg)
 {
     client_entry           *ce = (client_entry *)arg;
@@ -410,7 +412,7 @@ rpc_config_pull(clixon_handle h,
     controller_transaction *ct = NULL;
     char                   *str;
     cbuf                   *cberr = NULL;
-    
+
     clicon_debug(1, "%s", __FUNCTION__);
     /* Initiate new transaction */
     if ((ret = controller_transaction_new(h, "pull", &ct, &cberr)) < 0)
@@ -428,7 +430,7 @@ rpc_config_pull(clixon_handle h,
         ct->ct_pull_merge = strcmp(str, "true") == 0;
     if (xmldb_get(h, "running", nsc, "devices/device", &xret) < 0)
         goto done;
-    if (xpath_vec(xret, nsc, "devices/device", &vec, &veclen) < 0) 
+    if (xpath_vec(xret, nsc, "devices/device", &vec, &veclen) < 0)
         goto done;
     for (i=0; i<veclen; i++){
         xn = vec[i];
@@ -454,7 +456,7 @@ rpc_config_pull(clixon_handle h,
             goto done;
         if (controller_transaction_notify(h, ct) < 0)
             goto done;
-    } 
+    }
  ok:
     retval = 0;
  done:
@@ -470,7 +472,10 @@ rpc_config_pull(clixon_handle h,
 /*! Timeout callback of service actions
  *
  * @param[in] s     Socket
- * @param[in] arg   Tranaction handle
+ * @param[in] arg   Transaction handle
+ * @retval    0     OK
+ * @retval   -1     Error
+
  */
 static int
 actions_timeout(int   s,
@@ -478,7 +483,7 @@ actions_timeout(int   s,
 {
     int                     retval = -1;
     controller_transaction *ct = (controller_transaction *)arg;
-    
+
     clicon_debug(1, "%s", __FUNCTION__);
     if (controller_transaction_failed(ct->ct_h, ct->ct_id, ct, NULL, TR_FAILED_DEV_IGNORE, "Actions", "Timeout waiting for action daemon") < 0)
         goto done;
@@ -505,6 +510,8 @@ actions_timeout(int   s,
 /*! Set timeout of services action
  *
  * @param[in] h   Clixon handle
+ * @retval    0   OK
+ * @retval   -1   Error
  */
 static int
 actions_timeout_register(controller_transaction *ct)
@@ -513,7 +520,7 @@ actions_timeout_register(controller_transaction *ct)
     struct timeval t;
     struct timeval t1;
     int            d;
-    
+
     clicon_debug(1, "%s", __FUNCTION__);
     gettimeofday(&t, NULL);
     d = clicon_data_int_get(ct->ct_h, "controller-device-timeout");
@@ -531,7 +538,7 @@ actions_timeout_register(controller_transaction *ct)
     return retval;
 }
 
-/*! Cancel timeout 
+/*! Cancel timeout
  *
  * @param[in] h   Clixon handle
  */
@@ -551,7 +558,7 @@ actions_timeout_unregister(controller_transaction *ct)
  * @param[out] cvv     Vector of changed service instances, on the form name:<service> value:<instance>
  * @retval     0       OK, cb including notify msg (or not)
  * @retval    -1       Error
- * @see devices_diff   where diff is constructed 
+ * @see devices_diff   where diff is constructed
  */
 static int
 controller_actions_diff(clixon_handle           h,
@@ -568,7 +575,7 @@ controller_actions_diff(clixon_handle           h,
     char   *instance;
     cxobj  *xi;
     cbuf   *cb = NULL;
-    
+
     x0s = xpath_first(td->td_src, nsc, "services");
     x1s = xpath_first(td->td_target, nsc, "services");
     if (x0s == NULL && x1s == NULL){
@@ -655,17 +662,17 @@ strip_device(cxobj *x,
                 continue;
             if (len == 1)
                 xml_flag_set(x, XML_FLAG_MARK);
-            else 
+            else
                 xml_creator_rm(x, tag);
         }
     return 0;
 }
 
 /*! Strip all service data in device config
- * 
- * Read a datastore, for each device in the datastore, strip data created by services 
- * as defined by the services vector cvv. Write back the changed datasrtore
- * @param[in]  h    Clixon handle 
+ *
+ * Read a datastore, for each device in the datastore, strip data created by services
+ * as defined by the services vector cvv. Write back the changed datastore
+ * @param[in]  h    Clixon handle
  * @param[in]  db   Database
  * @param[in]  cvv  Vector of services
  * @retval     0    OK
@@ -689,13 +696,13 @@ strip_service_data_from_device_config(clixon_handle h,
 
     if (xmldb_get0(h, db, YB_NONE, NULL, NULL, 1, WITHDEFAULTS_EXPLICIT, &xt, NULL, NULL) < 0)
         goto done;
-    if (xpath_vec(xt, NULL, "devices/device/config", &vec, &veclen) < 0) 
+    if (xpath_vec(xt, NULL, "devices/device/config", &vec, &veclen) < 0)
         goto done;
     for (i=0; i<veclen; i++){
         xd = vec[i];
 #if 0 // debug
         fprintf(stderr, "%s before strip xd:\n", __FUNCTION__);
-        xml_creator_print(stderr, xd); 
+        xml_creator_print(stderr, xd);
 #endif
         if (xml_apply(xd, CX_ELMNT, strip_device, cvv) < 0)
             goto done;
@@ -705,7 +712,7 @@ strip_service_data_from_device_config(clixon_handle h,
             goto done;
 #if 0 // debug
         fprintf(stderr, "%s after strip xd:\n", __FUNCTION__);
-        xml_creator_print(stderr, xd); 
+        xml_creator_print(stderr, xd);
 
 #endif
     }
@@ -737,7 +744,7 @@ strip_service_data_from_device_config(clixon_handle h,
 
 /*! Compute diff of candidate + commit and trigger service-commit notify
  *
- * @param[in]  h       Clixon handle 
+ * @param[in]  h       Clixon handle
  * @param[in]  ct      Transaction
  * @param[in]  db      From where to compute diffs and push
  * @param[out] cberr   Error message (if retval = 0)
@@ -745,7 +752,7 @@ strip_service_data_from_device_config(clixon_handle h,
  * @retval     0       Failed
  * @retval    -1       Error
  */
-static int 
+static int
 controller_commit_push(clixon_handle           h,
                        controller_transaction *ct,
                        char                   *db,
@@ -761,7 +768,7 @@ controller_commit_push(clixon_handle           h,
         if ((ret = push_device_one(h, dh, ct, db, cberr)) < 0)
             goto done;
         if (ret == 0)  /* Failed but cbret set */
-            goto failed;        
+            goto failed;
     }
     retval = 1;
  done:
@@ -776,6 +783,8 @@ controller_commit_push(clixon_handle           h,
  * Devices are removed of no device diff
  * @param[in]  h    Clixon handle
  * @param[in]  ct   Transaction
+ * @retval     0    OK
+ * @retval    -1    Error
  */
 static int
 commit_push_after_actions(clixon_handle           h,
@@ -792,7 +801,7 @@ commit_push_after_actions(clixon_handle           h,
             goto done;
     }
     else{
-        /* Compute diff of candidate + commit and trigger service 
+        /* Compute diff of candidate + commit and trigger service
          * If some device diff is zero, then remove device from transaction
          */
         if ((ret = controller_commit_push(h, ct, "actions", &cberr)) < 0)
@@ -809,7 +818,7 @@ commit_push_after_actions(clixon_handle           h,
             if (controller_transaction_done(h, ct, TR_FAILED) < 0)
                 goto done;
             if (controller_transaction_notify(ct->ct_h, ct) < 0)
-                goto done;                
+                goto done;
         }
         /* No device started, close transaction */
         else if (controller_transaction_devices(h, ct->ct_id) == 0){
@@ -872,13 +881,13 @@ commit_push_after_actions(clixon_handle           h,
 
 /*! Compute diff of candidate + commit and trigger service-commit notify
  *
- * @param[in]  h         Clixon handle 
+ * @param[in]  h         Clixon handle
  * @param[in]  ct        Transaction
  * @param[in]  actions   How to trigger service-commit notifications
  * @retval     0         OK
  * @retval    -1         Error
  */
-static int 
+static int
 controller_commit_actions(clixon_handle           h,
                           controller_transaction *ct,
                           actions_type            actions,
@@ -954,7 +963,7 @@ controller_commit_actions(clixon_handle           h,
  * Read running config and compare configured devices with the selection pattern
  * and its state is open, then set the tid on that device
  * If state of a selected device is not open, then return first closed device
- * @param[in]  h       Clixon handle 
+ * @param[in]  h       Clixon handle
  * @param[in]  device  Name of device to push to, can use wildchars for several, or NULL for all
  * @param[in]  tid     Transaction id
  * @param[out] closed  Device handle of first closed device, if any
@@ -962,7 +971,7 @@ controller_commit_actions(clixon_handle           h,
  * @retval    -1       Error
  * @note  cleanup (unmarking) must be done by calling function, even if closed is non-NULL
  */
-static int 
+static int
 devices_match(clixon_handle   h,
               char           *device,
               uint64_t        tid,
@@ -978,10 +987,10 @@ devices_match(clixon_handle   h,
     device_handle dh;
     int           i;
     cbuf         *reason = NULL;
-    
+
     if (xmldb_get(h, "running", nsc, "devices", &xret) < 0)
         goto done;
-    if (xpath_vec(xret, nsc, "devices/device", &vec, &veclen) < 0) 
+    if (xpath_vec(xret, nsc, "devices/device", &vec, &veclen) < 0)
         goto done;
     for (i=0; i<veclen; i++){
         xn = vec[i];
@@ -997,7 +1006,7 @@ devices_match(clixon_handle   h,
             *closed = dh;
         }
         /* Include device in transaction */
-        device_handle_tid_set(dh, tid);        
+        device_handle_tid_set(dh, tid);
     } /* for */
     retval = 0;
  done:
@@ -1022,7 +1031,7 @@ devices_match(clixon_handle   h,
  * @param[out] changed Device handle of changed device, if any
  * @retval     0       OK
  * @retval    -1       Error
- * @see devices_diff   where diff is constructed 
+ * @see devices_diff   where diff is constructed
  * @see devices_match  similar selection, but based on open devices
  */
 static int
@@ -1099,7 +1108,7 @@ devices_diff(clixon_handle           h,
     device_handle dh;
     char         *name;
     int           i;
-    
+
     if (xmldb_get0(h, "candidate", YB_MODULE, nsc, "/", 1, WITHDEFAULTS_EXPLICIT, &td->td_target, NULL, NULL) < 0)
         goto done;
     if (xmldb_get0(h, "running", YB_MODULE, nsc, "/", 1, WITHDEFAULTS_EXPLICIT, &td->td_src, NULL, NULL) < 0)
@@ -1152,12 +1161,12 @@ devices_diff(clixon_handle           h,
 }
 
 /*! Helpful error message if a device is closed or changed
- * 
+ *
  * @param[in]  h      Clixon handle
  * @param[in]  ct     Controller transaction
  * @param[in]  dh     Device handle (reason=0,1)
  * @param[in]  reason 0: closed, 1: changed, 2: no devices
- * @param[out] cbret   Return xml tree, eg <rpc-reply>..., <rpc-error.. 
+ * @param[out] cbret   Return xml tree, eg <rpc-reply>..., <rpc-error..
  * @retval     0      OK
  * @retval    -1      Error
  */
@@ -1171,7 +1180,7 @@ device_error(clicon_handle           h,
     int   retval = -1;
     cbuf *cb = NULL;
     char *name = NULL;
-    
+
     if ((cb = cbuf_new()) == NULL){
         clicon_err(OE_UNIX, errno, "cbuf_new");
         goto done;
@@ -1205,20 +1214,20 @@ device_error(clicon_handle           h,
 
 /*! Extended commit: trigger actions and device push
  *
- * @param[in]  h       Clixon handle 
- * @param[in]  xe      Request: <rpc><xn></rpc> 
- * @param[out] cbret   Return xml tree, eg <rpc-reply>..., <rpc-error.. 
- * @param[in]  arg     Domain specific arg, ec client-entry or FCGX_Request 
- * @param[in]  regarg  User argument given at rpc_callback_register() 
+ * @param[in]  h       Clixon handle
+ * @param[in]  xe      Request: <rpc><xn></rpc>
+ * @param[out] cbret   Return xml tree, eg <rpc-reply>..., <rpc-error..
+ * @param[in]  arg     Domain specific arg, ec client-entry or FCGX_Request
+ * @param[in]  regarg  User argument given at rpc_callback_register()
  * @retval     0       OK
  * @retval    -1       Error
  * TODO: device-groups
  */
-static int 
+static int
 rpc_controller_commit(clixon_handle h,
                       cxobj        *xe,
                       cbuf         *cbret,
-                      void         *arg,  
+                      void         *arg,
                       void         *regarg)
 {
     int                     retval = -1;
@@ -1236,7 +1245,7 @@ rpc_controller_commit(clixon_handle h,
     device_handle           closed = NULL;
     device_handle           changed = NULL;
     transaction_data_t     *td = NULL;
-    
+
     clicon_debug(1, "%s", __FUNCTION__);
     device = xml_find_body(xe, "device");
     if ((device_group = xml_find_body(xe, "device-group")) != NULL){
@@ -1278,7 +1287,7 @@ rpc_controller_commit(clixon_handle h,
         pusht = push_type_str2int(str);
         cprintf(cbtr, " push:%s", str);
     }
-    /* Initiate new transaction. 
+    /* Initiate new transaction.
      * NB: this locks candidate, which always needs to be unlocked, eg by controller_transaction_done
      */
     if ((ret = controller_transaction_new(h, cbuf_get(cbtr), &ct, &cberr)) < 0)
@@ -1331,13 +1340,13 @@ rpc_controller_commit(clixon_handle h,
                 goto done;
             if (controller_transaction_done(h, ct, TR_FAILED) < 0)
                 goto done;
-            goto ok;        
+            goto ok;
         }
         if (controller_transaction_devices(h, ct->ct_id) == 0){
             /* No device started, close transaction */
             if (controller_transaction_done(h, ct, TR_SUCCESS) < 0)
                 goto done;
-        }        
+        }
         break;
     case AT_CHANGE:
     case AT_FORCE:
@@ -1378,15 +1387,15 @@ rpc_controller_commit(clixon_handle h,
  * Typically this db is retrieved by the pull rpc
  * Should probably be replaced by a more generic function.
  * Possibly just extend get-config with device dbs?";
- * @param[in]  h       Clixon handle 
- * @param[in]  xe      Request: <rpc><xn></rpc> 
- * @param[out] cbret   Return xml tree, eg <rpc-reply>..., <rpc-error.. 
- * @param[in]  arg     Domain specific arg, ec client-entry or FCGX_Request 
- * @param[in]  regarg  User argument given at rpc_callback_register() 
+ * @param[in]  h       Clixon handle
+ * @param[in]  xe      Request: <rpc><xn></rpc>
+ * @param[out] cbret   Return xml tree, eg <rpc-reply>..., <rpc-error..
+ * @param[in]  arg     Domain specific arg, ec client-entry or FCGX_Request
+ * @param[in]  regarg  User argument given at rpc_callback_register()
  * @retval     0       OK
  * @retval    -1       Error
  */
-static int 
+static int
 rpc_get_device_config(clixon_handle h,
                       cxobj        *xe,
                       cbuf         *cbret,
@@ -1410,7 +1419,7 @@ rpc_get_device_config(clixon_handle h,
     device_config_type dt;
     int                ret;
     int                i;
-    
+
     pattern = xml_find_body(xe, "devname");
     config_type = xml_find_body(xe, "config-type");
     dt = device_config_type_str2int(config_type);
@@ -1422,7 +1431,7 @@ rpc_get_device_config(clixon_handle h,
         if (xmldb_get(h, "running", nsc, "devices/device", &xret) < 0)
             goto done;
     }
-    if (xpath_vec(xret, nsc, "devices/device", &vec, &veclen) < 0) 
+    if (xpath_vec(xret, nsc, "devices/device", &vec, &veclen) < 0)
         goto done;
     if ((cb = cbuf_new()) == NULL){
         clicon_err(OE_UNIX, errno, "cbuf_new");
@@ -1486,19 +1495,19 @@ rpc_get_device_config(clixon_handle h,
 /*! (Re)connect try an enabled device in CLOSED state.
  *
  * If closed due to error it may need to be cleared and reconnected
- * @param[in]  h       Clixon handle 
- * @param[in]  xe      Request: <rpc><xn></rpc> 
- * @param[out] cbret   Return xml tree, eg <rpc-reply>..., <rpc-error.. 
- * @param[in]  arg     Domain specific arg, ec client-entry or FCGX_Request 
- * @param[in]  regarg  User argument given at rpc_callback_register() 
+ * @param[in]  h       Clixon handle
+ * @param[in]  xe      Request: <rpc><xn></rpc>
+ * @param[out] cbret   Return xml tree, eg <rpc-reply>..., <rpc-error..
+ * @param[in]  arg     Domain specific arg, ec client-entry or FCGX_Request
+ * @param[in]  regarg  User argument given at rpc_callback_register()
  * @retval     0       OK
  * @retval    -1       Error
  */
-static int 
+static int
 rpc_connection_change(clixon_handle h,
                       cxobj        *xe,
                       cbuf         *cbret,
-                      void         *arg,  
+                      void         *arg,
                       void         *regarg)
 {
     int                     retval = -1;
@@ -1520,7 +1529,7 @@ rpc_connection_change(clixon_handle h,
     cbuf                   *cbtr = NULL;
     char                   *reason = NULL;
     int                     ret;
-    
+
     clicon_debug(1, "%s", __FUNCTION__);
     ce = (client_entry *)arg;
     if ((cbtr = cbuf_new()) == NULL){
@@ -1541,7 +1550,7 @@ rpc_connection_change(clixon_handle h,
     ct->ct_client_id = ce->ce_id;
     if (xmldb_get(h, "running", nsc, "devices", &xret) < 0)
         goto done;
-    if (xpath_vec(xret, nsc, "devices/device", &vec, &veclen) < 0) 
+    if (xpath_vec(xret, nsc, "devices/device", &vec, &veclen) < 0)
         goto done;
     for (i=0; i<veclen; i++){
         xn = vec[i];
@@ -1605,7 +1614,7 @@ rpc_connection_change(clixon_handle h,
             goto done;
         if (controller_transaction_notify(h, ct) < 0)
             goto done;
-    } 
+    }
  ok:
     retval = 0;
  done:
@@ -1625,19 +1634,19 @@ rpc_connection_change(clixon_handle h,
 /*! Terminate an ongoing transaction with an error condition
  *
  * If closed due to error it may need to be cleared and reconnected
- * @param[in]  h       Clixon handle 
- * @param[in]  xe      Request: <rpc><xn></rpc> 
- * @param[out] cbret   Return xml tree, eg <rpc-reply>..., <rpc-error.. 
- * @param[in]  arg     Domain specific arg, ec client-entry or FCGX_Request 
- * @param[in]  regarg  User argument given at rpc_callback_register() 
+ * @param[in]  h       Clixon handle
+ * @param[in]  xe      Request: <rpc><xn></rpc>
+ * @param[out] cbret   Return xml tree, eg <rpc-reply>..., <rpc-error..
+ * @param[in]  arg     Domain specific arg, ec client-entry or FCGX_Request
+ * @param[in]  regarg  User argument given at rpc_callback_register()
  * @retval     0       OK
  * @retval    -1       Error
  */
-static int 
+static int
 rpc_transaction_error(clixon_handle h,
                       cxobj        *xe,
                       cbuf         *cbret,
-                      void         *arg,  
+                      void         *arg,
                       void         *regarg)
 {
     int                     retval = -1;
@@ -1683,19 +1692,19 @@ rpc_transaction_error(clixon_handle h,
 
 /*! Action scripts signal to backend that all actions are completed
  *
- * @param[in]  h       Clixon handle 
- * @param[in]  xe      Request: <rpc><xn></rpc> 
- * @param[out] cbret   Return xml tree, eg <rpc-reply>..., <rpc-error.. 
- * @param[in]  arg     Domain specific arg, ec client-entry or FCGX_Request 
- * @param[in]  regarg  User argument given at rpc_callback_register() 
+ * @param[in]  h       Clixon handle
+ * @param[in]  xe      Request: <rpc><xn></rpc>
+ * @param[out] cbret   Return xml tree, eg <rpc-reply>..., <rpc-error..
+ * @param[in]  arg     Domain specific arg, ec client-entry or FCGX_Request
+ * @param[in]  regarg  User argument given at rpc_callback_register()
  * @retval     0       OK
  * @retval    -1       Error
  */
-static int 
+static int
 rpc_transactions_actions_done(clixon_handle h,
                               cxobj        *xe,
                               cbuf         *cbret,
-                              void         *arg,  
+                              void         *arg,
                               void         *regarg)
 {
     int                     retval = -1;
@@ -1703,7 +1712,7 @@ rpc_transactions_actions_done(clixon_handle h,
     uint64_t                tid;
     int                     ret;
     controller_transaction *ct;
-    
+
     clicon_debug(1, "%s", __FUNCTION__);
     if ((tidstr = xml_find_body(xe, "tid")) == NULL){
         if (netconf_operation_failed(cbret, "application", "No tid")< 0)
@@ -1757,6 +1766,8 @@ rpc_transactions_actions_done(clixon_handle h,
  * @param[in]   db2    Second datastore
  * @param[in]   format Format of diff
  * @param[out]  cbret  CLIgen buff with NETCONF reply
+ * @retval      0      OK
+ * @retval     -1      Error
  * @see datastore_diff_device   for intra-device diff
  */
 static int
@@ -1773,7 +1784,7 @@ datastore_diff_dsref(clixon_handle    h,
     cxobj  *xt2 = NULL;
     cxobj  *x1;
     cxobj  *x2;
-    
+
     if (xmldb_get0(h, db1, YB_NONE, NULL, xpath, 1, WITHDEFAULTS_EXPLICIT, &xt1, NULL, NULL) < 0)
         goto done;
     x1 = xpath_first(xt1, NULL, "%s", xpath);
@@ -1802,7 +1813,7 @@ datastore_diff_dsref(clixon_handle    h,
     cprintf(cbret, "<diff xmlns=\"%s\">", CONTROLLER_NAMESPACE);
     xml_chardata_cbuf_append(cbret, cbuf_get(cb));
     cprintf(cbret, "</diff>");
-    cprintf(cbret, "</rpc-reply>");    
+    cprintf(cbret, "</rpc-reply>");
     retval = 0;
  done:
     if (cb)
@@ -1822,8 +1833,10 @@ datastore_diff_dsref(clixon_handle    h,
  * @param[in]   pattern Glob pattern for selecting devices
  * @param[in]   dt1     Type of device config 1
  * @param[in]   dt2     Type of device config 2
- * @param[in]   format Format of diff
+ * @param[in]   format  Format of diff
  * @param[out]  cbret   CLIgen buff with NETCONF reply
+ * @retval      0       OK
+ * @retval     -1       Error
  * @see datastore_diff_dsref   For inter-datastore diff
  */
 static int
@@ -1842,7 +1855,7 @@ datastore_diff_device(clixon_handle      h,
     cxobj        *x1;
     cxobj        *x2;
     cxobj        *x1m = NULL; /* malloced */
-    cxobj        *x2m = NULL; 
+    cxobj        *x2m = NULL;
     cvec         *nsc = NULL;
     cxobj        *xret = NULL;
     cxobj        *x1ret = NULL;
@@ -1855,7 +1868,7 @@ datastore_diff_device(clixon_handle      h,
     int           i;
     int           ret;
     char         *ct;
-    
+
     if ((cb = cbuf_new()) == NULL){
         clicon_err(OE_UNIX, errno, "cbuf_new");
         goto done;
@@ -1866,7 +1879,7 @@ datastore_diff_device(clixon_handle      h,
     }
     if (xmldb_get0(h, "running", Y_MODULE, nsc, "devices/device/name", 1, WITHDEFAULTS_EXPLICIT, &xret, NULL, NULL) < 0)
         goto done;
-    if (xpath_vec(xret, nsc, "devices/device/name", &vec, &veclen) < 0) 
+    if (xpath_vec(xret, nsc, "devices/device/name", &vec, &veclen) < 0)
         goto done;
     for (i=0; i<veclen; i++){
         xdev = vec[i];
@@ -1903,7 +1916,7 @@ datastore_diff_device(clixon_handle      h,
         case DT_TRANSIENT:
             ct = device_config_type_int2str(dt1);
             if ((ret = device_config_read(h, devname, ct, &x1m, &cberr)) < 0)
-                goto done;            
+                goto done;
             if (ret == 0){
                 if (netconf_operation_failed(cbret, "application", cbuf_get(cberr))< 0)
                     goto done;
@@ -1938,7 +1951,7 @@ datastore_diff_device(clixon_handle      h,
         case DT_TRANSIENT:
             ct = device_config_type_int2str(dt2);
             if ((ret = device_config_read(h, devname, ct, &x2m, &cberr)) < 0)
-                goto done;            
+                goto done;
             if (ret == 0){
                 if (netconf_operation_failed(cbret, "application", cbuf_get(cberr))< 0)
                     goto done;
@@ -2010,22 +2023,22 @@ datastore_diff_device(clixon_handle      h,
 /*! Compare two data-stores by returning a diff-list in XML
  *
  * Compare two data-stores by returning a diff-list in XML.
- * There are two variants: 
+ * There are two variants:
  *  1) Regular datastore references, such as running/candidate according to ietf-datastores YANG
  *  2) Clixon-controller specific device datastores
- * @param[in]  h       Clixon handle 
- * @param[in]  xe      Request: <rpc><xn></rpc> 
- * @param[out] cbret   Return xml tree, eg <rpc-reply>..., <rpc-error.. 
+ * @param[in]  h       Clixon handle
+ * @param[in]  xe      Request: <rpc><xn></rpc>
+ * @param[out] cbret   Return xml tree, eg <rpc-reply>..., <rpc-error..
  * @param[in]  arg     Domain specific arg
- * @param[in]  regarg  User argument given at rpc_callback_register() 
+ * @param[in]  regarg  User argument given at rpc_callback_register()
  * @retval     0       OK
  * @retval    -1       Error
  */
-static int 
+static int
 rpc_datastore_diff(clixon_handle h,
                    cxobj        *xe,
                    cbuf         *cbret,
-                   void         *arg,  
+                   void         *arg,
                    void         *regarg)
 {
     int                retval = -1;
@@ -2039,7 +2052,7 @@ rpc_datastore_diff(clixon_handle h,
     char              *devname;
     char              *formatstr;
     enum format_enum   format = FORMAT_XML;
-                
+
     clicon_debug(CLIXON_DBG_DEFAULT, "%s", __FUNCTION__);
     xpath = xml_find_body(xe, "xpath");
     if ((formatstr = xml_find_body(xe, "format")) != NULL){
@@ -2110,11 +2123,11 @@ rpc_datastore_diff(clixon_handle h,
  *
  * The registration should be made from plugin-init to ensure the check is made before
  * the regular from_client_create_subscription callback
- * @param[in]  h       Clixon handle 
- * @param[in]  xe      Request: <rpc><xn></rpc> 
- * @param[out] cbret   Return xml tree, eg <rpc-reply>..., <rpc-error.. 
+ * @param[in]  h       Clixon handle
+ * @param[in]  xe      Request: <rpc><xn></rpc>
+ * @param[out] cbret   Return xml tree, eg <rpc-reply>..., <rpc-error..
  * @param[in]  arg     client-entry
- * @param[in]  regarg  User argument given at rpc_callback_register() 
+ * @param[in]  regarg  User argument given at rpc_callback_register()
  * @retval     0       OK
  * @retval    -1       Error
  * @see clixon-controller.yang notification services-commit
@@ -2123,7 +2136,7 @@ int
 check_services_commit_subscription(clixon_handle h,
                                    cxobj        *xe,
                                    cbuf         *cbret,
-                                   void         *arg,  
+                                   void         *arg,
                                    void         *regarg)
 {
     int                  retval = -1;
@@ -2134,7 +2147,7 @@ check_services_commit_subscription(clixon_handle h,
     event_stream_t      *es;
     struct stream_subscription *ss;
     int                         i;
-        
+
     clicon_debug(CLIXON_DBG_DEFAULT, "%s", __FUNCTION__);
     /* XXX should use prefix cf edit_config */
     if ((nsc = xml_nsctx_init(NULL, EVENT_RFC5277_NAMESPACE)) == NULL)
@@ -2167,55 +2180,55 @@ check_services_commit_subscription(clixon_handle h,
     return retval;
 }
 
-/*! Register callback for rpc calls */
+/*! Register callback for rpc calls 
+ */
 int
 controller_rpc_init(clicon_handle h)
 {
     int retval = -1;
-    
+
     if (rpc_callback_register(h, rpc_config_pull,
-                              NULL, 
+                              NULL,
                               CONTROLLER_NAMESPACE,
                               "config-pull"
                               ) < 0)
         goto done;
     if (rpc_callback_register(h, rpc_controller_commit,
-                              NULL, 
+                              NULL,
                               CONTROLLER_NAMESPACE,
                               "controller-commit"
                               ) < 0)
         goto done;
     if (rpc_callback_register(h, rpc_connection_change,
-                              NULL, 
+                              NULL,
                               CONTROLLER_NAMESPACE,
                               "connection-change"
                               ) < 0)
         goto done;
     if (rpc_callback_register(h, rpc_get_device_config,
-                              NULL, 
+                              NULL,
                               CONTROLLER_NAMESPACE,
                               "get-device-config"
                               ) < 0)
         goto done;
     if (rpc_callback_register(h, rpc_transaction_error,
-                              NULL, 
+                              NULL,
                               CONTROLLER_NAMESPACE,
                               "transaction-error"
                               ) < 0)
         goto done;
     if (rpc_callback_register(h, rpc_transactions_actions_done,
-                              NULL, 
+                              NULL,
                               CONTROLLER_NAMESPACE,
                               "transaction-actions-done"
                               ) < 0)
         goto done;
     if (rpc_callback_register(h, rpc_datastore_diff,
-                              NULL, 
+                              NULL,
                               CONTROLLER_NAMESPACE,
                               "datastore-diff"
                               ) < 0)
         goto done;
-    
     /* Check that services subscriptions is just done once */
     if (rpc_callback_register(h,
                               check_services_commit_subscription,

@@ -1,7 +1,7 @@
 /*
  *
   ***** BEGIN LICENSE BLOCK *****
- 
+
   Copyright (C) 2023 Olof Hagsand
 
   This file is part of CLIXON.
@@ -74,7 +74,7 @@ device_send_get_config(clixon_handle h,
         goto done;
     }
     cprintf(cb, "<rpc xmlns=\"%s\" message-id=\"%" PRIu64 "\">",
-            NETCONF_BASE_NAMESPACE, 
+            NETCONF_BASE_NAMESPACE,
             device_handle_msg_id_getinc(dh));
     if (1) { // get-config
         cprintf(cb, "<get-config>");
@@ -121,7 +121,7 @@ device_get_schema_sendit(clixon_handle h,
     uint64_t seq;
     int      encap;
     char    *name;
-    
+
     name = device_handle_name_get(dh);
     if ((cb = cbuf_new()) == NULL){
         clicon_err(OE_PLUGIN, errno, "cbuf_new");
@@ -184,7 +184,7 @@ device_send_get_schema_next(clixon_handle h,
     }
     xylib = device_handle_yang_lib_get(dh);
     x = NULL;
-    if (xpath_vec(xylib, nsc, "module-set/module", &vec, &veclen) < 0) 
+    if (xpath_vec(xylib, nsc, "module-set/module", &vec, &veclen) < 0)
         goto done;
     for (i=0; i<veclen; i++){
         x = vec[i];
@@ -219,9 +219,11 @@ device_send_get_schema_next(clixon_handle h,
 
 /*! Send ietf-netconf-monitoring schema get request to get list of schemas
  *
- * @param[in]  h       Clixon handle.
- * @param[in]  dh      Clixon client handle.
- * @note this could be part of the generic sync, but juniper seems to need 
+ * @param[in]  h      Clixon handle.
+ * @param[in]  dh     Clixon client handle.
+ * @retval     0      OK
+ * @retval    -1      Error
+ * @note this could be part of the generic sync, but juniper seems to need
  * an explicit to target the schemas (and only that)
  * @see device_state_recv_schema_list  where the reply is received
  */
@@ -241,7 +243,7 @@ device_send_get_schema_list(clixon_handle h,
         goto done;
     }
     cprintf(cb, "<rpc xmlns=\"%s\" message-id=\"%" PRIu64 "\">",
-            NETCONF_BASE_NAMESPACE, 
+            NETCONF_BASE_NAMESPACE,
             device_handle_msg_id_getinc(dh));
     cprintf(cb, "<get>");
     cprintf(cb, "<filter type=\"subtree\">");
@@ -263,7 +265,7 @@ device_send_get_schema_list(clixon_handle h,
     return retval;
 }
 
-/*! Remove any subtree under xn (expect for list keys) 
+/*! Remove any subtree under xn (expect for list keys)
  */
 static int
 remove_subtree(cxobj *xn)
@@ -273,7 +275,7 @@ remove_subtree(cxobj *xn)
     cg_var *cvi = NULL;
     char   *keyname;
     cxobj  *xk;
-            
+
     cvk = yang_cvec_get(xml_spec(xn)); /* Use Y_LIST cache, see ys_populate_list() */
     while ((cvi = cvec_each(cvk, cvi)) != NULL) {
         keyname = cv_string_get(cvi);
@@ -302,12 +304,12 @@ remove_subtree(cxobj *xn)
  * @param[in]  x1      New tree
  * @param[in]  yspec   Yang spec of device mount
  * @param[in]  dvec    Delete xml vector (in x0)
- * @param[in]  dlen;   Delete xml vector length 
+ * @param[in]  dlen;   Delete xml vector length
  * @param[in]  avec    Add xml vector  (in x1)
  * @param[in]  alen    Add xml vector length
  * @param[in]  chvec0  Source changed xml vector
  * @param[in]  chvec1  Target changed xml vector
- * @param[in]  chlen   Changed xml vector length 
+ * @param[in]  chlen   Changed xml vector length
  * @param[out] cbret   Cligen  buf containing the whole message (not sent)
  * @retval     0       OK
  * @retval    -1       Error
@@ -340,7 +342,7 @@ device_create_edit_config_diff(clixon_handle h,
     char  *reason = NULL;
     int    ret;
     cvec  *nsc = NULL;
-    
+
     clicon_debug(1, "%s", __FUNCTION__);
     if (cbret == NULL){
         clicon_err(OE_UNIX, EINVAL, "cbret is NULL");
@@ -396,7 +398,7 @@ device_create_edit_config_diff(clixon_handle h,
     }
     cprintf(cb, "<rpc xmlns=\"%s\" xmlns:nc=\"%s\" message-id=\"%" PRIu64 "\">",
             NETCONF_BASE_NAMESPACE,
-            NETCONF_BASE_NAMESPACE, 
+            NETCONF_BASE_NAMESPACE,
             device_handle_msg_id_getinc(dh));
     cprintf(cb, "<edit-config>");
     cprintf(cb, "<target><candidate/></target>");
@@ -409,7 +411,7 @@ device_create_edit_config_diff(clixon_handle h,
     xroot = xpath_first(xt, nsc, "rpc/edit-config");
     if (xml_name_set(x0, "config") < 0)
         goto done;
-    /* 5. Add diff-tree to an outgoing netconf edit-config 
+    /* 5. Add diff-tree to an outgoing netconf edit-config
      * Local tree xt and external tree x0 temporarily grafted, must be pruned directly after use
      */
     if (xml_addsub(xroot, x0) < 0)
@@ -462,7 +464,7 @@ device_send_rpc(clixon_handle h,
         goto done;
     }
     cprintf(cb, "<rpc xmlns=\"%s\" message-id=\"%" PRIu64 "\">",
-            NETCONF_BASE_NAMESPACE, 
+            NETCONF_BASE_NAMESPACE,
             device_handle_msg_id_getinc(dh));
     cprintf(cb, "%s", msgbody);
     cprintf(cb, "</rpc>");

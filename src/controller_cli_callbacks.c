@@ -1,7 +1,7 @@
 /*
  *
   ***** BEGIN LICENSE BLOCK *****
- 
+
   Copyright (C) 2023 Olof Hagsand
 
   This file is part of CLIXON.
@@ -63,9 +63,9 @@ cli_apipath(clicon_handle h,
 {
     int        retval = -1;
     char      *api_path_fmt01 = NULL;
-    yang_stmt *yspec0;    
+    yang_stmt *yspec0;
 
-    if (mtpoint){ 
+    if (mtpoint){
         if ((yspec0 = clicon_dbspec_yang(h)) == NULL){
             clicon_err(OE_FATAL, 0, "No DB_SPEC");
             goto done;
@@ -73,7 +73,7 @@ cli_apipath(clicon_handle h,
         /* Get and combined api-path01 */
         if (mtpoint_paths(yspec0, mtpoint, api_path_fmt, &api_path_fmt01) < 0)
             goto done;
-        if (api_path_fmt2api_path(api_path_fmt01, cvv, api_path, cvvi) < 0) 
+        if (api_path_fmt2api_path(api_path_fmt01, cvv, api_path, cvvi) < 0)
             goto done;
     }
     else{
@@ -183,7 +183,7 @@ rpc_get_yanglib_mount_match(clicon_handle h,
     }
     if ((xdevs = xpath_first(xret, NULL, "rpc-reply/data/devices")) != NULL){
         xdev = NULL;
-        while ((xdev = xml_child_each(xdevs, xdev, CX_ELMNT)) != NULL) {    
+        while ((xdev = xml_child_each(xdevs, xdev, CX_ELMNT)) != NULL) {
             if ((devname = xml_find_body(xdev, "name")) == NULL ||
                 fnmatch(pattern, devname, 0) == 0) /* Match */
                 xml_flag_set(xdev, XML_FLAG_MARK);
@@ -211,14 +211,14 @@ rpc_get_yanglib_mount_match(clicon_handle h,
 /*! Specialization of clixon cli_show_auto to handle device globs
  *
  * @param[in]  h    Clixon handle
- * @param[in]  cvv  Vector of cli string and instantiated variables 
+ * @param[in]  cvv  Vector of cli string and instantiated variables
  * @param[in]  argv Vector of function arguments
  * @retval     0    OK
  * @retval    -1    Error
  * @see cli_show_auto  Original function for description, arguments etc
  * @see cli_dbxml_devs Similar controller handling
  */
-int 
+int
 cli_show_auto_devs(clicon_handle h,
                    cvec         *cvv,
                    cvec         *argv)
@@ -246,7 +246,7 @@ cli_show_auto_devs(clicon_handle h,
     cbuf            *api_path_fmt_cb = NULL;    /* xml key format */
     int              i;
     int              fromroot = 0;
-    
+
     if (cvec_len(argv) < 2){
         clicon_err(OE_PLUGIN, EINVAL, "Received %d arguments. Expected:: <api-path-fmt>* <datastore> [<format> <pretty> <state> <default> <prepend>]", cvec_len(argv));
         goto done;
@@ -312,7 +312,7 @@ cli_show_auto_devs(clicon_handle h,
             goto done;
         if (xdevs == NULL){
             if (cli_apipath2xpath(h, cvv, mtpoint, api_path_fmt, &xpath, &nsc) < 0)
-                goto done;        
+                goto done;
             if (cli_show_common(h, dbname, format, pretty, state,
                                 withdefault, extdefault,
                                 prepend, xpath, fromroot, nsc, 0) < 0)
@@ -349,7 +349,7 @@ cli_show_auto_devs(clicon_handle h,
     }
     else {
         if (cli_apipath2xpath(h, cvv, mtpoint, api_path_fmt, &xpath, &nsc) < 0)
-            goto done;        
+            goto done;
         if (cli_show_common(h, dbname, format, pretty, state,
                             withdefault, extdefault,
                             prepend, xpath, fromroot, nsc, 0) < 0)
@@ -395,7 +395,7 @@ transaction_notification_handler(int                 s,
     char              *reason = NULL;
     char              *resstr;
     transaction_result result;
-    
+
     if (clicon_msg_rcv(s, NULL, 1, &reply, eof) < 0)
         goto done;
     if (*eof){
@@ -403,7 +403,7 @@ transaction_notification_handler(int                 s,
         close(s);
         goto done; /* Fatal, or possibly cli may reconnect */
     }
-    if ((ret = clicon_msg_decode(reply, NULL, NULL, &xt, NULL)) < 0) 
+    if ((ret = clicon_msg_decode(reply, NULL, NULL, &xt, NULL)) < 0)
         goto done;
     if (ret == 0){ /* will not happen since no yspec ^*/
         clicon_err(OE_NETCONF, EFAULT, "Notification malformed");
@@ -564,8 +564,8 @@ transaction_notification_poll(clicon_handle       h,
  * @retval   -1      Error
  */
 int
-cli_rpc_pull(clixon_handle h, 
-             cvec         *cvv, 
+cli_rpc_pull(clixon_handle h,
+             cvec         *cvv,
              cvec         *argv)
 {
     int        retval = -1;
@@ -714,7 +714,7 @@ cli_rpc_commit_diff_one(clicon_handle h,
 }
 
 /*! Make a controller commit diff variant
- * 
+ *
  * @param[in] h    Clixon handle
  * @retval    0    OK
  * @retval   -1    Error
@@ -731,14 +731,14 @@ cli_rpc_commit_diff(clixon_handle h)
     size_t  veclen;
     char   *name;
     int     i;
-    
+
     /* get all devices */
     if ((nsc = xml_nsctx_init("co", CONTROLLER_NAMESPACE)) == NULL)
         goto done;
     if (clicon_rpc_get_config(h, NULL, "running", "co:devices/co:device/co:name", nsc,
                               "explicit", &xdevs) < 0)
         goto done;
-    if (xpath_vec(xdevs, nsc, "devices/device/name", &vec, &veclen) < 0) 
+    if (xpath_vec(xdevs, nsc, "devices/device/name", &vec, &veclen) < 0)
         goto done;
     for (i=0; i<veclen; i++){
         xdev = vec[i];
@@ -763,14 +763,14 @@ cli_rpc_commit_diff(clixon_handle h)
  *
  * @param[in] h     Clixon handle
  * @param[in] cvv   Name pattern
- * @param[in] argv  Source:running/candidate, actions:NONE/CHANGE/FORCE, push:NONE/VALIDATE/COMMIT, 
+ * @param[in] argv  Source:running/candidate, actions:NONE/CHANGE/FORCE, push:NONE/VALIDATE/COMMIT,
  * @retval    0     OK
  * @retval   -1     Error
  * @see controller-commit in clixon-controller.yang
  */
 int
 cli_rpc_controller_commit(clixon_handle h,
-                          cvec         *cvv, 
+                          cvec         *cvv,
                           cvec         *argv)
 {
     int                retval = -1;
@@ -862,7 +862,7 @@ cli_rpc_controller_commit(clixon_handle h,
         goto ok;
     /* Interpret actions and no push as diff */
     if (actions_type_str2int(actions_type) != AT_NONE &&
-        push_type_str2int(push_type) == PT_NONE){ 
+        push_type_str2int(push_type) == PT_NONE){
         if (cli_rpc_commit_diff(h) < 0)
             goto done;
     }
@@ -888,8 +888,8 @@ cli_rpc_controller_commit(clixon_handle h,
  * @retval   -1    Error
  */
 int
-cli_connection_change(clixon_handle h, 
-                      cvec         *cvv, 
+cli_connection_change(clixon_handle h,
+                      cvec         *cvv,
                       cvec         *argv)
 {
     int        retval = -1;
@@ -979,7 +979,7 @@ cli_show_devices(clixon_handle h,
     char              *pattern = NULL;
     cg_var            *cv;
     int                detail = 0;
-    
+
     if (argv != NULL && cvec_len(argv) != 1){
         clicon_err(OE_PLUGIN, EINVAL, "optional argument: <detail>");
         goto done;
@@ -1088,7 +1088,7 @@ cli_show_services_process(clixon_handle h,
     cxobj         *x;
     char          *active = "false";
     char          *status = "unknown";
-    
+
     name = "Action process";
     opstr = "status";
     if (clixon_process_op_str2int(opstr) == -1){
@@ -1132,7 +1132,7 @@ cli_show_services_process(clixon_handle h,
 /*! Show controller device states
  *
  * @param[in] h
- * @param[in] cvv  
+ * @param[in] cvv
  * @param[in] argv : "last" or "all"
  * @retval    0    OK
  * @retval   -1    Error
@@ -1150,7 +1150,7 @@ cli_show_transactions(clixon_handle h,
     cxobj             *xn = NULL; /* XML of senders */
     cg_var            *cv;
     int                all = 0;
-    
+
     if (argv == NULL || cvec_len(argv) != 1){
         clicon_err(OE_PLUGIN, EINVAL, "requires argument: <operation>");
         goto done;
@@ -1287,15 +1287,15 @@ send_pull_transient(clicon_handle h,
  * @param[in]   h       Clixon handle
  * @param[in]   cvv     name: device pattern
  * @param[in]   argv    <format>        "text"|"xml"|"json"|"cli"|"netconf" (see format_enum)
- * @param[in]   dt1     First device config config 
+ * @param[in]   dt1     First device config config
  * @param[in]   dt2     Second device config config
  * @param[out]  diffp   Allocated diff string
  * @retval      0       OK
  * @retval     -1       Error
  */
 static int
-compare_device_config_type(clicon_handle      h, 
-                           cvec              *cvv, 
+compare_device_config_type(clicon_handle      h,
+                           cvec              *cvv,
                            cvec              *argv,
                            device_config_type dt1,
                            device_config_type dt2,
@@ -1317,7 +1317,7 @@ compare_device_config_type(clicon_handle      h,
     char            *device_type = NULL;
     char            *diff;
     transaction_result result;
-    
+
     if (cvec_len(argv) > 1){
         clicon_err(OE_PLUGIN, EINVAL, "Received %d arguments. Expected: <format>]", cvec_len(argv));
         goto done;
@@ -1402,16 +1402,16 @@ compare_device_config_type(clicon_handle      h,
  *
  * Use specialized rpc to reduce bandwidth
  * @param[in]   h     Clixon handle
- * @param[in]   cvv  
+ * @param[in]   cvv
  * @param[in]   argv  <db1> <db2> <format>
  * @retval      0     OK
  * @retval     -1     Error
  * @see compare_dbs  original function
  */
 int
-compare_dbs_rpc(clicon_handle h, 
-                       cvec         *cvv, 
-                       cvec         *argv)
+compare_dbs_rpc(clicon_handle h,
+                       cvec  *cvv,
+                       cvec  *argv)
 {
     int    retval = -1;
     char  *db1;
@@ -1488,14 +1488,14 @@ compare_dbs_rpc(clicon_handle h,
 /*! Compare device dbs: running with (last) synced db
  *
  * @param[in]   h     Clixon handle
- * @param[in]   cvv  
+ * @param[in]   cvv
  * @param[in]   argv  arg: 0 as xml, 1: as text
  * @retval      0     OK
  * @retval     -1     Error
  */
 int
-compare_device_db_sync(clicon_handle h, 
-                       cvec         *cvv, 
+compare_device_db_sync(clicon_handle h,
+                       cvec         *cvv,
                        cvec         *argv)
 {
     int   retval = -1;
@@ -1522,7 +1522,7 @@ compare_device_db_sync(clicon_handle h,
  * @see check_device_db  only replies with boolean
  */
 int
-compare_device_db_dev(clicon_handle h, 
+compare_device_db_dev(clicon_handle h,
                       cvec         *cvv,
                       cvec         *argv)
 {
@@ -1544,7 +1544,7 @@ compare_device_db_dev(clicon_handle h,
  *
  * @param[in] h
  * @param[in] cvv  : name pattern
- * @param[in] argv 
+ * @param[in] argv
  * @retval    0    OK
  * @retval   -1    Error
  * @see compare_device_db_dev  with detailed diff
@@ -1556,7 +1556,7 @@ check_device_db(clixon_handle h,
 {
     int   retval = -1;
     char *diff = NULL;
-    
+
     if (compare_device_config_type(h, cvv, argv, DT_RUNNING, DT_TRANSIENT, &diff) < 0)
         goto done;
     if (diff && strlen(diff))
@@ -1567,13 +1567,13 @@ check_device_db(clixon_handle h,
  done:
     if (diff)
         free(diff);
-    return retval;    
+    return retval;
 }
 
 /*! Sub-routine for device dbxml: api-path to xml and send edit-config
  *
  * @param[in]  h     Clixon handle
- * @param[in]  cvv   Vector of cli string and instantiated variables 
+ * @param[in]  cvv   Vector of cli string and instantiated variables
  * @param[in]  op    Operation to perform on datastore
  * @param[in]  nsctx Namespace context for last value added
  * @param[in]  api_path
@@ -1582,7 +1582,7 @@ check_device_db(clixon_handle h,
  */
 static int
 cli_dbxml_devs_sub(clicon_handle       h,
-                   cvec               *cvv, 
+                   cvec               *cvv,
                    enum operation_type op,
                    cvec               *nsctx,
                    int                 cvvi,
@@ -1680,7 +1680,7 @@ cli_dbxml_devs_sub(clicon_handle       h,
 /*! Modify xml datastore from a callback using xml key format strings
  *
  * @param[in]  h     Clixon handle
- * @param[in]  cvv   Vector of cli string and instantiated variables 
+ * @param[in]  cvv   Vector of cli string and instantiated variables
  * @param[in]  argv  Vector: <apipathfmt> [<mointpt>], eg "/aaa/%s"
  * @param[in]  op    Operation to perform on datastore
  * @param[in]  nsctx Namespace context for last value added
@@ -1696,22 +1696,22 @@ cli_dbxml_devs_sub(clicon_handle       h,
  * argv[0] = "/interfaces/interface/%s/type"
  * op: OP_MERGE
  * @see cli_callback_generate where arg is generated
- * @note The last value may require namespace binding present in nsctx. Note that the nsctx 
- *   cannot normally be supplied by the clispec functions, such as cli_set, but need to be 
+ * @note The last value may require namespace binding present in nsctx. Note that the nsctx
+ *   cannot normally be supplied by the clispec functions, such as cli_set, but need to be
  *   generated by a function such as clixon_instance_id_bind() or other programmatically.
  * @see cli_show_auto_devs Similar controller handling
  */
 static int
-cli_dbxml_devs(clicon_handle       h, 
-               cvec               *cvv, 
-               cvec               *argv, 
+cli_dbxml_devs(clicon_handle       h,
+               cvec               *cvv,
+               cvec               *argv,
                enum operation_type op,
                cvec               *nsctx)
 {
     int        retval = -1;
     char      *api_path_fmt;    /* xml key format */
     char      *api_path_fmt01 = NULL;
-    char      *api_path = NULL; 
+    char      *api_path = NULL;
     cg_var    *cv;
     int        cvvi = 0;
     char      *mtpoint = NULL;
@@ -1753,7 +1753,7 @@ cli_dbxml_devs(clicon_handle       h,
         devices = strstr(mtpoint, "/ctrl:devices") != NULL;
     }
     else{
-        devices = strstr(api_path_fmt, "/clixon-controller:devices") != NULL;        
+        devices = strstr(api_path_fmt, "/clixon-controller:devices") != NULL;
     }
     /* Remove all keywords */
     if (cvec_exclude_keys(cvv) < 0)
@@ -1790,7 +1790,6 @@ cli_dbxml_devs(clicon_handle       h,
             goto done;
         if (cli_dbxml_devs_sub(h, cvv, op, nsctx, cvvi, api_path) < 0)
             goto done;
-        
     }
     retval = 0;
  done:
@@ -1799,27 +1798,27 @@ cli_dbxml_devs(clicon_handle       h,
     if (api_path_fmt01)
         free(api_path_fmt01);
     if (api_path)
-        free(api_path);  
+        free(api_path);
     return retval;
 }
 
 /*! CLI callback: set auto db item, specialization for controller devices
  *
  * @param[in]  h    Clixon handle
- * @param[in]  cvv  Vector of cli string and instantiated variables 
+ * @param[in]  cvv  Vector of cli string and instantiated variables
  * @param[in]  argv Vector. First element xml key format string, eg "/aaa/%s"
  * Format of argv:
  *   <api-path-fmt> Generated
  * @see cli_auto_set  original callback
  */
-int 
+int
 cli_auto_set_devs(clicon_handle h,
                   cvec         *cvv,
                   cvec         *argv)
 {
     int   retval = -1;
     cvec *cvv2 = NULL;
-    
+
     cvv2 = cvec_append(clicon_data_cvec_get(h, "cli-edit-cvv"), cvv);
     if (cli_dbxml_devs(h, cvv2, argv, OP_REPLACE, NULL) < 0)
         goto done;
@@ -1833,18 +1832,18 @@ cli_auto_set_devs(clicon_handle h,
 /*! Merge datastore xml entry, specialization for controller devices
  *
  * @param[in]  h    Clixon handle
- * @param[in]  cvv  Vector of cli string and instantiated variables 
+ * @param[in]  cvv  Vector of cli string and instantiated variables
  * @param[in]  argv Vector. First element xml key format string, eg "/aaa/%s"
  * @see cli_auto_merge  original callback
  */
-int 
+int
 cli_auto_merge_devs(clicon_handle h,
                     cvec         *cvv,
                     cvec         *argv)
 {
     int retval = -1;
     cvec *cvv2 = NULL;
-    
+
     cvv2 = cvec_append(clicon_data_cvec_get(h, "cli-edit-cvv"), cvv);
     if (cli_dbxml_devs(h, cvv2, argv, OP_MERGE, NULL) < 0)
         goto done;
@@ -1858,18 +1857,18 @@ cli_auto_merge_devs(clicon_handle h,
 /*! Delete datastore xml, specialization for controller devices
  *
  * @param[in]  h    Clixon handle
- * @param[in]  cvv  Vector of cli string and instantiated variables 
+ * @param[in]  cvv  Vector of cli string and instantiated variables
  * @param[in]  argv Vector. First element xml key format string, eg "/aaa/%s"
  * @see cli_auto_del  original callback
  */
-int 
+int
 cli_auto_del_devs(clicon_handle h,
                   cvec         *cvv,
                   cvec         *argv)
 {
     int   retval = -1;
     cvec *cvv2 = NULL;
-    
+
     cvv2 = cvec_append(clicon_data_cvec_get(h, "cli-edit-cvv"), cvv);
     if (cli_dbxml_devs(h, cvv2, argv, OP_REMOVE, NULL) < 0)
         goto done;

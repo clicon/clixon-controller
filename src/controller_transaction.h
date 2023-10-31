@@ -1,7 +1,7 @@
 /*
  *
   ***** BEGIN LICENSE BLOCK *****
- 
+
   Copyright (C) 2023 Olof Hagsand
 
   This file is part of CLIXON.
@@ -24,7 +24,7 @@
   of those above. If you wish to allow use of your version of this file only
   under the terms of the GPL, and not to allow others to
   use your version of this file under the terms of Apache License version 2, indicate
-  your decision by deleting the provisions above and replace them with the 
+  your decision by deleting the provisions above and replace them with the
   notice and other provisions required by the GPL. If you do not delete
   the provisions above, a recipient may use your version of this file under
   the terms of any one of the Apache License version 2 or the GPL.
@@ -52,9 +52,9 @@ struct controller_transaction_t{
     int                ct_pull_transient;/* pull: dont commit locally */
     int                ct_pull_merge;    /* pull: Merge instead of replace */
     push_type          ct_push_type;     /* push to remote devices: Do not, validate, or commit */
-    actions_type       ct_actions_type;  /* How to trigger service-commit notifications, 
+    actions_type       ct_actions_type;  /* How to trigger service-commit notifications,
                                             and thereby action scripts */
-    char              *ct_sourcedb;      /* Source datastore (candidate or running) 
+    char              *ct_sourcedb;      /* Source datastore (candidate or running)
                                             as given by rpc controller-commit (stripped prefix) */
     char              *ct_description;   /* Description of transaction */
     char              *ct_origin;        /* Originator of error (if result is != SUCCESS) */
@@ -62,11 +62,11 @@ struct controller_transaction_t{
     struct timeval     ct_timestamp;     /* Timestamp when entering current state */
 };
 typedef struct controller_transaction_t controller_transaction;
-    
+
 /*! Transaction failed device close parameter
  *
  * If device handle is set, one can either:
- * - Ignore the device just fail transaction. Typically if device is already closed or handled 
+ * - Ignore the device just fail transaction. Typically if device is already closed or handled
  *   elsewhere
  * - Device leaves the transaction
  * - Close the device and leave the transaction

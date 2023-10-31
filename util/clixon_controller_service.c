@@ -1,7 +1,7 @@
 /*
  *
   ***** BEGIN LICENSE BLOCK *****
- 
+
   Copyright (C) 2023 Olof Hagsand
 
   This file is part of CLIXON.
@@ -40,7 +40,7 @@
 #define SERVICE_ACTION_OPTS "hD:f:l:s:e1"
 
 /*! Read services definition, write and mark an interface for each param in the service
- * 
+ *
  * @param[in] h        Clixon handle
  * @param[in] tidstr   Transaction id
  * @retval    0        OK
@@ -63,9 +63,9 @@ send_transaction_actions_done(clicon_handle h,
     cprintf(cb, "<rpc xmlns=\"%s\"", NETCONF_BASE_NAMESPACE);
     cprintf(cb, " xmlns:%s=\"%s\"",
             NETCONF_BASE_PREFIX, NETCONF_BASE_NAMESPACE);
-    cprintf(cb, " %s", NETCONF_MESSAGE_ID_ATTR); 
+    cprintf(cb, " %s", NETCONF_MESSAGE_ID_ATTR);
     cprintf(cb, ">");
-    cprintf(cb, "<transaction-actions-done xmlns=\"%s\">", 
+    cprintf(cb, "<transaction-actions-done xmlns=\"%s\">",
             CONTROLLER_NAMESPACE);
     cprintf(cb, "<tid>%s</tid>", tidstr);
     cprintf(cb, "</transaction-actions-done>");
@@ -106,9 +106,9 @@ send_transaction_error(clicon_handle h,
     cprintf(cb, "<rpc xmlns=\"%s\"", NETCONF_BASE_NAMESPACE);
     cprintf(cb, " xmlns:%s=\"%s\"",
             NETCONF_BASE_PREFIX, NETCONF_BASE_NAMESPACE);
-    cprintf(cb, " %s", NETCONF_MESSAGE_ID_ATTR); 
+    cprintf(cb, " %s", NETCONF_MESSAGE_ID_ATTR);
     cprintf(cb, ">");
-    cprintf(cb, "<transaction-error xmlns=\"%s\">", 
+    cprintf(cb, "<transaction-error xmlns=\"%s\">",
             CONTROLLER_NAMESPACE);
     cprintf(cb, "<tid>%s</tid>", tidstr);
     cprintf(cb, "<origin>service action</origin>");
@@ -153,7 +153,7 @@ read_services(clicon_handle     h,
     cxobj             *xd;
     struct clicon_msg *msg = NULL;
     cbuf              *cb = NULL;
-    
+
     if ((cb = cbuf_new()) == NULL){
         clicon_err(OE_XML, errno, "cbuf_new");
         goto done;
@@ -216,7 +216,7 @@ read_devices(clicon_handle h,
     cxobj             *xd;
     struct clicon_msg *msg = NULL;
     cbuf              *cb = NULL;
-    
+
     if ((cb = cbuf_new()) == NULL){
         clicon_err(OE_XML, errno, "cbuf_new");
         goto done;
@@ -225,7 +225,7 @@ read_devices(clicon_handle h,
     cprintf(cb, " xmlns:%s=\"%s\"",
             NETCONF_BASE_PREFIX, NETCONF_BASE_NAMESPACE);
     cprintf(cb, " %s", NETCONF_MESSAGE_ID_ATTR); /* XXX: use incrementing sequence */
-    cprintf(cb, ">"); 
+    cprintf(cb, ">");
     cprintf(cb, "<get-config nc:depth=\"4\">"); /* depth to include name, etc */
     cprintf(cb, "<source>");
     if (strcmp(db, "actions") == 0) /* XXX: Hardcoded namespace */
@@ -262,7 +262,7 @@ read_devices(clicon_handle h,
 }
 
 /*! Given service+instance config, send an edit-config interface for each param in the service
- * 
+ *
  * @param[in] h       Clixon handle
  * @param[in] s       Socket
  * @param[in] devname Device name
@@ -308,7 +308,7 @@ do_service(clicon_handle h,
         if (strcmp(xml_name(x), "params") != 0)
             continue;
         if ((p = xml_body(x)) == NULL)
-            continue;        
+            continue;
         cprintf(cb, "<interface %s:creator=\"%s\">", CLIXON_LIB_PREFIX, tag);
         cprintf(cb, "<name>%s</name>", p);
         cprintf(cb, "<config>");
@@ -365,7 +365,7 @@ service_loop_devices(clicon_handle h,
     retval = 0;
  done:
     return retval;
-}    
+}
 
 /*! Iterate through one service+instance
  *
@@ -434,12 +434,12 @@ service_action_instance(clicon_handle h,
     int     retval = -1;
     char   *tag;
     cxobj  *xs;
-    
+
     if ((tag = xml_body(xsi)) == NULL)
         goto ok;
     if (pattern != NULL && fnmatch(pattern, tag, 0) != 0)
         goto ok;
-    /* Note: Assumes single key and that key is called "name" 
+    /* Note: Assumes single key and that key is called "name"
      * See also controller_actions_diff()
      */
     if ((xs = xpath_first(xservices, NULL, "%s", tag)) != NULL){
@@ -482,7 +482,7 @@ service_action_handler(clicon_handle      h,
     char   *targetdb = NULL;
 
     clicon_debug(1, "%s", __FUNCTION__);
-    if ((ret = clicon_msg_decode(notification, NULL, NULL, &xt, NULL)) < 0) 
+    if ((ret = clicon_msg_decode(notification, NULL, NULL, &xt, NULL)) < 0)
         goto done;
     if (ret == 0){ /* will not happen since no yspec ^*/
         clicon_err(OE_NETCONF, EFAULT, "Notification malformed");
@@ -503,7 +503,7 @@ service_action_handler(clicon_handle      h,
     if ((targetdb = xml_find_body(xn, "target")) == NULL){
         clicon_err(OE_NETCONF, EFAULT, "Notification malformed: no source");
         goto done;
-    }    
+    }
     if (send_error){
         if (send_transaction_error(h, tidstr) < 0)
             goto done;
@@ -541,18 +541,19 @@ service_action_handler(clicon_handle      h,
         xml_free(xdevs);
     if (xt)
         xml_free(xt);
-    return retval;    
+    return retval;
 }
 
-/*! Clean and close all state of backend (but dont exit). 
- * Cannot use h after this 
+/*! Clean and close all state of backend (but dont exit).
+ *
+ * Cannot use h after this
  * @param[in]  h  Clixon handle
  */
 static int
 service_action_terminate(clicon_handle h)
 {
     clixon_event_exit();
-    clicon_debug(1, "%s done", __FUNCTION__); 
+    clicon_debug(1, "%s done", __FUNCTION__);
     clixon_err_exit();
     clicon_log_exit();
     clicon_handle_exit(h);
@@ -565,15 +566,15 @@ static void
 service_action_sig_term(int arg)
 {
     static int i=0;
-    
-    clicon_log(LOG_NOTICE, "%s: %s: pid: %u Signal %d", 
+
+    clicon_log(LOG_NOTICE, "%s: %s: pid: %u Signal %d",
                __PROGRAM__, __FUNCTION__, getpid(), arg);
     if (i++ > 0)
         exit(1);
     clixon_exit_set(1); /* checked in clixon_event_loop() */
 }
 
-/*! usage
+/*! Usage
  */
 static void
 usage(clicon_handle h,
@@ -671,7 +672,7 @@ main(int    argc,
      */
     //    clicon_data_set(h, "session-transport", "cl:services");
     if (clicon_rpc_create_subscription(h, "services-commit", NULL, &s) < 0){
-        clicon_log(LOG_NOTICE, "services-commit: subscription failed: %s", clicon_err_reason);    
+        clicon_log(LOG_NOTICE, "services-commit: subscription failed: %s", clicon_err_reason);
         goto done;
     }
     clicon_debug(CLIXON_DBG_DEFAULT, "%s notification socket:%d", __FUNCTION__, s);
@@ -695,6 +696,6 @@ main(int    argc,
         service_action_terminate(h); /* Cannot use h after this */
     if (notification)
         free(notification);
-    printf("done\n"); /* for test output */     
-    return retval;
+    printf("done\n"); /* for test output */
+    Return retval;
 }

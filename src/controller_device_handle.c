@@ -1,7 +1,7 @@
 /*
  *
   ***** BEGIN LICENSE BLOCK *****
- 
+
   Copyright (C) 2023 Olof Hagsand
 
   This file is part of CLIXON.
@@ -24,7 +24,7 @@
   of those above. If you wish to allow use of your version of this file only
   under the terms of the GPL, and not to allow others to
   use your version of this file under the terms of Apache License version 2, indicate
-  your decision by deleting the provisions above and replace them with the 
+  your decision by deleting the provisions above and replace them with the
   notice and other provisions required by the GPL. If you do not delete
   the provisions above, a recipient may use your version of this file under
   the terms of any one of the Apache License version 2 or the GPL.
@@ -65,7 +65,7 @@
 
 #define devhandle(dh) (assert(device_handle_check(dh)==0),(struct controller_device_handle *)(dh))
 
-/*! Internal structure of clixon controller device handle. 
+/*! Internal structure of clixon controller device handle.
  */
 struct controller_device_handle{
     qelem_t            cdh_qelem;      /* List header */
@@ -74,7 +74,7 @@ struct controller_device_handle{
     yang_config_t      cdh_yang_config; /* Yang config (shadow of config) */
     conn_state         cdh_conn_state; /* Connection state */
     struct timeval     cdh_conn_time;  /* Time when entering last connection state */
-    clixon_handle      cdh_h;          /* Clixon handle */ 
+    clixon_handle      cdh_h;          /* Clixon handle */
     clixon_client_type cdh_type;       /* Clixon socket type */
     int                cdh_socket;     /* Input/output socket, -1 is closed */
     uint64_t           cdh_msg_id;     /* Client message-id to device */
@@ -215,7 +215,7 @@ device_handle_free_all(clixon_handle h)
 {
     struct controller_device_handle *cdh_list = NULL;
     struct controller_device_handle *c;
-    
+
     clicon_ptr_get(h, "client-list", (void**)&cdh_list);
     while ((c = cdh_list) != NULL) {
         DELQ(c, cdh_list, struct controller_device_handle *);
@@ -231,13 +231,13 @@ device_handle_free_all(clixon_handle h)
  * @param[in]  name  Client name
  * @retval     dh    Device handle
  */
-device_handle 
+device_handle
 device_handle_find(clixon_handle h,
                    const char   *name)
 {
     struct controller_device_handle *cdh_list = NULL;
     struct controller_device_handle *c = NULL;
-    
+
     if (clicon_ptr_get(h, "client-list", (void**)&cdh_list) == 0 &&
         (c = cdh_list) != NULL) {
         do {
@@ -259,7 +259,7 @@ device_handle_find(clixon_handle h,
  *       dh...
  * @endcode
  */
-device_handle 
+device_handle
 device_handle_each(clixon_handle h,
                    device_handle dhprev)
 {
@@ -293,7 +293,7 @@ device_handle_connect(device_handle      dh,
     int                          retval = -1;
     struct controller_device_handle *cdh = (struct controller_device_handle *)dh;
     clixon_handle                h;
-    
+
     clicon_debug(1, "%s", __FUNCTION__);
     if (cdh == NULL){
         clicon_err(OE_XML, EINVAL, "dh is NULL");
@@ -343,7 +343,7 @@ device_handle_disconnect(device_handle dh)
 {
     int                              retval = -1;
     struct controller_device_handle *cdh = devhandle(dh);
-    
+
     clicon_debug(1, "%s %s", __FUNCTION__, cdh->cdh_name);
     if (cdh == NULL){
         clicon_err(OE_XML, EINVAL, "Expected cdh handle");
@@ -554,7 +554,7 @@ device_handle_conn_time_set(device_handle   dh,
     return 0;
 }
 
-/*! Access frame state get 
+/*! Access frame state get
  *
  * @param[in]  dh     Device handle
  * @retval     state
@@ -567,7 +567,7 @@ device_handle_frame_state_get(device_handle dh)
     return cdh->cdh_frame_state;
 }
 
-/*! Access state get 
+/*! Access state get
  *
  * @param[in]  dh     Device handle
  * @retval     state  State
@@ -610,7 +610,6 @@ device_handle_frame_size_set(device_handle dh,
     cdh->cdh_frame_size = size;
     return 0;
 }
-
 
 /*! Get Netconf framing type of device
  *
@@ -759,7 +758,7 @@ device_handle_yang_lib_append(device_handle dh,
     cxobj                           *x;
     cxobj                           *xms0;
     cxobj                           *xms = NULL;
-    
+
     /* Sanity check */
     if (xylib){
         if ((xms = xml_find_type(xylib, NULL, "module-set", CX_ELMNT)) == NULL){
@@ -818,7 +817,7 @@ device_handle_sync_time_set(device_handle   dh,
                             struct timeval *t)
 {
     struct controller_device_handle *cdh = devhandle(dh);
-    
+
     if (t == NULL)
         gettimeofday(&cdh->cdh_sync_time, NULL);
     else
@@ -873,7 +872,7 @@ device_handle_nr_schemas_get(device_handle dh)
 /*! Set nr of schemas
  *
  * @param[in]  dh   Device handle
- * @param[in]  nr   Number of schemas  
+ * @param[in]  nr   Number of schemas
  */
 int
 device_handle_nr_schemas_set(device_handle dh,

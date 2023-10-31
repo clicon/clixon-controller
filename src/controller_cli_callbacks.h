@@ -1,7 +1,7 @@
 /*
  *
   ***** BEGIN LICENSE BLOCK *****
- 
+
   Copyright (C) 2023 Olof Hagsand
 
   This file is part of CLIXON.
@@ -24,7 +24,7 @@
   of those above. If you wish to allow use of your version of this file only
   under the terms of the GPL, and not to allow others to
   use your version of this file under the terms of Apache License version 2, indicate
-  your decision by deleting the provisions above and replace them with the 
+  your decision by deleting the provisions above and replace them with the
   notice and other provisions required by the GPL. If you do not delete
   the provisions above, a recipient may use your version of this file under
   the terms of any one of the Apache License version 2 or the GPL.
@@ -43,7 +43,7 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
-    
+
 int rpc_get_yanglib_mount_match(clicon_handle h, char *pattern, int yanglib, cxobj **xdevsp);
 int cli_show_auto_devs(clicon_handle h, cvec *cvv, cvec *argv);
 int cli_rpc_pull(clixon_handle h, cvec *cvv, cvec *argv);
