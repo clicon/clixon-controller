@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# Simple non-python service checking shared object create and delete
+# Simple C / non-python service checking shared object create and delete
 # Uses util/controller_service.c as C-based server
 #
 # Check starting of service (startup/disable/init)
@@ -45,6 +45,10 @@ else
     rm -rf $dir/*
 fi
 CFG=$dir/controller.xml
+CFD=$dir/confdir
+if [ ! -d $CFD ]; then
+    mkdir $CFD
+fi
 fyang=$dir/myyang.yang
 
 # source IMG/USER etc
@@ -53,6 +57,7 @@ fyang=$dir/myyang.yang
 cat<<EOF > $CFG
 <clixon-config xmlns="http://clicon.org/config">
   <CLICON_CONFIGFILE>$CFG</CLICON_CONFIGFILE>
+  <CLICON_CONFIGDIR>$CFD</CLICON_CONFIGDIR>
   <CLICON_FEATURE>ietf-netconf:startup</CLICON_FEATURE>
   <CLICON_FEATURE>clixon-restconf:allow-auth-none</CLICON_FEATURE>
   <CLICON_CONFIG_EXTEND>clixon-controller-config</CLICON_CONFIG_EXTEND>
@@ -77,6 +82,11 @@ cat<<EOF > $CFG
   <CLICON_CLI_HELPSTRING_TRUNCATE>true</CLICON_CLI_HELPSTRING_TRUNCATE>
   <CLICON_CLI_HELPSTRING_LINES>1</CLICON_CLI_HELPSTRING_LINES>
   <CLICON_YANG_SCHEMA_MOUNT>true</CLICON_YANG_SCHEMA_MOUNT>
+</clixon-config>
+EOF
+
+cat<<EOF > $CFD/autocli.xml
+<clixon-config xmlns="http://clicon.org/config">
   <autocli>
      <module-default>false</module-default>
      <list-keyword-default>kw-nokey</list-keyword-default>
@@ -118,6 +128,7 @@ module myyang {
 	    description "Test service A";
 	    leaf-list params{
 	       type string;
+               min-elements 1; /* For validate fail*/
 	   } 
 	}
     }
@@ -192,15 +203,17 @@ if $BE; then
     start_backend -s startup -f $CFG
 fi
 
-# Check backend is running
+new "Check backend is running"
 wait_backend
 
 check_services stopped
+
 
 if $BE; then
     new "Kill old backend"
     sudo clixon_backend -s init -f $CFG -z
 fi
+
 # Then start from init which by default should start it
 # First disable services process
 cat <<EOF > $dir/startup_db
@@ -224,10 +237,12 @@ if $BE; then
     sudo clixon_backend -s startup -f $CFG -D $DBG
 fi
 
+new "Check backend is running"
+wait_backend
+
 check_services running
 
 new "Start service process, expect fail (already started)"
-#echo "/usr/local/bin/clixon_controller_service -f $CFG -1"
 expectpart "$(clixon_controller_service -f $CFG -1 -l o)" 255 "services-commit client already registered"
 
 # Reset controller by initiaiting with clixon/openconfig devices and a pull
@@ -326,6 +341,7 @@ fi
 
 sleep $sleep
 new "commit push"
+
 set +e
 expectpart "$(${clixon_cli} -m configure -1f $CFG commit push 2>&1)" 0 OK --not-- Error
 
@@ -417,7 +433,6 @@ fi
 
 sleep $sleep
 new "commit push"
-
 set +e
 expectpart "$(${clixon_cli} -m configure -1f $CFG commit push 2>&1)" 0 OK --not-- Error
 
@@ -455,7 +470,6 @@ if [ -n "$match" ]; then
     echo "Error:Ax is not removed in $NAME as it should be"
     exit 1
 fi
-
 
 # Delete testB completely
 new "delete testB(4)"
@@ -530,6 +544,13 @@ if [ -n "$match" ]; then
     echo "Error:Bx is not removed in $NAME as it should be"
     exit 1
 fi
+
+# Negative errors
+new "Create empty testA"
+ret=$(${clixon_cli} -m configure -1f $CFG set services testA foo 2> /dev/null) 
+
+new "commit push expect fail"
+expectpart "$(${clixon_cli} -m configure -1f $CFG commit push 2>&1)" 255 too-few-elements
 
 if $BE; then
     new "Kill old backend"

@@ -1258,6 +1258,13 @@ rpc_controller_commit(clixon_handle h,
             goto done;
         goto ok;
     }
+    /* Local validate if candidate */
+    if (strcmp(sourcedb, "candidate") == 0){
+        if ((ret = candidate_validate(h, sourcedb, cbret)) < 0)
+            goto done;
+        if (ret == 0)
+            goto ok;
+    }
     if ((cbtr = cbuf_new()) == NULL){
         clicon_err(OE_UNIX, errno, "cbuf_new");
         goto done;

@@ -1300,6 +1300,11 @@ device_state_handler(clixon_handle h,
         if (ct->ct_state == TS_RESOLVED){ 
             /* 2.1 But transaction is in error state */
             assert(ct->ct_result != TR_SUCCESS);
+            if (device_send_discard_changes(h, dh) < 0)
+                goto done;
+            if (device_state_set(dh, CS_PUSH_DISCARD) < 0)
+                goto done;
+            break;
         }
 #ifdef CONTROLLER_EXTRA_PUSH_SYNC
         /* Pull for commited db in the case the device changes it post-commit */
