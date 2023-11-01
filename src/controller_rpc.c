@@ -1675,6 +1675,17 @@ rpc_transaction_error(clixon_handle h,
             goto done;
         goto ok;
     }
+    switch (ct->ct_state){
+    case TS_RESOLVED:
+    case TS_INIT:
+    case TS_ACTIONS:
+        break;
+    case TS_DONE:
+        if (netconf_operation_failed(cbret, "application", "Transaction already completed") < 0)
+            goto done;
+        goto ok;
+        break;
+    }
     origin = xml_find_body(xe, "origin");
     reason = xml_find_body(xe, "reason");
     if (controller_transaction_failed(h, tid, ct, NULL, TR_FAILED_DEV_IGNORE, origin, reason) < 0)

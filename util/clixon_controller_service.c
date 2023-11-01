@@ -504,11 +504,13 @@ service_action_handler(clicon_handle      h,
         clicon_err(OE_NETCONF, EFAULT, "Notification malformed: no source");
         goto done;
     }
+#if 1
     if (send_error){
         if (send_transaction_error(h, tidstr) < 0)
             goto done;
         goto ok;
     }
+#endif
     /* Read services and devices definition */
     if (read_services(h, sourcedb, &xservices) < 0)
         goto done;
@@ -532,6 +534,14 @@ service_action_handler(clicon_handle      h,
     }
     if (send_transaction_actions_done(h, tidstr) < 0)
         goto done;
+#if 0
+    if (send_error){
+        sleep(1);
+        if (send_transaction_error(h, tidstr) < 0)
+            goto done;
+        goto ok;
+    }
+#endif
  ok:
     retval = 0;
  done:
@@ -670,7 +680,7 @@ main(int    argc,
     /* Set RFC6022 session parameters that will be sent in first hello,
      * @see clicon_hello_req
      */
-    //    clicon_data_set(h, "session-transport", "cl:services");
+    clicon_data_set(h, "session-transport", "ctrl:services");
     if (clicon_rpc_create_subscription(h, "services-commit", NULL, &s) < 0){
         clicon_log(LOG_NOTICE, "services-commit: subscription failed: %s", clicon_err_reason);
         goto done;

@@ -236,7 +236,7 @@ new "change devices"
 # Wanted to remove cli, but it is difficult since we have to wait for notification,
 # rpc-reply is not enough. the cli commands are more convenient
 new "push validate expected fail"
-expectpart "$($clixon_cli -1f $CFG push validate 2>&1)" 0 "failed Device"
+expectpart "$($clixon_cli -1f $CFG push validate 2>&1)" 0 "Transaction [0-9]* failed"
 
 NAME=${IMG}1
 new "check if in sync (should not be)"

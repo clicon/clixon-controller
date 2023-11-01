@@ -49,6 +49,7 @@ routers. It is still experimental.
 
 ### Corrected Bugs
 	
+* Fixed: [Backend exited after XML error](https://github.com/clicon/clixon-controller/issues/49)
 * Fixed: [Tab completion with configuration for multiple vendors](https://github.com/clicon/clixon-controller/issues/40)
 * Fixed: [OpenConfig: Error when validating/committing](https://github.com/clicon/clixon-controller/issues/32)
 * Fixed: [XML parse error](https://github.com/clicon/clixon-controller/issues/36)

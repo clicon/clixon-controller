@@ -375,7 +375,6 @@ cli_show_auto_devs(clicon_handle h,
  * @param[out]  match   Transaction id match
  * @param[out]  result  Transaction result
  * @param[out]  eof     EOF, socket closed
- * @param[out]  eof     EOF, socket closed
  * @retval      0       OK
  * @retval     -1       Fatal error
  */
@@ -396,8 +395,10 @@ transaction_notification_handler(int                 s,
     char              *resstr;
     transaction_result result;
 
+    clicon_debug(CLIXON_DBG_DEFAULT, "%s tid:%s", __FUNCTION__, tidstr0); /* XXX: see https://github.com/clicon/clixon-controller/issues/43 */
     if (clicon_msg_rcv(s, NULL, 1, &reply, eof) < 0)
         goto done;
+    clicon_debug(CLIXON_DBG_DEFAULT, "%s eof:%d", __FUNCTION__, *eof); /* XXX: see https://github.com/clicon/clixon-controller/issues/43 */
     if (*eof){
         clicon_err(OE_PROTO, ESHUTDOWN, "Socket unexpected close");
         close(s);
@@ -427,7 +428,8 @@ transaction_notification_handler(int                 s,
         goto done;
     }
     if ((result = transaction_result_str2int(resstr)) != TR_SUCCESS){
-        fprintf(stderr, "Transaction %s failed %s\n", tidstr, reason?reason:"");
+        clicon_log(LOG_NOTICE, "%s: pid: %u Transaction %s failed: %s",
+                   __FUNCTION__, getpid(), tidstr, reason?reason:"no reason");
         goto ok; // error == ^C
     }
     if (result)
@@ -435,6 +437,7 @@ transaction_notification_handler(int                 s,
  ok:
     retval = 0;
  done:
+    clicon_debug(CLIXON_DBG_DEFAULT, "%s %d", __FUNCTION__, retval);
     if (reply)
         free(reply);
     if (xt)

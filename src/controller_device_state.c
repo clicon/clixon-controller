@@ -274,7 +274,7 @@ device_input_cb(int   s,
             /* Extra data to read, save data and continue on next round */
             break;
         }
-        clicon_debug(CLIXON_DBG_MSG, "Recv from %s: %s", name, cbuf_get(cbmsg));
+        clicon_debug(CLIXON_DBG_MSG, "Recv [%s]: %s", name, cbuf_get(cbmsg));
         if ((ret = netconf_input_frame2(cbmsg, YB_NONE, NULL, &xtop, &xerr)) < 0)
             goto done;
         cbuf_reset(cbmsg);

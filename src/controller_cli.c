@@ -65,6 +65,7 @@ controller_cli_start(clicon_handle h)
         clicon_err(OE_PLUGIN, errno, "cbuf_new");
         goto done;
     }
+    clicon_data_set(h, "session-transport", "cl:cli");
     if (clicon_rpc_create_subscription(h, "controller-transaction", NULL, &s) < 0)
         goto done;
     if (clicon_data_int_set(h, "controller-transaction-notify-socket", s) < 0)
