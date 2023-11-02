@@ -5,7 +5,7 @@
 # target directory and YANG files to another target directory.
 
 CLIXON_MODULES="/usr/local/share/clixon/controller/modules/"
-CLIXON_YANG="/usr/local/share/clixon/controller/"
+CLIXON_YANG="/usr/local/share/clixon/controller/main/"
 
 usage() {
     echo "Usage: $0 [OPTIONS]"

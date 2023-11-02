@@ -91,7 +91,7 @@ Thereafter the device must be explicitly connected:
 connection open
 ```
 
-## What abut the directory structure?
+## What about the directory structure?
 
 In a typical installation, the main configuration file is in `/usr/local/etc/clixon/controller.xml`. All other directories are stated in this configure file.
 Extra config files are loaded after the main in alphabetical order are placed in the `/usr/local/etc/clixon/controller/` directory. This is useful for adding and overriding the default config.
