@@ -344,6 +344,10 @@ new "commit push"
 set +e
 expectpart "$(${clixon_cli} -m configure -1f $CFG commit push 2>&1)" 0 OK --not-- Error
 
+# Pull and ensure attributes remain
+new "Pull replace"
+expectpart "$(${clixon_cli} -1f $CFG pull)" 0 ""
+
 new "edit testA(2)"
 ret=$(${clixon_netconf} -0 -f $CFG <<EOF
 <?xml version="1.0" encoding="UTF-8"?>
