@@ -10,11 +10,14 @@ else
     rm -rf $dir/*
 fi
 CFG=$dir/controller.xml
+CFD=$dir/conf.d
+test -d $CFD || mkdir -p $CFD
 fin=$dir/in
 
 cat<<EOF > $CFG
 <clixon-config xmlns="http://clicon.org/config">
   <CLICON_CONFIGFILE>$CFG</CLICON_CONFIGFILE>
+  <CLICON_CONFIGDIR>$CFD</CLICON_CONFIGDIR>
   <CLICON_FEATURE>ietf-netconf:startup</CLICON_FEATURE>
   <CLICON_FEATURE>clixon-restconf:allow-auth-none</CLICON_FEATURE>
   <CLICON_YANG_DIR>/usr/local/share/clixon</CLICON_YANG_DIR>
@@ -36,6 +39,11 @@ cat<<EOF > $CFG
   <CLICON_CLI_HELPSTRING_TRUNCATE>true</CLICON_CLI_HELPSTRING_TRUNCATE>
   <CLICON_CLI_HELPSTRING_LINES>1</CLICON_CLI_HELPSTRING_LINES>
   <CLICON_YANG_SCHEMA_MOUNT>true</CLICON_YANG_SCHEMA_MOUNT>
+</clixon-config>
+EOF
+
+cat <<EOF > $CFD/autocli.xml
+<clixon-config xmlns="http://clicon.org/config">
   <autocli>
      <module-default>false</module-default>
      <list-keyword-default>kw-nokey</list-keyword-default>

@@ -25,12 +25,15 @@ if [ ! -d $modules ]; then
 fi
 
 fyang=$dir/ssh-users.yang
-cfg=$dir/controller.xml
+CFG=$dir/controller.xml
+CFD=$dir/conf.d
+test -d $CFD || mkdir -p $CFD
 pycode=$modules/ssh-users.py
 
-cat <<EOF > $cfg
+cat <<EOF > $CFG
 <clixon-config xmlns="http://clicon.org/config">
-  <CLICON_CONFIGFILE>$dir/controller.xml</CLICON_CONFIGFILE>
+  <CLICON_CONFIGFILE>$CFG</CLICON_CONFIGFILE>
+  <CLICON_CONFIGDIR>$CFD</CLICON_CONFIGDIR>
   <CLICON_FEATURE>ietf-netconf:startup</CLICON_FEATURE>
   <CLICON_FEATURE>clixon-restconf:allow-auth-none</CLICON_FEATURE>
   <CLICON_CONFIG_EXTEND>clixon-controller-config</CLICON_CONFIG_EXTEND>
@@ -55,10 +58,15 @@ cat <<EOF > $cfg
   <CLICON_CLI_HELPSTRING_LINES>1</CLICON_CLI_HELPSTRING_LINES>
   <CLICON_YANG_SCHEMA_MOUNT>true</CLICON_YANG_SCHEMA_MOUNT>
 
-  <CONTROLLER_ACTION_COMMAND xmlns="http://clicon.org/controller-config">/usr/local/bin/clixon_server.py -f $cfg -F</CONTROLLER_ACTION_COMMAND>
+  <CONTROLLER_ACTION_COMMAND xmlns="http://clicon.org/controller-config">/usr/local/bin/clixon_server.py -f $CFG -F</CONTROLLER_ACTION_COMMAND>
   <CONTROLLER_PYAPI_MODULE_PATH xmlns="http://clicon.org/controller-config">$modules</CONTROLLER_PYAPI_MODULE_PATH>
   <CONTROLLER_PYAPI_MODULE_FILTER xmlns="http://clicon.org/controller-config"></CONTROLLER_PYAPI_MODULE_FILTER>
   <CONTROLLER_PYAPI_PIDFILE xmlns="http://clicon.org/controller-config">/tmp/clixon_server.pid</CONTROLLER_PYAPI_PIDFILE>
+</clixon-config>
+EOF
+
+cat <<EOF > $CFD/autocli.xml
+<clixon-config xmlns="http://clicon.org/config">
   <autocli>
      <module-default>false</module-default>
      <list-keyword-default>kw-nokey</list-keyword-default>
@@ -191,10 +199,10 @@ function sleep_open()
 
 if $BE; then
     new "Kill old backend"
-    sudo clixon_backend -s init -f $cfg -z
+    sudo clixon_backend -s init -f $CFG -z
 
-    new "Start new backend -s init -f $cfg"
-    start_backend -s init -f $cfg
+    new "Start new backend -s init -f $CFG"
+    start_backend -s init -f $CFG
 fi
 
 # Check backend is running
@@ -205,39 +213,39 @@ new "reset controller"
 (. ./reset-controller.sh)
 
 new "Close all devices"
-expectpart "$($clixon_cli -1 -f $cfg connection close)" 0 ""
+expectpart "$($clixon_cli -1 -f $CFG connection close)" 0 ""
 
 new "Connect to devices"
-expectpart "$($clixon_cli -1 -f $cfg connection open)" 0 ""
+expectpart "$($clixon_cli -1 -f $CFG connection open)" 0 ""
 
 new "Sleep and verify devices are open"
 sleep_open
 
 new "Show device diff, should be empty"
-expectpart "$($clixon_cli -1 -f $cfg show devices diff)" 0 ""
-expectpart "$($clixon_cli -1 -f $cfg show devices openconfig* diff)" 0 ""
+expectpart "$($clixon_cli -1 -f $CFG show devices diff)" 0 ""
+expectpart "$($clixon_cli -1 -f $CFG show devices openconfig* diff)" 0 ""
 
 # Verify that service processes are running
 new "Verify service processes are running"
-expectpart "$($clixon_cli -1 -f $cfg processes service status)" 0 ".*running.*" ""
+expectpart "$($clixon_cli -1 -f $CFG processes service status)" 0 ".*running.*" ""
 
 # Why do we need to restart the service?
-expectpart "$($clixon_cli -1 -f $cfg processes service restart)" 0 '<ok xmlns="http://clicon.org/lib"/>'
+expectpart "$($clixon_cli -1 -f $CFG processes service restart)" 0 '<ok xmlns="http://clicon.org/lib"/>'
 
 # Make sure that service processes are running after restart
 new "Verify service processes are running after restart"
-expectpart "$($clixon_cli -1 -f $cfg processes service status)" 0 ".*running.*" ""
+expectpart "$($clixon_cli -1 -f $CFG processes service status)" 0 ".*running.*" ""
 
 # Configure serice
 new "Configure ssh-users with user test1"
-expectpart "$($clixon_cli -1 -f $cfg -m configure set service ssh-users test1)" 0 ""
-expectpart "$($clixon_cli -1 -f $cfg -m configure set service ssh-users test1 username test1)" 0 ""
-expectpart "$($clixon_cli -1 -f $cfg -m configure set service ssh-users test1 username test1 role admin)" 0 ""
-expectpart "$($clixon_cli -1 -f $cfg -m configure set service ssh-users test1 username test1 ssh-key key1)" 0 ""
+expectpart "$($clixon_cli -1 -f $CFG -m configure set service ssh-users test1)" 0 ""
+expectpart "$($clixon_cli -1 -f $CFG -m configure set service ssh-users test1 username test1)" 0 ""
+expectpart "$($clixon_cli -1 -f $CFG -m configure set service ssh-users test1 username test1 role admin)" 0 ""
+expectpart "$($clixon_cli -1 -f $CFG -m configure set service ssh-users test1 username test1 ssh-key key1)" 0 ""
 
 # Commit diff
 new "Commit diff for user test1"
-expectpart "$($clixon_cli -1 -f $cfg -m configure commit diff)" 0 "openconfig1:
+expectpart "$($clixon_cli -1 -f $CFG -m configure commit diff)" 0 "openconfig1:
   <system>
 +     <aaa>
 +        <authentication>
@@ -274,7 +282,7 @@ openconfig2:
 OK"
 
 new "Commit configuration for user test1"
-expectpart "$($clixon_cli -1 -f $cfg -m configure commit)" 0 ""
+expectpart "$($clixon_cli -1 -f $CFG -m configure commit)" 0 ""
 
 # Show the configuration on the devices using SSH
 for container in $CONTAINERS; do
@@ -283,14 +291,14 @@ for container in $CONTAINERS; do
 done
 
 new "Configure ssh-users with user test2"
-expectpart "$($clixon_cli -1 -f $cfg -m configure set service ssh-users test2)" 0 ""
-expectpart "$($clixon_cli -1 -f $cfg -m configure set service ssh-users test2 username test2)" 0 ""
-expectpart "$($clixon_cli -1 -f $cfg -m configure set service ssh-users test2 username test2 role admin)" 0 ""
-expectpart "$($clixon_cli -1 -f $cfg -m configure set service ssh-users test2 username test2 ssh-key key2)" 0 ""
+expectpart "$($clixon_cli -1 -f $CFG -m configure set service ssh-users test2)" 0 ""
+expectpart "$($clixon_cli -1 -f $CFG -m configure set service ssh-users test2 username test2)" 0 ""
+expectpart "$($clixon_cli -1 -f $CFG -m configure set service ssh-users test2 username test2 role admin)" 0 ""
+expectpart "$($clixon_cli -1 -f $CFG -m configure set service ssh-users test2 username test2 ssh-key key2)" 0 ""
 
 # Commit diff
 new "Commit diff for user test2"
-expectpart "$($clixon_cli -1 -f $cfg -m configure commit diff)" 0 "openconfig1:
+expectpart "$($clixon_cli -1 -f $CFG -m configure commit diff)" 0 "openconfig1:
            <users>
 +              <user>
 +                 <username>test2</username>
@@ -315,7 +323,7 @@ openconfig2:
 OK"
 
 new "Commit configuration for user test2"
-expectpart "$($clixon_cli -1 -f $cfg -m configure commit)" 0 ""
+expectpart "$($clixon_cli -1 -f $CFG -m configure commit)" 0 ""
 
 # Show the configuration on the devices using SSH
 for container in $CONTAINERS; do
@@ -324,10 +332,10 @@ for container in $CONTAINERS; do
 done
 
 new "Delete user test1"
-expectpart "$($clixon_cli -1 -f $cfg -m configure delete service ssh-users test1)" 0 ""
+expectpart "$($clixon_cli -1 -f $CFG -m configure delete service ssh-users test1)" 0 ""
 
 new "Commit diff for user test1"
-expectpart "$($clixon_cli -1 -f $cfg -m configure commit diff)" 0 "openconfig1:
+expectpart "$($clixon_cli -1 -f $CFG -m configure commit diff)" 0 "openconfig1:
   <system>
 -     <aaa>
 -        <authentication>
@@ -370,10 +378,10 @@ for container in $CONTAINERS; do
 done
 
 new "Delete user test2"
-expectpart "$($clixon_cli -1 -f $cfg -m configure delete service ssh-users test2)" 0 ""
+expectpart "$($clixon_cli -1 -f $CFG -m configure delete service ssh-users test2)" 0 ""
 
 new "Commit diff for user test2"
-expectpart "$($clixon_cli -1 -f $cfg -m configure commit diff)" 0 "openconfig1:
+expectpart "$($clixon_cli -1 -f $CFG -m configure commit diff)" 0 "openconfig1:
   <system>
 -     <aaa>
 -        <authentication>
@@ -417,7 +425,7 @@ done
 
 if $BE; then
     new "Kill old backend"
-    stop_backend -f $cfg
+    stop_backend -f $CFG
 fi
 
 endtest

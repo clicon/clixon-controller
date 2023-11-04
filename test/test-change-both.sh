@@ -14,16 +14,16 @@ s="$_" ; . ./lib.sh || if [ "$s" = $0 ]; then exit 0; else return 0; fi
 
 dir=/var/tmp/$0
 CFG=$dir/controller.xml
-cfdir=$dir/conf.d
+CFD=$dir/conf.d
 mntdir=$dir/mounts
-test -d $cfdir || mkdir -p $cfdir
+test -d $CFD || mkdir -p $CFD
 test -d $mntdir || mkdir -p $mntdir
 fyang=$mntdir/clixon-ext@2023-11-01.yang
 
 cat<<EOF > $CFG
 <clixon-config xmlns="http://clicon.org/config">
   <CLICON_CONFIGFILE>$CFG</CLICON_CONFIGFILE>
-  <CLICON_CONFIGDIR>$cfdir</CLICON_CONFIGDIR>
+  <CLICON_CONFIGDIR>$CFD</CLICON_CONFIGDIR>
   <CLICON_CONFIG_EXTEND>clixon-controller-config</CLICON_CONFIG_EXTEND>
   <CLICON_FEATURE>ietf-netconf:startup</CLICON_FEATURE>
   <CLICON_FEATURE>clixon-restconf:allow-auth-none</CLICON_FEATURE>
@@ -52,7 +52,7 @@ cat<<EOF > $CFG
 </clixon-config>
 EOF
 
-cat <<EOF > $cfdir/autocli.xml
+cat <<EOF > $CFD/autocli.xml
 <clixon-config xmlns="http://clicon.org/config">
   <autocli>
      <module-default>false</module-default>
