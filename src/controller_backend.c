@@ -328,54 +328,6 @@ controller_yang_mount(clicon_handle   h,
     return retval;
 }
 
-/*! YANG module patch
- *
- * Given a parsed YANG module, give the ability to patch it before import recursion,
- * grouping/uses checks, augments, etc
- * Can be useful if YANG in some way needs modification.
- * Deviations could be used as alternative (probably better)
- * @param[in]  h       Clixon handle
- * @param[in]  ymod    YANG module
- * @retval     0       OK
- * @retval    -1       Error
- */
-int
-controller_yang_patch(clicon_handle h,
-                      yang_stmt    *ymod)
-{
-    int         retval = -1;
-#ifdef CONTROLLER_JUNOS_ADD_COMMAND_FORWARDING
-    char       *modname;
-    yang_stmt  *ygr;
-    char       *arg = NULL;
-
-    if (ymod == NULL){
-        clicon_err(OE_PLUGIN, EINVAL, "ymod is NULL");
-        goto done;
-    }
-    modname = yang_argument_get(ymod);
-    if (strncmp(modname, "junos-rpc", strlen("junos-rpc")) == 0){
-        if (yang_find(ymod, Y_GROUPING, "command-forwarding") == NULL){
-            if ((ygr = ys_new(Y_GROUPING)) == NULL)
-                goto done;
-            if ((arg = strdup("command-forwarding")) == NULL){
-                clicon_err(OE_UNIX, errno, "strdup");
-                goto done;
-            }
-            if (yang_argument_set(ygr, arg) < 0)
-                goto done;
-            if (yn_insert(ymod, ygr) < 0)
-                goto done;
-        }
-    }
-    retval = 0;
- done:
-#else
-    retval = 0;
-#endif
-    return retval;
-}
-
 /*! Process rpc callback function
  *
  * @param[in]     h   Clixon handle
@@ -578,7 +530,9 @@ static clixon_plugin_api api = {
     .ca_statedata    = controller_statedata,
     .ca_trans_commit = controller_commit,
     .ca_yang_mount   = controller_yang_mount,
-    .ca_yang_patch   = controller_yang_patch,
+#ifdef CONTROLLER_JUNOS_ADD_COMMAND_FORWARDING
+    .ca_yang_patch   = controller_yang_patch_junos,
+#endif
 };
 
 clixon_plugin_api *

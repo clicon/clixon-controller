@@ -395,14 +395,8 @@ device_schemas_load_mount(clixon_handle h,
         goto done;
     }
     /* Given yang-lib, parse all modules into yspec */
-#ifdef CONTROLLER_JUNOS_ADD_COMMAND_FORWARDING
-    /* Added extra JUNOS patch to mod YANGs */
-    if ((ret = yang_lib2yspec_junos_patch(h, xyanglib, yspec1)) < 0)
-        goto done;
-#else
     if ((ret = yang_lib2yspec(h, xyanglib, yspec1)) < 0)
         goto done;
-#endif
     if (ret == 0){
         device_close_connection(dh, "%s", clicon_err_reason);
         clicon_err_reset();

@@ -358,82 +358,48 @@ xdev2yang_library(cxobj  *xmodset,
 }
 
 #ifdef CONTROLLER_JUNOS_ADD_COMMAND_FORWARDING
-/*! Rewrite of junos YANGs after parsing
+/*! YANG module patch
  *
- * Add grouping command-forwarding in junos-rpc yangs if not exists
- * tried to make other less intrusive solutions or make a generic way in the
- * original function, but the easiest was just to rewrite the function.
- * @param[in] h        Clixon handle
- * @param[in] xyanglib XML tree on the form <yang-lib>...
- * @param[in] yspec    Will be populated with YANGs, is consumed
- * @retval    1        OK
- * @retval    0        Failed: Parse error or no matching modules
- * @retval   -1        Error
- * @see yang_lib2yspec  the original function
+ * Given a parsed YANG module, give the ability to patch it before import recursion,
+ * grouping/uses checks, augments, etc
+ * Can be useful if YANG in some way needs modification.
+ * Deviations could be used as alternative (probably better)
+ * @param[in]  h       Clixon handle
+ * @param[in]  ymod    YANG module
+ * @retval     0       OK
+ * @retval    -1       Error
  */
 int
-yang_lib2yspec_junos_patch(clicon_handle h,
-                           cxobj        *xyanglib,
-                           yang_stmt    *yspec)
+controller_yang_patch_junos(clicon_handle h,
+                            yang_stmt    *ymod)
 {
-    int        retval = -1;
-    cxobj     *xi;
-    char      *name;
-    char      *revision;
-    cvec      *nsc = NULL;
-    cxobj    **vec = NULL;
-    size_t     veclen;
-    int        i;
-    yang_stmt *ymod;
-    yang_stmt *yrev;
-    int        modmin = 0;
 
-    clicon_debug(1, "%s", __FUNCTION__);
-    if (xpath_vec(xyanglib, nsc, "module-set/module", &vec, &veclen) < 0)
+    int         retval = -1;
+    char       *modname;
+    yang_stmt  *ygr;
+    char       *arg = NULL;
+
+    if (ymod == NULL){
+        clicon_err(OE_PLUGIN, EINVAL, "ymod is NULL");
         goto done;
-    for (i=0; i<veclen; i++){
-        xi = vec[i];
-        if ((name = xml_find_body(xi, "name")) == NULL)
-            continue;
-        revision = xml_find_body(xi, "revision");
-        if ((ymod = yang_find(yspec, Y_MODULE, name)) != NULL ||
-            (ymod = yang_find(yspec, Y_SUBMODULE, name)) != NULL){
-            /* Skip if matching or no revision
-             * Note this algorithm does not work for multiple revisions
-             */
-            if ((yrev = yang_find(ymod, Y_REVISION, NULL)) == NULL){
-                modmin++;
-                continue;
+    }
+    modname = yang_argument_get(ymod);
+    if (strncmp(modname, "junos-rpc", strlen("junos-rpc")) == 0){
+        if (yang_find(ymod, Y_GROUPING, "command-forwarding") == NULL){
+            if ((ygr = ys_new(Y_GROUPING)) == NULL)
+                goto done;
+            if ((arg = strdup("command-forwarding")) == NULL){
+                clicon_err(OE_UNIX, errno, "strdup");
+                goto done;
             }
-            if (revision == NULL || strcmp(yang_argument_get(yrev), revision) == 0){
-                modmin++;
-                continue;
-            }
+            if (yang_argument_set(ygr, arg) < 0)
+                goto done;
+            if (yn_insert(ymod, ygr) < 0)
+                goto done;
         }
-        if (yang_parse_module(h, name, revision, yspec, NULL) == NULL)
-            goto fail;
     }
-    /* XXX: Ensure yang-lib is always there otherwise get state dont work for mountpoint */
-    if ((ymod = yang_find(yspec, Y_MODULE, "ietf-yang-library")) != NULL &&
-        (yrev = yang_find(ymod, Y_REVISION, NULL)) != NULL &&
-        strcmp(yang_argument_get(yrev), "2019-01-04") == 0){
-        modmin++;
-    }
-    else if (yang_parse_module(h, "ietf-yang-library", "2019-01-04", yspec, NULL) < 0)
-        goto fail;
-    clicon_debug(1, "%s yang_parse_post", __FUNCTION__);
-    if ((modmin = yang_len_get(yspec) - (1+veclen - modmin)) >= 0){
-        if (yang_parse_post(h, yspec, modmin) < 0)
-            goto done;
-    }
-    retval = 1;
- done:
-    clicon_debug(1, "%s %d", __FUNCTION__, retval);
-    if (vec)
-        free(vec);
-    return retval;
- fail:
     retval = 0;
-    goto done;
+ done:
+    return retval;
 }
 #endif  /* CONTROLLER_JUNOS_ADD_COMMAND_FORWARDING */

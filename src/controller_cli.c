@@ -188,16 +188,9 @@ create_autocli_mount_tree(clicon_handle h,
             goto done;
         /* 4. Get yang specs of mountpoint from controller */
         yanglib = xpath_first(xdev, 0, "config/yang-library");
-#ifdef CONTROLLER_JUNOS_ADD_COMMAND_FORWARDING
-        /* 5. Parse YANGs locally from the yang specs
-           Added extra JUNOS patch to mod YANGs */
-        if ((ret = yang_lib2yspec_junos_patch(h, yanglib, yspec1)) < 0)
-            goto done;
-#else
         /* 5. Parse YANGs locally from the yang specs */
         if ((ret = yang_lib2yspec(h, yanglib, yspec1)) < 0)
             goto done;
-#endif
         if (ret == 0)
             goto done;
         if (yang_mount_set(yu, xpath, yspec1) < 0)
@@ -485,61 +478,15 @@ controller_cli_yang_mount(clicon_handle   h,
     return retval;
 }
 
-/*! YANG module patch
- *
- * Given a parsed YANG module, give the ability to patch it before import recursion,
- * grouping/uses checks, augments, etc
- * Can be useful if YANG in some way needs modification.
- * Deviations could be used as alternative (probably better)
- * @param[in]  h       Clixon handle
- * @param[in]  ymod    YANG module
- * @retval     0       OK
- * @retval    -1       Error
- */
-int
-controller_cli_yang_patch(clicon_handle h,
-                      yang_stmt    *ymod)
-{
-    int         retval = -1;
-#ifdef CONTROLLER_JUNOS_ADD_COMMAND_FORWARDING
-    char       *modname;
-    yang_stmt  *ygr;
-    char       *arg = NULL;
-
-    if (ymod == NULL){
-        clicon_err(OE_PLUGIN, EINVAL, "ymod is NULL");
-        goto done;
-    }
-    modname = yang_argument_get(ymod);
-    if (strncmp(modname, "junos-rpc", strlen("junos-rpc")) == 0){
-        if (yang_find(ymod, Y_GROUPING, "command-forwarding") == NULL){
-            if ((ygr = ys_new(Y_GROUPING)) == NULL)
-                goto done;
-            if ((arg = strdup("command-forwarding")) == NULL){
-                clicon_err(OE_UNIX, errno, "strdup");
-                goto done;
-            }
-            if (yang_argument_set(ygr, arg) < 0)
-                goto done;
-            if (yn_insert(ymod, ygr) < 0)
-                goto done;
-        }
-    }
-    retval = 0;
- done:
-#else
-    retval = 0;
-#endif
-    return retval;
-}
-
 static clixon_plugin_api api = {
     "controller",       /* name */
     clixon_plugin_init,
     controller_cli_start,
     controller_cli_exit,
-    .ca_yang_mount   = controller_cli_yang_mount,
-    .ca_yang_patch   = controller_cli_yang_patch,
+    .ca_yang_mount = controller_cli_yang_mount,
+#ifdef CONTROLLER_JUNOS_ADD_COMMAND_FORWARDING
+    .ca_yang_patch = controller_yang_patch_junos,
+#endif
 };
 
 /*! CLI plugin initialization
