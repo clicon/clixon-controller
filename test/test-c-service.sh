@@ -28,7 +28,10 @@
 # |                       Bx                       |
 # +------------------------------------------------+
 #
-# For debug start service daemon externally: /usr/local/bin/controller_service -f $CFG
+# For debug start service daemon externally: ${BINDIR}/clixon_controller_service -f $CFG and
+# disable CONTROLLER_ACTION_COMMAND
+# May fail if python service runs
+#
 
 # Magic line must be first in script (see README.md)
 s="$_" ; . ./lib.sh || if [ "$s" = $0 ]; then exit 0; else return 0; fi
@@ -61,27 +64,27 @@ cat<<EOF > $CFG
   <CLICON_FEATURE>ietf-netconf:startup</CLICON_FEATURE>
   <CLICON_FEATURE>clixon-restconf:allow-auth-none</CLICON_FEATURE>
   <CLICON_CONFIG_EXTEND>clixon-controller-config</CLICON_CONFIG_EXTEND>
-  <CONTROLLER_ACTION_COMMAND xmlns="http://clicon.org/controller-config">/usr/local/bin/clixon_controller_service -f $CFG</CONTROLLER_ACTION_COMMAND> <!-- Debug: -D 3 -l s Error: -e -->
-  <CLICON_BACKEND_USER>clicon</CLICON_BACKEND_USER>
-  <CLICON_SOCK_GROUP>clicon</CLICON_SOCK_GROUP>
-  <CLICON_YANG_DIR>/usr/local/share/clixon</CLICON_YANG_DIR>
+  <CLICON_YANG_DIR>${YANG_INSTALLDIR}</CLICON_YANG_DIR>
   <CLICON_YANG_MAIN_DIR>$dir</CLICON_YANG_MAIN_DIR>
   <CLICON_CLI_MODE>operation</CLICON_CLI_MODE>
-  <CLICON_CLI_DIR>/usr/local/lib/controller/cli</CLICON_CLI_DIR>
-  <CLICON_CLISPEC_DIR>/usr/local/lib/controller/clispec</CLICON_CLISPEC_DIR>
-  <CLICON_BACKEND_DIR>/usr/local/lib/controller/backend</CLICON_BACKEND_DIR>
-  <CLICON_SOCK>/usr/local/var/controller.sock</CLICON_SOCK>
-  <CLICON_BACKEND_PIDFILE>/usr/local/var/controller.pidfile</CLICON_BACKEND_PIDFILE>
+  <CLICON_CLI_DIR>${LIBDIR}/controller/cli</CLICON_CLI_DIR>
+  <CLICON_CLISPEC_DIR>${LIBDIR}/controller/clispec</CLICON_CLISPEC_DIR>
+  <CLICON_BACKEND_DIR>${LIBDIR}/controller/backend</CLICON_BACKEND_DIR>
+  <CLICON_SOCK>${LOCALSTATEDIR}/run/controller.sock</CLICON_SOCK>
+  <CLICON_BACKEND_PIDFILE>${LOCALSTATEDIR}/run/controller.pid</CLICON_BACKEND_PIDFILE>
   <CLICON_XMLDB_DIR>$dir</CLICON_XMLDB_DIR>
   <CLICON_STARTUP_MODE>init</CLICON_STARTUP_MODE>
   <CLICON_STREAM_DISCOVERY_RFC5277>true</CLICON_STREAM_DISCOVERY_RFC5277>
-  <CLICON_RESTCONF_USER>www-data</CLICON_RESTCONF_USER>
+  <CLICON_RESTCONF_USER>${CLICON_USER}</CLICON_RESTCONF_USER>
   <CLICON_RESTCONF_PRIVILEGES>drop_perm</CLICON_RESTCONF_PRIVILEGES>
-  <CLICON_RESTCONF_INSTALLDIR>/usr/local/sbin</CLICON_RESTCONF_INSTALLDIR>
+  <CLICON_RESTCONF_INSTALLDIR>${SBINDIR}</CLICON_RESTCONF_INSTALLDIR>
+  <CLICON_BACKEND_USER>${CLICON_USER}</CLICON_BACKEND_USER>
+  <CLICON_SOCK_GROUP>${CLICON_GROUP}</CLICON_SOCK_GROUP>
   <CLICON_VALIDATE_STATE_XML>true</CLICON_VALIDATE_STATE_XML>
   <CLICON_CLI_HELPSTRING_TRUNCATE>true</CLICON_CLI_HELPSTRING_TRUNCATE>
   <CLICON_CLI_HELPSTRING_LINES>1</CLICON_CLI_HELPSTRING_LINES>
   <CLICON_YANG_SCHEMA_MOUNT>true</CLICON_YANG_SCHEMA_MOUNT>
+  <CONTROLLER_ACTION_COMMAND xmlns="http://clicon.org/controller-config">${BINDIR}/clixon_controller_service -f $CFG</CONTROLLER_ACTION_COMMAND> <!-- Debug: -D 3 -l s Error: -e -->
 </clixon-config>
 EOF
 
@@ -388,15 +391,15 @@ fi
 
 new "commit diff"
 ret=$(${clixon_cli} -m configure -1f $CFG commit diff 2> /dev/null) 
-#echo "$ret"
-match=$(echo $ret | grep --null -Eo '+ <name>Az</name>') || true
+#echo "ret:$ret"
+match=$(echo $ret | grep --null -Eo '\+ <name>Az</name>') || true
 if [ -z "$match" ]; then
-    echo "commit diff failed"
+    echo "commit diff failed +"
     exit 1
 fi
 match=$(echo $ret | grep --null -Eo '\- <name>Ax</name') || true
 if [ -z "$match" ]; then
-    echo "commit diff failed"
+    echo "commit diff failed -"
     exit 1
 fi
 

@@ -190,6 +190,7 @@ AC_CONFIG_FILES([Makefile
 	         yang/Makefile
                  util/Makefile
                  docker/Makefile
+                 test/config.sh
                  doc/Makefile
 ])
 AC_OUTPUT

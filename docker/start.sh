@@ -20,6 +20,7 @@ EOF
 
 #testdir=../test
 #(cd $testdir; nr=$nr ./start-devices.sh)
+../test/stop-devices.sh
 ../test/start-devices.sh
 
 echo "start controller"

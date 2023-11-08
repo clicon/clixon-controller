@@ -7,6 +7,15 @@ set -u
 
 >&2 echo "Running $testfile"
 
+# Generated config file from autotools / configure
+if [ -f ./config.sh ]; then
+    . ./config.sh
+    if [ $? -ne 0 ]; then
+        return -1 # error
+    fi
+fi
+
+# Source the site/test-specific definitions for test script variables
 if [ -f ./site.sh ]; then
     . ./site.sh
     if [ $? -ne 0 ]; then
