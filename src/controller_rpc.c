@@ -34,6 +34,7 @@
 #include <syslog.h>
 #include <fcntl.h>
 #include <fnmatch.h>
+#include <assert.h>
 #include <sys/time.h>
 
 /* clicon */
@@ -1052,6 +1053,8 @@ devices_local_change(clixon_handle       h,
     if (x0d && td->td_dlen){     /* Check deleted */
         xd = NULL;
         while ((xd = xml_child_each(x0d, xd,  CX_ELMNT)) != NULL){
+            if (strcmp(xml_name(xd), "device") != 0)
+                continue;
             xi = NULL;
             while ((xi = xml_child_each(xd, xi,  CX_ELMNT)) != NULL){
                 if (strcmp(xml_name(xi), "config") != 0 &&
@@ -1066,6 +1069,8 @@ devices_local_change(clixon_handle       h,
     if (xd==NULL && x1d && (td->td_alen || td->td_clen)){ /* Check added or changed */
         xd = NULL;
         while ((xd = xml_child_each(x1d, xd,  CX_ELMNT)) != NULL){
+            if (strcmp(xml_name(xd), "device") != 0)
+                continue;
             xi = NULL;
             while ((xi = xml_child_each(xd, xi,  CX_ELMNT)) != NULL){
                 if (strcmp(xml_name(xi), "config") != 0 &&
@@ -2197,6 +2202,276 @@ check_services_commit_subscription(clixon_handle h,
     return retval;
 }
 
+/*! Split string using start and stop delimiter strings usable for variable substitution
+ *
+ * Example: "foo ${NAME} bar"
+ * where delim1="${" and delim2="}"
+ * returns vec: "foo ", "NAME", "bar"
+ * Both delim1 and delim2 must match
+ * @param[in]  str
+ * @param[in]  delim1  prefix delimiter string
+ * @param[in]  delim2  postfix delimiter string
+ * @param[out] cvp     Created cligen variable vector, deallocate w cvec_free
+ * @retval     0       OK
+ * @retval    -1       Error
+ * Consider moving to clixon_string.c
+ */
+static int
+clixon_strsep2(char   *str,
+               char   *delim1,
+               char   *delim2,
+               char ***vcp,
+               int    *nvec)
+{
+    int   retval = -1;
+    size_t sz;
+    char **vec = NULL;
+    char  *s1;
+    char  *s2;
+    int    nr = 0;
+    char  *ptr;
+    int    i;
+
+    s1 = str;
+    while ((s1 = strstr(s1, delim1)) != NULL){
+        if ((s2 = strstr(s1+strlen(delim1), delim2)) != NULL)
+            nr += 2;
+        s1 = s2 + strlen(delim2);
+    }
+    /* alloc vector and append copy of string */
+    sz = (nr+1)* sizeof(char*) + strlen(str)+1;
+    if ((vec = (char**)malloc(sz)) == NULL){
+        clicon_err(OE_UNIX, errno, "malloc");
+        goto done;
+    }
+    memset(vec, 0, sz);
+    ptr = (char*)vec + (nr+1)* sizeof(char*); /* this is where ptr starts */
+    strcpy(ptr, str);
+    i = 0;
+    s1 = ptr;
+    vec[i++] = ptr;
+    while ((s1 = strstr(s1, delim1)) != NULL){
+        if ((s2 = strstr(s1+strlen(delim1), delim2)) != NULL){
+            *s1 = '\0';
+            *s2 = '\0';
+            vec[i++] = s1 + strlen(delim1);
+            vec[i++] = s2 + strlen(delim2);
+        }
+        s1 = s2 + strlen(delim2);
+    }
+    *vcp = vec;
+    ptr = NULL;
+    *nvec = i;
+    retval = 0;
+ done:
+    if (ptr)
+        free(ptr);
+    return retval;
+}
+
+/*! XML apply function: replace any variables
+ *
+ * @param[in]  x    XML node  
+ * @param[in]  arg  xvars: list of variable substitutions
+ * @retval    -1    Error, aborted at first error encounter, return -1 to end user
+ * @retval     0    OK, continue
+ * @retval     1    Abort, dont continue with others, return 1 to end user
+ * @retval     2    Locally abort this subtree, continue with others
+ */
+static int
+apply_template(cxobj *x,
+               void  *arg)
+{
+    int    retval = -1;
+    cxobj *xvars0 = (cxobj *)arg;
+    cxobj *xvars;
+    cxobj *xv;
+    cxobj *xb;
+    char  *b;
+    char  *var;
+    char  *varname;
+    char  *varval;
+    cbuf  *cb = NULL;
+    int    i;
+    char **vec = NULL;
+    int    nvec = 0;
+
+    xv = NULL;
+    if ((xb = xml_body_get(x)) != NULL &&
+        (b = xml_value(xb)) != NULL){
+        if (clixon_strsep2(b, "${", "}", &vec, &nvec) < 0)
+            goto done;
+        assert(nvec%2 == 1); /* Must be odd */
+        if (nvec > 1){
+            if ((cb = cbuf_new()) == NULL){
+                clicon_err(OE_UNIX, errno, "cbuf_new");
+                goto done;
+            }
+            i = 0;
+            while (i < nvec){
+                cprintf(cb, "%s", vec[i++]);
+                if (i == nvec)
+                    break;
+                var = vec[i++];
+                assert(i < nvec); /* Must be odd */
+                xvars = xvars0;
+                while ((xv = xml_child_each(xvars, xv, CX_ELMNT)) != NULL) {
+                    if ((varname = xml_find_body(xv, "name")) == NULL)
+                        continue;
+                    if (strcmp(varname, var) != 0)
+                        continue;
+                    varval = xml_find_body(xv, "value");
+                    cprintf(cb, "%s", varval);
+                    break;
+                }
+            }
+            xml_value_set(xb, cbuf_get(cb));
+        }
+    }
+    retval = 0;
+ done:
+    if (vec)
+        free(vec);
+    if (cb)
+        cbuf_free(cb);
+    return retval;
+}
+
+/*! Action callback, see clixon-controller.yang: devices/template/apply
+ *
+ * @param[in]  h       Clixon handle 
+ * @param[in]  xn      Request: <rpc><xn></rpc> 
+ * @param[out] cbret   Return xml tree, eg <rpc-reply>..., <rpc-error.. 
+ * @param[in]  arg     Domain specific arg, ec client-entry or FCGX_Request 
+ * @param[in]  regarg  User argument given at rpc_callback_register() 
+ * @retval     0       OK
+ * @retval    -1       Error
+ */
+int
+rpc_device_template_apply(clicon_handle h,
+                          cxobj        *xe,
+                          cbuf         *cbret,
+                          void         *arg,
+                          void         *regarg)
+{
+    int           retval = -1;
+    cxobj        *xret = NULL;
+    cvec         *nsc = NULL;
+    cxobj       **vec = NULL;
+    size_t        veclen;
+    char         *tmplname;
+    cxobj        *xtmpl;
+    cxobj        *xvars;
+    cxobj        *xd;
+    char         *devname;
+    char         *pattern;
+    int           matching;
+    int           i;
+    int           ret;
+    cxobj        *xerr = NULL;
+    cxobj        *xput = NULL;
+    cxobj        *xtc;
+    cxobj        *xroot;
+    cxobj        *xmnt;
+    cxobj        *x;
+    cbuf         *cb = NULL;
+    device_handle dh;
+    yang_stmt    *yspec0;
+    yang_stmt    *yspec1;
+
+    clicon_debug(CLIXON_DBG_DEFAULT, "%s", __FUNCTION__);
+    yspec0 = clicon_dbspec_yang(h);
+    /* get template and device names */
+    if (xmldb_get0(h, "running", Y_MODULE, nsc, "devices", 1, WITHDEFAULTS_EXPLICIT, &xret, NULL, NULL) < 0)
+        goto done;
+    if ((tmplname = xml_find_body(xe, "template")) == NULL){
+        if (netconf_operation_failed(cbret, "application", "No template in rpc")< 0)
+            goto done;
+        goto ok;
+    }    
+    if ((xtmpl = xpath_first(xret, nsc, "devices/template[name='%s']/config", tmplname)) == NULL){
+        if (netconf_operation_failed(cbret, "application", "Template not found")< 0)
+            goto done;
+        goto ok;
+    }
+    if ((pattern = xml_find_body(xe, "devname")) == NULL){
+        if (netconf_operation_failed(cbret, "application", "No devname")< 0)
+            goto done;
+        goto ok;
+    }
+    xvars = xml_find_type(xe, NULL, "variables", CX_ELMNT);
+    /* Destructively substitute variables in xtempl 
+     * Maybe work on a copy instead?
+     */
+    if (xvars && xml_apply(xtmpl, CX_ELMNT, apply_template, xvars) < 0)
+        goto done;
+    if (xml_sort_recurse(xtmpl) < 0)
+        goto done;
+    if ((cb = cbuf_new()) == NULL){
+        clicon_err(OE_UNIX, errno, "cbuf_new");
+        goto done;
+    }
+    cprintf(cb, "<devices xmlns=\"%s\" xmlns:%s=\"%s\" %s:operation=\"merge\">",
+            CONTROLLER_NAMESPACE,
+            NETCONF_BASE_PREFIX, NETCONF_BASE_NAMESPACE, NETCONF_BASE_PREFIX);
+    /* Get devices from config */
+    if (xpath_vec(xret, nsc, "devices/device", &vec, &veclen) < 0)
+        goto done;
+    matching=0;
+    /* Apply xtempl on all matching devices */
+    for (i=0; i<veclen; i++){
+        xd = vec[i];
+        if ((devname = xml_find_body(xd, "name")) == NULL)
+            continue;
+        if (pattern != NULL && fnmatch(pattern, devname, 0) != 0)
+            continue;
+        if ((dh = device_handle_find(h, devname)) == NULL)
+            continue;
+        if (device_state_mount_point_get(devname, yspec0, &xroot, &xmnt) < 0)
+            goto done;
+        if ((yspec1 = device_handle_yspec_get(dh)) == NULL){
+            device_close_connection(dh, "No YANGs available");
+            goto done;
+        }
+        if ((xtc = xml_dup(xtmpl)) == NULL)
+            goto done;
+        if ((ret = xml_bind_yang(h, xtc, YB_MODULE, yspec1, &xerr)) < 0)
+            goto done;
+        if (ret == 0){
+            if (clixon_xml2cbuf(cbret, xerr, 0, 0, NULL, -1, 0) < 0)
+                goto done;
+            goto ok;
+        }
+        while ((x = xml_child_i_type(xtc, 0, CX_ELMNT)) != NULL) {
+            if (xml_addsub(xmnt, x) < 0)
+                goto done;
+        }
+        if ((ret = xmldb_put(h, "candidate", OP_MERGE, xroot, NULL, cbret)) < 0)
+            goto done;
+        if (ret == 0)
+            goto ok;
+        xml_rm(xroot);
+        matching++;
+    }
+    cprintf(cbret, "<rpc-reply xmlns=\"%s\">", NETCONF_BASE_NAMESPACE);
+    cprintf(cbret, "<ok/>");
+    cprintf(cbret, "</rpc-reply>");
+ ok:
+    retval = 0;
+ done:
+    if (cb)
+        cbuf_free(cb);
+    if (xret)
+        xml_free(xret);
+    if (xerr)
+        xml_free(xerr);
+    if (xput)
+        xml_free(xput);
+    if (vec)
+        free(vec);
+    return retval;
+}
+
 /*! Register callback for rpc calls 
  */
 int
@@ -2244,6 +2519,12 @@ controller_rpc_init(clicon_handle h)
                               NULL,
                               CONTROLLER_NAMESPACE,
                               "datastore-diff"
+                              ) < 0)
+        goto done;
+    if (rpc_callback_register(h, rpc_device_template_apply,
+                              NULL,
+                              CONTROLLER_NAMESPACE,
+                              "device-template-apply"
                               ) < 0)
         goto done;
     /* Check that services subscriptions is just done once */

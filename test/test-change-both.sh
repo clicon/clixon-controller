@@ -108,6 +108,7 @@ if $BE; then
 fi
 
 # Check backend is running
+new "wait backend"
 wait_backend
 
 # Reset controller 

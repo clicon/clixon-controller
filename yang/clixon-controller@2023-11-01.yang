@@ -389,6 +389,24 @@ module clixon-controller {
                  by fields given in the device section.";
             uses device-common;
         }
+        list template {
+            key name;
+            leaf name{
+                type string;
+            }
+            description
+                "Device templates provide a simple meschanism to apply a pre-set configuration
+                 part with a simple mechanism using variable substitution.
+                 A template is like a macro with shell-like ${var} variables.
+                 Actual values of variables, ie name/value pairs, are assigned at apply time";
+            anydata config{
+                description
+                    "This parameter contains template data with variable substitutions on the
+                     form ${var}. 
+                     The config is supposed to be applied to a device/config mount-point.
+                     The yang is unknown until applied";
+            }
+        }
         list device{
             key name;
             leaf name{
@@ -822,10 +840,40 @@ module clixon-controller {
         }
         output {
             leaf diff {
-                description
-                    "Pretty-printed diff string";
+                description "Pretty-printed diff string";
                 type string;
             }
         }
     }
+    rpc device-template-apply {
+        description "Apply device templates on device configure";
+        input {
+           leaf devname {
+               description
+                   "Name of device or pattern of devices to apply on.";
+               type string;
+           }
+           leaf template {
+               description
+                   "Name of device template.";
+               type leafref {
+                   path "/devices/template/name";
+                   require-instance false;
+               }
+           }
+           container variables {
+               description "variable bindings";
+               list variable {
+                   key name;
+                   leaf name {
+                       type string;
+                   }
+                   leaf value {
+                       type string;
+                   }
+               }
+           }
+       }
+    }
 }
+

@@ -44,6 +44,7 @@
 extern "C" {
 #endif
 
+int controller_device_apply(clicon_handle h, cxobj *xe, cbuf *cbret, void *arg, void *regarg);
 int controller_rpc_init(clicon_handle h);
 
 #ifdef __cplusplus

@@ -1891,3 +1891,92 @@ cli_controller_show_version(clicon_handle h,
     cligen_output(stdout, "CLIgen: \t%s\n", CLIGEN_VERSION);
     return 0;
 }
+
+/*! Apply template on devices
+ *
+ * @param[in] h
+ * @param[in] cvv  templ, devs
+ * @param[in] argv null 
+ * @retval    0    OK
+ * @retval   -1    Error
+ */
+int
+cli_apply_device_template(clixon_handle h,
+                          cvec         *cvv,
+                          cvec         *argv)
+{
+    int     retval = -1;
+    cbuf   *cb = NULL;
+    cg_var *cv;
+    cxobj  *xtop = NULL;
+    cxobj  *xrpc;
+    cxobj  *xret = NULL;
+    cxobj  *xreply;
+    cxobj  *xerr;
+    char   *devs = "*";
+    char   *templ;
+    char   *var;
+
+    if (argv != NULL){
+        clicon_err(OE_PLUGIN, EINVAL, "requires expected NULL");
+        goto done;
+    }
+    if ((cv = cvec_find(cvv, "templ")) == NULL){
+        clicon_err(OE_PLUGIN, EINVAL, "template variable required");
+        goto done;
+    }
+    templ = cv_string_get(cv);
+    if ((cv = cvec_find(cvv, "devs")) != NULL)
+        devs = cv_string_get(cv);
+    if ((cb = cbuf_new()) == NULL){
+        clicon_err(OE_PLUGIN, errno, "cbuf_new");
+        goto done;
+    }
+    cprintf(cb, "<rpc xmlns=\"%s\" username=\"%s\" %s>",
+            NETCONF_BASE_NAMESPACE,
+            clicon_username_get(h),
+            NETCONF_MESSAGE_ID_ATTR);
+    cprintf(cb, "<device-template-apply xmlns=\"%s\">", CONTROLLER_NAMESPACE);
+    cprintf(cb, "<devname>%s</devname>", devs);
+    cprintf(cb, "<template>%s</template>", templ);
+    cprintf(cb, "<variables>");
+    cv = NULL;
+    while ((cv = cvec_each(cvv, cv)) != NULL){
+        if (strcmp(cv_name_get(cv), "var") == 0){
+            var = cv_string_get(cv);
+            if ((cv = cvec_next(cvv, cv)) == NULL)
+                break;
+            if (strcmp(cv_name_get(cv), "val") == 0){
+                cprintf(cb, "<variable><name>%s</name><value>%s</value></variable>",
+                        var, cv_string_get(cv));
+            }
+        }
+    }
+    cprintf(cb, "</variables>");
+    cprintf(cb, "</device-template-apply>");
+    cprintf(cb, "</rpc>");
+    if (clixon_xml_parse_string(cbuf_get(cb), YB_NONE, NULL, &xtop, NULL) < 0)
+        goto done;
+    /* Skip top-level */
+    xrpc = xml_child_i(xtop, 0);
+    /* Send to backend */
+    if (clicon_rpc_netconf_xml(h, xrpc, &xret, NULL) < 0)
+        goto done;
+    if ((xreply = xpath_first(xret, NULL, "rpc-reply")) == NULL){
+        clicon_err(OE_CFG, 0, "Malformed rpc reply");
+        goto done;
+    }
+    if ((xerr = xpath_first(xreply, NULL, "rpc-error")) != NULL){
+        clixon_netconf_error(h, xerr, "Get configuration", NULL);
+        goto done;
+    }
+    retval = 0;
+ done:
+    if (cb)
+        cbuf_free(cb);
+    if (xret)
+        xml_free(xret);
+    if (xtop)
+        xml_free(xtop);
+    return retval;
+}
