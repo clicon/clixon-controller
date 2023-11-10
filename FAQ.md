@@ -68,6 +68,7 @@ system {
         netconf {
             ssh;
             rfc-compliant;
+            yang-compliant;
         }
     }
 }
