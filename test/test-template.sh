@@ -1,13 +1,6 @@
 #!/usr/bin/env bash
-# Assume backend and devices running
-# Reset devices and backend
-# Commit a change to controller device config: remove x, change y, and add z
-# Commit a change to _devices_ add mtu (mtu is ignored by extension)
-# Push validate to devices which should be OK
-# Commit a change to _devices_ remove x, change y, and add z
-# Push validate to devices which should fail
-# Push commit to devices which should fail
-# make a cli show devices check and diff
+# Load a template and apply it via XML and check compare
+# Reset and load a template and apply if via CLI
 
 # Magic line must be first in script (see README.md)
 s="$_" ; . ./lib.sh || if [ "$s" = $0 ]; then exit 0; else return 0; fi
@@ -16,9 +9,6 @@ dir=/var/tmp/$0
 mntdir=$dir/mounts
 test -d $mntdir || mkdir -p $mntdir
 fyang=$mntdir/clixon-ext@2023-11-01.yang
-
-# Set if also push, not only change (useful for manually doing push)
-: ${push:=true}
 
 # Reset devices with initial config
 . ./reset-devices.sh
@@ -78,8 +68,7 @@ EOF
 new "Check ok"
 match=$(echo $ret | grep --null -Eo "<rpc-error>") || true
 if [ -n "$match" ]; then
-    echo "netconf rpc-error detected"
-    echo "$ret"
+    err1 "$ret"
     exit 1
 fi
 
@@ -130,6 +119,47 @@ expectpart "$($clixon_cli -1 -f $CFG -m configure show compare)" 0 "^+\ *interfa
 new "rollback"
 expectpart "$($clixon_cli -1 -f $CFG -m configure rollback)" 0 "^$"
 
+# Use CLI load and apply template
+new "delete template"
+expectpart "$($clixon_cli -1 -f $CFG -m configure delete devices template interfaces)" 0 "^$"
+
+new "commit"
+expectpart "$($clixon_cli -1 -f $CFG -m configure commit)" 0 "^$"
+
+new "load template"
+# quote EOFfor $NAME
+ret=$(${clixon_cli} -1f $CFG -m configure load merge xml <<'EOF'
+      <config>
+         <devices xmlns="http://clicon.org/controller">
+            <template nc:operation="replace">
+               <name>interfaces</name>
+               <config>
+                  <interfaces xmlns="http://openconfig.net/yang/interfaces">
+                     <interface>
+                        <name>${NAME}</name>
+                        <config>
+                           <name>${NAME}</name>
+                           <type xmlns:ianaift="urn:ietf:params:xml:ns:yang:iana-if-type">${TYPE}</type>
+                           <description>Config of interface ${NAME} and ${TYPE} type</description>
+                        </config>
+                     </interface>
+                  </interfaces>
+               </config>
+            </template>
+         </devices>
+      </config>
+EOF
+)
+#echo "ret:$ret"
+
+if [ -n "$ret" ]; then
+    err1 "$ret"
+    exit 1
+fi
+
+new "commit template local"
+expectpart "$($clixon_cli -1f $CFG -m configure commit local 2>&1)" 0 "^$"
+
 new "Apply template CLI"
 expectpart "$($clixon_cli -1 -f $CFG -m configure apply interfaces openconfig* variables NAME z TYPE ianaift:v35)" 0 "^$"
 
@@ -140,8 +170,6 @@ if $BE; then
     new "Kill old backend"
     stop_backend -f $CFG
 fi
-
-unset push
 
 endtest
 

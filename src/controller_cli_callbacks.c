@@ -1879,6 +1879,103 @@ cli_auto_del_devs(clicon_handle h,
     return retval;
 }
 
+/*! Merge datastore xml entry, specialization for controller devices
+ *
+ * @param[in]  h    Clixon handle
+ * @param[in]  cvv0 Vector of cli string and instantiated variables
+ * @param[in]  argv Vector. First element xml key format string, eg "/aaa/%s"
+ * @see cli_auto_merge  original callback
+ */
+int
+cli_auto_load_devs(clicon_handle h,
+                   cvec         *cvv0,
+                   cvec         *argv)
+{
+    int                 retval = -1;
+    enum operation_type op = OP_MERGE;
+    enum format_enum    format = FORMAT_XML;
+    cg_var             *cv;
+    cvec               *cvv = NULL;
+    char               *filename = NULL;
+    FILE               *fp = stdin;
+    struct stat         st;
+    cxobj              *xt = NULL;
+    cxobj              *xerr = NULL;
+    cbuf               *cb = NULL;
+    int                 ret;
+
+    if ((cvv = cvec_append(clicon_data_cvec_get(h, "cli-edit-cvv"), cvv0)) == NULL)
+        goto done;
+    if ((cv = cvec_find(cvv, "operation")) != NULL) {
+        if (xml_operation(cv_string_get(cv), &op) < 0)
+            goto done;
+    }
+    if ((cv = cvec_find(cvv, "format")) != NULL) {
+        if ((format = format_str2int(cv_string_get(cv))) < 0)
+            goto done;
+    }
+    if ((cv = cvec_find(cvv, "filename")) != NULL){
+        filename = cv_string_get(cv);
+        if (stat(filename, &st) < 0){
+            clicon_err(OE_UNIX, errno, "load_config: stat(%s)", filename);
+            goto done;
+        }
+        /* Open and parse local file into xml */
+        if ((fp = fopen(filename, "r")) == NULL){
+            clicon_err(OE_UNIX, errno, "fopen(%s)", filename);
+            goto done;
+        }
+    }
+    /* XXX Do without YANG (for the time being) */
+    switch (format){
+    case FORMAT_XML:
+        if ((ret = clixon_xml_parse_file(fp, YB_NONE, NULL, &xt, &xerr)) < 0)
+            goto done;
+        if (ret == 0){
+            clixon_netconf_error(h, xerr, "Loading", filename);
+            goto done;
+        }
+        break;
+    case FORMAT_JSON:
+        if ((ret = clixon_json_parse_file(fp, 1, YB_NONE, NULL, &xt, &xerr)) < 0)
+            goto done;
+        if (ret == 0){
+            clixon_netconf_error(h, xerr, "Loading", filename);
+            goto done;
+        }
+        break;
+    default:
+        clicon_err(OE_PLUGIN, 0, "format: %s not implemented", format_int2str(format));
+        goto done;
+        break;
+    }
+    if (xt == NULL)
+        goto done;
+    if ((cb = cbuf_new()) == NULL){
+        clicon_err(OE_UNIX, errno, "cbuf_new");
+        goto done;
+    }
+    if (clixon_xml2cbuf(cb, xt, 0, 0, NULL, -1, 1) < 0)
+        goto done;
+    if (clicon_rpc_edit_config(h, "candidate",
+                               op,
+                               cbuf_get(cb)) < 0)
+        goto done;
+    retval = 0;
+ done:
+    if (cb)
+        cbuf_free(cb);
+    if (xt)
+        xml_free(xt);
+    if (xerr)
+        xml_free(xerr);
+    if (filename && fp)
+        fclose(fp);
+    if (cvv)
+        cvec_free(cvv);
+    return retval;
+}
+
 /*! Show controller and clixon version
  */
 int

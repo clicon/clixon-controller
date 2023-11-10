@@ -2,7 +2,6 @@ CLICON_MODE="operation";
 #CLICON_PROMPT="%U@%H %W> ";
 CLICON_PROMPT="%U@%H> ";
 CLICON_PLUGIN="controller_cli";
-#CLICON_PIPETREE="|pipe_common";
 
 # Al11: Auto edit mode
 # Autocli syntax tree operations

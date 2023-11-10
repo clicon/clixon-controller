@@ -8,6 +8,7 @@ Expected: December 2023
 * [Templates](https://github.com/clicon/clixon-controller/issues/4)
   * First version uses simple variable substitution in XML bodies
   * Template is YANG anydata which means CLI editing is not possible, instead needs XML input
+* CLI: Load raw XML/JSON from stdin
 * [Add device / profile ignore fields](https://github.com/clicon/clixon-controller/issues/55)
 * [Support a loadable mechanism for device profiles](https://github.com/clicon/clixon-controller/issues/21)
   * The mechanism loads a set of configured modules locally from disk,
