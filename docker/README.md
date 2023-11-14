@@ -75,7 +75,7 @@ Once the containers are running, the controller CLI can be run and devices added
   Creating r2 ... done
   Creating r1 ... done
   Creating controller ... done
-  $ docker exec -it controller clixon_cli -f /usr/local/etc/controller.xml
+  $ docker exec -it controller clixon_cli -f /usr/local/etc/clixon/controller.xml
   nobody@d18823315355> configure
   nobody@d18823315355[/]# set devices device r1 addr r1
   nobody@d18823315355[/]# set devices device r1 user noc

@@ -25,13 +25,13 @@ Before you start,
 ```
 Start backend in the background:
 ```
-    sudo clixon_backend -f /usr/local/etc/controller.xml
+    sudo clixon_backend -f /usr/local/etc/clixon/controller.xml
 ```
 Note: use `-s init` instead if you want to start Clixon without the preconfigured restconf daemon
 
 Start cli:
 ```
-    clixon_cli -f /usr/local/etc/controller.xml
+    clixon_cli -f /usr/local/etc/clixon/controller.xml
 ```
 
 ## Using the CLI
@@ -40,7 +40,7 @@ The example CLI allows you to modify and view the data model using `set`, `delet
 
 The following example shows how to add a very simple configuration `hello world` using the generated CLI. The config is added to the candidate database, shown, committed to running, and then deleted.
 ```
-   olof@vandal> clixon_cli -f /usr/local/etc/controller.xml
+   olof@vandal> clixon_cli -f /usr/local/etc/clixon/controller.xml
 cli> q   
 ```
 
@@ -48,7 +48,7 @@ cli> q
 
 Clixon also provides a Netconf interface. The following example starts a netconf client form the shell, adds the hello world config, commits it, and shows it:
 ```
-olof@vandal> clixon_netconf -qf /usr/local/etc/controller.xml
+olof@vandal> clixon_netconf -qf /usr/local/etc/clixon/controller.xml
   <?xml version="1.0" encoding="UTF-8"?>
   <hello xmlns="urn:ietf:params:xml:ns:netconf:base:1.0">
      <capabilities><capability>urn:ietf:params:netconf:base:1.1</capability></capabilities>
