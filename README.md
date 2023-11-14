@@ -29,7 +29,7 @@ Other Clixon projects include [CLIgen](https://github.com/clicon/cligen), [Clixo
 
 To launch a container with the controller and two fake routers based on OpenConfig:
 ```
-$ docker-compose -f docker/docker-compose-demo.yml up
+$ ./start-demo-containers.sh
 $ docker exec -it demo-controller clixon_cli
 nobody@3e29b6e15c34>
 ```
