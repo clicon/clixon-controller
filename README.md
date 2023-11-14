@@ -23,6 +23,16 @@ Other Clixon projects include [CLIgen](https://github.com/clicon/cligen), [Clixo
 * Templates support, [demo](templates-min.gif)
 * Local configration database
 * Loadable device profiles
+* And much more...
+
+# Demo
+
+To launch a container with the controller and two fake routers based on OpenConfig:
+```
+$ docker-compose -f docker/docker-compose-demo.yml up
+$ docker exec -it demo-controller clixon_cli
+nobody@3e29b6e15c34>
+```
 
 ![Demo](demo-min.gif)
 
