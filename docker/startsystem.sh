@@ -50,7 +50,13 @@ EOF
 
 # Start clixon backend
 >&2 echo "start clixon_backend:"
-/usr/local/sbin/clixon_backend -FD $DBG -f /usr/local/etc/controller.xml -l e # logs on docker logs
+
+if [ -z ${USE_STARTUPDB+x} ]; then
+    /usr/local/sbin/clixon_backend -FD $DBG -f /usr/local/etc/clixon/controller.xml -l e
+else
+    echo "Using startup database"
+    /usr/local/sbin/clixon_backend -FD $DBG -f /usr/local/etc/clixon/controller.xml -l e -s startup
+fi
 
 # Alt: let backend be in foreground, but then you cannot restart
 /bin/sleep 100000000

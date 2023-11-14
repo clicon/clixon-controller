@@ -1,0 +1,25 @@
+version: "2.2"
+services:
+  demo-controller:
+    container_name: demo-controller
+    image: clixon/demo-controller:latest
+    build: .
+    environment:
+      - CONTAINERS="r1 r2"
+      - USE_STARTUPDB="yes"
+    ports:
+      - "8082:80"
+    depends_on:
+      - r1
+      - r2
+    volumes:
+      - ./prepare-ssh.sh:/prepare-ssh.sh
+      - ./startup_db:/usr/local/var/controller/startup_db
+    entrypoint: ["/bin/bash", "/prepare-ssh.sh"]
+  r1:
+    container_name: r1
+    image: clixon/openconfig:latest
+  r2:
+    container_name: r2
+    image: clixon/openconfig:latest
+

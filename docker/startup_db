@@ -1,0 +1,18 @@
+<config>
+  <devices xmlns="http://clicon.org/controller">
+    <device>
+      <name>openconfig1</name>
+      <enabled>true</enabled>
+      <conn-type>NETCONF_SSH</conn-type>
+      <user>noc</user>
+      <addr>r1</addr>
+    </device>
+    <device>
+      <name>openconfig2</name>
+      <enabled>true</enabled>
+      <conn-type>NETCONF_SSH</conn-type>
+      <user>noc</user>
+      <addr>r2</addr>
+    </device>
+  </devices>
+</config>
