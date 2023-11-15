@@ -1932,7 +1932,11 @@ cli_auto_load_devs(clicon_handle h,
         if ((ret = clixon_xml_parse_file(fp, YB_NONE, NULL, &xt, &xerr)) < 0)
             goto done;
         if (ret == 0){
-            clixon_netconf_error(h, xerr, "Loading", filename);
+            clixon_netconf_error(h, xerr, "Loading", filename?filename:"stdin");
+            goto done;
+        }
+        if (xml_child_nr(xt) == 0){
+            clicon_err(OE_XML, 0, "No XML in file %s", filename?filename:"stdin");
             goto done;
         }
         break;
@@ -1940,7 +1944,11 @@ cli_auto_load_devs(clicon_handle h,
         if ((ret = clixon_json_parse_file(fp, 1, YB_NONE, NULL, &xt, &xerr)) < 0)
             goto done;
         if (ret == 0){
-            clixon_netconf_error(h, xerr, "Loading", filename);
+            clixon_netconf_error(h, xerr, "Loading", filename?filename:"stdin");
+            goto done;
+        }
+        if (xml_child_nr(xt) == 0){
+            clicon_err(OE_XML, 0, "No XML in file %s", filename?filename:"stdin");
             goto done;
         }
         break;
@@ -1969,8 +1977,12 @@ cli_auto_load_devs(clicon_handle h,
         xml_free(xt);
     if (xerr)
         xml_free(xerr);
-    if (filename && fp)
-        fclose(fp);
+    if (fp){
+        if (filename)
+            fclose(fp);
+        else
+            clearerr(fp);
+    }
     if (cvv)
         cvec_free(cvv);
     return retval;
