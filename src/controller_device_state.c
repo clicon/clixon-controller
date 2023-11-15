@@ -406,7 +406,7 @@ device_schemas_load_mount(clixon_handle h,
     /* Create XML tree and device mount-point */
     if (device_state_mount_point_get(devname, yspec0, &xt, &xmount) < 0)
         goto done;
-    if (xml_yang_mount_set(xmount, yspec1) < 0)
+    if (xml_yang_mount_set(h, xmount, yspec1) < 0)
         goto done;
     yspec1 = NULL;
     retval = 1;

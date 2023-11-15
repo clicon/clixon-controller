@@ -176,7 +176,7 @@ create_autocli_mount_tree(clicon_handle h,
         clicon_err(OE_UNIX, errno, "cbuf_new");
         goto done;
     }
-    /* 2. Create xpath to specific mountpoint given by devname */
+    /* 2. Create xpath to specific mountpoint given by devname (canonical: ctrl) */
     devname = xml_find_body(xdev, "name");
     cprintf(cb, "/ctrl:devices/ctrl:device[ctrl:name='%s']/ctrl:config", devname);
     xpath = cbuf_get(cb);
