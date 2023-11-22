@@ -988,6 +988,7 @@ devices_match(clixon_handle   h,
     device_handle dh;
     int           i;
     cbuf         *reason = NULL;
+    char         *body;
 
     if (xmldb_get(h, "running", nsc, "devices", &xret) < 0)
         goto done;
@@ -1001,6 +1002,11 @@ devices_match(clixon_handle   h,
         if (device != NULL && fnmatch(device, name, 0) != 0)
             continue;
         if ((dh = device_handle_find(h, name)) == NULL)
+            continue;
+        /* Filter if not enabled */
+        if ((body = xml_find_body(xn, "enabled")) == NULL)
+            continue;
+        if (strcmp(body, "true") != 0)
             continue;
         if (device_handle_conn_state_get(dh) != CS_OPEN &&
             *closed == NULL){
@@ -1606,7 +1612,7 @@ rpc_connection_change(clixon_handle h,
             }
         }
         else {
-            clicon_err(OE_NETCONF, 0, "%s is not a conenction-operation", operation);
+            clicon_err(OE_NETCONF, 0, "%s is not a connection-operation", operation);
             goto done;
         }
     } /* for */

@@ -27,6 +27,7 @@ Expected: December 2023
 
 ### Corrected Bugs
 
+* Fixed: ["validate push" etc should only use the connected devices](https://github.com/clicon/clixon-controller/issues/58)
 * Fixed: [Command 'show compare' broken](https://github.com/clicon/clixon-controller/issues/46)
 * Fixed: [Possible to get stuck in an lock-denied state with no way to recover](https://github.com/clicon/clixon-controller/issues/47)
 * Fixed: [NETCONF delete messages include extra XML](https://github.com/clicon/clixon-controller/issues/53)
@@ -52,7 +53,7 @@ routers. It is still experimental.
 * Added: [Add show command for processes ](https://github.com/clicon/clixon-controller/issues/42)
 
 ### Corrected Bugs
-	
+
 * Fixed: [Backend exited after XML error](https://github.com/clicon/clixon-controller/issues/49)
 * Fixed: [Tab completion with configuration for multiple vendors](https://github.com/clicon/clixon-controller/issues/40)
 * Fixed: [OpenConfig: Error when validating/committing](https://github.com/clicon/clixon-controller/issues/32)

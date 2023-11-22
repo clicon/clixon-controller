@@ -92,7 +92,7 @@ expectpart "$($clixon_cli -1 -f $CFG -m configure commit diff)" 0 "^\-\ *<hostna
 new "Rollback hostnames on openconfig*"
 expectpart "$($clixon_cli -1 -f $CFG -m configure rollback)" 0 ""
 
-new "Commit hostname on openconfig*"
+new "Set hostname on openconfig*"
 expectpart "$($clixon_cli -1 -f $CFG -m configure 'set devices device openconfig* config system config hostname test')" 0 ""
 
 new "Commit on openconfig*"
