@@ -13,20 +13,11 @@ s="$_" ; . ./lib.sh || if [ "$s" = $0 ]; then exit 0; else return 0; fi
 
 dir=/var/tmp/$0
 modules=$dir/modules
-
-if [ ! -d $dir ]; then
-    mkdir $dir
-else
-    rm -rf $dir/*
-fi
-
-if [ ! -d $modules ]; then
-	mkdir $modules
-fi
-
 fyang=$dir/ssh-users.yang
 CFG=$dir/controller.xml
 CFD=$dir/conf.d
+test -d $dir || mkdir -p $dir
+test -d $modules || mkdir -p $modules
 test -d $CFD || mkdir -p $CFD
 pycode=$modules/ssh-users.py
 

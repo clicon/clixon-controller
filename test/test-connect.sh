@@ -24,13 +24,9 @@ fi
 : ${IMG:=clixon-example}
 
 dir=/var/tmp/$0
-if [ ! -d $dir ]; then
-    mkdir $dir
-else
-    rm -rf $dir/*
-fi
 CFG=$dir/controller.xml
 CFD=$dir/conf.d
+test -d $dir || mkdir -p $dir
 test -d $CFD || mkdir -p $CFD
 fyang=$dir/clixon-test@2023-03-22.yang
 # openconfig devices have noc user

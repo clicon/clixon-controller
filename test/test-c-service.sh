@@ -44,10 +44,9 @@ if [ $nr -lt 2 ]; then
 fi
 
 dir=/var/tmp/$0
-test -d $dir || mkdir -p $dir
-
 CFG=$dir/controller.xml
 CFD=$dir/confdir
+test -d $dir || mkdir -p $dir
 test -d $CFD || mkdir -p $CFD
 
 fyang=$dir/myyang.yang

@@ -6,13 +6,9 @@ s="$_" ; . ./lib.sh || if [ "$s" = $0 ]; then exit 0; else return 0; fi
 set -u
 
 dir=/var/tmp/$0
-if [ ! -d $dir ]; then
-    mkdir $dir
-else
-    rm -rf $dir/*
-fi
 CFG=$dir/controller.xml
 CFD=$dir/conf.d
+test -d $dir || mkdir -p $dir
 test -d $CFD || mkdir -p $CFD
 fin=$dir/in
 

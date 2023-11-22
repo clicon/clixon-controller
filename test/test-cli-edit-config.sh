@@ -125,6 +125,8 @@ new "reset controller"
 
 new "Close all devices"
 expectpart "$($clixon_cli -1 -f $CFG connection close)" 0 ""
+
+new "Ensure closed"
 expectpart "$($clixon_cli -1 -f $CFG show devices)" 0 "openconfig1.*CLOSED" "openconfig2.*CLOSED"
 
 new "Connect to devices"

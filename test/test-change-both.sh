@@ -104,7 +104,7 @@ if $BE; then
     sudo clixon_backend -s init -f $CFG -z
 
     new "Start new backend -s init -f $CFG"
-    start_backend -s init  -f $CFG
+    start_backend -s init -f $CFG
 fi
 
 new "wait backend"
