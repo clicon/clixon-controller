@@ -8,7 +8,6 @@ s="$_" ; . ./lib.sh || if [ "$s" = $0 ]; then exit 0; else return 0; fi
 dir=/var/tmp/$0
 mntdir=$dir/mounts
 test -d $mntdir || mkdir -p $mntdir
-fyang=$mntdir/clixon-ext@2023-11-01.yang
 
 # Reset devices with initial config
 . ./reset-devices.sh

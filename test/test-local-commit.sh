@@ -58,13 +58,12 @@ function local_change()
 </rpc>]]>]]>
 EOF
        )
-    echo "$ret"   
+#    echo "$ret"   
     match=$(echo "$ret" | grep --null -Eo "<rpc-error>") || true
     if [ -n "$match" ]; then
         err1 "OK reply"
         exit 1
     fi
-
 }
 
 NAME=${IMG}1

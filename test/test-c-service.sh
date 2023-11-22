@@ -42,16 +42,12 @@ if [ $nr -lt 2 ]; then
 fi
 
 dir=/var/tmp/$0
-if [ ! -d $dir ]; then
-    mkdir $dir
-else
-    rm -rf $dir/*
-fi
+test -d $dir || mkdir -p $dir
+
 CFG=$dir/controller.xml
 CFD=$dir/confdir
-if [ ! -d $CFD ]; then
-    mkdir $CFD
-fi
+test -d $CFD || mkdir -p $CFD
+
 fyang=$dir/myyang.yang
 
 # source IMG/USER etc
