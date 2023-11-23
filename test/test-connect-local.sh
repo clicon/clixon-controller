@@ -146,7 +146,7 @@ if $BE; then
     start_backend -s startup -f $CFG
 fi
 
-# Check backend is running
+new "Wait backend"
 wait_backend
 
 ii=0

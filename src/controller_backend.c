@@ -281,6 +281,7 @@ controller_unknown(clicon_handle h,
  * @retval    -1       Error
  * @see RFC 8528 (schema-mount) and RFC 8525 (yang-lib)
  * @see device_state_recv_schema_list  where yang-lib is received from device
+ * @see controller_connect  where yang-lib is iniated from local yangs
  */
 int
 controller_yang_mount(clicon_handle   h,
@@ -301,16 +302,21 @@ controller_yang_mount(clicon_handle   h,
      * But there is an error case where there is YANG parse error in which
      * case it will re-try mounting repeatedy.
      */
-    if ((devname = xml_find_body(xml_parent(xt), "name")) != NULL &&
-        (dh = device_handle_find(h, devname)) != NULL){
-        if (yanglib && (xy0 = device_handle_yang_lib_get(dh)) != NULL){
-            /* copy it */
-            if ((xy1 = xml_new("new", NULL, xml_type(xy0))) == NULL)
+    if ((devname = xml_find_body(xml_parent(xt), "name")) != NULL){
+        if ((dh = device_handle_find(h, devname)) == NULL){
+            if ((dh = device_handle_new(h, devname)) == NULL)
                 goto done;
-            if (xml_copy(xy0, xy1) < 0)
-                goto done;
-            *yanglib = xy1;
-            xy1 = NULL;
+        }
+        if (yanglib){
+            if ((xy0 = device_handle_yang_lib_get(dh)) != NULL){
+                if ((xy1 = xml_new("new", NULL, CX_ELMNT)) == NULL)
+                    goto done;
+                /* copy it */
+                if (xml_copy(xy0, xy1) < 0)
+                    goto done;
+                *yanglib = xy1;
+                xy1 = NULL;
+            }
         }
         if (config)
             *config = 1;

@@ -26,7 +26,7 @@ if $BE; then
     start_backend -s init -f $CFG
 fi
 
-# Check backend is running
+new "wait backend"
 wait_backend
 
 # Reset controller

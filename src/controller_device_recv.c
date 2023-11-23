@@ -432,6 +432,7 @@ device_state_recv_schema_list(device_handle dh,
         goto done;
     if (xml_rootchild(xyanglib, 0, &xyanglib) < 0)
         goto done;
+    /* @see controller_connect where initial yangs may be set */
     if (device_handle_yang_lib_append(dh, xyanglib) < 0)
         goto done;
     retval = 1;

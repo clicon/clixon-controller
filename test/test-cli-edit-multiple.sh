@@ -124,7 +124,7 @@ if $BE; then
 
 fi
 
-# Check backend is running
+new "Wait backend"
 wait_backend
 
 # Reset controller

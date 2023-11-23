@@ -21,7 +21,7 @@ if $BE; then
     start_backend -s init -f $CFG
 fi
 
-# Check backend is running
+new "Wait backend"
 wait_backend
 
 # Local change: just change device description

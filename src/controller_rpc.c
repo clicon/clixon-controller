@@ -207,6 +207,7 @@ controller_connect(clixon_handle           h,
         if (xyanglib){
             if (xml_rootchild(xyanglib, 0, &xyanglib) < 0)
                 goto done;
+            /* see device_state_recv_schema_list */
             if (device_handle_yang_lib_set(dh, xyanglib) < 0)
                 goto done;
         }
@@ -476,7 +477,6 @@ rpc_config_pull(clixon_handle h,
  * @param[in] arg   Transaction handle
  * @retval    0     OK
  * @retval   -1     Error
-
  */
 static int
 actions_timeout(int   s,
@@ -1355,8 +1355,11 @@ rpc_controller_commit(clixon_handle h,
         }
         if (controller_transaction_devices(h, ct->ct_id) == 0){
             /* No device started, close transaction */
-            if (controller_transaction_done(h, ct, TR_SUCCESS) < 0)
+            if (netconf_operation_failed(cbret, "application", "No changes to push")< 0)
                 goto done;
+            if (controller_transaction_done(h, ct, TR_FAILED) < 0)
+                goto done;
+            goto ok;
         }
         break;
     case AT_CHANGE:

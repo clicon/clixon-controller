@@ -27,6 +27,7 @@ Expected: December 2023
 
 ### Corrected Bugs
 
+* Fixed: [Device configuration is removed when starting from running](https://github.com/clicon/clixon-controller/issues/65)
 * Fixed: ["validate push" etc should only use the connected devices](https://github.com/clicon/clixon-controller/issues/58)
 * Fixed: [Command 'show compare' broken](https://github.com/clicon/clixon-controller/issues/46)
 * Fixed: [Possible to get stuck in an lock-denied state with no way to recover](https://github.com/clicon/clixon-controller/issues/47)
