@@ -281,6 +281,9 @@ OK"
 new "Commit configuration for user test1"
 expectpart "$($clixon_cli -1 -f $CFG -m configure commit)" 0 ""
 
+new "Commited, should be no diff"
+expectpart "$($clixon_cli -1 -f $CFG -m configure commit diff)" 0 ""
+
 # Show the configuration on the devices using SSH
 for container in $CONTAINERS; do
     new "Verify configuration on $container for user test1"
@@ -321,6 +324,9 @@ OK"
 
 new "Commit configuration for user test2"
 expectpart "$($clixon_cli -1 -f $CFG -m configure commit)" 0 ""
+
+new "Commited, should be no diff"
+expectpart "$($clixon_cli -1 -f $CFG -m configure commit diff)" 0 ""
 
 # Show the configuration on the devices using SSH
 for container in $CONTAINERS; do
@@ -413,6 +419,12 @@ openconfig2:
 -     </aaa>
   </system>
 OK"
+
+new "Commit configuration."
+expectpart "$($clixon_cli -1 -f $CFG -m configure commit)" 0 ""
+
+new "Commited, should be no diff"
+expectpart "$($clixon_cli -1 -f $CFG -m configure commit diff)" 0 ""
 
 # Show the configuration on the devices using SSH
 for container in $CONTAINERS; do
