@@ -129,7 +129,6 @@ module ssh-users {
 EOF
 
 cat <<EOF > $pycode
-from clixon.clixon import rpc
 from clixon.element import Element
 from clixon.parser import parse_template
 
@@ -146,7 +145,6 @@ USER_XML = """
 </user>
 """
 
-@rpc()
 def setup(root, log, **kwargs):
     try:
         _ = root.services
