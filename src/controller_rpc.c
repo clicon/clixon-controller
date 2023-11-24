@@ -1880,9 +1880,9 @@ datastore_diff_device(clixon_handle      h,
                       cbuf              *cbret)
 {
     int           retval = -1;
-    cbuf         *cb = NULL;
     cbuf         *cbxpath = NULL;
     cbuf         *cberr = NULL;
+    cbuf         *cb = NULL;
     cxobj        *x1;
     cxobj        *x2;
     cxobj        *x1m = NULL; /* malloced */
@@ -1900,16 +1900,17 @@ datastore_diff_device(clixon_handle      h,
     int           ret;
     char         *ct;
 
-    if ((cb = cbuf_new()) == NULL){
+    if ((cbxpath = cbuf_new()) == NULL){
         clicon_err(OE_UNIX, errno, "cbuf_new");
         goto done;
     }
-    if ((cbxpath = cbuf_new()) == NULL){
+    if ((cb = cbuf_new()) == NULL){
         clicon_err(OE_UNIX, errno, "cbuf_new");
         goto done;
     }
     if (xmldb_get0(h, "running", Y_MODULE, nsc, "devices/device/name", 1, WITHDEFAULTS_EXPLICIT, &xret, NULL, NULL) < 0)
         goto done;
+    cprintf(cbret, "<rpc-reply xmlns=\"%s\">", NETCONF_BASE_NAMESPACE);
     if (xpath_vec(xret, nsc, "devices/device/name", &vec, &veclen) < 0)
         goto done;
     for (i=0; i<veclen; i++){
@@ -1949,6 +1950,7 @@ datastore_diff_device(clixon_handle      h,
             if ((ret = device_config_read(h, devname, ct, &x1m, &cberr)) < 0)
                 goto done;
             if (ret == 0){
+                cbuf_reset(cbret);
                 if (netconf_operation_failed(cbret, "application", cbuf_get(cberr))< 0)
                     goto done;
                 goto ok;
@@ -1984,6 +1986,7 @@ datastore_diff_device(clixon_handle      h,
             if ((ret = device_config_read(h, devname, ct, &x2m, &cberr)) < 0)
                 goto done;
             if (ret == 0){
+                cbuf_reset(cbret);
                 if (netconf_operation_failed(cbret, "application", cbuf_get(cberr))< 0)
                     goto done;
                 goto ok;
@@ -1992,12 +1995,26 @@ datastore_diff_device(clixon_handle      h,
         }
         switch (format){
         case FORMAT_XML:
+            cbuf_reset(cb);
             if (clixon_xml_diff2cbuf(cb, x1?x1:x1m, x2?x2:x2m) < 0)
                 goto done;
+            if (cbuf_len(cb)){
+                cprintf(cbret, "<diff xmlns=\"%s\">", CONTROLLER_NAMESPACE);
+                cprintf(cbret, "%s:\n", devname);
+                xml_chardata_cbuf_append(cbret, cbuf_get(cb));
+                cprintf(cbret, "</diff>");
+            }
             break;
         case FORMAT_TEXT:
+            cbuf_reset(cb);
             if (clixon_text_diff2cbuf(cb, x1?x1:x1m, x2?x2:x2m) < 0)
                 goto done;
+            if (cbuf_len(cb)){
+                cprintf(cbret, "<diff xmlns=\"%s\">", CONTROLLER_NAMESPACE);
+                cprintf(cbret, "%s:\n", devname);
+                xml_chardata_cbuf_append(cbret, cbuf_get(cb));
+                cprintf(cbret, "</diff>");
+            }
             break;
         case FORMAT_JSON:
         case FORMAT_CLI:
@@ -2021,12 +2038,7 @@ datastore_diff_device(clixon_handle      h,
             x2ret = NULL;
         }
     }
-    cprintf(cbret, "<rpc-reply xmlns=\"%s\">", NETCONF_BASE_NAMESPACE);
-    cprintf(cbret, "<diff xmlns=\"%s\">", CONTROLLER_NAMESPACE);
-    xml_chardata_cbuf_append(cbret, cbuf_get(cb));
-    cprintf(cbret, "</diff>");
     cprintf(cbret, "</rpc-reply>");
-    cprintf(cbret, "%s", cbuf_get(cb));
  ok:
     retval = 0;
  done:

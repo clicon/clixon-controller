@@ -27,6 +27,7 @@ Expected: December 2023
 
 ### Corrected Bugs
 
+* Fixed: ["show compare devices diff" should display device name](https://github.com/clicon/clixon-controller/issues/64)
 * Fixed: [Device configuration is removed when starting from running](https://github.com/clicon/clixon-controller/issues/65)
 * Fixed: ["validate push" etc should only use the connected devices](https://github.com/clicon/clixon-controller/issues/58)
 * Fixed: [Command 'show compare' broken](https://github.com/clicon/clixon-controller/issues/46)

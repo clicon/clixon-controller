@@ -33,6 +33,7 @@ module clixon-controller {
             "Added device-profile list
              Added device-common grouping, for common device/device-profile fields
              Added module-set to device-common
+             Changed rpc datastore-diff output to leaf-list
              Released in 0.2.0";
     }
     revision 2023-09-01 {
@@ -839,8 +840,8 @@ module clixon-controller {
             }
         }
         output {
-            leaf diff {
-                description "Pretty-printed diff string";
+            leaf-list diff {
+                description "Pretty-printed diff strings";
                 type string;
             }
         }

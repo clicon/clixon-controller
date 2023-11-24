@@ -663,8 +663,10 @@ cli_rpc_commit_diff_one(clicon_handle h,
     cxobj  *xreply;
     cxobj  *xerr;
     cxobj  *xdiff;
-    char   *diff;
     cxobj  *xret = NULL;
+    cxobj **vec = NULL;
+    size_t  veclen;
+    int     i;
 
     if ((cb = cbuf_new()) == NULL){
         clicon_err(OE_PLUGIN, errno, "cbuf_new");
@@ -698,14 +700,17 @@ cli_rpc_commit_diff_one(clicon_handle h,
         clixon_netconf_error(h, xerr, "Get configuration", NULL);
         goto done;
     }
-    if ((xdiff = xpath_first(xreply, NULL, "diff")) == NULL){
-        clicon_err(OE_CFG, 0, "No returned diff");
+    if (xpath_vec(xreply, NULL, "diff", &vec, &veclen) < 0)
         goto done;
+    for (i=0; i<veclen; i++){
+        if ((xdiff = vec[i]) != NULL &&
+            xml_body(xdiff) != NULL)
+            cligen_output(stdout, "%s", xml_body(xdiff));
     }
-    if ((diff = xml_body(xdiff)) != NULL)
-        cligen_output(stdout, "%s", diff);
     retval = 0;
  done:
+    if (vec)
+        free(vec);
     if (xret)
         xml_free(xret);
     if (xtop)
@@ -1290,7 +1295,7 @@ send_pull_transient(clicon_handle h,
  * @param[in]   argv    <format>        "text"|"xml"|"json"|"cli"|"netconf" (see format_enum)
  * @param[in]   dt1     First device config config
  * @param[in]   dt2     Second device config config
- * @param[out]  diffp   Allocated diff string
+ * @param[out]  cbdiff  Diff string to show
  * @retval      0       OK
  * @retval     -1       Error
  */
@@ -1300,27 +1305,33 @@ compare_device_config_type(clicon_handle      h,
                            cvec              *argv,
                            device_config_type dt1,
                            device_config_type dt2,
-                           char             **diffp)
+                           cbuf              *cbdiff)
 {
-    int              retval = -1;
-    enum format_enum format;
-    cg_var          *cv;
-    char            *pattern = "*";
-    char            *tidstr = NULL;
-    char            *formatstr;
-    cxobj           *xtop = NULL;
-    cxobj           *xret = NULL;
-    cxobj           *xrpc;
-    cxobj           *xreply;
-    cxobj           *xerr;
-    cxobj           *xdiff;
-    cbuf            *cb = NULL;
-    char            *device_type = NULL;
-    char            *diff;
+    int                retval = -1;
+    enum format_enum   format;
+    cg_var            *cv;
+    char              *pattern = "*";
+    char              *tidstr = NULL;
+    char              *formatstr;
+    cxobj             *xtop = NULL;
+    cxobj             *xret = NULL;
+    cxobj             *xrpc;
+    cxobj             *xreply;
+    cxobj             *xerr;
+    cxobj             *xdiff;
+    cbuf              *cb = NULL;
+    char              *device_type = NULL;
     transaction_result result;
+    cxobj            **vec = NULL;
+    size_t             veclen;
+    int                i;
 
     if (cvec_len(argv) > 1){
         clicon_err(OE_PLUGIN, EINVAL, "Received %d arguments. Expected: <format>]", cvec_len(argv));
+        goto done;
+    }
+    if (cbdiff == NULL){
+        clicon_err(OE_PLUGIN, EINVAL, "cbdiff is NULL");
         goto done;
     }
     cv = cvec_i(argv, 0);
@@ -1378,18 +1389,18 @@ compare_device_config_type(clicon_handle      h,
         clixon_netconf_error(h, xerr, "Get configuration", NULL);
         goto done;
     }
-    if ((xdiff = xpath_first(xreply, NULL, "diff")) == NULL){
-        clicon_err(OE_CFG, 0, "No returned diff");
+    if (xpath_vec(xreply, NULL, "diff", &vec, &veclen) < 0)
         goto done;
-    }
-    if ((diff = xml_body(xdiff)) != NULL && diffp){
-        if ((*diffp = strdup(diff)) == NULL){
-            clicon_err(OE_UNIX, errno, "strdup");
-            goto done;
+    for (i=0; i<veclen; i++){
+        if ((xdiff = vec[i]) != NULL &&
+            xml_body(xdiff) != NULL){
+            cprintf(cbdiff, "%s", xml_body(xdiff));
         }
     }
     retval = 0;
  done:
+    if (vec)
+        free(vec);
     if (xret)
         xml_free(xret);
     if (xtop)
@@ -1411,20 +1422,23 @@ compare_device_config_type(clicon_handle      h,
  */
 int
 compare_dbs_rpc(clicon_handle h,
-                cvec  *cvv,
-                cvec  *argv)
+                cvec         *cvv,
+                cvec         *argv)
 {
-    int    retval = -1;
-    char  *db1;
-    char  *db2;
-    char  *formatstr;
-    cxobj *xtop = NULL;
-    cxobj *xret = NULL;
-    cxobj *xrpc;
-    cxobj *xreply;
-    cxobj *xerr;
-    cxobj *xdiff;
-    cbuf  *cb = NULL;
+    int     retval = -1;
+    char   *db1;
+    char   *db2;
+    char   *formatstr;
+    cxobj  *xtop = NULL;
+    cxobj  *xret = NULL;
+    cxobj  *xrpc;
+    cxobj  *xreply;
+    cxobj  *xerr;
+    cxobj  *xdiff;
+    cbuf   *cb = NULL;
+    cxobj **vec = NULL;
+    size_t  veclen;
+    int     i;
 
     if (cvec_len(argv) != 3){
         clicon_err(OE_PLUGIN, EINVAL, "Expected arguments: <db1> <db2> <format>");
@@ -1469,13 +1483,17 @@ compare_dbs_rpc(clicon_handle h,
         clixon_netconf_error(h, xerr, "Get configuration", NULL);
         goto done;
     }
-    if ((xdiff = xpath_first(xreply, NULL, "diff")) == NULL){
-        clicon_err(OE_CFG, 0, "No returned diff");
+    if (xpath_vec(xreply, NULL, "diff", &vec, &veclen) < 0)
         goto done;
+    for (i=0; i<veclen; i++){
+        if ((xdiff = vec[i]) != NULL &&
+            xml_body(xdiff) != NULL)
+            cligen_output(stdout, "%s", xml_body(xdiff));
     }
-    cligen_output(stdout, "%s", xml_body(xdiff));
     retval = 0;
  done:
+    if (vec)
+        free(vec);
     if (xret)
         xml_free(xret);
     if (xtop)
@@ -1499,16 +1517,20 @@ compare_device_db_sync(clicon_handle h,
                        cvec         *argv)
 {
     int   retval = -1;
-    char *diff = NULL;
+    cbuf *cbdiff = NULL;
 
-    if (compare_device_config_type(h, cvv, argv, DT_SYNCED, DT_RUNNING, &diff) < 0)
+    if ((cbdiff = cbuf_new()) == NULL){
+        clicon_err(OE_PLUGIN, errno, "cbuf_new");
         goto done;
-    if (diff)
-        cligen_output(stdout, "%s", diff);
+    }
+    if (compare_device_config_type(h, cvv, argv, DT_SYNCED, DT_RUNNING, cbdiff) < 0)
+        goto done;
+    if (strlen(cbuf_get(cbdiff)))
+        cligen_output(stdout, "%s", cbuf_get(cbdiff));
     retval = 0;
  done:
-    if (diff)
-        free(diff);
+    if (cbdiff)
+        cbuf_free(cbdiff);
     return retval;
 }
 
@@ -1527,16 +1549,20 @@ compare_device_db_dev(clicon_handle h,
                       cvec         *argv)
 {
     int   retval = -1;
-    char *diff = NULL;
+    cbuf *cbdiff = NULL;
 
-    if (compare_device_config_type(h, cvv, argv, DT_TRANSIENT, DT_RUNNING, &diff) < 0)
+    if ((cbdiff = cbuf_new()) == NULL){
+        clicon_err(OE_PLUGIN, errno, "cbuf_new");
         goto done;
-    if (diff)
-        cligen_output(stdout, "%s", diff);
+    }
+    if (compare_device_config_type(h, cvv, argv, DT_TRANSIENT, DT_RUNNING, cbdiff) < 0)
+        goto done;
+    if (strlen(cbuf_get(cbdiff)))
+        cligen_output(stdout, "%s", cbuf_get(cbdiff));
     retval = 0;
  done:
-    if (diff)
-        free(diff);
+    if (cbdiff)
+        cbuf_free(cbdiff);
     return retval;
 }
 
@@ -1555,18 +1581,22 @@ check_device_db(clixon_handle h,
                 cvec         *argv)
 {
     int   retval = -1;
-    char *diff = NULL;
+    cbuf *cbdiff = NULL;
 
-    if (compare_device_config_type(h, cvv, argv, DT_RUNNING, DT_TRANSIENT, &diff) < 0)
+    if ((cbdiff = cbuf_new()) == NULL){
+        clicon_err(OE_PLUGIN, errno, "cbuf_new");
         goto done;
-    if (diff && strlen(diff))
+    }
+    if (compare_device_config_type(h, cvv, argv, DT_RUNNING, DT_TRANSIENT, cbdiff) < 0)
+        goto done;
+    if (strlen(cbuf_get(cbdiff)))
         cligen_output(stdout, "device out-of-sync\n");
     else
         cligen_output(stdout, "OK\n");
     retval = 0;
  done:
-    if (diff)
-        free(diff);
+    if (cbdiff)
+        cbuf_free(cbdiff);
     return retval;
 }
 
