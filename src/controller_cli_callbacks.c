@@ -1653,7 +1653,7 @@ cli_dbxml_devs_sub(clicon_handle       h,
             goto done;
         }
     }
-    if (xml_add_attr(xbot, "operation", xml_operation2str(op), NETCONF_BASE_PREFIX, NULL) < 0)
+    if (xml_add_attr(xbot, "operation", xml_operation2str(op), NETCONF_BASE_PREFIX, NULL) == NULL)
         goto done;
     /* Add body last in case of leaf */
     if (cvec_len(cvv) > 1 &&

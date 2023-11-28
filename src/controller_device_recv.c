@@ -289,6 +289,8 @@ device_state_recv_config(clixon_handle h,
         goto done;
     if (xml_prefix_set(xa, NETCONF_BASE_PREFIX) < 0)
         goto done;
+    if (xml_sort(xroot) < 0)
+        goto done;
     /* Special handling if part of transaction. XXX: currently not activated */
     if ((tid = device_handle_tid_get(dh)) != 0 &&
         (ct = controller_transaction_find(h, tid)) != NULL){

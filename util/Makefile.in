@@ -47,6 +47,7 @@ INSTALLFLAGS    = @INSTALLFLAGS@
 # Utilities, unit testings.
 # Add more with APPSRC  += 
 APPSRC  = clixon_controller_service.c
+APPSRC += clixon_controller_xpath.c
 
 APPS	  = $(APPSRC:.c=)
 
@@ -62,6 +63,8 @@ distclean: clean
 
 # APPS
 clixon_controller_service: clixon_controller_service.c
+	$(CC) $(INCLUDES) $(CPPFLAGS) -D__PROGRAM__=\"$@\" $(CFLAGS) $(LDFLAGS) $^ $(LIBS) -o $@
+clixon_controller_xpath: clixon_controller_xpath.c
 	$(CC) $(INCLUDES) $(CPPFLAGS) -D__PROGRAM__=\"$@\" $(CFLAGS) $(LDFLAGS) $^ $(LIBS) -o $@
 
 install: $(APPS) $(INSTALLER)

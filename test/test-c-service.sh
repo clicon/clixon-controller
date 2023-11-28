@@ -28,6 +28,8 @@
 # |                       Bx                       |
 # +------------------------------------------------+
 #
+# Also, after testA(1) do a pull and a restart to ensure creator attributes are intact
+#
 # For debug start service daemon externally: ${BINDIR}/clixon_controller_service -f $CFG and
 # disable CONTROLLER_ACTION_COMMAND
 # May fail if python service runs
@@ -49,6 +51,8 @@ CFD=$dir/confdir
 test -d $CFD || mkdir -p $CFD
 
 fyang=$dir/myyang.yang
+
+: ${clixon_controller_xpath:=clixon_controller_xpath}
 
 # source IMG/USER etc
 . ./site.sh
@@ -80,7 +84,8 @@ cat<<EOF > $CFG
   <CLICON_CLI_HELPSTRING_TRUNCATE>true</CLICON_CLI_HELPSTRING_TRUNCATE>
   <CLICON_CLI_HELPSTRING_LINES>1</CLICON_CLI_HELPSTRING_LINES>
   <CLICON_YANG_SCHEMA_MOUNT>true</CLICON_YANG_SCHEMA_MOUNT>
-  <CONTROLLER_ACTION_COMMAND xmlns="http://clicon.org/controller-config">${BINDIR}/clixon_controller_service -f $CFG</CONTROLLER_ACTION_COMMAND> <!-- Debug: -D 3 -l s Error: -e -->
+  <CLICON_NETCONF_CREATOR_ATTR>true</CLICON_NETCONF_CREATOR_ATTR>
+  <CONTROLLER_ACTION_COMMAND xmlns="http://clicon.org/controller-config">${BINDIR}/clixon_controller_service -f $CFG -D 3 -lf/tmp/services.log</CONTROLLER_ACTION_COMMAND> <!-- Debug: -D 3 -l s Error: -e -->
 </clixon-config>
 EOF
 
@@ -202,7 +207,7 @@ if $BE; then
     start_backend -s startup -f $CFG
 fi
 
-new "Check backend is running"
+new "Wait backend 1"
 wait_backend
 
 check_services stopped
@@ -212,7 +217,7 @@ if $BE; then
     sudo clixon_backend -s init -f $CFG -z
 fi
 
-# Then start from init which by default should start it
+# Then start from startup which by default should start it
 # First disable services process
 cat <<EOF > $dir/startup_db
 <config>
@@ -228,14 +233,14 @@ EOF
 . ./reset-devices.sh
 
 if $BE; then
-    echo "Kill old backend $CFG"
+    new "Kill old backend $CFG"
     sudo clixon_backend -f $CFG -z
 
-    echo "Start new backend -s init -f $CFG -D $DBG"
+    new "Start new backend -s startup -f $CFG -D $DBG"
     sudo clixon_backend -s startup -f $CFG -D $DBG
 fi
 
-new "Check backend is running"
+new "Wait backend 2"
 wait_backend
 
 check_services running
@@ -333,19 +338,56 @@ EOF
 #echo "$ret"
 match=$(echo "$ret" | grep --null -Eo "<rpc-error>") || true
 if [ -n "$match" ]; then
-    echo "netconf rpc-error detected"
-    exit 1
+    err "<ok/>" "$ret"
 fi
 
 sleep $sleep
-new "commit push"
 
+new "commit push"
 set +e
 expectpart "$(${clixon_cli} -m configure -1f $CFG commit push 2>&1)" 0 OK --not-- Error
+
+CREATORSA="<creator><name>testA\[name='foo'\]</name><path>/devices/device\[name=\"openconfig1\"\]/config/interfaces/interface\[name=\"A0x\"\]</path><path>/devices/device\[name=\"openconfig1\"\]/config/interfaces/interface\[name=\"A0y\"\]</path><path>/devices/device\[name=\"openconfig1\"\]/config/interfaces/interface\[name=\"ABx\"\]</path><path>/devices/device\[name=\"openconfig1\"\]/config/interfaces/interface\[name=\"ABy\"\]</path><path>/devices/device\[name=\"openconfig1\"\]/config/interfaces/interface\[name=\"Ax\"\]</path><path>/devices/device\[name=\"openconfig1\"\]/config/interfaces/interface\[name=\"Ay\"\]</path><path>/devices/device\[name=\"openconfig2\"\]/config/interfaces/interface\[name=\"A0x\"\]</path><path>/devices/device\[name=\"openconfig2\"\]/config/interfaces/interface\[name=\"A0y\"\]</path><path>/devices/device\[name=\"openconfig2\"\]/config/interfaces/interface\[name=\"ABx\"\]</path><path>/devices/device\[name=\"openconfig2\"\]/config/interfaces/interface\[name=\"ABy\"\]</path><path>/devices/device\[name=\"openconfig2\"\]/config/interfaces/interface\[name=\"Ax\"\]</path><path>/devices/device\[name=\"openconfig2\"\]/config/interfaces/interface\[name=\"Ay\"\]</path></creator>"
+
+CREATORSB="<creator><name>testB\[name='foo'\]</name><path>/devices/device\[name=\"openconfig1\"\]/config/interfaces/interface\[name=\"A0x\"\]</path><path>/devices/device\[name=\"openconfig1\"\]/config/interfaces/interface\[name=\"A0y\"\]</path><path>/devices/device\[name=\"openconfig1\"\]/config/interfaces/interface\[name=\"ABx\"\]</path><path>/devices/device\[name=\"openconfig1\"\]/config/interfaces/interface\[name=\"ABy\"\]</path><path>/devices/device\[name=\"openconfig1\"\]/config/interfaces/interface\[name=\"ABz\"\]</path><path>/devices/device\[name=\"openconfig1\"\]/config/interfaces/interface\[name=\"Bx\"\]</path><path>/devices/device\[name=\"openconfig2\"\]/config/interfaces/interface\[name=\"A0x\"\]</path><path>/devices/device\[name=\"openconfig2\"\]/config/interfaces/interface\[name=\"A0y\"\]</path><path>/devices/device\[name=\"openconfig2\"\]/config/interfaces/interface\[name=\"ABx\"\]</path><path>/devices/device\[name=\"openconfig2\"\]/config/interfaces/interface\[name=\"ABy\"\]</path><path>/devices/device\[name=\"openconfig2\"\]/config/interfaces/interface\[name=\"ABz\"\]</path><path>/devices/device\[name=\"openconfig2\"\]/config/interfaces/interface\[name=\"Bx\"\]</path></creator></creators>"
+
+new "Check creator attributes"
+expectpart "$(sudo $clixon_controller_xpath -f $dir/running_db -p /config/creators)" 0 "${CREATORSA}" "${CREATORSB}"
 
 # Pull and ensure attributes remain
 new "Pull replace"
 expectpart "$(${clixon_cli} -1f $CFG pull)" 0 ""
+
+new "Check creator attributes after pull"
+expectpart "$(sudo $clixon_controller_xpath -f $dir/running_db -p /config/creators)" 0 "${CREATORSA}" "${CREATORSB}"
+
+# Restart backend and ensure attributes remain
+if $BE; then
+    new "Kill old backend $CFG"
+    sudo clixon_backend -f $CFG -z
+fi
+
+if $BE; then
+    new "Start new backend -s running -f $CFG -D $DBG"
+    sudo clixon_backend -s running -f $CFG -D $DBG
+fi
+
+new "Wait backend 3"
+wait_backend
+
+new "open connections"
+expectpart "$(${clixon_cli} -1f $CFG connect open)" 0 ""
+
+sleep $sleep
+
+new "Verify open devices"
+res=$(${clixon_cli} -1f $CFG show devices | grep OPEN | wc -l)
+if [ "$res" != "$nr" ]; then
+    err1 "$nr open devices" "$res"
+fi
+
+new "Check creator attributes after restart"
+expectpart "$(sudo $clixon_controller_xpath -f $dir/running_db -p /config/creators)" 0 "${CREATORSA}" "${CREATORSB}"
 
 new "edit testA(2)"
 ret=$(${clixon_netconf} -0 -f $CFG <<EOF
@@ -381,8 +423,7 @@ EOF
 
 match=$(echo "$ret" | grep --null -Eo "<rpc-error>") || true
 if [ -n "$match" ]; then
-    echo "netconf rpc-error detected"
-    exit 1
+    err "<ok/>" "$ret"
 fi
 
 new "commit diff"
@@ -390,13 +431,11 @@ ret=$(${clixon_cli} -m configure -1f $CFG commit diff 2> /dev/null)
 #echo "ret:$ret"
 match=$(echo $ret | grep --null -Eo '\+ <name>Az</name>') || true
 if [ -z "$match" ]; then
-    echo "commit diff failed +"
-    exit 1
+    err "commit diff + Az entry" "$ret"
 fi
 match=$(echo $ret | grep --null -Eo '\- <name>Ax</name') || true
 if [ -z "$match" ]; then
-    echo "commit diff failed -"
-    exit 1
+    err "diff - Ax entry" "$ret"
 fi
 
 # Delete testA completely
@@ -429,8 +468,7 @@ EOF
 #echo "$ret"
 match=$(echo "$ret" | grep --null -Eo "<rpc-error>") || true
 if [ -n "$match" ]; then
-    echo "netconf rpc-error detected"
-    exit 1
+    err "<ok/>" "$ret"
 fi
 
 sleep $sleep
@@ -463,14 +501,13 @@ EOF
 #echo "ret:$ret"
 match=$(echo $ret | grep --null -Eo "<rpc-error>") || true
 if [ -n "$match" ]; then
-    echo "netconf rpc-error detected on $NAME"
-    exit 1
+    err "<ok/>" "$ret"
 fi
 
 match=$(echo $ret | grep --null -Eo "<parameter><name>Ax</name></parameter>") || true
+
 if [ -n "$match" ]; then
-    echo "Error:Ax is not removed in $NAME as it should be"
-    exit 1
+    err "Ax is removed in $NAME" "$ret"
 fi
 
 # Delete testB completely
@@ -503,8 +540,7 @@ EOF
 #echo "$ret"
 match=$(echo "$ret" | grep --null -Eo "<rpc-error>") || true
 if [ -n "$match" ]; then
-    echo "netconf rpc-error detected"
-    exit 1
+    err "<ok/>" "$ret"
 fi
 
 sleep $sleep
@@ -537,14 +573,12 @@ EOF
 #echo "ret:$ret"
 match=$(echo $ret | grep --null -Eo "<rpc-error>") || true
 if [ -n "$match" ]; then
-    echo "netconf rpc-error detected on $NAME"
-    exit 1
+    err "<ok/>" "$ret"
 fi
 
 match=$(echo $ret | grep --null -Eo "<parameter><name>Bx</name></parameter>") || true
 if [ -n "$match" ]; then
-    echo "Error:Bx is not removed in $NAME as it should be"
-    exit 1
+    err "Bx is removed in $NAME" "$ret"
 fi
 
 # Negative errors
