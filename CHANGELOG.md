@@ -27,6 +27,7 @@ Expected: December 2023
 
 ### Corrected Bugs
 
+* Fixed: [Unable to commit to device with warnings](https://github.com/clicon/clixon-controller/issues/71)
 * Fixed: [cl:creator tags should survive a backend restart](https://github.com/clicon/clixon-controller/issues/66)
 * Fixed: ["show compare devices diff" should display device name](https://github.com/clicon/clixon-controller/issues/64)
 * Fixed: [Device configuration is removed when starting from running](https://github.com/clicon/clixon-controller/issues/65)
