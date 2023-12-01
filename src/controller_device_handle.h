@@ -85,6 +85,7 @@ int    device_handle_capabilities_find(clixon_handle ch, const char *name);
 cxobj *device_handle_yang_lib_get(device_handle dh);
 int    device_handle_yang_lib_set(device_handle dh, cxobj *xylib);
 int    device_handle_yang_lib_append(device_handle dh, cxobj *xylib);
+device_handle device_handle_find_by_yang_lib(clixon_handle h, device_handle dh0, cxobj *xylib0);
 int    device_handle_sync_time_get(device_handle dh, struct timeval *t);
 int    device_handle_sync_time_set(device_handle dh, struct timeval *t);
 yang_stmt *device_handle_yspec_get(device_handle dh);

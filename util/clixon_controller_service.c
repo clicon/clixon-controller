@@ -688,7 +688,7 @@ main(int    argc,
     clicon_debug(CLIXON_DBG_DEFAULT, "%s notification socket:%d", __FUNCTION__, s);
 
     if (!once)
-        while (clicon_msg_rcv(s, NULL, 1, &notification, &eof) == 0){
+        while (clicon_msg_rcv(s, NULL, 0, &notification, &eof) == 0){
             if (eof)
                 break;
             if (service_action_handler(h, s, notification, service_pattern, send_error) < 0)

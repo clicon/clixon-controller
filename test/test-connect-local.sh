@@ -1,4 +1,4 @@
-# Controller connect of static yang modules, ie no get-schame
+# Controller connect of static yang modules, ie no get-schema
 # Boostrapping from empty config
 # Note that the test restarts devices backends with CLICON_NETCONF_MONITORING=false to disable RFC 6025
 # 1. Non-complete module, check YANG bind failed

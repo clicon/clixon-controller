@@ -121,13 +121,13 @@ expectpart "$($clixon_cli -1 -f $CFG show devices)" 0 "openconfig1.*CLOSED" "ope
 new "Connect to devices"
 expectpart "$($clixon_cli -1 -f $CFG connection open)" 0 ""
 
-new "Sleep and verify devices are open"
+new "Sleep and verify devices are open 1"
 sleep_open
 
 new "Reconnect to devices"
 expectpart "$($clixon_cli -1 -f $CFG connection reconnect)" 0 ""
 
-new "Sleep and verify devices are open"
+new "Sleep and verify devices are open 2"
 sleep_open
 
 new "First testrun"
@@ -157,12 +157,8 @@ expectpart "$($clixon_cli -1 -f $CFG connection open)" 0 ""
 
 sleep $sleep
 
-new "Sleep and verify devices are open"
+new "Sleep and verify devices are open 3"
 sleep_open
-
-
-
-
 
 new "Testrun after restart"
 testrun

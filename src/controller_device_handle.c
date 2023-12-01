@@ -54,6 +54,7 @@
 #include <clixon/clixon.h>
 
 /* Controller includes */
+#include "controller.h"
 #include "controller_netconf.h"
 #include "controller_device_state.h"
 #include "controller_device_handle.h"
@@ -163,10 +164,6 @@ device_handle_free1(struct controller_device_handle *cdh)
         xml_free(cdh->cdh_xcaps);
     if (cdh->cdh_yang_lib)
         xml_free(cdh->cdh_yang_lib);
-#if 0 // XXX see xml_yang_mount_freeall
-    if (cdh->cdh_yspec)
-        ys_free(cdh->cdh_yspec);
-#endif
     if (cdh->cdh_logmsg)
         free(cdh->cdh_logmsg);
     if (cdh->cdh_schema_name)
@@ -794,6 +791,34 @@ device_handle_yang_lib_append(device_handle dh,
     return retval;
 }
 
+/*! Check if other device has an equivalent xyanglib
+ *
+ * @param[in]  h      Clixon  handle
+ * @param[in]  dh0    Device handle
+ * @param[in]  xylib0 Yang-lib
+ * @retval     dh     Matching device handle with same xyanglib
+ * @retval     NULL   No match
+ */
+device_handle
+device_handle_find_by_yang_lib(clixon_handle h,
+                               device_handle dh0,
+                               cxobj        *xylib0)
+{
+    device_handle dh;
+    cxobj        *xylib;
+
+    dh = NULL;
+    while ((dh = device_handle_each(h, dh)) != NULL){
+        if (dh == dh0)
+            continue;
+        if ((xylib = device_handle_yang_lib_get(dh)) == NULL)
+            continue;
+        if (xml_tree_equal(xylib0, xylib) == 0)
+            break;
+    }
+    return dh;
+}
+
 /*! Get sync timestamp
  *
  * @param[in]  dh     Device handle
@@ -852,6 +877,7 @@ device_handle_yspec_set(device_handle dh,
 {
     struct controller_device_handle *cdh = devhandle(dh);
 
+    assert(cdh->cdh_yspec == NULL);
     if (cdh->cdh_yspec)
         ys_free(cdh->cdh_yspec);
     cdh->cdh_yspec = yspec;

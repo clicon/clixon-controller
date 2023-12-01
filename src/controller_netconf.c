@@ -42,7 +42,7 @@
 /* Clicon library functions. */
 #include <clixon/clixon.h>
 
-/* Local includes */
+/* Local includes (no controller dependencies) */
 #include "controller_netconf.h"
 
 /*

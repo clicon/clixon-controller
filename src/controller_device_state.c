@@ -143,7 +143,7 @@ yang_config_str2int(char *str)
 
 /*! Close connection, unregister events and timers
  *
- * @param[in]  dh      Clixon client handle.
+ * @param[in]  dh      Clixon device handle.
  * @param[in]  format  Format string for Log message or NULL
  * @retval     0       OK
  * @retval    -1       Error
@@ -824,6 +824,55 @@ device_config_compare(clicon_handle           h,
     goto done;
 }
 
+/*! Check if there is another equivalent xyanglib and if so reuse that yspec
+ *
+ * Prereq: schema-list (xyanglib) is completely known.
+ * Look for an existing equivalent schema-list among other devices.
+ * If found, re-use that YANG-SPEC.
+ * @param[in]  h         Clixon handle
+ * @param[in]  dh        Clixon device handle.
+ * @param[in]  xyanglib  Yang-lib in XML format
+ * @retval     0         OK
+ * @retval    -1         Error
+ */
+static int
+device_shared_yspec(clicon_handle h,
+                    device_handle dh,
+                    cxobj        *xyanglib)
+{
+    int           retval = -1;
+    yang_stmt    *yspec;
+#ifdef SHARED_PROFILE_YSPEC
+    device_handle dh1;
+
+    /* New yspec only on first connect */
+    if ((yspec = device_handle_yspec_get(dh)) == NULL){
+        if ((dh1 = device_handle_find_by_yang_lib(h, dh, xyanglib)) < 0)
+            goto done;
+        if (dh1 == NULL || (yspec = device_handle_yspec_get(dh1)) == NULL){
+            if ((yspec = yspec_new()) == NULL)
+                goto done;
+        }
+        else {
+            yang_ref_inc(yspec); /* share */
+        }
+        if (device_handle_yspec_set(dh, yspec) < 0)
+            goto done;
+    }
+#else
+
+    if ((yspec = device_handle_yspec_get(dh)) == NULL){
+        if ((yspec = yspec_new()) == NULL)
+            goto done;
+        if (device_handle_yspec_set(dh, yspec) < 0)
+            goto done;
+    }
+#endif
+    retval = 0;
+ done:
+    return retval;
+}
+
 /*! Handle controller device state machine
  *
  * @param[in]  h       Clixon handle
@@ -844,7 +893,6 @@ device_state_handler(clixon_handle h,
     char       *name;
     conn_state  conn_state;
     yang_stmt  *yspec0;
-    yang_stmt  *yspec1;
     int         nr;
     int         ret;
     uint64_t    tid;
@@ -885,11 +933,6 @@ device_state_handler(clixon_handle h,
             assert(ct->ct_result != TR_SUCCESS);
         }
         /* Reset YANGs */
-        if ((yspec1 = device_handle_yspec_get(dh)) == NULL){
-            if ((yspec1 = yspec_new()) == NULL)
-                goto done;
-            device_handle_yspec_set(dh, yspec1);
-        }
         if ((xyanglib = device_handle_yang_lib_get(dh)) != NULL){
             /* If local schemas, check if they exist as local file */
             if ((ret = device_schemas_local_check(h, dh, xyanglib)) < 0)
@@ -914,6 +957,9 @@ device_state_handler(clixon_handle h,
                     goto done;
                 break;
             }
+            /* Check if there is another equivalent xyanglib */
+            if (device_shared_yspec(h, dh, xyanglib) < 0)
+                goto done;
             /* All schemas ready, parse them (may do device_close) */
             if ((ret = device_schemas_load_mount(h, dh, xyanglib, yspec0)) < 0)
                 goto done;
@@ -955,6 +1001,16 @@ device_state_handler(clixon_handle h,
                 goto done;
             break;
         }
+        if ((xyanglib = device_handle_yang_lib_get(dh)) == NULL){
+            if (controller_transaction_failed(h, tid, ct, dh, TR_FAILED_DEV_LEAVE, name, "No YANG device lib") < 0)
+                goto done;
+            break;
+        }
+        /* Check if there is another equivalent xyanglib
+         * makes device_handle_yspec_set() as a side-effect
+         */
+        if (device_shared_yspec(h, dh, xyanglib) < 0)
+            goto done;
         /* 2. The device is OK */
         if (ct->ct_state == TS_RESOLVED){
             /* 2.1 But transaction is in error state */
@@ -965,11 +1021,6 @@ device_state_handler(clixon_handle h,
             goto done;
         if (ret == 0){ /* None found */
             /* All schemas ready, parse them */
-            if ((xyanglib = device_handle_yang_lib_get(dh)) == NULL){
-                if (controller_transaction_failed(h, tid, ct, dh, TR_FAILED_DEV_LEAVE, name, "No YANG device lib") < 0)
-                    goto done;
-                break;
-            }
             if ((ret = device_schemas_load_mount(h, dh, xyanglib, yspec0)) < 0)
                 goto done;
             if (ret == 0){

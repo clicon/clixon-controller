@@ -396,7 +396,7 @@ transaction_notification_handler(int                 s,
     transaction_result result;
 
     clicon_debug(CLIXON_DBG_DEFAULT, "%s tid:%s", __FUNCTION__, tidstr0); /* XXX: see https://github.com/clicon/clixon-controller/issues/43 */
-    if (clicon_msg_rcv(s, NULL, 1, &reply, eof) < 0)
+    if (clicon_msg_rcv(s, NULL, 0, &reply, eof) < 0)
         goto done;
     clicon_debug(CLIXON_DBG_DEFAULT, "%s eof:%d", __FUNCTION__, *eof); /* XXX: see https://github.com/clicon/clixon-controller/issues/43 */
     if (*eof){

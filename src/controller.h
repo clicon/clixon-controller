@@ -72,6 +72,10 @@
  */
 #undef CONTROLLER_EXTRA_PUSH_SYNC
 
+/*! Hack to test if one can run same yang-spec structure for all devices (in a profile)
+ */
+#define SHARED_PROFILE_YSPEC
+
 #define ACTION_PROCESS "Action process"
 
 #endif /* _CONTROLLER_H */
