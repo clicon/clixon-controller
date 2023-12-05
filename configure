@@ -4731,7 +4731,7 @@ then :
   printf "%s\n" "#define HAVE_CLIGEN_CLIGEN_H 1" >>confdefs.h
 
 else $as_nop
-  as_fn_error $? "cligen missing. Try: git clone https://github.com/olofhagsand/cligen.git" "$LINENO" 5
+  as_fn_error $? "cligen missing. Try: git clone https://github.com/clicon/cligen.git" "$LINENO" 5
 fi
 
 done
@@ -4778,7 +4778,7 @@ then :
   LIBS="-lcligen $LIBS"
 
 else $as_nop
-  as_fn_error $? "CLIgen missing. Try: git clone https://github.com/olofhagsand/cligen.git" "$LINENO" 5
+  as_fn_error $? "CLIgen missing. Try: git clone https://github.com/clicon/cligen.git" "$LINENO" 5
 fi
 
 

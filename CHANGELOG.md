@@ -1,8 +1,12 @@
 # Clixon Controller Changelog
 
 ## 0.2.0
-Expected: December 2023
+6 December 2023
 
+The clixon controller 0.2.0 release features device templates, local
+yang modules, simple templates and many bugfixes.
+Based on CLIgen/Clixon 6.5.0.
+	
 ### New features
 
 * [Templates](https://github.com/clicon/clixon-controller/issues/4)

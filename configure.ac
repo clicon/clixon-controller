@@ -37,7 +37,7 @@ AC_CONFIG_AUX_DIR(aux)
 CONTROLLER_VERSION_MAJOR="0"
 CONTROLLER_VERSION_MINOR="2"
 CONTROLLER_VERSION_PATCH="0"
-CONTROLLER_VERSION="${CONTROLLER_VERSION_MAJOR}.${CONTROLLER_VERSION_MINOR}.${CONTROLLER_VERSION_PATCH}.PRE"
+CONTROLLER_VERSION="${CONTROLLER_VERSION_MAJOR}.${CONTROLLER_VERSION_MINOR}.${CONTROLLER_VERSION_PATCH}"
 AC_SUBST(CONTROLLER_VERSION)
 
 AC_MSG_RESULT(CONTROLLER version is ${CONTROLLER_VERSION})
@@ -134,9 +134,9 @@ if test "${with_clixon}"; then
   test -d "$with_clixon" && CLIXON_PREFIX="$with_clixon"
 fi
 
-AC_CHECK_HEADERS(cligen/cligen.h,, AC_MSG_ERROR(cligen missing. Try: git clone https://github.com/olofhagsand/cligen.git))
+AC_CHECK_HEADERS(cligen/cligen.h,, AC_MSG_ERROR(cligen missing. Try: git clone https://github.com/clicon/cligen.git))
 
-AC_CHECK_LIB(cligen, cligen_init,, AC_MSG_ERROR([CLIgen missing. Try: git clone https://github.com/olofhagsand/cligen.git]))
+AC_CHECK_LIB(cligen, cligen_init,, AC_MSG_ERROR([CLIgen missing. Try: git clone https://github.com/clicon/cligen.git]))
 
 AC_CHECK_HEADERS(clixon/clixon.h,, AC_MSG_ERROR(Clixon missing. Try: git clone https://github.com/clicon/clixon.git), [[#include <signal.h>
 #include <cligen/cligen.h>]])

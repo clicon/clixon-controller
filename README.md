@@ -20,7 +20,7 @@ Other Clixon projects include [CLIgen](https://github.com/clicon/cligen), [Clixo
 * Add, delete and validate device configuration
 * Multi vendor support, can use any device capable of using NETCONF and YANG.
 * Services which can be implemented using an Python API [Clixon PyAPI](https://github.com/clicon/clixon-pyapi)
-* Templates support, [demo](templates-min.gif)
+* Templates support,
 * Local configration database
 * Loadable device profiles
 * And much more...
@@ -33,8 +33,6 @@ $ ./start-demo-containers.sh
 $ docker exec -it demo-controller clixon_cli
 nobody@3e29b6e15c34>
 ```
-
-![Demo](demo-min.gif)
 
 # License
 The clixon controller is open-source Apache License, Version 2.0, see [LICENSE](LICENSE).
