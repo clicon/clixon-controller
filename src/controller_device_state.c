@@ -365,23 +365,18 @@ device_state_mount_point_get(char      *devicename,
  *
  * @param[in] h        Clixon handle.
  * @param[in] dh       Clixon client handle.
- * @param[in] yspec0   Top-level Yang specs
  * @param[in] xyanglib XML tree of yang module-set
  * @retval    1        OK
  * @retval    0        Fail, parse or other error, device is closed
  * @retval   -1        Error
  */
 static int
-device_schemas_load_mount(clixon_handle h,
-                          device_handle dh,
-                          cxobj        *xyanglib,
-                          yang_stmt    *yspec0)
+device_schemas_mount_parse(clixon_handle h,
+                           device_handle dh,
+                           cxobj        *xyanglib)
 {
     int        retval = -1;
     yang_stmt *yspec1;
-    cxobj     *xt = NULL;
-    cxobj     *xmount;
-    char      *devname;
     int        ret;
 
     clicon_debug(CLIXON_DBG_DETAIL, "%s", __FUNCTION__);
@@ -390,11 +385,15 @@ device_schemas_load_mount(clixon_handle h,
         device_close_connection(dh, "Empty set of YANG modules");
         goto fail;
     }
-    if ((yspec1 = device_handle_yspec_get(dh)) == NULL){
+    if (controller_mount_yspec_get(h,
+                                   device_handle_name_get(dh),
+                                   &yspec1) < 0)
+        goto done;
+    if (yspec1 == NULL){
         clicon_err(OE_YANG, 0, "No yang spec");
         goto done;
     }
-    /* Given yang-lib, parse all modules into yspec */
+    /* Given yang-lib, actual parsing of all modules into yspec */
     if ((ret = yang_lib2yspec(h, xyanglib, yspec1)) < 0)
         goto done;
     if (ret == 0){
@@ -402,20 +401,9 @@ device_schemas_load_mount(clixon_handle h,
         clicon_err_reset();
         goto fail;
     }
-    devname = device_handle_name_get(dh);
-    /* Create XML tree and device mount-point */
-    if (device_state_mount_point_get(devname, yspec0, &xt, &xmount) < 0)
-        goto done;
-    if (xml_yang_mount_set(h, xmount, yspec1) < 0)
-        goto done;
-    yspec1 = NULL;
     retval = 1;
  done:
     clicon_debug(CLIXON_DBG_DETAIL, "%s retval %d", __FUNCTION__, retval);
-    if (retval<0 && yspec1)
-        ys_free(yspec1);
-    if (xt)
-        xml_free(xt);
     return retval;
  fail:
     retval = 0;
@@ -832,42 +820,54 @@ device_config_compare(clicon_handle           h,
  * @param[in]  h         Clixon handle
  * @param[in]  dh        Clixon device handle.
  * @param[in]  xyanglib  Yang-lib in XML format
+ * @param[out] yspec1    New or shared yang-spec
  * @retval     0         OK
  * @retval    -1         Error
  */
 static int
 device_shared_yspec(clicon_handle h,
-                    device_handle dh,
-                    cxobj        *xyanglib)
+                    device_handle dh0,
+                    cxobj        *xyanglib0,
+                    yang_stmt   **yspec1)
+    
 {
     int           retval = -1;
-    yang_stmt    *yspec;
+    yang_stmt    *yspec = NULL;
 #ifdef SHARED_PROFILE_YSPEC
     device_handle dh1;
-
+    cxobj        *xyanglib;
+    
     /* New yspec only on first connect */
-    if ((yspec = device_handle_yspec_get(dh)) == NULL){
-        if ((dh1 = device_handle_find_by_yang_lib(h, dh, xyanglib)) < 0)
+    dh1 = NULL;
+    while ((dh1 = device_handle_each(h, dh1)) != NULL){
+        if (dh1 == dh0)
+            continue;
+        if ((xyanglib = device_handle_yang_lib_get(dh1)) == NULL)
+            continue;
+        if (xml_tree_equal(xyanglib0, xyanglib) == 0)
+            break;
+    }
+    if (dh1 == NULL){
+        if ((yspec = yspec_new()) == NULL)
             goto done;
-        if (dh1 == NULL || (yspec = device_handle_yspec_get(dh1)) == NULL){
+    }
+    else {
+        if (controller_mount_yspec_get(h, device_handle_name_get(dh1), &yspec) < 0)
+            goto done;
+        if (yspec == NULL){
             if ((yspec = yspec_new()) == NULL)
                 goto done;
         }
-        else {
+        else{
             yang_ref_inc(yspec); /* share */
         }
-        if (device_handle_yspec_set(dh, yspec) < 0)
-            goto done;
     }
-#else
+#else /* SHARED_PROFILE_YSPEC */
 
-    if ((yspec = device_handle_yspec_get(dh)) == NULL){
-        if ((yspec = yspec_new()) == NULL)
-            goto done;
-        if (device_handle_yspec_set(dh, yspec) < 0)
-            goto done;
-    }
-#endif
+    if ((yspec = yspec_new()) == NULL)
+        goto done;
+#endif /* SHARED_PROFILE_YSPEC */
+    *yspec1 = yspec;
     retval = 0;
  done:
     return retval;
@@ -893,6 +893,7 @@ device_state_handler(clixon_handle h,
     char       *name;
     conn_state  conn_state;
     yang_stmt  *yspec0;
+    yang_stmt  *yspec1 = NULL;
     int         nr;
     int         ret;
     uint64_t    tid;
@@ -958,10 +959,17 @@ device_state_handler(clixon_handle h,
                 break;
             }
             /* Check if there is another equivalent xyanglib */
-            if (device_shared_yspec(h, dh, xyanglib) < 0)
+            yspec1 = NULL;
+            if (controller_mount_yspec_get(h, name, &yspec1) < 0)
                 goto done;
+            if (yspec1 == NULL){
+                if (device_shared_yspec(h, dh, xyanglib, &yspec1) < 0)
+                    goto done;
+                if (controller_mount_yspec_set(h, name, yspec1) < 0)
+                    goto done;
+            }
             /* All schemas ready, parse them (may do device_close) */
-            if ((ret = device_schemas_load_mount(h, dh, xyanglib, yspec0)) < 0)
+            if ((ret = device_schemas_mount_parse(h, dh, xyanglib)) < 0)
                 goto done;
             if (ret == 0){
                 if (controller_transaction_failed(h, tid, ct, dh, TR_FAILED_DEV_LEAVE, name, device_handle_logmsg_get(dh)) < 0)
@@ -1007,10 +1015,16 @@ device_state_handler(clixon_handle h,
             break;
         }
         /* Check if there is another equivalent xyanglib
-         * makes device_handle_yspec_set() as a side-effect
          */
-        if (device_shared_yspec(h, dh, xyanglib) < 0)
+        yspec1 = NULL;
+        if (controller_mount_yspec_get(h, name, &yspec1) < 0)
             goto done;
+        if (yspec1 == NULL){
+            if (device_shared_yspec(h, dh, xyanglib, &yspec1) < 0)
+                goto done;
+            if (controller_mount_yspec_set(h, name, yspec1) < 0)
+                goto done;
+        }
         /* 2. The device is OK */
         if (ct->ct_state == TS_RESOLVED){
             /* 2.1 But transaction is in error state */
@@ -1021,7 +1035,7 @@ device_state_handler(clixon_handle h,
             goto done;
         if (ret == 0){ /* None found */
             /* All schemas ready, parse them */
-            if ((ret = device_schemas_load_mount(h, dh, xyanglib, yspec0)) < 0)
+            if ((ret = device_schemas_mount_parse(h, dh, xyanglib)) < 0)
                 goto done;
             if (ret == 0){
                 if (controller_transaction_failed(h, tid, ct, dh, TR_FAILED_DEV_LEAVE, name, device_handle_logmsg_get(dh)) < 0)
@@ -1074,7 +1088,7 @@ device_state_handler(clixon_handle h,
                     goto done;
                 break;
             }
-            if ((ret = device_schemas_load_mount(h, dh, xyanglib, yspec0)) < 0)
+            if ((ret = device_schemas_mount_parse(h, dh, xyanglib)) < 0)
                 goto done;
             if (ret == 0){
                 if (controller_transaction_failed(h, tid, ct, dh, TR_FAILED_DEV_LEAVE, name, device_handle_logmsg_get(dh)) < 0)

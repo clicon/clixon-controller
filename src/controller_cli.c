@@ -133,7 +133,6 @@ controller_cli_exit(clicon_handle h)
  * @param[in]  h         Clixon handle
  * @param[in]  dh        Clixon device handle.
  * @param[in]  xyanglib  Yang-lib in XML format
- * @param[in]  yu        Common yang mount-point
  * @param[out] yspec1    Yang-spec to use, new or shared with previously created
  * @retval     0         OK
  * @retval    -1         Error
@@ -143,7 +142,6 @@ static int
 device_shared_yspec_xml(clicon_handle h,
                         cxobj        *xdev0,
                         cxobj        *xyanglib0,
-                        yang_stmt    *yu,
                         yang_stmt   **yspec1)
 {
     int        retval = -1;
@@ -152,16 +150,10 @@ device_shared_yspec_xml(clicon_handle h,
     cxobj     *xdevs;
     cxobj     *xdev;
     cxobj     *xyanglib;
-    cbuf      *cb = NULL;
     char      *devname;
-    char      *xpath;
-    
+
     if ((xdevs = xml_parent(xdev0)) == NULL){
         clicon_err(OE_XML, 0, "Device has no parent");
-        goto done;
-    }
-    if ((cb = cbuf_new()) == NULL){
-        clicon_err(OE_UNIX, errno, "cbuf_new");
         goto done;
     }
     xdev = NULL;
@@ -174,10 +166,7 @@ device_shared_yspec_xml(clicon_handle h,
             continue;
         if ((devname = xml_find_body(xdev, "name")) == NULL)
             continue;
-        cbuf_reset(cb);
-        cprintf(cb, "/ctrl:devices/ctrl:device[ctrl:name='%s']/ctrl:config", devname);
-        xpath = cbuf_get(cb);
-        if (yang_mount_get(yu, xpath, &yspec) < 0)
+        if (controller_mount_yspec_get(h, devname, &yspec) < 0)
             goto done;
         if (yspec != NULL){
             yang_ref_inc(yspec); /* share */
@@ -190,8 +179,6 @@ device_shared_yspec_xml(clicon_handle h,
     *yspec1 = yspec;
     retval = 0;
  done:
-    if (cb)
-        cbuf_free(cb);
     return retval;
 #else
 
@@ -226,52 +213,26 @@ create_autocli_mount_tree(clicon_handle h,
                           yang_stmt   **yspec1p)
 {
     int        retval = -1;
-    yang_stmt *yu;
     cbuf      *cb = NULL;
-    char      *xpath;
-    yang_stmt *yspec0;
     yang_stmt *yspec1 = NULL;
-    yang_stmt *ymod;
     char      *devname;
     cxobj     *xyanglib = NULL;
     int        ret;
     
     clicon_debug(1, "%s", __FUNCTION__);
-    yspec0 = clicon_dbspec_yang(h);
-    if ((ymod = yang_find(yspec0, Y_MODULE, "clixon-controller")) == NULL){
-        clicon_err(OE_YANG, 0, "module clixon-controller not found");
-        goto done;
-    }
-    /* 1. Check if yang controller extension/unknwon mount-point exists (yu) */
-    if (yang_path_arg(ymod, "/devices/device/config", &yu) < 0)
-        goto done;
-    if (yu == NULL){
-        clicon_err(OE_YANG, 0, "Mountpoint devices/device/config not found");
-        goto done;
-    }
-    if ((cb = cbuf_new()) == NULL){
-        clicon_err(OE_UNIX, errno, "cbuf_new");
-        goto done;
-    }
-    /* 2. Create xpath to specific mountpoint given by devname (canonical: ctrl) */
     devname = xml_find_body(xdev, "name");
-    cprintf(cb, "/ctrl:devices/ctrl:device[ctrl:name='%s']/ctrl:config", devname);
-    xpath = cbuf_get(cb);
-    /* 3. Check if yspec associated to that mountpoint exists */
-    if (yang_mount_get(yu, xpath, &yspec1) < 0)
+    if (controller_mount_yspec_get(h, devname, &yspec1) < 0)
         goto done;
     if (yspec1 == NULL){
         /* 4. Get yang specs of mountpoint from controller */
         xyanglib = xpath_first(xdev, 0, "config/yang-library");
         /* 5. Check if there is another equivalent xyanglib and if so reuse that yspec */
-        if (device_shared_yspec_xml(h, xdev, xyanglib, yu, &yspec1) < 0)
+        if (device_shared_yspec_xml(h, xdev, xyanglib, &yspec1) < 0)
             goto done;
         /* 5. Parse YANGs locally from the yang specs */
         if ((ret = yang_lib2yspec(h, xyanglib, yspec1)) < 0)
             goto done;
-        if (ret == 0)
-            goto done;
-        if (yang_mount_set(yu, xpath, yspec1) < 0)
+        if (controller_mount_yspec_set(h, devname, yspec1) < 0)
             goto done;
     }
     if (yspec1p)

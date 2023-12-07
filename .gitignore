@@ -12,6 +12,8 @@ controller/docker/yang
 test/site.sh
 test/py
 
+src/controller.xml
+
 # Prerequisites
 *.d
 

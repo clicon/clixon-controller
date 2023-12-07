@@ -3,6 +3,11 @@
 ## 0.3.0
 Expected: February 2024
 
+### New features
+
+* Optimiation: [YANG memory-footprint optimization](https://github.com/clicon/clixon-controller/issues/61)
+    Optimize memory by sharing yspec between devices
+
 ## 0.2.0
 6 December 2023
 

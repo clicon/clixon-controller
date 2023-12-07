@@ -357,6 +357,120 @@ xdev2yang_library(cxobj  *xmodset,
     return retval;
 }
 
+/*! Get yang of mountpoint
+ *
+ * @param[in]  h        Clixon handle
+ * @param[in]  devname  Name of device
+ * @param[out] yspec1   yang spec
+ * @retval     0        OK
+ * @retval    -1        Error
+ */
+static int
+controller_mount_yang_get(clicon_handle h,
+                          yang_stmt   **yu)
+{
+    int        retval = -1;
+    yang_stmt *yspec0;
+    yang_stmt *ymod;
+
+    yspec0 = clicon_dbspec_yang(h);
+    if ((ymod = yang_find(yspec0, Y_MODULE, "clixon-controller")) == NULL){
+        clicon_err(OE_YANG, 0, "module clixon-controller not found");
+        goto done;
+    }
+    if (yang_path_arg(ymod, "/devices/device/config", yu) < 0)
+        goto done;
+    retval = 0;
+ done:
+    return retval;
+}
+
+/*! Get xpath of mountpoint given device name
+ *
+ * @param[in]  h        Clixon handle
+ * @param[in]  devname  Name of device
+ * @param[out] yspec1   yang spec
+ * @retval     0        OK
+ * @retval    -1        Error
+ */
+static int
+controller_mount_xpath_get(char  *devname,
+                           cbuf **cbxpath)
+{
+    int        retval = -1;
+
+    if ((*cbxpath = cbuf_new()) == NULL){
+        clicon_err(OE_UNIX, errno, "cbuf_new");
+        goto done;
+    }
+    cprintf(*cbxpath, "/ctrl:devices/ctrl:device[ctrl:name='%s']/ctrl:config", devname);
+    retval = 0;
+ done:
+    return retval;
+}
+
+/*! Specialized version of yang_mount_get for the controller using YANG
+ *
+ * @param[in]  h        Clixon handle
+ * @param[in]  devname  Name of device
+ * @param[out] yspec1   yang spec
+ * @retval     0        OK
+ * @retval    -1        Error
+ */
+int
+controller_mount_yspec_get(clicon_handle h,
+                           char         *devname,
+                           yang_stmt   **yspec1)
+{
+    int        retval = -1;
+    yang_stmt *yu;
+    cbuf      *cbxpath = NULL;
+
+    *yspec1 = NULL;
+    if (controller_mount_yang_get(h, &yu) < 0)
+        goto done;
+    if (controller_mount_xpath_get(devname, &cbxpath) < 0)
+        goto done;
+    /* Low-level function */
+    yang_mount_get(yu, cbuf_get(cbxpath), yspec1);
+    retval = 0;
+ done:
+    if (cbxpath)
+        cbuf_free(cbxpath);
+    return retval;
+}
+
+/*! Specialized version of yang_mount_get for the controller using YANG
+ *
+ * @param[in]  h        Clixon handle
+ * @param[in]  devname  Name of device
+ * @param[in]  yspec1p  yang spec
+ * @retval     0        OK
+ * @retval    -1        Error
+ */
+int
+controller_mount_yspec_set(clicon_handle h,
+                           char         *devname,
+                           yang_stmt    *yspec1)
+{
+    int        retval = -1;
+    yang_stmt *yu;
+    cbuf      *cbxpath = NULL;
+
+    if (controller_mount_yang_get(h, &yu) < 0)
+        goto done;
+    if (controller_mount_xpath_get(devname, &cbxpath) < 0)
+        goto done;
+    /* Low-level function */
+    if (yang_mount_set(yu, cbuf_get(cbxpath), yspec1) < 0)
+        goto done;
+    retval = 0;
+ done:
+    if (cbxpath)
+        cbuf_free(cbxpath);
+    return retval;
+}
+
 #ifdef CONTROLLER_JUNOS_ADD_COMMAND_FORWARDING
 /*! YANG module patch
  *

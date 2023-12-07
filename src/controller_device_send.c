@@ -48,6 +48,7 @@
 /* Controller includes */
 #include "controller.h"
 #include "controller_netconf.h"
+#include "controller_lib.h"
 #include "controller_device_state.h"
 #include "controller_device_handle.h"
 #include "controller_device_send.h"
@@ -171,14 +172,16 @@ device_send_get_schema_next(clixon_handle h,
     cxobj     *x;
     char      *name;
     char      *revision;
-    yang_stmt *yspec;
+    yang_stmt *yspec = NULL;
     cxobj     **vec = NULL;
     size_t      veclen;
     cvec     *nsc = NULL;
     int        i;
 
     clicon_debug(CLIXON_DBG_DETAIL, "%s %d", __FUNCTION__, *nr);
-    if ((yspec = device_handle_yspec_get(dh)) == NULL){
+    if (controller_mount_yspec_get(h, device_handle_name_get(dh), &yspec) < 0)
+        goto done;
+    if (yspec == NULL){
         clicon_err(OE_YANG, 0, "No yang spec");
         goto done;
     }
@@ -201,6 +204,9 @@ device_send_get_schema_next(clixon_handle h,
             goto done;
         if (ret == 1)
             continue;
+        /* May be some concurrency here if several devices requests same yang simultaneously 
+         * To avoid that one needs to keep track if another request has been sent.
+         */
         if ((ret = device_get_schema_sendit(h, dh, s, name, revision)) < 0)
             goto done;
         device_handle_schema_name_set(dh, name);

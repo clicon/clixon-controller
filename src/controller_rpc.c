@@ -295,7 +295,10 @@ push_device_one(clixon_handle           h,
     fprintf(stderr, "%s before push x1 db:%s:\n", __FUNCTION__, db);
     xml_creator_print(stderr, x1);
 #endif
-    if ((yspec = device_handle_yspec_get(dh)) == NULL){
+    yspec = NULL;
+    if (controller_mount_yspec_get(h, name, &yspec) < 0)
+        goto done;
+    if (yspec == NULL){
         if ((*cberr = cbuf_new()) == NULL){
             clicon_err(OE_UNIX, errno, "cbuf_new");
             goto done;
@@ -2450,7 +2453,10 @@ rpc_device_template_apply(clicon_handle h,
             continue;
         if (device_state_mount_point_get(devname, yspec0, &xroot, &xmnt) < 0)
             goto done;
-        if ((yspec1 = device_handle_yspec_get(dh)) == NULL){
+        yspec1 = NULL;
+        if (controller_mount_yspec_get(h, devname, &yspec1) < 0)
+            goto done;
+        if (yspec1 == NULL){
             device_close_connection(dh, "No YANGs available");
             goto done;
         }

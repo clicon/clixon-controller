@@ -249,7 +249,10 @@ device_state_recv_config(clixon_handle h,
         clicon_err(OE_YANG, 0, "Device root is not a YANG schema mount-point");
         goto done;
     }
-    if ((yspec1 = device_handle_yspec_get(dh)) == NULL){
+    yspec1 = NULL;
+    if (controller_mount_yspec_get(h, name, &yspec1) < 0)
+        goto done;
+    if (yspec1 == NULL){
         device_close_connection(dh, "No YANGs available");
         goto closed;
     }

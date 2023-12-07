@@ -72,7 +72,7 @@
  */
 #undef CONTROLLER_EXTRA_PUSH_SYNC
 
-/*! Hack to test if one can run same yang-spec structure for all devices (in a profile)
+/*! Enable to share same yang-spec structure for all devices
  */
 #define SHARED_PROFILE_YSPEC
 
