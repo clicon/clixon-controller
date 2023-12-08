@@ -52,7 +52,7 @@ ret=$(${clixon_netconf} -0 -f $CFG <<'EOF'
                         <config>
                            <name>${NAME}</name>
                            <type xmlns:ianaift="urn:ietf:params:xml:ns:yang:iana-if-type">${TYPE}</type>
-                           <description>Config of interface ${NAME} and ${TYPE} type</description>
+                           <description>Config of interface ${NAME},${NAME} and ${TYPE} type</description>
                         </config>
                      </interface>
                   </interfaces>
@@ -112,8 +112,8 @@ if [ -n "$match" ]; then
     exit 1
 fi
 
-new "Verify compare"
-expectpart "$($clixon_cli -1 -f $CFG -m configure show compare)" 0 "^+\ *interface z {" "^+\ *type ianaift:v35;" "^+\ *description \"Config of interface z and ianaift:v35 type\";" --not-- "^\-" 
+new "Verify compare 1"
+expectpart "$($clixon_cli -1 -f $CFG -m configure show compare)" 0 "^+\ *interface z {" "^+\ *type ianaift:v35;" "^+\ *description \"Config of interface z,z and ianaift:v35 type\";" --not-- "^\-" 
 
 new "rollback"
 expectpart "$($clixon_cli -1 -f $CFG -m configure rollback)" 0 "^$"
@@ -139,7 +139,7 @@ ret=$(${clixon_cli} -1f $CFG -m configure load merge xml <<'EOF'
                         <config>
                            <name>${NAME}</name>
                            <type xmlns:ianaift="urn:ietf:params:xml:ns:yang:iana-if-type">${TYPE}</type>
-                           <description>Config of interface ${NAME} and ${TYPE} type</description>
+                           <description>Config of interface ${NAME},${NAME} and ${TYPE} type</description>
                         </config>
                      </interface>
                   </interfaces>
@@ -162,8 +162,8 @@ expectpart "$($clixon_cli -1f $CFG -m configure commit local 2>&1)" 0 "^$"
 new "Apply template CLI"
 expectpart "$($clixon_cli -1 -f $CFG -m configure apply interfaces openconfig* variables NAME z TYPE ianaift:v35)" 0 "^$"
 
-new "Verify compare"
-expectpart "$($clixon_cli -1 -f $CFG -m configure show compare)" 0 "^+\ *interface z {" "^+\ *type ianaift:v35;" "^+\ *description \"Config of interface z and ianaift:v35 type\";" --not-- "^\-" 
+new "Verify compare 2"
+expectpart "$($clixon_cli -1 -f $CFG -m configure show compare)" 0 "^+\ *interface z {" "^+\ *type ianaift:v35;" "^+\ *description \"Config of interface z,z and ianaift:v35 type\";" --not-- "^\-" 
 
 if $BE; then
     new "Kill old backend"

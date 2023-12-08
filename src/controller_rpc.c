@@ -2307,8 +2307,7 @@ apply_template(cxobj *x,
                void  *arg)
 {
     int    retval = -1;
-    cxobj *xvars0 = (cxobj *)arg;
-    cxobj *xvars;
+    cxobj *xvars = (cxobj *)arg;
     cxobj *xv;
     cxobj *xb;
     char  *b;
@@ -2338,7 +2337,7 @@ apply_template(cxobj *x,
                     break;
                 var = vec[i++];
                 assert(i < nvec); /* Must be odd */
-                xvars = xvars0;
+                xv = NULL;
                 while ((xv = xml_child_each(xvars, xv, CX_ELMNT)) != NULL) {
                     if ((varname = xml_find_body(xv, "name")) == NULL)
                         continue;
