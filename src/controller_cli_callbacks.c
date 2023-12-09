@@ -749,7 +749,6 @@ cli_rpc_commit_diff(clixon_handle h)
     for (i=0; i<veclen; i++){
         xdev = vec[i];
         if ((name = xml_body(xdev)) != NULL){
-            cligen_output(stdout, "%s:\n", name);
             if (cli_rpc_commit_diff_one(h, name) < 0)
                 goto done;
         }
