@@ -517,29 +517,38 @@ controller_transaction_failed(clicon_handle           h,
         if (controller_transaction_devices(h, tid) == 0){
             if (controller_transaction_done(h, ct, TR_FAILED) < 0)
                 goto done;
-            if (origin && (ct->ct_origin = strdup(origin)) == NULL){
-                clicon_err(OE_UNIX, errno, "strdup");
-                goto done;
+            if (origin && ct->ct_origin == NULL){
+                if ((ct->ct_origin = strdup(origin)) == NULL){
+                    clicon_err(OE_UNIX, errno, "strdup");
+                    goto done;
+                }
             }
-            if (reason && (ct->ct_reason = strdup(reason)) == NULL){
-                clicon_err(OE_UNIX, errno, "strdup");
-                goto done;
+            if (reason && ct->ct_reason == NULL){
+                if ((ct->ct_reason = strdup(reason)) == NULL){
+                    clicon_err(OE_UNIX, errno, "strdup");
+                    goto done;
+                }
             }
             if (controller_transaction_notify(h, ct) < 0)
                 goto done;
         }
+
     }
     if (ct->ct_state == TS_INIT || ct->ct_state == TS_ACTIONS){
         /* 1.3 The transition is not in an error state
            1.3.1 Set transition in error state */
         controller_transaction_state_set(ct, TS_RESOLVED, TR_FAILED);
-        if (origin && (ct->ct_origin = strdup(origin)) == NULL){
-            clicon_err(OE_UNIX, errno, "strdup");
-            goto done;
+        if (origin && ct->ct_origin == NULL) {
+            if ((ct->ct_origin = strdup(origin)) == NULL){
+                clicon_err(OE_UNIX, errno, "strdup");
+                goto done;
+            }
         }
-        if (reason && (ct->ct_reason = strdup(reason)) == NULL){
-            clicon_err(OE_UNIX, errno, "strdup");
-            goto done;
+        if (reason && ct->ct_reason == NULL) {
+            if ((ct->ct_reason = strdup(reason)) == NULL){
+                clicon_err(OE_UNIX, errno, "strdup");
+                goto done;
+            }
         }
         if (controller_transaction_notify(h, ct) < 0)
             goto done;

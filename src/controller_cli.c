@@ -58,13 +58,8 @@ int
 controller_cli_start(clicon_handle h)
 {
     int   retval = -1;
-    cbuf *cb = NULL;
     int   s;
 
-    if ((cb = cbuf_new()) == NULL){
-        clicon_err(OE_PLUGIN, errno, "cbuf_new");
-        goto done;
-    }
     clicon_data_set(h, "session-transport", "cl:cli");
     if (clicon_rpc_create_subscription(h, "controller-transaction", NULL, &s) < 0)
         goto done;
@@ -113,8 +108,12 @@ controller_cli_exit(clicon_handle h)
             goto done;
         if (clicon_rpc_msg(h, msg, NULL) < 0)
             goto done;
-        close(s);
         clicon_data_int_del(h, "controller-transaction-notify-socket");
+        close(s);
+    }
+    if ((s = clicon_client_socket_get(h)) > 0){
+        close(s);
+        clicon_client_socket_set(h, -1);
     }
     retval = 0;
  done:

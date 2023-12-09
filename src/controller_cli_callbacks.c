@@ -1229,7 +1229,7 @@ send_pull_transient(clicon_handle h,
     cxobj     *xreply;
     cxobj     *xerr;
     cxobj     *xid;
-    char      *tidstr;
+    char      *tidstr = NULL;
     uint64_t   tid=0;
 
     if ((cb = cbuf_new()) == NULL){
@@ -1280,6 +1280,10 @@ send_pull_transient(clicon_handle h,
     }
     retval = 0;
  done:
+    if (tidstr)
+        free(tidstr);
+    if (cb)
+        cbuf_free(cb);
     if (xtop)
         xml_free(xtop);
     if (xret)
@@ -1398,6 +1402,8 @@ compare_device_config_type(clicon_handle      h,
     }
     retval = 0;
  done:
+    if (tidstr)
+        free(tidstr);
     if (vec)
         free(vec);
     if (xret)

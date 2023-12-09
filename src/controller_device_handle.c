@@ -742,7 +742,7 @@ device_handle_yang_lib_set(device_handle dh,
 /*! Set RFC 8525 yang library as xml tree
  *
  * @param[in]  dh     Device handle
- * @param[in]  xylib  XML tree to append merge with existing if any
+ * @param[in]  xylib  XML tree to append merge with existing if any (is consumed)
  * @retval     0      OK
  * @retval    -1      Error
  * On the form: yang-library/module-set/name=<name>/module/name,revision,namespace  RFC 8525
@@ -761,11 +761,10 @@ device_handle_yang_lib_append(device_handle dh,
     if (xylib){
         if ((xms = xml_find_type(xylib, NULL, "module-set", CX_ELMNT)) == NULL){
             clicon_err(OE_XML, EINVAL, "yang-lib top-level malformed: not module-set");
-            return -1;
+            goto done;
         }
     }
     if (cdh->cdh_yang_lib) {
-        //        cdh->cdh_yang_lib = xylib;
         if (xylib){
             if ((xms0 = xml_find_type(cdh->cdh_yang_lib, NULL, "module-set", CX_ELMNT)) == NULL){
                 clicon_err(OE_XML, EINVAL, "yang-lib top-level malformed: not module-set");
@@ -780,13 +779,16 @@ device_handle_yang_lib_append(device_handle dh,
                     goto done;
                 x = NULL; /* reset loop after removal */
             }
-            free(xylib);
         }
     }
-    else
+    else{
         cdh->cdh_yang_lib = xylib;
+        xylib = NULL;
+    }
     retval = 0;
  done:
+    if (xylib)
+        xml_free(xylib);
     return retval;
 }
 
