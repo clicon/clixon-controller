@@ -129,6 +129,7 @@ cli_apipath2xpath(clicon_handle h,
  *
  * @param[in]  h         Clixon handle
  * @param[in]  pattern   Name glob pattern
+ * @param[in]  single    pattern is a single device that can be used in an xpath
  * @param[in]  yanglib   0: only device name, 1: Also include config/yang-librarylib
  * @param[out] xdevsp    XML on the form <devices><device><name>x</name>...
  * @retval     0         OK
@@ -137,6 +138,7 @@ cli_apipath2xpath(clicon_handle h,
 int
 rpc_get_yanglib_mount_match(clicon_handle h,
                             char         *pattern,
+                            int           single,
                             int           yanglib,
                             cxobj       **xdevsp)
 {
@@ -161,10 +163,14 @@ rpc_get_yanglib_mount_match(clicon_handle h,
             NETCONF_MESSAGE_ID_ATTR);
     cprintf(cb, "<get>");
     cprintf(cb, "<filter type=\"xpath\"");
-    if (yanglib)
-        cprintf(cb, " select=\"ctrl:devices/ctrl:device/ctrl:config/yanglib:yang-library/yanglib:module-set\"");
+    cprintf(cb, " select=\"/ctrl:devices/ctrl:device");
+    if (single)
+        cprintf(cb, "[ctrl:name='%s']", pattern);
+    if (yanglib){
+        cprintf(cb, "/ctrl:config\"");
+    }
     else
-        cprintf(cb, " select=\"ctrl:devices/ctrl:device/ctrl:name\"");
+        cprintf(cb, "/ctrl:name\"");
     cprintf(cb, " xmlns:ctrl=\"%s\" xmlns:yanglib=\"urn:ietf:params:xml:ns:yang:ietf-yang-library\">",
                     CONTROLLER_NAMESPACE);
     cprintf(cb, "</filter>");
@@ -308,7 +314,7 @@ cli_show_auto_devs(clicon_handle h,
     /* ad-hoc if devices device <name> is selected */
     if (devices && (cv = cvec_find(cvv, "name")) != NULL){
         pattern = cv_string_get(cv);
-        if (rpc_get_yanglib_mount_match(h, pattern, 0, &xdevs) < 0)
+        if (rpc_get_yanglib_mount_match(h, pattern, 0, 0, &xdevs) < 0)
             goto done;
         if (xdevs == NULL){
             if (cli_apipath2xpath(h, cvv, mtpoint, api_path_fmt, &xpath, &nsc) < 0)
@@ -1795,7 +1801,7 @@ cli_dbxml_devs(clicon_handle       h,
         goto done;
     if (devices && (cv = cvec_find(cvv, "name")) != NULL){
         pattern = cv_string_get(cv);
-        if (rpc_get_yanglib_mount_match(h, pattern, 0, &xdevs) < 0)
+        if (rpc_get_yanglib_mount_match(h, pattern, 0, 0, &xdevs) < 0)
             goto done;
         if (xdevs == NULL){
             if (cli_apipath(h, cvv, mtpoint, api_path_fmt, &cvvi, &api_path) < 0)

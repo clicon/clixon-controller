@@ -5,8 +5,12 @@ Expected: February 2024
 
 ### New features
 
-* Optimization: [YANG memory-footprint optimization](https://github.com/clicon/clixon-controller/issues/61)
-    Optimize memory by sharing yspec between devices
+* Optimization
+  * [YANG memory-footprint optimization](https://github.com/clicon/clixon-controller/issues/61)
+    * Optimize memory by sharing yspec between devices
+  * [Performance issues with CLI tab-completion](https://github.com/clicon/clixon-controller/issues/75)
+    * Optimization of `yang_find` (see clixon)
+    * Optimization of `cligen_treeref_wrap`
 
 ### Corrected Bugs
 

@@ -314,6 +314,8 @@ controller_cligen_treeref_wrap(cligen_handle ch,
     cvec         *cvv_edit;
     cxobj        *xdevs = NULL;
     cxobj        *xdev;
+    cxobj        *xdev1 = NULL;
+    cxobj        *xdev1c;
     pt_head      *ph;
     int           nomatch = 0;
 
@@ -344,7 +346,7 @@ controller_cligen_treeref_wrap(cligen_handle ch,
      * If it does not exist, call a yang2cli_yspec from that
      * create_autocli_mount_tree() should probably be rewritten
      */
-    if (rpc_get_yanglib_mount_match(h, pattern, 1, &xdevs) < 0)
+    if (rpc_get_yanglib_mount_match(h, pattern, 0, 0, &xdevs) < 0)
         goto done;
     if ((cb = cbuf_new()) == NULL){
         clicon_err(OE_UNIX, errno, "cbuf_new");
@@ -366,20 +368,29 @@ controller_cligen_treeref_wrap(cligen_handle ch,
             goto done;
         }
         if ((ph = cligen_ph_find(ch, newtree)) == NULL){
-            /* No such cligen specs, generate them */
-            if (create_autocli_mount_tree(h, xdev, newtree, &yspec1) < 0)
+            /* No such cligen specs, query full modules and generate clispec */
+            if (rpc_get_yanglib_mount_match(h, devname, 1, 1, &xdev1) < 0)
                 goto done;
-            if (yspec1 == NULL){
-                clicon_err(OE_YANG, 0, "No yang spec");
-                goto done;
-            }
-            /* Generate auto-cligen tree from the specs */
-            if (yang2cli_yspec(h, yspec1, newtree) < 0)
-                goto done;
-            /* Sanity */
-            if ((ph = cligen_ph_find(ch, newtree)) == NULL){
-                clicon_err(OE_YANG, 0, "autocli should have been generated but is not?");
-                goto done;
+            if (xdev1 != NULL){
+                xdev1c = xml_find_type(xdev1, NULL, "device", CX_ELMNT);
+                if (create_autocli_mount_tree(h, xdev1c, newtree, &yspec1) < 0)
+                    goto done;
+                if (xdev1){
+                    xml_free(xdev1);
+                    xdev1 = NULL;
+                }
+                if (yspec1 == NULL){
+                    clicon_err(OE_YANG, 0, "No yang spec");
+                    goto done;
+                }
+                /* Generate auto-cligen tree from the specs */
+                if (yang2cli_yspec(h, yspec1, newtree) < 0)
+                    goto done;
+                /* Sanity */
+                if ((ph = cligen_ph_find(ch, newtree)) == NULL){
+                    clicon_err(OE_YANG, 0, "autocli should have been generated but is not?");
+                    goto done;
+                }
             }
         }
         /* Check if multiple trees are equal */
@@ -418,6 +429,8 @@ controller_cligen_treeref_wrap(cligen_handle ch,
         free(firsttree);
     if (xdevs)
         xml_free(xdevs);
+    if (xdev1)
+        xml_free(xdev1);
     if (cb)
         cbuf_free(cb);
     return retval;

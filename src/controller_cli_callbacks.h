@@ -44,7 +44,7 @@
 extern "C" {
 #endif
 
-int rpc_get_yanglib_mount_match(clicon_handle h, char *pattern, int yanglib, cxobj **xdevsp);
+int rpc_get_yanglib_mount_match(clicon_handle h, char *pattern, int single, int yanglib, cxobj **xdevsp);
 int cli_show_auto_devs(clicon_handle h, cvec *cvv, cvec *argv);
 int cli_rpc_pull(clixon_handle h, cvec *cvv, cvec *argv);
 int cli_rpc_controller_commit(clixon_handle h, cvec *cvv, cvec *argv);
