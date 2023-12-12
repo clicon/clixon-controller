@@ -378,11 +378,18 @@ wait_backend
 new "open connections"
 expectpart "$(${clixon_cli} -1f $CFG connect open)" 0 ""
 
-sleep $sleep
-
 new "Verify open devices"
-res=$(${clixon_cli} -1f $CFG show devices | grep OPEN | wc -l)
-if [ "$res" != "$nr" ]; then
+	sleep $sleep
+imax=5
+for i in $(seq 1 $imax); do
+    res=$(${clixon_cli} -1f $CFG show devices | grep OPEN | wc -l)
+    if [ "$res" = "$nr" ]; then
+        break;
+    fi
+    echo "retry $i after sleep"
+    sleep $sleep
+done
+if [ $i -eq $imax ]; then
     err1 "$nr open devices" "$res"
 fi
 

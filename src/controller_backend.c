@@ -88,12 +88,15 @@ disconnect_device_byxml(clixon_handle h,
                         cxobj        *xn)
 {
     char         *name;
-    device_handle dh;
+    device_handle dh = NULL;
 
     if ((name = xml_find_body(xn, "name")) != NULL &&
         (dh = device_handle_find(h, name)) != NULL &&
-        device_handle_conn_state_get(dh) != CS_CLOSED)
+        device_handle_conn_state_get(dh) != CS_CLOSED){
         device_close_connection(dh, NULL); /* Regular disconnect, no reason */
+    }
+    if (dh)
+        device_handle_free(dh);
     return 0;
 }
 

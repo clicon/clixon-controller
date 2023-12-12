@@ -492,10 +492,9 @@ controller_cli_yang_mount(clicon_handle   h,
     /* xm can be rooted somewhere else than "/devices" , such as /rpc-reply */
     if ((str = strstr(xpath, "/devices/device")) == NULL)
         goto ok;
-    if (xml_nsctx_add(nsc, "yanglib", "urn:ietf:params:xml:ns:yang:ietf-yang-library") < 0)
-        goto done;
-    cprintf(cb, "%s/yanglib:yang-library/yanglib:module-set[yanglib:name='mount']", str);
+    cprintf(cb, "%s", str);
     recursion++;
+    /* First xpath is on mount-point (to get config) */
     if (clicon_rpc_get2(h, cbuf_get(cb), nsc, CONTENT_ALL, -1, "explicit", 0, &xt) < 0){
         recursion--;
         goto done;
@@ -505,6 +504,10 @@ controller_cli_yang_mount(clicon_handle   h,
         clixon_netconf_error(h, xerr, "clicon_rpc_get", NULL);
         goto done;
     }
+    /* Second xpath is specific on module-set */
+    if (xml_nsctx_add(nsc, "yanglib", "urn:ietf:params:xml:ns:yang:ietf-yang-library") < 0)
+        goto done;
+    cprintf(cb, "/yanglib:yang-library/yanglib:module-set[yanglib:name='mount']");
     if ((xmodset = xpath_first(xt, nsc, "%s", cbuf_get(cb))) == NULL)
         goto ok;
     cbuf_reset(cb);

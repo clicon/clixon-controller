@@ -1566,11 +1566,7 @@ devices_statedata(clixon_handle   h,
                   cxobj          *xstate)
 {
     int            retval = -1;
-    cxobj        **vec = NULL;
-    size_t         veclen;
     cxobj         *xret = NULL;
-    int            i;
-    cxobj         *xn;
     char          *name;
     device_handle  dh;
     cbuf          *cb = NULL;
@@ -1580,21 +1576,16 @@ devices_statedata(clixon_handle   h,
     cxobj         *xcaps;
     cxobj         *x;
     char          *xb;
+    char           timestr[28];
 
+    
     if ((cb = cbuf_new()) == NULL){
         clicon_err(OE_UNIX, errno, "cbuf_new");
         goto done;
     }
-    if (xmldb_get(h, "running", nsc, "devices", &xret) < 0)
-        goto done;
-    if (xpath_vec(xret, nsc, "devices/device", &vec, &veclen) < 0)
-        goto done;
-    for (i=0; i<veclen; i++){
-        xn = vec[i];
-        if ((name = xml_find_body(xn, "name")) == NULL)
-            continue;
-        if ((dh = device_handle_find(h, name)) == NULL)
-            continue;
+    dh = NULL;
+    while ((dh = device_handle_each(h, dh)) != NULL){
+        name = device_handle_name_get(dh);
         cprintf(cb, "<devices xmlns=\"%s\"><device><name>%s</name>",
                 CONTROLLER_NAMESPACE,
                 name);
@@ -1614,14 +1605,12 @@ devices_statedata(clixon_handle   h,
         }
         device_handle_conn_time_get(dh, &tv);
         if (tv.tv_sec != 0){
-            char timestr[28];
             if (time2str(&tv, timestr, sizeof(timestr)) < 0)
                 goto done;
             cprintf(cb, "<conn-state-timestamp>%s</conn-state-timestamp>", timestr);
         }
         device_handle_sync_time_get(dh, &tv);
         if (tv.tv_sec != 0){
-            char timestr[28];
             if (time2str(&tv, timestr, sizeof(timestr)) < 0)
                 goto done;
             cprintf(cb, "<sync-timestamp>%s</sync-timestamp>", timestr);
@@ -1640,8 +1629,6 @@ devices_statedata(clixon_handle   h,
  done:
     if (cb)
         cbuf_free(cb);
-    if (vec)
-        free(vec);
     if (xret)
         xml_free(xret);
     return retval;

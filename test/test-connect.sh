@@ -156,7 +156,7 @@ for ip in $CONTAINERS; do
     
     sleep $sleep
     
-    new "Verify controller"
+    new "Verify controller $NAME"
     res=$(${clixon_cli} -1f $CFG show devices | grep OPEN | wc -l)
 
     if [ "$res" != "$ii" ]; then
@@ -175,7 +175,7 @@ expectpart "$($clixon_cli -1 -m configure -f $CFG delete devices)" 0 "^$"
 new "commit local"
 expectpart "$($clixon_cli -1 -m configure -f $CFG commit local)" 0 "^$"
 
-new "Verify controller"
+new "Verify controller 1"
 res=$(${clixon_cli} -1f $CFG show devices | grep OPEN | wc -l)
 
 if [ "$res" != "0" ]; then
@@ -225,7 +225,7 @@ expectpart "$($clixon_cli -1 -f $CFG connection open)" 0 "^$"
 
 sleep $sleep
     
-new "Verify controller"
+new "Verify controller 2"
 res=$(${clixon_cli} -1f $CFG show devices | grep OPEN | wc -l)
 
 nr=$((ii-1))

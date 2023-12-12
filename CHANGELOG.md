@@ -9,8 +9,11 @@ Expected: February 2024
   * [YANG memory-footprint optimization](https://github.com/clicon/clixon-controller/issues/61)
     * Optimize memory by sharing yspec between devices
   * [Performance issues with CLI tab-completion](https://github.com/clicon/clixon-controller/issues/75)
-    * Optimization of `yang_find` (see clixon)
     * Optimization of `cligen_treeref_wrap`
+    * Dont read device config data when read device state
+    * Also in clixon:
+      * Optimization of `yang_find`
+      * Added mountpoint cache as yang flag `YANG_FLAG_MTPOINT_POTENTIAL`
 
 ### Corrected Bugs
 
