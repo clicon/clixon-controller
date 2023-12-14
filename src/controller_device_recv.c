@@ -537,6 +537,7 @@ device_state_recv_get_schema(device_handle dh,
 
 /*! Controller input wresp to open state handling, read rpc-reply
  *
+ * @param[in]  h          Clixon handle.
  * @param[in]  dh         Clixon client handle.
  * @param[in]  xmsg       XML tree of incoming message
  * @param[in]  yspec      Yang top-level spec
@@ -545,11 +546,12 @@ device_state_recv_get_schema(device_handle dh,
  * @param[out] cberr      Error, free with cbuf_err (retval = 0)
  * @retval     2          OK
  * @retval     1          Closed
- * @retval     0          Failed: receivced rpc-error or not <ok> (not closed)
+ * @retval     0          Failed: received rpc-error or not <ok> (not closed)
  * @retval    -1          Error
  */
 int
-device_state_recv_ok(device_handle dh,
+device_state_recv_ok(clixon_handle h,
+                     device_handle dh,
                      cxobj        *xmsg,
                      char         *rpcname,
                      conn_state    conn_state,
@@ -558,6 +560,7 @@ device_state_recv_ok(device_handle dh,
     int    retval = -1;
     int    ret;
     cxobj *xerr;
+    char  *b;
     cxobj *x;
     cbuf  *cb = NULL;
 
@@ -565,28 +568,55 @@ device_state_recv_ok(device_handle dh,
         goto done;
     if (ret == 0)
         goto closed;
-    if ((xerr = xml_find_type(xmsg, NULL, "rpc-error", CX_ELMNT)) != NULL){
-        if ((x = xml_find_type(xerr, NULL, "error-severity", CX_ELMNT)) != NULL &&
-            strcmp(xml_body(x), "warning") == 0)
-            ; /* Ignore warning */
-        else {
-            x = xml_find_type(xerr, NULL, "error-message", CX_ELMNT);
-            if ((cb = cbuf_new()) == NULL){
-                clicon_err(OE_UNIX, errno, "cbuf_new");
-                goto done;
+    /* Loop through all replies, if error stop, if only warning continue */
+    xerr = NULL;
+    while ((xerr = xml_child_each(xmsg, xerr, CX_ELMNT)) != NULL) {
+        if (strcmp(xml_name(xerr), "rpc-error") == 0){
+            if ((x = xml_find_type(xerr, NULL, "error-severity", CX_ELMNT)) != NULL &&
+                (b = xml_body(x)) != NULL &&
+                strcmp(b, "warning") == 0){
+                uint64_t                tid;
+                controller_transaction *ct;
+                if ((tid = device_handle_tid_get(dh)) != 0 &&
+                    (ct = controller_transaction_find(h, tid)) != NULL &&
+                    ct->ct_warning == NULL){
+                    x = xml_find_type(xerr, NULL, "error-message", CX_ELMNT);
+                    if ((cb = cbuf_new()) == NULL){
+                        clicon_err(OE_UNIX, errno, "cbuf_new");
+                        goto done;
+                    }
+                    cprintf(cb, "Device %s: %s in state %s",
+                            device_handle_name_get(dh),
+                            x?xml_body(x):"reply",
+                            device_state_int2str(conn_state));
+                    if ((ct->ct_warning = strdup(cbuf_get(cb))) == NULL){
+                        clicon_err(OE_UNIX, EINVAL, "strdup");
+                        goto done;
+                    }
+                    cbuf_free(cb);
+                    cb = NULL;
+                }
             }
-            cprintf(cb, "Error %s in state %s of device %s",
-                    x?xml_body(x):"reply",
-                    device_state_int2str(conn_state),
-                    device_handle_name_get(dh));
-            if (cberr){
-                *cberr = cb;
-                cb = NULL;
+            else { /* assume error */
+                x = xml_find_type(xerr, NULL, "error-message", CX_ELMNT);
+                if ((cb = cbuf_new()) == NULL){
+                    clicon_err(OE_UNIX, errno, "cbuf_new");
+                    goto done;
+                }
+                cprintf(cb, "Error %s in state %s of device %s",
+                        x?xml_body(x):"reply",
+                        device_state_int2str(conn_state),
+                        device_handle_name_get(dh));
+                if (cberr){
+                    *cberr = cb;
+                    cb = NULL;
+                }
+                goto failed;
             }
-            goto failed;
         }
     }
     if (xml_find_type(xmsg, NULL, "ok", CX_ELMNT) == NULL){
+        h = device_handle_handle_get(dh);
         if ((cb = cbuf_new()) == NULL){
             clicon_err(OE_UNIX, errno, "cbuf_new");
             goto done;
@@ -595,7 +625,7 @@ device_state_recv_ok(device_handle dh,
                 device_handle_name_get(dh),
                 device_state_int2str(conn_state));
         /* XXX: following fn does not support prefixes properly, so the err msg from XML does not appear as it should */
-        if (netconf_err2cb(dh, xml_find(xmsg, "rpc-error"), cb) < 0)
+        if (netconf_err2cb(h, xml_find(xmsg, "rpc-error"), cb) < 0)
             goto done;
         if (cberr){
             *cberr = cb;

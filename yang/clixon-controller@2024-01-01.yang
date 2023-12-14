@@ -28,6 +28,11 @@ module clixon-controller {
     }
     description
         "Clixon controller";
+    revision 2024-01-01 {
+        description
+            "Added warning field to transaction
+             Release in 0.3.0";
+    }
     revision 2023-11-01 {
         description
             "Added device-profile list
@@ -524,6 +529,10 @@ module clixon-controller {
             }
             leaf reason {
                 description "Reason for terminating transaction";
+                type string;
+            }
+            leaf warning {
+                description "Warning, first encountered";
                 type string;
             }
             leaf timestamp {

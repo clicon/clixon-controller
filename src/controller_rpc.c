@@ -2112,7 +2112,6 @@ rpc_datastore_diff(clixon_handle h,
             goto ok;
         }
     }
-
     if ((ds1 = xml_find_body(xe, "dsref1")) != NULL){ /* Regular datastores */
         if (nodeid_split(ds1, NULL, &id1) < 0)
             goto done;

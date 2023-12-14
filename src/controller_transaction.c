@@ -343,6 +343,8 @@ controller_transaction_free1(controller_transaction *ct)
         free(ct->ct_origin);
     if (ct->ct_reason)
         free(ct->ct_reason);
+    if (ct->ct_warning)
+        free(ct->ct_reason);
     if (ct->ct_sourcedb)
         free(ct->ct_sourcedb);
     free(ct);
@@ -691,6 +693,11 @@ controller_transactions_statedata(clixon_handle   h,
                 cprintf(cb, "<reason>");
                 xml_chardata_cbuf_append(cb, ct->ct_reason);
                 cprintf(cb, "</reason>");
+            }
+            if (ct->ct_warning){
+                cprintf(cb, "<warning>");
+                xml_chardata_cbuf_append(cb, ct->ct_warning);
+                cprintf(cb, "</warning>");
             }
             if (ct->ct_state != TS_INIT)
                 cprintf(cb, "<result>%s</result>", transaction_result_int2str(ct->ct_result));

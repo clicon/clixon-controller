@@ -140,7 +140,7 @@ fi
 
 if $BE; then
     new "Restart backend -s running -f $CFG"
-    start_backend -s running -f $CFG -D 2 -lf/tmp/backend.log
+    start_backend -s running -f $CFG
 fi  
 
 new "wait backend 2"

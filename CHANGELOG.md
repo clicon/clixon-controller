@@ -15,8 +15,14 @@ Expected: February 2024
       * Optimization of `yang_find`
       * Added mountpoint cache as yang flag `YANG_FLAG_MTPOINT_POTENTIAL`
 
+### API changes on existing protocol/config features
+
+* New `clixon-controller@2024-01-01.yang` revision
+  * Added warning field to transaction
+
 ### Corrected Bugs
 
+* Fixed: [Backend may exit with assertion if the device return warnings](https://github.com/clicon/clixon-controller/issues/77)
 * Fixed: [apply template with multiple variables do not work in some cases](https://github.com/clicon/clixon-controller/issues/74)
 
 ## 0.2.0

@@ -59,6 +59,7 @@ struct controller_transaction_t{
     char              *ct_description;   /* Description of transaction */
     char              *ct_origin;        /* Originator of error (if result is != SUCCESS) */
     char              *ct_reason;        /* Reason of error (if result != SUCCESS) */
+    char              *ct_warning;       /* Warning, first encountered */
     struct timeval     ct_timestamp;     /* Timestamp when entering current state */
 };
 typedef struct controller_transaction_t controller_transaction;
