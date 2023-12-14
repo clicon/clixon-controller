@@ -5,6 +5,7 @@ Expected: February 2024
 
 ### New features
 
+* CLI `show sessions [detail]` command
 * Optimization
   * [YANG memory-footprint optimization](https://github.com/clicon/clixon-controller/issues/61)
     * Optimize memory by sharing yspec between devices

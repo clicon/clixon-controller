@@ -1181,7 +1181,7 @@ cli_show_transactions(clixon_handle h,
     if (clicon_rpc_get(h, "co:transactions", nsc, CONTENT_ALL, -1, "report-all", &xn) < 0)
         goto done;
     if ((xerr = xpath_first(xn, NULL, "/rpc-error")) != NULL){
-        clixon_netconf_error(h, xerr, "Get devices", NULL);
+        clixon_netconf_error(h, xerr, "Get transactions", NULL);
         goto done;
     }
     /* Change top from "data" to "devices" */
@@ -1210,6 +1210,93 @@ cli_show_transactions(clixon_handle h,
         cvec_free(nsc);
     if (xn)
         xml_free(xn);
+    if (cb)
+        cbuf_free(cb);
+    return retval;
+}
+
+/*! Show controller client sessions
+ *
+ * @param[in] h
+ * @param[in] cvv
+ * @param[in] argv : "detail"?
+ * @retval    0    OK
+ * @retval   -1    Error
+ */
+int
+cli_show_sessions(clixon_handle h,
+                  cvec         *cvv,
+                  cvec         *argv)
+{
+    int     retval = -1;
+    cvec   *nsc = NULL;
+    cxobj  *xret = NULL;
+    cxobj  *xerr;
+    cbuf   *cb = NULL;
+    cxobj  *xsess;
+    cxobj **vec = NULL;
+    size_t  veclen;
+    char   *b;
+    int     i;
+    cg_var *cv;
+    int     detail = 0;
+
+    if (argv != NULL && cvec_len(argv) != 1){
+        clicon_err(OE_PLUGIN, EINVAL, "optional argument: <detail>");
+        goto done;
+    }
+    if (cvec_len(argv) == 1){
+        if ((cv = cvec_i(argv, 0)) == NULL){
+            clicon_err(OE_PLUGIN, 0, "Error when accessing argument <detail>");
+            goto done;
+        }
+        detail = strcmp(cv_string_get(cv), "detail")==0;
+    }
+    if ((cb = cbuf_new()) == NULL){
+        clicon_err(OE_PLUGIN, errno, "cbuf_new");
+        goto done;
+    }
+    /* Get config */
+    if ((nsc = xml_nsctx_init("ncm", "urn:ietf:params:xml:ns:yang:ietf-netconf-monitoring")) == NULL)
+        goto done;
+    if (clicon_rpc_get(h, "ncm:netconf-state/ncm:sessions", nsc, CONTENT_NONCONFIG, -1, "report-all", &xret) < 0)
+        goto done;
+    if ((xerr = xpath_first(xret, NULL, "/rpc-error")) != NULL){
+        clixon_netconf_error(h, xerr, "Get devices", NULL);
+        goto done;
+    }
+    if (xpath_vec(xret, NULL, "netconf-state/sessions/session", &vec, &veclen) < 0)
+        goto done;
+    if (veclen){
+        cligen_output(stdout, "%-8s %-10s %-15s %-15s\n", "Id", "User", "Type", "Time");
+        cligen_output(stdout, "===============================================================\n");
+    }
+    for (i=0; i<veclen; i++){
+        xsess = vec[i];
+        if (detail){
+            if (clixon_xml2file(stdout, xsess, 0, 1, NULL, cligen_output, 0, 1) < 0)
+                goto done;
+        }
+        else{
+            b = xml_find_body(xsess, "session-id");
+            cligen_output(stdout, "%-9s",  b?b:"");
+            b = xml_find_body(xsess, "username");
+            cligen_output(stdout, "%-11s",  b?b:"");
+            b = xml_find_body(xsess, "transport");
+            cligen_output(stdout, "%-16s",  b?b:"");
+            b = xml_find_body(xsess, "login-time");
+            cligen_output(stdout, "%-16s",  b?b:"");
+            cligen_output(stdout, "\n");
+        }
+    }
+    retval = 0;
+ done:
+    if (nsc)
+        cvec_free(nsc);
+    if (vec)
+        free(vec);
+    if (xret)
+        xml_free(xret);
     if (cb)
         cbuf_free(cb);
     return retval;

@@ -57,6 +57,9 @@ show("Show a particular state of the system"){
          last("Last most recent transactions"), cli_show_transactions("last");
          all("All transactions"), cli_show_transactions("all");
     }
+    sessions("Show client sessions"), cli_show_sessions();{
+         detail("Show sessions detailed state"), cli_show_sessions("detail");
+    }
     state("Show configuration and state"), cli_show_auto_mode("running", "text", true, true); {
     	    xml("Show configuration and state as XML"), cli_show_auto_mode("running", "xml", true, true);{
 	    default("With-default mode"){
