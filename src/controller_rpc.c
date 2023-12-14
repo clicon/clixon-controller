@@ -915,9 +915,6 @@ controller_commit_actions(clixon_handle           h,
     /* 1) copy candidate to actions and remove all device config tagged with services */
     if (xmldb_copy(h, "candidate", "actions") < 0)
         goto done;
-    /* Strip service data in device config for services that changed */
-    if (strip_service_data_from_device_config(h, "actions", cvv) < 0)
-        goto done;
     if (services){
         if (actions == AT_FORCE || cvec_len(cvv) > 0){     /* There are service changes */
             if ((notifycb = cbuf_new()) == NULL){
@@ -934,7 +931,9 @@ controller_commit_actions(clixon_handle           h,
                 cprintf(notifycb, "</service>");
             }
             cprintf(notifycb, "</services-commit>");
-
+            /* Strip service data in device config for services that changed */
+            if (strip_service_data_from_device_config(h, "actions", cvv) < 0)
+                goto done;
             clicon_debug(1, "%s stream_notify: services-commit: %" PRIu64, __FUNCTION__, ct->ct_id);
             if (stream_notify(h, "services-commit", "%s", cbuf_get(notifycb)) < 0)
                 goto done;

@@ -161,6 +161,6 @@ new "Sleep and verify devices are open 3"
 sleep_open
 
 new "Testrun after restart"
-testrun
+testrun # XXX This fails on regression occasionally
 
 endtest

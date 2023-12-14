@@ -18,9 +18,9 @@ delete("Delete a configuration item") {
       all("Delete whole candidate configuration"), delete_all("candidate");
 }
 quit("Quit"), cli_quit();
-commit("Commit the changes, trigger services scripts"), cli_rpc_controller_commit("candidate", "CHANGE", "COMMIT");{
+commit("Run services, commit and push to devices"), cli_rpc_controller_commit("candidate", "CHANGE", "COMMIT");{
     diff("Show the result of running the services but do not commit"), cli_rpc_controller_commit("candidate", "CHANGE", "NONE");
-    push("Run services and push to devices"), cli_rpc_controller_commit("candidate", "CHANGE", "COMMIT"); 
+    push("Run services, commit and push to devices"), cli_rpc_controller_commit("candidate", "CHANGE", "COMMIT"); 
     local("Local commit, do not push to devices"), cli_commit();
 }
 validate("Validate changes"), cli_validate();{
