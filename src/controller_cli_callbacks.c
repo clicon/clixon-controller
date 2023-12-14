@@ -1228,18 +1228,19 @@ cli_show_sessions(clixon_handle h,
                   cvec         *cvv,
                   cvec         *argv)
 {
-    int     retval = -1;
-    cvec   *nsc = NULL;
-    cxobj  *xret = NULL;
-    cxobj  *xerr;
-    cbuf   *cb = NULL;
-    cxobj  *xsess;
-    cxobj **vec = NULL;
-    size_t  veclen;
-    char   *b;
-    int     i;
-    cg_var *cv;
-    int     detail = 0;
+    int      retval = -1;
+    cvec    *nsc = NULL;
+    cxobj   *xret = NULL;
+    cxobj   *xerr;
+    cbuf    *cb = NULL;
+    cxobj   *xsess;
+    cxobj  **vec = NULL;
+    size_t   veclen;
+    char    *b;
+    int      i;
+    cg_var  *cv;
+    int      detail = 0;
+    uint32_t session_id;
 
     if (argv != NULL && cvec_len(argv) != 1){
         clicon_err(OE_PLUGIN, EINVAL, "optional argument: <detail>");
@@ -1267,10 +1268,11 @@ cli_show_sessions(clixon_handle h,
     }
     if (xpath_vec(xret, NULL, "netconf-state/sessions/session", &vec, &veclen) < 0)
         goto done;
-    if (veclen){
+    if (detail && veclen){
         cligen_output(stdout, "%-8s %-10s %-15s %-15s\n", "Id", "User", "Type", "Time");
         cligen_output(stdout, "===============================================================\n");
     }
+    clicon_session_id_get(h, &session_id);
     for (i=0; i<veclen; i++){
         xsess = vec[i];
         if (detail){
@@ -1279,7 +1281,11 @@ cli_show_sessions(clixon_handle h,
         }
         else{
             b = xml_find_body(xsess, "session-id");
-            cligen_output(stdout, "%-9s",  b?b:"");
+            if (b && session_id == atoi(b))
+                cligen_output(stdout, "*");
+            else
+                cligen_output(stdout, " ");
+            cligen_output(stdout, "%-8s",  b?b:"");
             b = xml_find_body(xsess, "username");
             cligen_output(stdout, "%-11s",  b?b:"");
             b = xml_find_body(xsess, "transport");
