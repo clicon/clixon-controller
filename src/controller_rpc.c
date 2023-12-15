@@ -558,7 +558,7 @@ actions_timeout_unregister(controller_transaction *ct)
  * @param[in]  h       Clixon handle
  * @param[in]  ct      Transaction
  * @param[in]  td      Local diff transaction
- * @param[out] services 0: There are no service configuration
+ * @param[out] services 0:  No service configuration, 1: Service config
  * @param[out] cvv     Vector of changed service instances, on the form name:<service> value:<instance>
  * @retval     0       OK, cb including notify msg (or not)
  * @retval    -1       Error
@@ -915,38 +915,35 @@ controller_commit_actions(clixon_handle           h,
     /* 1) copy candidate to actions and remove all device config tagged with services */
     if (xmldb_copy(h, "candidate", "actions") < 0)
         goto done;
-    if (services){
-        if (actions == AT_FORCE || cvec_len(cvv) > 0){     /* There are service changes */
-            if ((notifycb = cbuf_new()) == NULL){
-                clicon_err(OE_UNIX, errno, "cbuf_new");
-                goto done;
-            }
-            cprintf(notifycb, "<services-commit xmlns=\"%s\">", CONTROLLER_NAMESPACE);
-            cprintf(notifycb, "<tid>%" PRIu64"</tid>", ct->ct_id);
-            cprintf(notifycb, "<source>actions</source>");
-            cprintf(notifycb, "<target>actions</target>");
-            while ((cv = cvec_each(cvv, cv)) != NULL){
-                cprintf(notifycb, "<service>");
-                xml_chardata_cbuf_append(notifycb, cv_name_get(cv));
-                cprintf(notifycb, "</service>");
-            }
-            cprintf(notifycb, "</services-commit>");
-            /* Strip service data in device config for services that changed */
-            if (strip_service_data_from_device_config(h, "actions", cvv) < 0)
-                goto done;
-            clicon_debug(1, "%s stream_notify: services-commit: %" PRIu64, __FUNCTION__, ct->ct_id);
-            if (stream_notify(h, "services-commit", "%s", cbuf_get(notifycb)) < 0)
-                goto done;
-            controller_transaction_state_set(ct, TS_ACTIONS, -1);
-            if (actions_timeout_register(ct) < 0)
-                goto done;
+    if (services &&
+        (actions == AT_FORCE || cvec_len(cvv) > 0)){
+        /* IF Services exist AND 
+           either service changes or forced, 
+           THEN notify services 
+        */
+        if ((notifycb = cbuf_new()) == NULL){
+            clicon_err(OE_UNIX, errno, "cbuf_new");
+            goto done;
         }
-        else { /* There are services, but no service changes, close transaction */
-            if (controller_transaction_done(h, ct, TR_SUCCESS) < 0)
-                goto done;
-            if (controller_transaction_notify(h, ct) < 0)
-                goto done;
+        cprintf(notifycb, "<services-commit xmlns=\"%s\">", CONTROLLER_NAMESPACE);
+        cprintf(notifycb, "<tid>%" PRIu64"</tid>", ct->ct_id);
+        cprintf(notifycb, "<source>actions</source>");
+        cprintf(notifycb, "<target>actions</target>");
+        while ((cv = cvec_each(cvv, cv)) != NULL){
+            cprintf(notifycb, "<service>");
+            xml_chardata_cbuf_append(notifycb, cv_name_get(cv));
+            cprintf(notifycb, "</service>");
         }
+        cprintf(notifycb, "</services-commit>");
+        /* Strip service data in device config for services that changed */
+        if (strip_service_data_from_device_config(h, "actions", cvv) < 0)
+            goto done;
+        clicon_debug(1, "%s stream_notify: services-commit: %" PRIu64, __FUNCTION__, ct->ct_id);
+        if (stream_notify(h, "services-commit", "%s", cbuf_get(notifycb)) < 0)
+            goto done;
+        controller_transaction_state_set(ct, TS_ACTIONS, -1);
+        if (actions_timeout_register(ct) < 0)
+            goto done;
     }
     else{ /* No services, proceed to next step */
         if (commit_push_after_actions(h, ct) < 0)

@@ -23,6 +23,7 @@ Expected: February 2024
 
 ### Corrected Bugs
 
+* Fixed: [Commit don't push configuration if service is configured](https://github.com/clicon/clixon-controller/issues/78)
 * Fixed: ["commit diff" after applying a service always seems to show a diff](https://github.com/clicon/clixon-controller/issues/70)
 * Fixed: [Backend may exit with assertion if the device return warnings](https://github.com/clicon/clixon-controller/issues/77)
 * Fixed: [apply template with multiple variables do not work in some cases](https://github.com/clicon/clixon-controller/issues/74)

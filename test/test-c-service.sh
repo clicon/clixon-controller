@@ -351,6 +351,19 @@ expectpart "$(${clixon_cli} -m configure -1f $CFG commit push 2>&1)" 0 OK --not-
 new "commit diff"
 expectpart "$(${clixon_cli} -m configure -1f $CFG commit diff 2>&1)" 0 OK --not-- "<interface"
 
+# see https://github.com/clicon/clixon-controller/issues/78
+new "local change"
+expectpart "$(${clixon_cli} -m configure -1f $CFG set devices device openconfig1 config system config login-banner mylogin-banner)" 0 ""
+
+new "commit diff"
+expectpart "$(${clixon_cli} -m configure -1f $CFG commit diff 2>&1)" 0 "^+\ *<login-banner>mylogin-banner</login-banner>"
+
+new "commit"
+expectpart "$(${clixon_cli} -m configure -1f $CFG commit 2>&1)" 0 ""
+
+new "commit diff"
+expectpart "$(${clixon_cli} -m configure -1f $CFG commit diff 2>&1)" 0 --not-- "^+\ *<login-banner>mylogin-banner</login-banner>"
+
 CREATORSA="<creator><name>testA\[name='foo'\]</name><path>/devices/device\[name=\"openconfig1\"\]/config/interfaces/interface\[name=\"A0x\"\]</path><path>/devices/device\[name=\"openconfig1\"\]/config/interfaces/interface\[name=\"A0y\"\]</path><path>/devices/device\[name=\"openconfig1\"\]/config/interfaces/interface\[name=\"ABx\"\]</path><path>/devices/device\[name=\"openconfig1\"\]/config/interfaces/interface\[name=\"ABy\"\]</path><path>/devices/device\[name=\"openconfig1\"\]/config/interfaces/interface\[name=\"Ax\"\]</path><path>/devices/device\[name=\"openconfig1\"\]/config/interfaces/interface\[name=\"Ay\"\]</path><path>/devices/device\[name=\"openconfig2\"\]/config/interfaces/interface\[name=\"A0x\"\]</path><path>/devices/device\[name=\"openconfig2\"\]/config/interfaces/interface\[name=\"A0y\"\]</path><path>/devices/device\[name=\"openconfig2\"\]/config/interfaces/interface\[name=\"ABx\"\]</path><path>/devices/device\[name=\"openconfig2\"\]/config/interfaces/interface\[name=\"ABy\"\]</path><path>/devices/device\[name=\"openconfig2\"\]/config/interfaces/interface\[name=\"Ax\"\]</path><path>/devices/device\[name=\"openconfig2\"\]/config/interfaces/interface\[name=\"Ay\"\]</path></creator>"
 
 CREATORSB="<creator><name>testB\[name='foo'\]</name><path>/devices/device\[name=\"openconfig1\"\]/config/interfaces/interface\[name=\"A0x\"\]</path><path>/devices/device\[name=\"openconfig1\"\]/config/interfaces/interface\[name=\"A0y\"\]</path><path>/devices/device\[name=\"openconfig1\"\]/config/interfaces/interface\[name=\"ABx\"\]</path><path>/devices/device\[name=\"openconfig1\"\]/config/interfaces/interface\[name=\"ABy\"\]</path><path>/devices/device\[name=\"openconfig1\"\]/config/interfaces/interface\[name=\"ABz\"\]</path><path>/devices/device\[name=\"openconfig1\"\]/config/interfaces/interface\[name=\"Bx\"\]</path><path>/devices/device\[name=\"openconfig2\"\]/config/interfaces/interface\[name=\"A0x\"\]</path><path>/devices/device\[name=\"openconfig2\"\]/config/interfaces/interface\[name=\"A0y\"\]</path><path>/devices/device\[name=\"openconfig2\"\]/config/interfaces/interface\[name=\"ABx\"\]</path><path>/devices/device\[name=\"openconfig2\"\]/config/interfaces/interface\[name=\"ABy\"\]</path><path>/devices/device\[name=\"openconfig2\"\]/config/interfaces/interface\[name=\"ABz\"\]</path><path>/devices/device\[name=\"openconfig2\"\]/config/interfaces/interface\[name=\"Bx\"\]</path></creator></creators>"
