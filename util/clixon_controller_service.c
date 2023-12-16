@@ -682,7 +682,7 @@ main(int    argc,
      */
     clicon_data_set(h, "session-transport", "ctrl:services");
     if (clicon_rpc_create_subscription(h, "services-commit", NULL, &s) < 0){
-        clicon_log(LOG_NOTICE, "services-commit: subscription failed: %s", clicon_err_reason);
+        clicon_log(LOG_NOTICE, "services-commit: subscription failed: %s", clixon_err_reason());
         goto done;
     }
     clicon_debug(CLIXON_DBG_DEFAULT, "%s notification socket:%d", __FUNCTION__, s);

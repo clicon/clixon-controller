@@ -125,7 +125,7 @@ device_handle_new(clixon_handle h,
     struct controller_device_handle *cdh_list = NULL;
     size_t                           sz;
 
-    clicon_debug(1, "%s", __FUNCTION__);
+    clixon_debug(1, "%s", __FUNCTION__);
     sz = sizeof(struct controller_device_handle);
     if ((cdh = malloc(sz)) == NULL){
         clicon_err(OE_NETCONF, errno, "malloc");
@@ -292,7 +292,7 @@ device_handle_connect(device_handle      dh,
     struct controller_device_handle *cdh = (struct controller_device_handle *)dh;
     clixon_handle                h;
 
-    clicon_debug(1, "%s", __FUNCTION__);
+    clixon_debug(1, "%s", __FUNCTION__);
     if (cdh == NULL){
         clicon_err(OE_XML, EINVAL, "dh is NULL");
         goto done;
@@ -320,7 +320,7 @@ device_handle_connect(device_handle      dh,
     } /* switch */
     retval = 0;
  done:
-    clicon_debug(1, "%s retval:%d", __FUNCTION__, retval);
+    clixon_debug(1, "%s retval:%d", __FUNCTION__, retval);
     return retval;
  err:
     if (cdh)
@@ -342,7 +342,7 @@ device_handle_disconnect(device_handle dh)
     int                              retval = -1;
     struct controller_device_handle *cdh = devhandle(dh);
 
-    clicon_debug(1, "%s %s", __FUNCTION__, cdh->cdh_name);
+    clixon_debug(1, "%s %s", __FUNCTION__, cdh->cdh_name);
     if (cdh == NULL){
         clicon_err(OE_XML, EINVAL, "Expected cdh handle");
         goto done;
@@ -364,7 +364,7 @@ device_handle_disconnect(device_handle dh)
     }
     retval = 0;
  done:
-    clicon_debug(1, "%s retval:%d", __FUNCTION__, retval);
+    clixon_debug(1, "%s retval:%d", __FUNCTION__, retval);
     return retval;
 }
 
@@ -503,7 +503,7 @@ device_handle_conn_state_set(device_handle dh,
     struct controller_device_handle *cdh = devhandle(dh);
 
     assert(device_state_int2str(state)!=NULL);
-    clicon_debug(1, "%s %s: %s -> %s",
+    clixon_debug(1, "%s %s: %s -> %s",
                  __FUNCTION__,
                  device_handle_name_get(dh),
                  device_state_int2str(cdh->cdh_conn_state),

@@ -110,19 +110,19 @@ controller_transaction_state_set(controller_transaction *ct,
     case TS_INIT:
         assert(ct->ct_state != TS_DONE);
         if (ct->ct_state != TS_INIT)
-            clicon_debug(1, "%s %" PRIu64 " : %s -> %s",
+            clixon_debug(1, "%s %" PRIu64 " : %s -> %s",
                          __FUNCTION__,
                          ct->ct_id,
                          transaction_state_int2str(ct->ct_state),
                          transaction_state_int2str(state));
         else
-            clicon_debug(1, "%s %" PRIu64 " : -> %s",
+            clixon_debug(1, "%s %" PRIu64 " : -> %s",
                          __FUNCTION__,
                          ct->ct_id,
                          transaction_state_int2str(state));
         break;
     case TS_ACTIONS:
-        clicon_debug(1, "%s %" PRIu64 " : %s -> %s",
+        clixon_debug(1, "%s %" PRIu64 " : %s -> %s",
                      __FUNCTION__,
                      ct->ct_id,
                      transaction_state_int2str(ct->ct_state),
@@ -131,7 +131,7 @@ controller_transaction_state_set(controller_transaction *ct,
     case TS_RESOLVED:
         assert(result != -1);
         assert(state != ct->ct_state);
-        clicon_debug(1, "%s %" PRIu64 " : %s -> %s result: %s",
+        clixon_debug(1, "%s %" PRIu64 " : %s -> %s result: %s",
                      __FUNCTION__,
                      ct->ct_id,
                      transaction_state_int2str(ct->ct_state),
@@ -141,14 +141,14 @@ controller_transaction_state_set(controller_transaction *ct,
     case TS_DONE:
         assert(state != ct->ct_state);
         if (result != -1 && result != ct->ct_result)
-            clicon_debug(1, "%s %" PRIu64 " : %s -> %s result: %s",
+            clixon_debug(1, "%s %" PRIu64 " : %s -> %s result: %s",
                          __FUNCTION__,
                          ct->ct_id,
                          transaction_state_int2str(ct->ct_state),
                          transaction_state_int2str(state),
                          transaction_result_int2str(result));
         else
-            clicon_debug(1, "%s %" PRIu64 " : %s -> %s",
+            clixon_debug(1, "%s %" PRIu64 " : %s -> %s",
                          __FUNCTION__,
                          ct->ct_id,
                          transaction_state_int2str(ct->ct_state),
@@ -177,7 +177,7 @@ controller_transaction_notify(clixon_handle           h,
     int   retval = -1;
     cbuf *cb = NULL;
 
-    clicon_debug(1, "%s %" PRIu64, __FUNCTION__, ct->ct_id);
+    clixon_debug(1, "%s %" PRIu64, __FUNCTION__, ct->ct_id);
     if (ct->ct_state == TS_INIT){
         clicon_err(OE_CFG, EINVAL, "Transaction notify sent in state INIT");
         goto done;
@@ -270,7 +270,7 @@ controller_transaction_new(clicon_handle            h,
         clicon_err(OE_PLUGIN, EINVAL, "ctp is NULL");
         goto done;
     }
-    clicon_debug(1, "%s", __FUNCTION__);
+    clixon_debug(1, "%s", __FUNCTION__);
     if ((iddb = xmldb_islocked(h, db)) != 0){
         if (cberr){
             if ((*cberr = cbuf_new()) == NULL){
@@ -505,7 +505,7 @@ controller_transaction_failed(clicon_handle           h,
 {
     int retval = -1;
 
-    clicon_debug(1, "%s", __FUNCTION__);
+    clixon_debug(1, "%s", __FUNCTION__);
     if (dh != NULL && devclose != TR_FAILED_DEV_IGNORE){
         if (devclose == TR_FAILED_DEV_CLOSE){
             /* 1.2 The error is not recoverable */
@@ -563,7 +563,7 @@ controller_transaction_failed(clicon_handle           h,
     }
     retval = 0;
  done:
-    clicon_debug(1, "%s retval:%d", __FUNCTION__, retval);
+    clixon_debug(1, "%s retval:%d", __FUNCTION__, retval);
     return retval;
 }
 
@@ -673,7 +673,7 @@ controller_transactions_statedata(clixon_handle   h,
     controller_transaction *ct_list = NULL;
     controller_transaction *ct = NULL;
 
-    clicon_debug(1, "%s", __FUNCTION__);
+    clixon_debug(1, "%s", __FUNCTION__);
     if ((cb = cbuf_new()) == NULL){
         clicon_err(OE_UNIX, errno, "cbuf_new");
         goto done;

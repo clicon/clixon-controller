@@ -152,7 +152,7 @@ rpc_get_yanglib_mount_match(clicon_handle h,
     cxobj *xret = NULL;
     cxobj *xerr;
 
-    clicon_debug(1, "%s", __FUNCTION__);
+    clixon_debug(1, "%s", __FUNCTION__);
     if ((cb = cbuf_new()) == NULL){
         clicon_err(OE_PLUGIN, errno, "cbuf_new");
         goto done;
@@ -184,7 +184,7 @@ rpc_get_yanglib_mount_match(clicon_handle h,
     if (clicon_rpc_netconf_xml(h, xrpc, &xret, NULL) < 0)
         goto done;
     if ((xerr = xpath_first(xret, NULL, "rpc-reply/rpc-error")) != NULL){
-        clixon_netconf_error(h, xerr, "Get configuration", NULL);
+        clixon_err_netconf(h, OE_XML, 0, xerr, "Get configuration");
         goto done;
     }
     if ((xdevs = xpath_first(xret, NULL, "rpc-reply/data/devices")) != NULL){
@@ -401,10 +401,10 @@ transaction_notification_handler(int                 s,
     char              *resstr;
     transaction_result result;
 
-    clicon_debug(CLIXON_DBG_DEFAULT, "%s tid:%s", __FUNCTION__, tidstr0); /* XXX: see https://github.com/clicon/clixon-controller/issues/43 */
+    clixon_debug(CLIXON_DBG_DEFAULT, "%s tid:%s", __FUNCTION__, tidstr0); /* XXX: see https://github.com/clicon/clixon-controller/issues/43 */
     if (clicon_msg_rcv(s, NULL, 0, &reply, eof) < 0)
         goto done;
-    clicon_debug(CLIXON_DBG_DEFAULT, "%s eof:%d", __FUNCTION__, *eof); /* XXX: see https://github.com/clicon/clixon-controller/issues/43 */
+    clixon_debug(CLIXON_DBG_DEFAULT, "%s eof:%d", __FUNCTION__, *eof); /* XXX: see https://github.com/clicon/clixon-controller/issues/43 */
     if (*eof){
         clicon_err(OE_PROTO, ESHUTDOWN, "Socket unexpected close");
         close(s);
@@ -416,7 +416,7 @@ transaction_notification_handler(int                 s,
         clicon_err(OE_NETCONF, EFAULT, "Notification malformed");
         goto done;
     }
-    if (clicon_debug_xml(1, xt, "Transaction") < 0)
+    if (clixon_debug_xml(1, xt, "Transaction") < 0)
         goto done;
     if ((xn = xpath_first(xt, 0, "notification/controller-transaction")) == NULL){
         clicon_err(OE_NETCONF, EFAULT, "Notification malformed");
@@ -443,7 +443,7 @@ transaction_notification_handler(int                 s,
  ok:
     retval = 0;
  done:
-    clicon_debug(CLIXON_DBG_DEFAULT, "%s %d", __FUNCTION__, retval);
+    clixon_debug(CLIXON_DBG_DEFAULT, "%s %d", __FUNCTION__, retval);
     if (reply)
         free(reply);
     if (xt)
@@ -496,7 +496,7 @@ send_transaction_error(clicon_handle h,
         goto done;
     }
     if ((xerr = xpath_first(xreply, NULL, "rpc-error")) != NULL){
-        clixon_netconf_error(h, xerr, "Get configuration", NULL);
+        clixon_err_netconf(h, OE_XML, 0, xerr, "Get configuration");
         goto done;
     }
     retval = 0;
@@ -529,7 +529,7 @@ transaction_notification_poll(clicon_handle       h,
     int                s;
     int                match = 0;
 
-    clicon_debug(CLIXON_DBG_DEFAULT, "%s tid:%s", __FUNCTION__, tidstr);
+    clixon_debug(CLIXON_DBG_DEFAULT, "%s tid:%s", __FUNCTION__, tidstr);
     if ((s = clicon_data_int_get(h, "controller-transaction-notify-socket")) < 0){
         clicon_err(OE_EVENTS, 0, "controller-transaction-notify-socket is closed");
         goto done;
@@ -560,7 +560,7 @@ transaction_notification_poll(clicon_handle       h,
     }
     retval = 0;
  done:
-    clicon_debug(CLIXON_DBG_DEFAULT, "%s %d", __FUNCTION__, retval);
+    clixon_debug(CLIXON_DBG_DEFAULT, "%s %d", __FUNCTION__, retval);
     return retval;
 }
 
@@ -633,7 +633,7 @@ cli_rpc_pull(clixon_handle h,
         goto done;
     }
     if ((xerr = xpath_first(xreply, NULL, "rpc-error")) != NULL){
-        clixon_netconf_error(h, xerr, "Get configuration", NULL);
+        clixon_err_netconf(h, OE_XML, 0, xerr, "Get configuration");
         goto done;
     }
     if ((xid = xpath_first(xreply, NULL, "tid")) == NULL){
@@ -703,7 +703,7 @@ cli_rpc_commit_diff_one(clicon_handle h,
         goto done;
     }
     if ((xerr = xpath_first(xreply, NULL, "rpc-error")) != NULL){
-        clixon_netconf_error(h, xerr, "Get configuration", NULL);
+        clixon_err_netconf(h, OE_XML, 0, xerr, "Get configuration");
         goto done;
     }
     if (xpath_vec(xreply, NULL, "diff", &vec, &veclen) < 0)
@@ -857,7 +857,7 @@ cli_rpc_controller_commit(clixon_handle h,
         goto done;
     }
     if ((xerr = xpath_first(xreply, NULL, "rpc-error")) != NULL){
-        clixon_netconf_error(h, xerr, "Get configuration", NULL);
+        clixon_err_netconf(h, OE_XML, 0, xerr, "Get configuration");
         goto done;
     }
     if ((xid = xpath_first(xreply, NULL, "tid")) == NULL){
@@ -950,7 +950,7 @@ cli_connection_change(clixon_handle h,
         goto done;
     }
     if ((xerr = xpath_first(xreply, NULL, "rpc-error")) != NULL){
-        clixon_netconf_error(h, xerr, "Get configuration", NULL);
+        clixon_err_netconf(h, OE_XML, 0, xerr, "Get configuration");
         goto done;
     }
     retval = 0;
@@ -1014,7 +1014,7 @@ cli_show_devices(clixon_handle h,
     if (clicon_rpc_get(h, "co:devices", nsc, CONTENT_ALL, -1, "report-all", &xn) < 0)
         goto done;
     if ((xerr = xpath_first(xn, NULL, "/rpc-error")) != NULL){
-        clixon_netconf_error(h, xerr, "Get devices", NULL);
+        clixon_err_netconf(h, OE_XML, 0, xerr, "Get devices");
         goto done;
     }
     /* Change top from "data" to "devices" */
@@ -1121,7 +1121,7 @@ cli_show_services_process(clixon_handle h,
     if (clicon_rpc_netconf(h, cbuf_get(cb), &xret, NULL) < 0)
         goto done;
     if ((xerr = xpath_first(xret, NULL, "//rpc-error")) != NULL){
-        clixon_netconf_error(h, xerr, "Get configuration", NULL);
+        clixon_err_netconf(h, OE_XML, 0, xerr, "Get configuration");
         goto done;
     }
     if ((x = xpath_first(xret, 0, "rpc-reply/active")) != NULL){
@@ -1181,7 +1181,7 @@ cli_show_transactions(clixon_handle h,
     if (clicon_rpc_get(h, "co:transactions", nsc, CONTENT_ALL, -1, "report-all", &xn) < 0)
         goto done;
     if ((xerr = xpath_first(xn, NULL, "/rpc-error")) != NULL){
-        clixon_netconf_error(h, xerr, "Get transactions", NULL);
+        clixon_err_netconf(h, OE_XML, 0, xerr, "Get transactions");
         goto done;
     }
     /* Change top from "data" to "devices" */
@@ -1263,7 +1263,7 @@ cli_show_sessions(clixon_handle h,
     if (clicon_rpc_get(h, "ncm:netconf-state/ncm:sessions", nsc, CONTENT_NONCONFIG, -1, "report-all", &xret) < 0)
         goto done;
     if ((xerr = xpath_first(xret, NULL, "/rpc-error")) != NULL){
-        clixon_netconf_error(h, xerr, "Get devices", NULL);
+        clixon_err_netconf(h, OE_XML, 0, xerr, "Get devices");
         goto done;
     }
     if (xpath_vec(xret, NULL, "netconf-state/sessions/session", &vec, &veclen) < 0)
@@ -1356,7 +1356,7 @@ send_pull_transient(clicon_handle h,
         goto done;
     }
     if ((xerr = xpath_first(xreply, NULL, "rpc-error")) != NULL){
-        clixon_netconf_error(h, xerr, "Get configuration", NULL);
+        clixon_err_netconf(h, OE_XML, 0, xerr, "Get configuration");
         goto done;
     }
     if ((xid = xpath_first(xreply, NULL, "tid")) == NULL){
@@ -1488,7 +1488,7 @@ compare_device_config_type(clicon_handle      h,
         goto done;
     }
     if ((xerr = xpath_first(xreply, NULL, "rpc-error")) != NULL){
-        clixon_netconf_error(h, xerr, "Get configuration", NULL);
+        clixon_err_netconf(h, OE_XML, 0, xerr, "Get configuration");
         goto done;
     }
     if (xpath_vec(xreply, NULL, "diff", &vec, &veclen) < 0)
@@ -1584,7 +1584,7 @@ compare_dbs_rpc(clicon_handle h,
         goto done;
     }
     if ((xerr = xpath_first(xreply, NULL, "rpc-error")) != NULL){
-        clixon_netconf_error(h, xerr, "Get configuration", NULL);
+        clixon_err_netconf(h, OE_XML, 0, xerr, "Get configuration");
         goto done;
     }
     if (xpath_vec(xreply, NULL, "diff", &vec, &veclen) < 0)
@@ -2066,7 +2066,7 @@ cli_auto_load_devs(clicon_handle h,
         if ((ret = clixon_xml_parse_file(fp, YB_NONE, NULL, &xt, &xerr)) < 0)
             goto done;
         if (ret == 0){
-            clixon_netconf_error(h, xerr, "Loading", filename?filename:"stdin");
+            clixon_err_netconf(h, OE_XML, 0, xerr, "Loading: %s", filename?filename:"stdin");
             goto done;
         }
         if (xml_child_nr(xt) == 0){
@@ -2078,7 +2078,7 @@ cli_auto_load_devs(clicon_handle h,
         if ((ret = clixon_json_parse_file(fp, 1, YB_NONE, NULL, &xt, &xerr)) < 0)
             goto done;
         if (ret == 0){
-            clixon_netconf_error(h, xerr, "Loading", filename?filename:"stdin");
+            clixon_err_netconf(h, OE_XML, 0, xerr, "Loading: %s", filename?filename:"stdin");
             goto done;
         }
         if (xml_child_nr(xt) == 0){
@@ -2210,7 +2210,7 @@ cli_apply_device_template(clixon_handle h,
         goto done;
     }
     if ((xerr = xpath_first(xreply, NULL, "rpc-error")) != NULL){
-        clixon_netconf_error(h, xerr, "Get configuration", NULL);
+        clixon_err_netconf(h, OE_XML, 0, xerr, "Get configuration");
         goto done;
     }
     retval = 0;

@@ -138,7 +138,7 @@ controller_connect(clixon_handle           h,
     cxobj        *xmod = NULL;
     cxobj        *xyanglib = NULL;
 
-    clicon_debug(1, "%s", __FUNCTION__);
+    clixon_debug(1, "%s", __FUNCTION__);
     if ((name = xml_find_body(xn, "name")) == NULL)
         goto ok;
     if ((enablestr = xml_find_body(xn, "enabled")) == NULL)
@@ -373,7 +373,7 @@ pull_device_one(clixon_handle h,
     int  retval = -1;
     int  s;
 
-    clicon_debug(1, "%s", __FUNCTION__);
+    clixon_debug(1, "%s", __FUNCTION__);
     s = device_handle_socket_get(dh);
     if (device_send_get_config(h, dh, s) < 0)
         goto done;
@@ -418,7 +418,7 @@ rpc_config_pull(clixon_handle h,
     char                   *str;
     cbuf                   *cberr = NULL;
 
-    clicon_debug(1, "%s", __FUNCTION__);
+    clixon_debug(1, "%s", __FUNCTION__);
     /* Initiate new transaction */
     if ((ret = controller_transaction_new(h, "pull", &ct, &cberr)) < 0)
         goto done;
@@ -488,7 +488,7 @@ actions_timeout(int   s,
     int                     retval = -1;
     controller_transaction *ct = (controller_transaction *)arg;
 
-    clicon_debug(1, "%s", __FUNCTION__);
+    clixon_debug(1, "%s", __FUNCTION__);
     if (controller_transaction_failed(ct->ct_h, ct->ct_id, ct, NULL, TR_FAILED_DEV_IGNORE, "Actions", "Timeout waiting for action daemon") < 0)
         goto done;
     if (ct->ct_state == TS_INIT){ /* 1.3 The transition is not in an error state */
@@ -525,7 +525,7 @@ actions_timeout_register(controller_transaction *ct)
     struct timeval t1;
     int            d;
 
-    clicon_debug(1, "%s", __FUNCTION__);
+    clixon_debug(1, "%s", __FUNCTION__);
     gettimeofday(&t, NULL);
     d = clicon_data_int_get(ct->ct_h, "controller-device-timeout");
     if (d != -1)
@@ -533,7 +533,7 @@ actions_timeout_register(controller_transaction *ct)
     else
         t1.tv_sec = 60;
     t1.tv_usec = 0;
-    clicon_debug(1, "%s timeout:%ld s", __FUNCTION__, t1.tv_sec);
+    clixon_debug(1, "%s timeout:%ld s", __FUNCTION__, t1.tv_sec);
     timeradd(&t, &t1, &t);
     if (clixon_event_reg_timeout(t, actions_timeout, ct, "Controller service actions") < 0)
         goto done;
@@ -837,7 +837,7 @@ commit_push_after_actions(clixon_handle           h,
                 /* XXX: recursive creates transaction */
                 if ((ret = candidate_commit(h, NULL, "candidate", 0, 0, cberr)) < 0){
                     /* Handle that candidate_commit can return < 0 if transaction ongoing */
-                    cprintf(cberr, "%s", clicon_err_reason); // XXX encode
+                    cprintf(cberr, "%s", clixon_err_reason()); // XXX encode
                     ret = 0;
                 }
                 if (ret == 0){ // XXX awkward, cb ->xml->cb
@@ -938,7 +938,7 @@ controller_commit_actions(clixon_handle           h,
         /* Strip service data in device config for services that changed */
         if (strip_service_data_from_device_config(h, "actions", cvv) < 0)
             goto done;
-        clicon_debug(1, "%s stream_notify: services-commit: %" PRIu64, __FUNCTION__, ct->ct_id);
+        clixon_debug(1, "%s stream_notify: services-commit: %" PRIu64, __FUNCTION__, ct->ct_id);
         if (stream_notify(h, "services-commit", "%s", cbuf_get(notifycb)) < 0)
             goto done;
         controller_transaction_state_set(ct, TS_ACTIONS, -1);
@@ -1256,7 +1256,7 @@ rpc_controller_commit(clixon_handle h,
     device_handle           changed = NULL;
     transaction_data_t     *td = NULL;
 
-    clicon_debug(1, "%s", __FUNCTION__);
+    clixon_debug(1, "%s", __FUNCTION__);
     device = xml_find_body(xe, "device");
     if ((device_group = xml_find_body(xe, "device-group")) != NULL){
         if (netconf_operation_failed(cbret, "application", "Device-groups NYI")< 0)
@@ -1543,7 +1543,7 @@ rpc_connection_change(clixon_handle h,
     char                   *reason = NULL;
     int                     ret;
 
-    clicon_debug(1, "%s", __FUNCTION__);
+    clixon_debug(1, "%s", __FUNCTION__);
     ce = (client_entry *)arg;
     if ((cbtr = cbuf_new()) == NULL){
         clicon_err(OE_UNIX, errno, "cbuf_new");
@@ -1670,7 +1670,7 @@ rpc_transaction_error(clixon_handle h,
     int                     ret;
     controller_transaction *ct;
 
-    clicon_debug(1, "%s", __FUNCTION__);
+    clixon_debug(1, "%s", __FUNCTION__);
     if ((tidstr = xml_find_body(xe, "tid")) == NULL){
         if (netconf_operation_failed(cbret, "application", "No tid")< 0)
             goto done;
@@ -1737,7 +1737,7 @@ rpc_transactions_actions_done(clixon_handle h,
     int                     ret;
     controller_transaction *ct;
 
-    clicon_debug(1, "%s", __FUNCTION__);
+    clixon_debug(1, "%s", __FUNCTION__);
     if ((tidstr = xml_find_body(xe, "tid")) == NULL){
         if (netconf_operation_failed(cbret, "application", "No tid")< 0)
             goto done;
@@ -2095,7 +2095,7 @@ rpc_datastore_diff(clixon_handle h,
     char              *formatstr;
     enum format_enum   format = FORMAT_XML;
 
-    clicon_debug(CLIXON_DBG_DEFAULT, "%s", __FUNCTION__);
+    clixon_debug(CLIXON_DBG_DEFAULT, "%s", __FUNCTION__);
     xpath = xml_find_body(xe, "xpath");
     if ((formatstr = xml_find_body(xe, "format")) != NULL){
         if ((int)(format = format_str2int(formatstr)) < 0){
@@ -2189,7 +2189,7 @@ check_services_commit_subscription(clixon_handle h,
     struct stream_subscription *ss;
     int                         i;
 
-    clicon_debug(CLIXON_DBG_DEFAULT, "%s", __FUNCTION__);
+    clixon_debug(CLIXON_DBG_DEFAULT, "%s", __FUNCTION__);
     /* XXX should use prefix cf edit_config */
     if ((nsc = xml_nsctx_init(NULL, EVENT_RFC5277_NAMESPACE)) == NULL)
         goto done;
@@ -2397,7 +2397,7 @@ rpc_device_template_apply(clicon_handle h,
     yang_stmt    *yspec0;
     yang_stmt    *yspec1;
 
-    clicon_debug(CLIXON_DBG_DEFAULT, "%s", __FUNCTION__);
+    clixon_debug(CLIXON_DBG_DEFAULT, "%s", __FUNCTION__);
     yspec0 = clicon_dbspec_yang(h);
     /* get template and device names */
     if (xmldb_get0(h, "running", Y_MODULE, nsc, "devices", 1, WITHDEFAULTS_EXPLICIT, &xret, NULL, NULL) < 0)

@@ -65,7 +65,7 @@ controller_cli_start(clicon_handle h)
         goto done;
     if (clicon_data_int_set(h, "controller-transaction-notify-socket", s) < 0)
         goto done;
-    clicon_debug(CLIXON_DBG_DEFAULT, "%s notification socket:%d", __FUNCTION__, s);
+    clixon_debug(CLIXON_DBG_DEFAULT, "%s notification socket:%d", __FUNCTION__, s);
     retval = 0;
  done:
     return retval;
@@ -218,7 +218,7 @@ create_autocli_mount_tree(clicon_handle h,
     cxobj     *xyanglib = NULL;
     int        ret;
     
-    clicon_debug(1, "%s", __FUNCTION__);
+    clixon_debug(CLIXON_DBG_DEFAULT, "%s", __FUNCTION__);
     devname = xml_find_body(xdev, "name");
     if (controller_mount_yspec_get(h, devname, &yspec1) < 0)
         goto done;
@@ -501,7 +501,7 @@ controller_cli_yang_mount(clicon_handle   h,
     }
     recursion--;
     if ((xerr = xpath_first(xt, NULL, "/rpc-error")) != NULL){
-        clixon_netconf_error(h, xerr, "clicon_rpc_get", NULL);
+        clixon_err_netconf(h, OE_XML, 0, xerr, "clicon_rpc_get");
         goto done;
     }
     /* Second xpath is specific on module-set */

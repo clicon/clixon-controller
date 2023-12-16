@@ -163,7 +163,7 @@ device_close_connection(device_handle dh,
     char          *name;
 
     name = device_handle_name_get(dh);
-    clicon_debug(CLIXON_DBG_DETAIL, "%s %s", __FUNCTION__, name);
+    clixon_debug(CLIXON_DBG_DETAIL, "%s %s", __FUNCTION__, name);
     if ((s = device_handle_socket_get(dh)) == -1){
         clicon_err(OE_UNIX, errno, "%s: socket is -1", device_handle_name_get(dh));
         goto done;
@@ -193,12 +193,12 @@ device_close_connection(device_handle dh,
         }
         va_end(ap);
         device_handle_logmsg_set(dh, str);
-        clicon_debug(CLIXON_DBG_DEFAULT, "%s %s: %s", __FUNCTION__, name, str);
+        clixon_debug(CLIXON_DBG_DEFAULT, "%s %s: %s", __FUNCTION__, name, str);
         str = NULL;
     }
     retval = 0;
  done:
-    clicon_debug(CLIXON_DBG_DETAIL, "%s retval: %d", __FUNCTION__, retval);
+    clixon_debug(CLIXON_DBG_DETAIL, "%s retval: %d", __FUNCTION__, retval);
     if (str)
         free(str);
     return retval;
@@ -238,7 +238,7 @@ device_input_cb(int   s,
     controller_transaction *ct = NULL;
     int                     ret;
 
-    clicon_debug(CLIXON_DBG_DETAIL, "%s", __FUNCTION__);
+    clixon_debug(CLIXON_DBG_DETAIL, "%s", __FUNCTION__);
     h = device_handle_handle_get(dh);
     frame_state = device_handle_frame_state_get(dh);
     frame_size = device_handle_frame_size_get(dh);
@@ -270,11 +270,11 @@ device_input_cb(int   s,
                                &eom) < 0)
             goto done;
         if (eom == 0){ /* frame not complete */
-            clicon_debug(CLIXON_DBG_DETAIL, "%s: frame: %lu", __FUNCTION__, cbuf_len(cbmsg));
+            clixon_debug(CLIXON_DBG_DETAIL, "%s: frame: %lu", __FUNCTION__, cbuf_len(cbmsg));
             /* Extra data to read, save data and continue on next round */
             break;
         }
-        clicon_debug(CLIXON_DBG_MSG, "Recv [%s]: %s", name, cbuf_get(cbmsg));
+        clixon_debug(CLIXON_DBG_MSG, "Recv [%s]: %s", name, cbuf_get(cbmsg));
         if ((ret = netconf_input_frame2(cbmsg, YB_NONE, NULL, &xtop, &xerr)) < 0)
             goto done;
         cbuf_reset(cbmsg);
@@ -303,7 +303,7 @@ device_input_cb(int   s,
  ok:
     retval = 0;
  done:
-    clicon_debug(CLIXON_DBG_DETAIL, "%s retval:%d", __FUNCTION__, retval);
+    clixon_debug(CLIXON_DBG_DETAIL, "%s retval:%d", __FUNCTION__, retval);
     if (cberr)
         cbuf_free(cberr);
     if (xerr)
@@ -379,7 +379,7 @@ device_schemas_mount_parse(clixon_handle h,
     yang_stmt *yspec1;
     int        ret;
 
-    clicon_debug(CLIXON_DBG_DETAIL, "%s", __FUNCTION__);
+    clixon_debug(CLIXON_DBG_DETAIL, "%s", __FUNCTION__);
     if (xpath_first(xyanglib, 0, "module-set/module") == NULL){
         /* No modules: No local and no */
         device_close_connection(dh, "Empty set of YANG modules");
@@ -397,13 +397,13 @@ device_schemas_mount_parse(clixon_handle h,
     if ((ret = yang_lib2yspec(h, xyanglib, yspec1)) < 0)
         goto done;
     if (ret == 0){
-        device_close_connection(dh, "%s", clicon_err_reason);
-        clicon_err_reset();
+        device_close_connection(dh, "%s", clixon_err_reason());
+        clixon_err_reset();
         goto fail;
     }
     retval = 1;
  done:
-    clicon_debug(CLIXON_DBG_DETAIL, "%s retval %d", __FUNCTION__, retval);
+    clixon_debug(CLIXON_DBG_DETAIL, "%s retval %d", __FUNCTION__, retval);
     return retval;
  fail:
     retval = 0;
@@ -479,7 +479,7 @@ device_state_timeout(int   s,
     char                   *name;
 
     name = device_handle_name_get(dh);
-    clicon_debug(CLIXON_DBG_DEFAULT, "%s %s", __FUNCTION__, name);
+    clixon_debug(CLIXON_DBG_DEFAULT, "%s %s", __FUNCTION__, name);
     h = device_handle_handle_get(dh);
 
     if ((tid = device_handle_tid_get(dh)) != 0)
@@ -521,7 +521,7 @@ device_state_timeout_register(device_handle dh)
     else
         t1.tv_sec = 60;
     t1.tv_usec = 0;
-    clicon_debug(CLIXON_DBG_DETAIL, "%s timeout:%ld s", __FUNCTION__, t1.tv_sec);
+    clixon_debug(CLIXON_DBG_DETAIL, "%s timeout:%ld s", __FUNCTION__, t1.tv_sec);
     timeradd(&t, &t1, &t);
     if ((cb = cbuf_new()) == NULL){
         clicon_err(OE_UNIX, errno, "cbuf_new");
@@ -548,7 +548,7 @@ device_state_timeout_unregister(device_handle dh)
     char *name;
 
     name = device_handle_name_get(dh);
-    clicon_debug(CLIXON_DBG_DETAIL, "%s %s", __FUNCTION__, name);
+    clixon_debug(CLIXON_DBG_DETAIL, "%s %s", __FUNCTION__, name);
     (void)clixon_event_unreg_timeout(device_state_timeout, dh);
     return 0;
 }
@@ -916,7 +916,7 @@ device_state_handler(clixon_handle h,
             break;
         }
         if (ct->ct_state != TS_INIT && ct->ct_state != TS_RESOLVED){
-            clicon_debug(CLIXON_DBG_DEFAULT, "%s %s: Unexpected msg %s in state %s",
+            clixon_debug(CLIXON_DBG_DEFAULT, "%s %s: Unexpected msg %s in state %s",
                          __FUNCTION__, name, rpcname, transaction_state_int2str(ct->ct_state));
             break;
         }
@@ -946,7 +946,7 @@ device_state_handler(clixon_handle h,
             }
         }
         if (!device_handle_capabilities_find(dh, "urn:ietf:params:xml:ns:yang:ietf-netconf-monitoring")){
-            clicon_debug(CLIXON_DBG_DEFAULT, "%s Device %s: Netconf monitoring capability not announced", __FUNCTION__, name);
+            clixon_debug(CLIXON_DBG_DEFAULT, "%s Device %s: Netconf monitoring capability not announced", __FUNCTION__, name);
             if (xyanglib == NULL){
                 if (controller_transaction_failed(h, tid, ct, dh, TR_FAILED_DEV_CLOSE, name, "No YANG device lib") < 0)
                     goto done;
@@ -984,7 +984,7 @@ device_state_handler(clixon_handle h,
             break;
         }
         else
-            clicon_debug(CLIXON_DBG_DEFAULT, "%s Device %s: Netconf monitoring capability announced", __FUNCTION__, name);
+            clixon_debug(CLIXON_DBG_DEFAULT, "%s Device %s: Netconf monitoring capability announced", __FUNCTION__, name);
         if ((ret = device_send_get_schema_list(h, dh, s)) < 0)
             goto done;
         if (device_state_set(dh, CS_SCHEMA_LIST) < 0)
@@ -997,7 +997,7 @@ device_state_handler(clixon_handle h,
             break;
         }
         if (ct->ct_state != TS_INIT && ct->ct_state != TS_RESOLVED){
-            clicon_debug(CLIXON_DBG_DEFAULT, "%s %s: Unexpected msg %s in state %s",
+            clixon_debug(CLIXON_DBG_DEFAULT, "%s %s: Unexpected msg %s in state %s",
                          __FUNCTION__, name, rpcname, transaction_state_int2str(ct->ct_state));
             break;
         }
@@ -1060,7 +1060,7 @@ device_state_handler(clixon_handle h,
             break;
         }
         if (ct->ct_state != TS_INIT && ct->ct_state != TS_RESOLVED){
-            clicon_debug(CLIXON_DBG_DEFAULT, "%s %s: Unexpected msg %s in state %s",
+            clixon_debug(CLIXON_DBG_DEFAULT, "%s %s: Unexpected msg %s in state %s",
                          __FUNCTION__, name, rpcname, transaction_state_int2str(ct->ct_state));
             break;
         }
@@ -1104,7 +1104,7 @@ device_state_handler(clixon_handle h,
         }
         device_handle_nr_schemas_set(dh, nr);
         device_state_timeout_restart(dh);
-        clicon_debug(CLIXON_DBG_DEFAULT, "%s: %s(%d) -> %s(%d)",
+        clixon_debug(CLIXON_DBG_DEFAULT, "%s: %s(%d) -> %s(%d)",
                      name,
                      device_state_int2str(conn_state), nr-1,
                      device_state_int2str(conn_state), nr);
@@ -1116,7 +1116,7 @@ device_state_handler(clixon_handle h,
             break;
         }
         if (ct->ct_state != TS_INIT && ct->ct_state != TS_RESOLVED){
-            clicon_debug(CLIXON_DBG_DEFAULT, "%s %s: Unexpected msg %s in state %s",
+            clixon_debug(CLIXON_DBG_DEFAULT, "%s %s: Unexpected msg %s in state %s",
                          __FUNCTION__, name, rpcname, transaction_state_int2str(ct->ct_state));
             break;
         }
@@ -1155,7 +1155,7 @@ device_state_handler(clixon_handle h,
             break;
         }
         if (ct->ct_state != TS_INIT && ct->ct_state != TS_RESOLVED){
-            clicon_debug(CLIXON_DBG_DEFAULT, "%s %s: Unexpected msg %s in state %s",
+            clixon_debug(CLIXON_DBG_DEFAULT, "%s %s: Unexpected msg %s in state %s",
                          __FUNCTION__, name, rpcname, transaction_state_int2str(ct->ct_state));
             break;
         }
@@ -1211,7 +1211,7 @@ device_state_handler(clixon_handle h,
             break;
         }
         if (ct->ct_state != TS_INIT && ct->ct_state != TS_RESOLVED){
-            clicon_debug(CLIXON_DBG_DEFAULT, "%s %s: Unexpected msg %s in state %s",
+            clixon_debug(CLIXON_DBG_DEFAULT, "%s %s: Unexpected msg %s in state %s",
                          __FUNCTION__, name, rpcname, transaction_state_int2str(ct->ct_state));
             break;
         }
@@ -1258,7 +1258,7 @@ device_state_handler(clixon_handle h,
             break;
         }
         if (ct->ct_state != TS_INIT && ct->ct_state != TS_RESOLVED){
-            clicon_debug(CLIXON_DBG_DEFAULT, "%s %s: Unexpected msg %s in state %s",
+            clixon_debug(CLIXON_DBG_DEFAULT, "%s %s: Unexpected msg %s in state %s",
                          __FUNCTION__, name, rpcname, transaction_state_int2str(ct->ct_state));
             break;
         }
@@ -1321,8 +1321,8 @@ device_state_handler(clixon_handle h,
                 if ((ret = candidate_commit(h, NULL, "candidate", 0, 0, cberr)) < 0){
                     /* Handle that candidate_commit can return < 0 if transaction ongoing */
                     cprintf(cberr, "%s: Commit error", name);
-                    if (strlen(clicon_err_reason) > 0)
-                        cprintf(cberr, " %s", clicon_err_reason);
+                    if (strlen(clixon_err_reason()) > 0)
+                        cprintf(cberr, " %s", clixon_err_reason());
                     if (controller_transaction_failed(h, ct->ct_id, ct, dh, TR_FAILED_DEV_LEAVE, name, cbuf_get(cberr)) < 0)
                         goto done;
                     break;
@@ -1356,7 +1356,7 @@ device_state_handler(clixon_handle h,
             break;
         }
         if (ct->ct_state != TS_INIT && ct->ct_state != TS_RESOLVED){
-            clicon_debug(CLIXON_DBG_DEFAULT, "%s %s: Unexpected msg %s in state %s",
+            clixon_debug(CLIXON_DBG_DEFAULT, "%s %s: Unexpected msg %s in state %s",
                          __FUNCTION__, name, rpcname, transaction_state_int2str(ct->ct_state));
             break;
         }
@@ -1446,7 +1446,7 @@ device_state_handler(clixon_handle h,
             break;
         }
         if (ct->ct_state != TS_INIT && ct->ct_state != TS_RESOLVED){
-            clicon_debug(CLIXON_DBG_DEFAULT, "%s %s: Unexpected msg %s in state %s",
+            clixon_debug(CLIXON_DBG_DEFAULT, "%s %s: Unexpected msg %s in state %s",
                          __FUNCTION__, name, rpcname, transaction_state_int2str(ct->ct_state));
             break;
         }
@@ -1496,7 +1496,7 @@ device_state_handler(clixon_handle h,
             break;
         }
         if (ct->ct_state != TS_INIT && ct->ct_state != TS_RESOLVED){
-            clicon_debug(CLIXON_DBG_DEFAULT, "%s %s: Unexpected msg %s in state %s",
+            clixon_debug(CLIXON_DBG_DEFAULT, "%s %s: Unexpected msg %s in state %s",
                          __FUNCTION__, name, rpcname, transaction_state_int2str(ct->ct_state));
             break;
         }
@@ -1533,10 +1533,10 @@ device_state_handler(clixon_handle h,
     case CS_CLOSED:
     case CS_OPEN:
     default:
-        clicon_debug(CLIXON_DBG_DEFAULT, "%s %s: Unexpected msg %s in state %s",
+        clixon_debug(CLIXON_DBG_DEFAULT, "%s %s: Unexpected msg %s in state %s",
                      __FUNCTION__, name, rpcname,
                      device_state_int2str(conn_state));
-        clicon_debug_xml(2, xmsg, "Message");
+        clixon_debug_xml(2, xmsg, "Message");
         device_close_connection(dh, "Unexpected msg %s in state %s",
                                 rpcname, device_state_int2str(conn_state));
         if (controller_transaction_failed(h, tid, ct, dh, TR_FAILED_DEV_LEAVE, name, device_handle_logmsg_get(dh)) < 0)

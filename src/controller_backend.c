@@ -232,7 +232,7 @@ controller_commit(clixon_handle    h,
     cxobj  *target;
     cvec   *nsc = NULL;
 
-    clicon_debug(CLIXON_DBG_DEFAULT, "controller commit");
+    clixon_debug(CLIXON_DBG_DEFAULT, "controller commit");
     src = transaction_src(td);    /* existing XML tree */
     target = transaction_target(td); /* wanted XML tree */
     if ((nsc = xml_nsctx_init(NULL, CONTROLLER_NAMESPACE)) == NULL)
@@ -352,7 +352,7 @@ controller_action_proc_cb(clicon_handle    h,
 {
     int    retval = -1;
 
-    clicon_debug(CLIXON_DBG_DEFAULT, "%s", __FUNCTION__);
+    clixon_debug(CLIXON_DBG_DEFAULT, "%s", __FUNCTION__);
     switch (*operation){
     case PROC_OP_STOP:
         /* if RPC op is stop, stop the service */
@@ -393,7 +393,7 @@ action_daemon_register(clicon_handle h)
     char       *group;
     char       *user;
 
-    clicon_debug(CLIXON_DBG_DEFAULT, "%s", __FUNCTION__);
+    clixon_debug(CLIXON_DBG_DEFAULT, "%s", __FUNCTION__);
     if ((cmd = clicon_option_str(h, "CONTROLLER_ACTION_COMMAND")) == NULL)
         goto ok;
     if ((argv0 = clicon_strsep(cmd, " \t", &argc0)) == NULL)
