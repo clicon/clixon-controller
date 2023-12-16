@@ -481,7 +481,7 @@ service_action_handler(clicon_handle      h,
     char   *sourcedb = NULL;
     char   *targetdb = NULL;
 
-    clicon_debug(1, "%s", __FUNCTION__);
+    clixon_debug(1, "%s", __FUNCTION__);
     if ((ret = clicon_msg_decode(notification, NULL, NULL, &xt, NULL)) < 0)
         goto done;
     if (ret == 0){ /* will not happen since no yspec ^*/
@@ -563,7 +563,7 @@ static int
 service_action_terminate(clicon_handle h)
 {
     clixon_event_exit();
-    clicon_debug(1, "%s done", __FUNCTION__);
+    clixon_debug(1, "%s done", __FUNCTION__);
     clixon_err_exit();
     clicon_log_exit();
     clicon_handle_exit(h);
@@ -664,7 +664,7 @@ main(int    argc,
             break;
         }
     clicon_log_init(__PROGRAM__, dbg?LOG_DEBUG:LOG_INFO, logdst);
-    clicon_debug_init(dbg, NULL);
+    clixon_debug_init(dbg, NULL);
     /* Setup handlers to exit cleanly when killed from parent or user */
     if (set_signal(SIGTERM, service_action_sig_term, NULL) < 0){
         clicon_err(OE_DAEMON, errno, "Setting signal");
@@ -682,10 +682,10 @@ main(int    argc,
      */
     clicon_data_set(h, "session-transport", "ctrl:services");
     if (clicon_rpc_create_subscription(h, "services-commit", NULL, &s) < 0){
-        clicon_log(LOG_NOTICE, "services-commit: subscription failed: %s", clixon_err_reason());
+        clicon_log(LOG_NOTICE, "services-commit: subscription failed: %s", clicon_err_reason);
         goto done;
     }
-    clicon_debug(CLIXON_DBG_DEFAULT, "%s notification socket:%d", __FUNCTION__, s);
+    clixon_debug(CLIXON_DBG_DEFAULT, "%s notification socket:%d", __FUNCTION__, s);
 
     if (!once)
         while (clicon_msg_rcv(s, NULL, 0, &notification, &eof) == 0){

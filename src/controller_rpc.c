@@ -837,7 +837,7 @@ commit_push_after_actions(clixon_handle           h,
                 /* XXX: recursive creates transaction */
                 if ((ret = candidate_commit(h, NULL, "candidate", 0, 0, cberr)) < 0){
                     /* Handle that candidate_commit can return < 0 if transaction ongoing */
-                    cprintf(cberr, "%s", clixon_err_reason()); // XXX encode
+                    cprintf(cberr, "%s", clicon_err_reason); // XXX encode
                     ret = 0;
                 }
                 if (ret == 0){ // XXX awkward, cb ->xml->cb

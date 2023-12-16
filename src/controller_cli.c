@@ -501,7 +501,7 @@ controller_cli_yang_mount(clicon_handle   h,
     }
     recursion--;
     if ((xerr = xpath_first(xt, NULL, "/rpc-error")) != NULL){
-        clixon_err_netconf(h, OE_XML, 0, xerr, "clicon_rpc_get");
+        clixon_netconf_error(h, xerr, "clicon_rpc_get", NULL);
         goto done;
     }
     /* Second xpath is specific on module-set */

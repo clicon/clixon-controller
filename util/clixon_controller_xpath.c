@@ -234,7 +234,7 @@ main(int    argc,
      * Logs, error and debug to stderr or syslog, set debug level
      */
     clicon_log_init("xpath", dbg?LOG_DEBUG:LOG_INFO, logdst);
-    clixon_debug_init(h, dbg);
+    clixon_debug_init(dbg, NULL);
     yang_init(h);
     /* Parse yang */
     if (yang_file_dir){
@@ -312,7 +312,7 @@ main(int    argc,
      * XXX Note 0 above, stdin here
      */
     if (clixon_xml_parse_file(fp, YB_NONE, NULL, &x0, NULL) < 0){
-        fprintf(stderr, "Error: parsing: %s\n", clixon_err_reason());
+        fprintf(stderr, "Error: parsing: %s\n", clicon_err_reason);
         goto done;
     }
 

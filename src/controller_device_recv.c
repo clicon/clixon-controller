@@ -327,7 +327,7 @@ device_state_recv_config(clixon_handle h,
         /* XXX trigger plugin which starts a commit transaction */
         if ((ret = candidate_commit(h, NULL, "candidate", 0, 0, cbret)) < 0){
             /* Handle that candidate_commit can return < 0 if transaction ongoing */
-            cprintf(cbret, "%s", clixon_err_reason());
+            cprintf(cbret, "%s", clicon_err_reason);
             ret = 0;
         }
         if (ret == 0){

@@ -397,8 +397,8 @@ device_schemas_mount_parse(clixon_handle h,
     if ((ret = yang_lib2yspec(h, xyanglib, yspec1)) < 0)
         goto done;
     if (ret == 0){
-        device_close_connection(dh, "%s", clixon_err_reason());
-        clixon_err_reset();
+        device_close_connection(dh, "%s", clicon_err_reason);
+        clicon_err_reset();
         goto fail;
     }
     retval = 1;
@@ -1321,8 +1321,8 @@ device_state_handler(clixon_handle h,
                 if ((ret = candidate_commit(h, NULL, "candidate", 0, 0, cberr)) < 0){
                     /* Handle that candidate_commit can return < 0 if transaction ongoing */
                     cprintf(cberr, "%s: Commit error", name);
-                    if (strlen(clixon_err_reason()) > 0)
-                        cprintf(cberr, " %s", clixon_err_reason());
+                    if (strlen(clicon_err_reason) > 0)
+                        cprintf(cberr, " %s", clicon_err_reason);
                     if (controller_transaction_failed(h, ct->ct_id, ct, dh, TR_FAILED_DEV_LEAVE, name, cbuf_get(cberr)) < 0)
                         goto done;
                     break;
