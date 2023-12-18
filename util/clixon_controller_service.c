@@ -47,7 +47,7 @@
  * @retval   -1        Error
  */
 static int
-send_transaction_actions_done(clicon_handle h,
+send_transaction_actions_done(clixon_handle h,
                               char         *tidstr)
 {
     int                retval = -1;
@@ -57,7 +57,7 @@ send_transaction_actions_done(clicon_handle h,
 
    /* Write and mark an interface for each param in the service */
     if ((cb = cbuf_new()) == NULL){
-        clicon_err(OE_XML, errno, "cbuf_new");
+        clixon_err(OE_XML, errno, "cbuf_new");
         goto done;
     }
     cprintf(cb, "<rpc xmlns=\"%s\"", NETCONF_BASE_NAMESPACE);
@@ -75,7 +75,7 @@ send_transaction_actions_done(clicon_handle h,
     if (clicon_rpc_msg(h, msg, &xt) < 0)
         goto done;
     if (xpath_first(xt,  NULL, "rpc-reply/rpc-error") != NULL){
-        clicon_err(OE_NETCONF, 0, "rpc-error");
+        clixon_err(OE_NETCONF, 0, "rpc-error");
         goto done;
     }
     retval = 0;
@@ -90,7 +90,7 @@ send_transaction_actions_done(clicon_handle h,
 }
 
 static int
-send_transaction_error(clicon_handle h,
+send_transaction_error(clixon_handle h,
                        char         *tidstr)
 {
     int                retval = -1;
@@ -100,7 +100,7 @@ send_transaction_error(clicon_handle h,
 
    /* Write and mark an interface for each param in the service */
     if ((cb = cbuf_new()) == NULL){
-        clicon_err(OE_XML, errno, "cbuf_new");
+        clixon_err(OE_XML, errno, "cbuf_new");
         goto done;
     }
     cprintf(cb, "<rpc xmlns=\"%s\"", NETCONF_BASE_NAMESPACE);
@@ -120,7 +120,7 @@ send_transaction_error(clicon_handle h,
     if (clicon_rpc_msg(h, msg, &xt) < 0)
         goto done;
     if (xpath_first(xt,  NULL, "rpc-reply/rpc-error") != NULL){
-        clicon_err(OE_NETCONF, 0, "rpc-error");
+        clixon_err(OE_NETCONF, 0, "rpc-error");
         goto done;
     }
     retval = 0;
@@ -144,9 +144,9 @@ send_transaction_error(clicon_handle h,
  * @retval    -1    Error
  */
 static int
-read_services(clicon_handle     h,
-              char             *db,
-              cxobj           **xtp)
+read_services(clixon_handle h,
+              char         *db,
+              cxobj       **xtp)
 {
     int                retval = -1;
     cxobj             *xt = NULL;
@@ -155,7 +155,7 @@ read_services(clicon_handle     h,
     cbuf              *cb = NULL;
 
     if ((cb = cbuf_new()) == NULL){
-        clicon_err(OE_XML, errno, "cbuf_new");
+        clixon_err(OE_XML, errno, "cbuf_new");
         goto done;
     }
     cprintf(cb, "<rpc xmlns=\"%s\"", NETCONF_BASE_NAMESPACE);
@@ -180,7 +180,7 @@ read_services(clicon_handle     h,
     if (clicon_rpc_msg(h, msg, &xt) < 0)
         goto done;
     if (xpath_first(xt,  NULL, "rpc-reply/rpc-error") != NULL){
-        clicon_err(OE_NETCONF, 0, "rpc-error");
+        clixon_err(OE_NETCONF, 0, "rpc-error");
         goto done;
     }
     if ((xd = xpath_first(xt, NULL, "rpc-reply/data/services")) != NULL){
@@ -207,7 +207,7 @@ read_services(clicon_handle     h,
  * @retval    -1    Error
  */
 static int
-read_devices(clicon_handle h,
+read_devices(clixon_handle h,
              char         *db,
              cxobj       **xtp)
 {
@@ -218,7 +218,7 @@ read_devices(clicon_handle h,
     cbuf              *cb = NULL;
 
     if ((cb = cbuf_new()) == NULL){
-        clicon_err(OE_XML, errno, "cbuf_new");
+        clixon_err(OE_XML, errno, "cbuf_new");
         goto done;
     }
     cprintf(cb, "<rpc xmlns=\"%s\"", NETCONF_BASE_NAMESPACE);
@@ -243,7 +243,7 @@ read_devices(clicon_handle h,
     if (clicon_rpc_msg(h, msg, &xt) < 0)
         goto done;
     if (xpath_first(xt,  NULL, "rpc-reply/rpc-error") != NULL){
-        clicon_err(OE_NETCONF, 0, "rpc-error");
+        clixon_err(OE_NETCONF, 0, "rpc-error");
         goto done;
     }
     if ((xd = xpath_first(xt, NULL, "rpc-reply/data/devices")) != NULL){
@@ -273,7 +273,7 @@ read_devices(clicon_handle h,
  * @retval   -1       Error
  */
 static int
-do_service(clicon_handle h,
+do_service(clixon_handle h,
            int           s,
            char         *devname,
            cxobj        *xsc,
@@ -286,12 +286,12 @@ do_service(clicon_handle h,
     char  *p;
 
     if (strcmp(db, "actions") != 0){
-        clicon_err(OE_CFG, 0, "Unexpected datastore: %s (expected actions)", db);
+        clixon_err(OE_CFG, 0, "Unexpected datastore: %s (expected actions)", db);
         goto done;
     }
     /* Write and mark a interface for each param in the service */
     if ((cb = cbuf_new()) == NULL){
-        clicon_err(OE_XML, errno, "cbuf_new");
+        clixon_err(OE_XML, errno, "cbuf_new");
         goto done;
     }
     cprintf(cb, "<config>");
@@ -345,7 +345,7 @@ do_service(clicon_handle h,
  * @retval    -1         Error
  */
 static int
-service_loop_devices(clicon_handle h,
+service_loop_devices(clixon_handle h,
                      int           s,
                      char         *targetdb,
                      cxobj        *xdevs,
@@ -379,7 +379,7 @@ service_loop_devices(clicon_handle h,
  * @retval    -1         Error
  */
 static int
-service_action_one(clicon_handle h,
+service_action_one(clixon_handle h,
                    int           s,
                    char         *pattern,
                    char         *targetdb,
@@ -395,7 +395,7 @@ service_action_one(clicon_handle h,
         (instance = xml_body(xi)) == NULL)
         goto ok;
     if ((cb = cbuf_new()) == NULL){
-        clicon_err(OE_XML, errno, "cbuf_new");
+        clixon_err(OE_XML, errno, "cbuf_new");
         goto done;
     }
     /* XXX See also controller_actions_diff where tags are also created */
@@ -423,7 +423,7 @@ service_action_one(clicon_handle h,
  * @retval    -1         Error
  */
 static int
-service_action_instance(clicon_handle h,
+service_action_instance(clixon_handle h,
                         int           s,
                         char         *pattern,
                         char         *targetdb,
@@ -463,7 +463,7 @@ service_action_instance(clicon_handle h,
  * @retval    -1            Error
  */
 static int
-service_action_handler(clicon_handle      h,
+service_action_handler(clixon_handle      h,
                        int                s,
                        struct clicon_msg *notification,
                        char              *pattern,
@@ -485,23 +485,23 @@ service_action_handler(clicon_handle      h,
     if ((ret = clicon_msg_decode(notification, NULL, NULL, &xt, NULL)) < 0)
         goto done;
     if (ret == 0){ /* will not happen since no yspec ^*/
-        clicon_err(OE_NETCONF, EFAULT, "Notification malformed");
+        clixon_err(OE_NETCONF, EFAULT, "Notification malformed");
         goto done;
     }
     if ((xn = xpath_first(xt, 0, "notification/services-commit")) == NULL){
-        clicon_err(OE_NETCONF, EFAULT, "Notification malformed");
+        clixon_err(OE_NETCONF, EFAULT, "Notification malformed");
         goto done;
     }
     if ((tidstr = xml_find_body(xn, "tid")) == NULL){
-        clicon_err(OE_NETCONF, EFAULT, "Notification malformed: no tid");
+        clixon_err(OE_NETCONF, EFAULT, "Notification malformed: no tid");
         goto done;
     }
     if ((sourcedb = xml_find_body(xn, "source")) == NULL){
-        clicon_err(OE_NETCONF, EFAULT, "Notification malformed: no source");
+        clixon_err(OE_NETCONF, EFAULT, "Notification malformed: no source");
         goto done;
     }
     if ((targetdb = xml_find_body(xn, "target")) == NULL){
-        clicon_err(OE_NETCONF, EFAULT, "Notification malformed: no source");
+        clixon_err(OE_NETCONF, EFAULT, "Notification malformed: no source");
         goto done;
     }
 #if 1
@@ -560,13 +560,13 @@ service_action_handler(clicon_handle      h,
  * @param[in]  h  Clixon handle
  */
 static int
-service_action_terminate(clicon_handle h)
+service_action_terminate(clixon_handle h)
 {
     clixon_event_exit();
     clixon_debug(1, "%s done", __FUNCTION__);
     clixon_err_exit();
-    clicon_log_exit();
-    clicon_handle_exit(h);
+    clixon_log_exit();
+    clixon_handle_exit(h);
     return 0;
 }
 
@@ -577,7 +577,7 @@ service_action_sig_term(int arg)
 {
     static int i=0;
 
-    clicon_log(LOG_NOTICE, "%s: %s: pid: %u Signal %d",
+    clixon_log(NULL, LOG_NOTICE, "%s: %s: pid: %u Signal %d",
                __PROGRAM__, __FUNCTION__, getpid(), arg);
     if (i++ > 0)
         exit(1);
@@ -587,7 +587,7 @@ service_action_sig_term(int arg)
 /*! Usage
  */
 static void
-usage(clicon_handle h,
+usage(clixon_handle h,
       char         *argv0)
 {
     fprintf(stderr, "usage:%s <options>*\n"
@@ -611,7 +611,7 @@ main(int    argc,
     int                  retval = -1;
     int                  c;
     int                  dbg = 0;
-    int                  logdst = CLICON_LOG_SYSLOG|CLICON_LOG_STDERR;
+    int                  logdst = CLIXON_LOG_SYSLOG|CLIXON_LOG_STDERR;
     clixon_handle        h = NULL; /* clixon handle */
     clixon_client_handle ch = NULL; /* clixon client handle */
     int                  s = -1;
@@ -621,9 +621,9 @@ main(int    argc,
     int                  send_error = 0;
     int                  once = 0;
 
-    clicon_log_init(__PROGRAM__, LOG_INFO, logdst);
-    if ((h = clicon_handle_init()) == NULL)
+    if ((h = clixon_handle_init()) == NULL)
         goto done;;
+    clixon_log_init(h, __PROGRAM__, LOG_INFO, logdst);
     /*
      * Command-line options for help, debug, and config-file
      */
@@ -644,11 +644,11 @@ main(int    argc,
             clicon_option_str_set(h, "CLICON_CONFIGFILE", optarg);
             break;
         case 'l': /* Log destination: s|e|o */
-            if ((logdst = clicon_log_opt(optarg[0])) < 0)
+            if ((logdst = clixon_log_opt(optarg[0])) < 0)
                 usage(h, argv[0]);
-            if (logdst == CLICON_LOG_FILE &&
+            if (logdst == CLIXON_LOG_FILE &&
                 strlen(optarg)>1 &&
-                clicon_log_file(optarg+1) < 0)
+                clixon_log_file(optarg+1) < 0)
                 goto done;
             break;
         case 's': /* service pattern */
@@ -663,15 +663,15 @@ main(int    argc,
             once = 1;
             break;
         }
-    clicon_log_init(__PROGRAM__, dbg?LOG_DEBUG:LOG_INFO, logdst);
+    clixon_log_init(h, __PROGRAM__, dbg?LOG_DEBUG:LOG_INFO, logdst);
     clixon_debug_init(h, dbg);
     /* Setup handlers to exit cleanly when killed from parent or user */
     if (set_signal(SIGTERM, service_action_sig_term, NULL) < 0){
-        clicon_err(OE_DAEMON, errno, "Setting signal");
+        clixon_err(OE_DAEMON, errno, "Setting signal");
         goto done;
     }
     if (set_signal(SIGINT, service_action_sig_term, NULL) < 0){
-        clicon_err(OE_DAEMON, errno, "Setting signal");
+        clixon_err(OE_DAEMON, errno, "Setting signal");
         goto done;
     }
     /* Find, read and parse configfile */
@@ -682,7 +682,7 @@ main(int    argc,
      */
     clicon_data_set(h, "session-transport", "ctrl:services");
     if (clicon_rpc_create_subscription(h, "services-commit", NULL, &s) < 0){
-        clicon_log(LOG_NOTICE, "services-commit: subscription failed: %s", clicon_err_reason);
+        clixon_log(h, LOG_NOTICE, "services-commit: subscription failed: %s", clixon_err_reason());
         goto done;
     }
     clixon_debug(CLIXON_DBG_DEFAULT, "%s notification socket:%d", __FUNCTION__, s);

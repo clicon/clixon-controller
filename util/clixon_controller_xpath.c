@@ -139,22 +139,22 @@ main(int    argc,
     char       *filename;
     xp_ctx     *xc = NULL;
     cbuf       *cb = NULL;
-    clicon_handle h;
+    clixon_handle h;
     struct stat st;
     cvec       *nsc = NULL;
     int         canonical = 0;
     cxobj      *xcfg = NULL;
     cbuf       *cbret = NULL;
     cxobj      *xerr = NULL; /* malloced must be freed */
-    int         logdst = CLICON_LOG_STDERR;
+    int         logdst = CLIXON_LOG_STDERR;
     int         dbg = 0;
     int         xpath_inverse = 0;
 
-    /* In the startup, logs to stderr & debug flag set later */
-    clicon_log_init("xpath", LOG_DEBUG, logdst); 
     /* Initialize clixon handle */
-    if ((h = clicon_handle_init()) == NULL)
+    if ((h = clixon_handle_init()) == NULL)
         goto done;
+    /* In the startup, logs to stderr & debug flag set later */
+    clixon_log_init(h, "xpath", LOG_DEBUG, logdst); 
     /* Initialize config tree (needed for -Y below) */
     if ((xcfg = xml_new("clixon-config", NULL, CX_ELMNT)) == NULL)
         goto done;
@@ -175,7 +175,7 @@ main(int    argc,
         case 'f': /* XML file */
             filename = optarg;
             if ((fp = fopen(filename, "r")) == NULL){
-                clicon_err(OE_UNIX, errno, "fopen(%s)", optarg);
+                clixon_err(OE_UNIX, errno, "fopen(%s)", optarg);
                 goto done;
             }
             break;
@@ -212,11 +212,11 @@ main(int    argc,
             canonical = 1;
             break;
         case 'l': /* Log destination: s|e|o|f */
-            if ((logdst = clicon_log_opt(optarg[0])) < 0)
+            if ((logdst = clixon_log_opt(optarg[0])) < 0)
                 usage(argv[0]);
-            if (logdst == CLICON_LOG_FILE &&
+            if (logdst == CLIXON_LOG_FILE &&
                 strlen(optarg)>1 &&
-                clicon_log_file(optarg+1) < 0)
+                clixon_log_file(optarg+1) < 0)
                 goto done;
             break;
         case 'y':
@@ -233,7 +233,7 @@ main(int    argc,
     /* 
      * Logs, error and debug to stderr or syslog, set debug level
      */
-    clicon_log_init("xpath", dbg?LOG_DEBUG:LOG_INFO, logdst);
+    clixon_log_init(h, "xpath", dbg?LOG_DEBUG:LOG_INFO, logdst);
     clixon_debug_init(h, dbg);
     yang_init(h);
     /* Parse yang */
@@ -241,7 +241,7 @@ main(int    argc,
         if ((yspec = yspec_new()) == NULL)
             goto done;
         if (stat(yang_file_dir, &st) < 0){
-            clicon_err(OE_YANG, errno, "%s not found", yang_file_dir);
+            clixon_err(OE_YANG, errno, "%s not found", yang_file_dir);
             goto done;
         }
         if (S_ISDIR(st.st_mode)){
@@ -312,7 +312,7 @@ main(int    argc,
      * XXX Note 0 above, stdin here
      */
     if (clixon_xml_parse_file(fp, YB_NONE, NULL, &x0, NULL) < 0){
-        fprintf(stderr, "Error: parsing: %s\n", clicon_err_reason);
+        fprintf(stderr, "Error: parsing: %s\n", clixon_err_reason());
         goto done;
     }
 
@@ -323,7 +323,7 @@ main(int    argc,
             goto done;
         if (ret == 0){
             if ((cbret = cbuf_new()) ==NULL){
-                clicon_err(OE_XML, errno, "cbuf_new");
+                clixon_err(OE_XML, errno, "cbuf_new");
                 goto done;
             }
             if (netconf_err2cb(h, xerr, cbret) < 0)
@@ -339,14 +339,14 @@ main(int    argc,
         if (xml_default_recurse(x0, 0) < 0)
             goto done;
         if (xml_apply0(x0, -1, xml_sort_verify, h) < 0)
-            clicon_log(LOG_NOTICE, "%s: sort verify failed", __FUNCTION__);
+            clixon_log(h, LOG_NOTICE, "%s: sort verify failed", __FUNCTION__);
         if ((ret = xml_yang_validate_all_top(h, x0, &xerr)) < 0)
             goto done;
         if (ret > 0 && (ret = xml_yang_validate_add(h, x0, &xerr)) < 0)
             goto done;
         if (ret == 0){
             if ((cbret = cbuf_new()) ==NULL){
-                clicon_err(OE_XML, errno, "cbuf_new");
+                clixon_err(OE_XML, errno, "cbuf_new");
                 goto done;
             }
             if (netconf_err2cb(h, xerr, cbret) < 0)
@@ -413,6 +413,6 @@ main(int    argc,
     if (fp)
         fclose(fp);
     if (h)
-        clicon_handle_exit(h);
+        clixon_handle_exit(h);
     return retval;
 }
