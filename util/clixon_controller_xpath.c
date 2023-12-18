@@ -234,7 +234,7 @@ main(int    argc,
      * Logs, error and debug to stderr or syslog, set debug level
      */
     clicon_log_init("xpath", dbg?LOG_DEBUG:LOG_INFO, logdst);
-    clixon_debug_init(dbg, NULL);
+    clixon_debug_init(h, dbg);
     yang_init(h);
     /* Parse yang */
     if (yang_file_dir){

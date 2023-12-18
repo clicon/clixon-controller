@@ -103,7 +103,7 @@ clixon_client_connect_netconf(clixon_handle  h,
         clicon_err(OE_NETCONF, 0, "argv mismatch, internal error");
         goto done;
     }
-    if (clixon_proc_socket(argv, SOCK_DGRAM, pid, sock) < 0){
+    if (clixon_proc_socket(h, argv, SOCK_DGRAM, pid, sock) < 0){
         goto done;
     }
     retval = 0;
@@ -155,7 +155,7 @@ clixon_client_connect_ssh(clixon_handle  h,
     }
     for (i=0;i<nr;i++)
         clixon_debug(1, "%s: argv[%d]:%s", __FUNCTION__, i, argv[i]);
-    if (clixon_proc_socket(argv, SOCK_STREAM, pid, sock) < 0){
+    if (clixon_proc_socket(h, argv, SOCK_STREAM, pid, sock) < 0){
         goto done;
     }
     retval = 0;

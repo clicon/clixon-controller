@@ -664,7 +664,7 @@ main(int    argc,
             break;
         }
     clicon_log_init(__PROGRAM__, dbg?LOG_DEBUG:LOG_INFO, logdst);
-    clixon_debug_init(dbg, NULL);
+    clixon_debug_init(h, dbg);
     /* Setup handlers to exit cleanly when killed from parent or user */
     if (set_signal(SIGTERM, service_action_sig_term, NULL) < 0){
         clicon_err(OE_DAEMON, errno, "Setting signal");
