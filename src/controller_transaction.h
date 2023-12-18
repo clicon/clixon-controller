@@ -88,17 +88,17 @@ extern "C" {
 
 int   controller_transaction_state_set(controller_transaction *ct, transaction_state state, transaction_result result);
 int   controller_transaction_notify(clixon_handle h, controller_transaction *ct);
-int   controller_transaction_new(clicon_handle h, char *description, controller_transaction **ct, cbuf **cberr);
-int   controller_transaction_free(clicon_handle h, controller_transaction *ct);
-int   controller_transaction_free_all(clicon_handle h);
-int   controller_transaction_done(clicon_handle h, controller_transaction *ct, transaction_result result);
+int   controller_transaction_new(clixon_handle h, char *description, controller_transaction **ct, cbuf **cberr);
+int   controller_transaction_free(clixon_handle h, controller_transaction *ct);
+int   controller_transaction_free_all(clixon_handle h);
+int   controller_transaction_done(clixon_handle h, controller_transaction *ct, transaction_result result);
 
 controller_transaction *controller_transaction_find(clixon_handle h, const uint64_t id);
-int   controller_transaction_devices(clicon_handle h, uint64_t tid);
-int   controller_transaction_failed(clicon_handle h, uint64_t tid, controller_transaction *ct, device_handle dh,
+int   controller_transaction_devices(clixon_handle h, uint64_t tid);
+int   controller_transaction_failed(clixon_handle h, uint64_t tid, controller_transaction *ct, device_handle dh,
                                     tr_failed_devclose devclose, char *origin, char *reason);
-int   controller_transaction_wait(clicon_handle h, uint64_t tid);
-int   controller_transaction_wait_trigger(clicon_handle h, uint64_t tid, int commit);
+int   controller_transaction_wait(clixon_handle h, uint64_t tid);
+int   controller_transaction_wait_trigger(clixon_handle h, uint64_t tid, int commit);
 int   controller_transactions_statedata(clixon_handle h, cvec *nsc, char *xpath, cxobj *xstate);
 
 #ifdef __cplusplus

@@ -44,19 +44,19 @@
 extern "C" {
 #endif
 
-int rpc_get_yanglib_mount_match(clicon_handle h, char *pattern, int single, int yanglib, cxobj **xdevsp);
-int cli_show_auto_devs(clicon_handle h, cvec *cvv, cvec *argv);
+int rpc_get_yanglib_mount_match(clixon_handle h, char *pattern, int single, int yanglib, cxobj **xdevsp);
+int cli_show_auto_devs(clixon_handle h, cvec *cvv, cvec *argv);
 int cli_rpc_pull(clixon_handle h, cvec *cvv, cvec *argv);
 int cli_rpc_controller_commit(clixon_handle h, cvec *cvv, cvec *argv);
 int cli_connection_change(clixon_handle h, cvec *cvv, cvec *argv);
 int cli_show_devices(clixon_handle h, cvec *cvv, cvec *argv);
 int cli_show_transactions(clixon_handle h, cvec *cvv, cvec *argv);
-int compare_device_db_sync(clicon_handle h, cvec *cvv, cvec *argv);
-int compare_device_db_dev(clicon_handle h, cvec *cvv, cvec *argv);
+int compare_device_db_sync(clixon_handle h, cvec *cvv, cvec *argv);
+int compare_device_db_dev(clixon_handle h, cvec *cvv, cvec *argv);
 int check_device_db(clixon_handle h, cvec *cvv, cvec *argv);
-int cli_auto_set_devs(clicon_handle h, cvec *cvv, cvec *argv);
-int cli_auto_merge_devs(clicon_handle h, cvec *cvv, cvec *argv);
-int cli_auto_del_devs(clicon_handle h, cvec *cvv, cvec *argv);
+int cli_auto_set_devs(clixon_handle h, cvec *cvv, cvec *argv);
+int cli_auto_merge_devs(clixon_handle h, cvec *cvv, cvec *argv);
+int cli_auto_del_devs(clixon_handle h, cvec *cvv, cvec *argv);
 
 #ifdef __cplusplus
 }

@@ -71,7 +71,7 @@ device_send_get_config(clixon_handle h,
     int   encap;
 
     if ((cb = cbuf_new()) == NULL){
-        clicon_err(OE_PLUGIN, errno, "cbuf_new");
+        clixon_err(OE_PLUGIN, errno, "cbuf_new");
         goto done;
     }
     cprintf(cb, "<rpc xmlns=\"%s\" message-id=\"%" PRIu64 "\">",
@@ -125,7 +125,7 @@ device_get_schema_sendit(clixon_handle h,
 
     name = device_handle_name_get(dh);
     if ((cb = cbuf_new()) == NULL){
-        clicon_err(OE_PLUGIN, errno, "cbuf_new");
+        clixon_err(OE_PLUGIN, errno, "cbuf_new");
         goto done;
     }
     seq = device_handle_msg_id_getinc(dh);
@@ -182,7 +182,7 @@ device_send_get_schema_next(clixon_handle h,
     if (controller_mount_yspec_get(h, device_handle_name_get(dh), &yspec) < 0)
         goto done;
     if (yspec == NULL){
-        clicon_err(OE_YANG, 0, "No yang spec");
+        clixon_err(OE_YANG, 0, "No yang spec");
         goto done;
     }
     xylib = device_handle_yang_lib_get(dh);
@@ -245,7 +245,7 @@ device_send_get_schema_list(clixon_handle h,
 
     clixon_debug(1, "%s", __FUNCTION__);
     if ((cb = cbuf_new()) == NULL){
-        clicon_err(OE_PLUGIN, errno, "cbuf_new");
+        clixon_err(OE_PLUGIN, errno, "cbuf_new");
         goto done;
     }
     cprintf(cb, "<rpc xmlns=\"%s\" message-id=\"%" PRIu64 "\">",
@@ -351,7 +351,7 @@ device_create_edit_config_diff(clixon_handle h,
 
     clixon_debug(1, "%s", __FUNCTION__);
     if (cbret == NULL){
-        clicon_err(OE_UNIX, EINVAL, "cbret is NULL");
+        clixon_err(OE_UNIX, EINVAL, "cbret is NULL");
         goto done;
     }
     /* 1. Add netconf operation attributes to add/del/change nodes in x0 and x1 and mark */
@@ -399,7 +399,7 @@ device_create_edit_config_diff(clixon_handle h,
     // XXX validate
     /* 4. Create an edit-config message and parse it */
     if ((cb = cbuf_new()) == NULL){
-        clicon_err(OE_PLUGIN, errno, "cbuf_new");
+        clixon_err(OE_PLUGIN, errno, "cbuf_new");
         goto done;
     }
     cprintf(cb, "<rpc xmlns=\"%s\" xmlns:nc=\"%s\" message-id=\"%" PRIu64 "\">",
@@ -466,7 +466,7 @@ device_send_rpc(clixon_handle h,
     clixon_debug(1, "%s %s", __FUNCTION__, msgbody);
     s = device_handle_socket_get(dh);
     if ((cb = cbuf_new()) == NULL){
-        clicon_err(OE_PLUGIN, errno, "cbuf_new");
+        clixon_err(OE_PLUGIN, errno, "cbuf_new");
         goto done;
     }
     cprintf(cb, "<rpc xmlns=\"%s\" message-id=\"%" PRIu64 "\">",

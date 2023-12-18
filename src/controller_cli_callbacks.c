@@ -54,7 +54,7 @@
  * @retval    -1    Error
  */
 static int
-cli_apipath(clicon_handle h,
+cli_apipath(clixon_handle h,
             cvec         *cvv,
             char         *mtpoint,
             char         *api_path_fmt,
@@ -67,7 +67,7 @@ cli_apipath(clicon_handle h,
 
     if (mtpoint){
         if ((yspec0 = clicon_dbspec_yang(h)) == NULL){
-            clicon_err(OE_FATAL, 0, "No DB_SPEC");
+            clixon_err(OE_FATAL, 0, "No DB_SPEC");
             goto done;
         }
         /* Get and combined api-path01 */
@@ -94,7 +94,7 @@ cli_apipath(clicon_handle h,
  * @retval    -1    Error
  */
 static int
-cli_apipath2xpath(clicon_handle h,
+cli_apipath2xpath(clixon_handle h,
                   cvec         *cvv,
                   char         *mtpoint,
                   char         *api_path_fmt,
@@ -109,13 +109,13 @@ cli_apipath2xpath(clicon_handle h,
     if (cli_apipath(h, cvv, mtpoint, api_path_fmt, &cvvi, &api_path) < 0)
         goto done;
     if ((yspec0 = clicon_dbspec_yang(h)) == NULL){
-        clicon_err(OE_FATAL, 0, "No DB_SPEC");
+        clixon_err(OE_FATAL, 0, "No DB_SPEC");
         goto done;
     }
     if (api_path2xpath(api_path, yspec0, xpath, nsc, NULL) < 0)
         goto done;
     if (*xpath == NULL){
-        clicon_err(OE_FATAL, 0, "Invalid api-path: %s", api_path);
+        clixon_err(OE_FATAL, 0, "Invalid api-path: %s", api_path);
         goto done;
     }
     retval = 0;
@@ -136,7 +136,7 @@ cli_apipath2xpath(clicon_handle h,
  * @retval    -1         Error
  */
 int
-rpc_get_yanglib_mount_match(clicon_handle h,
+rpc_get_yanglib_mount_match(clixon_handle h,
                             char         *pattern,
                             int           single,
                             int           yanglib,
@@ -154,7 +154,7 @@ rpc_get_yanglib_mount_match(clicon_handle h,
 
     clixon_debug(1, "%s", __FUNCTION__);
     if ((cb = cbuf_new()) == NULL){
-        clicon_err(OE_PLUGIN, errno, "cbuf_new");
+        clixon_err(OE_PLUGIN, errno, "cbuf_new");
         goto done;
     }
     cprintf(cb, "<rpc xmlns=\"%s\" username=\"%s\" %s>",
@@ -184,7 +184,7 @@ rpc_get_yanglib_mount_match(clicon_handle h,
     if (clicon_rpc_netconf_xml(h, xrpc, &xret, NULL) < 0)
         goto done;
     if ((xerr = xpath_first(xret, NULL, "rpc-reply/rpc-error")) != NULL){
-        clixon_netconf_error(h, xerr, "Get configuration", NULL);
+        clixon_err_netconf(h, OE_XML, 0, xerr, "Get configuration");
         goto done;
     }
     if ((xdevs = xpath_first(xret, NULL, "rpc-reply/data/devices")) != NULL){
@@ -225,7 +225,7 @@ rpc_get_yanglib_mount_match(clicon_handle h,
  * @see cli_dbxml_devs Similar controller handling
  */
 int
-cli_show_auto_devs(clicon_handle h,
+cli_show_auto_devs(clixon_handle h,
                    cvec         *cvv,
                    cvec         *argv)
 {
@@ -254,11 +254,11 @@ cli_show_auto_devs(clicon_handle h,
     int              fromroot = 0;
 
     if (cvec_len(argv) < 2){
-        clicon_err(OE_PLUGIN, EINVAL, "Received %d arguments. Expected:: <api-path-fmt>* <datastore> [<format> <pretty> <state> <default> <prepend>]", cvec_len(argv));
+        clixon_err(OE_PLUGIN, EINVAL, "Received %d arguments. Expected:: <api-path-fmt>* <datastore> [<format> <pretty> <state> <default> <prepend>]", cvec_len(argv));
         goto done;
     }
     if ((api_path_fmt_cb = cbuf_new()) == NULL){
-        clicon_err(OE_UNIX, errno, "cbuf_new");
+        clixon_err(OE_UNIX, errno, "cbuf_new");
         goto done;
     }
     /* Concatenate all argv strings to a single string
@@ -285,7 +285,7 @@ cli_show_auto_devs(clicon_handle h,
     if (mtpoint == NULL)
         devices = strstr(api_path_fmt, "/clixon-controller:devices") != NULL;
     if (cvec_len(argv) <= argc){
-        clicon_err(OE_PLUGIN, EINVAL, "Missing: <datastore>");
+        clixon_err(OE_PLUGIN, EINVAL, "Missing: <datastore>");
         goto done;
     }
     dbname = cv_string_get(cvec_i(argv, argc++));
@@ -376,6 +376,7 @@ cli_show_auto_devs(clicon_handle h,
 
 /*! Common transaction notification handling from both async and poll
  *
+ * @param[in]   h       CLixon handle
  * @param[in]   s       Notification socket
  * @param[in]   tidstr0 Transaction id string
  * @param[out]  match   Transaction id match
@@ -385,7 +386,8 @@ cli_show_auto_devs(clicon_handle h,
  * @retval     -1       Fatal error
  */
 static int
-transaction_notification_handler(int                 s,
+transaction_notification_handler(clixon_handle       h,
+                                 int                 s,
                                  char               *tidstr0,
                                  int                *match,
                                  transaction_result *resultp,
@@ -406,35 +408,35 @@ transaction_notification_handler(int                 s,
         goto done;
     clixon_debug(CLIXON_DBG_DEFAULT, "%s eof:%d", __FUNCTION__, *eof); /* XXX: see https://github.com/clicon/clixon-controller/issues/43 */
     if (*eof){
-        clicon_err(OE_PROTO, ESHUTDOWN, "Socket unexpected close");
+        clixon_err(OE_PROTO, ESHUTDOWN, "Socket unexpected close");
         close(s);
         goto done; /* Fatal, or possibly cli may reconnect */
     }
     if ((ret = clicon_msg_decode(reply, NULL, NULL, &xt, NULL)) < 0)
         goto done;
     if (ret == 0){ /* will not happen since no yspec ^*/
-        clicon_err(OE_NETCONF, EFAULT, "Notification malformed");
+        clixon_err(OE_NETCONF, EFAULT, "Notification malformed");
         goto done;
     }
     if (clixon_debug_xml(1, xt, "Transaction") < 0)
         goto done;
     if ((xn = xpath_first(xt, 0, "notification/controller-transaction")) == NULL){
-        clicon_err(OE_NETCONF, EFAULT, "Notification malformed");
+        clixon_err(OE_NETCONF, EFAULT, "Notification malformed");
         goto done;
     }
     reason = xml_find_body(xn, "reason");
     if ((tidstr = xml_find_body(xn, "tid")) == NULL){
-        clicon_err(OE_NETCONF, EFAULT, "Notification malformed: no tid");
+        clixon_err(OE_NETCONF, EFAULT, "Notification malformed: no tid");
         goto done;
     }
     if (tidstr0 && strcmp(tidstr0, tidstr) == 0 && match)
         *match = 1;
     if ((resstr = xml_find_body(xn, "result")) == NULL){
-        clicon_err(OE_NETCONF, EFAULT, "Notification malformed: no result");
+        clixon_err(OE_NETCONF, EFAULT, "Notification malformed: no result");
         goto done;
     }
     if ((result = transaction_result_str2int(resstr)) != TR_SUCCESS){
-        clicon_log(LOG_NOTICE, "%s: pid: %u Transaction %s failed: %s",
+        clixon_log(h, LOG_NOTICE, "%s: pid: %u Transaction %s failed: %s",
                    __FUNCTION__, getpid(), tidstr, reason?reason:"no reason");
         goto ok; // error == ^C
     }
@@ -459,7 +461,7 @@ transaction_notification_handler(int                 s,
  * @retval   -1      Error
  */
 static int
-send_transaction_error(clicon_handle h,
+send_transaction_error(clixon_handle h,
                        char         *tidstr)
 {
     int    retval = -1;
@@ -471,7 +473,7 @@ send_transaction_error(clicon_handle h,
     cxobj *xerr;
 
     if ((cb = cbuf_new()) == NULL){
-        clicon_err(OE_PLUGIN, errno, "cbuf_new");
+        clixon_err(OE_PLUGIN, errno, "cbuf_new");
         goto done;
     }
     cprintf(cb, "<rpc xmlns=\"%s\" username=\"%s\" %s>",
@@ -492,11 +494,11 @@ send_transaction_error(clicon_handle h,
     if (clicon_rpc_netconf_xml(h, xrpc, &xret, NULL) < 0)
         goto done;
     if ((xreply = xpath_first(xret, NULL, "rpc-reply")) == NULL){
-        clicon_err(OE_CFG, 0, "Malformed rpc reply");
+        clixon_err(OE_CFG, 0, "Malformed rpc reply");
         goto done;
     }
     if ((xerr = xpath_first(xreply, NULL, "rpc-error")) != NULL){
-        clixon_netconf_error(h, xerr, "Get configuration", NULL);
+        clixon_err_netconf(h, OE_XML, 0, xerr, "Get configuration");
         goto done;
     }
     retval = 0;
@@ -520,7 +522,7 @@ send_transaction_error(clicon_handle h,
  * @see transaction_notification_cb
  */
 static int
-transaction_notification_poll(clicon_handle       h,
+transaction_notification_poll(clixon_handle       h,
                               char               *tidstr,
                               transaction_result *result)
 {
@@ -531,11 +533,11 @@ transaction_notification_poll(clicon_handle       h,
 
     clixon_debug(CLIXON_DBG_DEFAULT, "%s tid:%s", __FUNCTION__, tidstr);
     if ((s = clicon_data_int_get(h, "controller-transaction-notify-socket")) < 0){
-        clicon_err(OE_EVENTS, 0, "controller-transaction-notify-socket is closed");
+        clixon_err(OE_EVENTS, 0, "controller-transaction-notify-socket is closed");
         goto done;
     }
     while (!match){
-        if (transaction_notification_handler(s, tidstr, &match, result, &eof) < 0){
+        if (transaction_notification_handler(h, s, tidstr, &match, result, &eof) < 0){
             if (eof)
                 goto done;
             /* Interpret as user stop transaction: abort transaction */
@@ -593,22 +595,22 @@ cli_rpc_pull(clixon_handle h,
     transaction_result result;
 
     if (argv == NULL || cvec_len(argv) != 1){
-        clicon_err(OE_PLUGIN, EINVAL, "requires argument: replace/merge");
+        clixon_err(OE_PLUGIN, EINVAL, "requires argument: replace/merge");
         goto done;
     }
     if ((cv = cvec_i(argv, 0)) == NULL){
-        clicon_err(OE_PLUGIN, 0, "Error when accessing argument <push>");
+        clixon_err(OE_PLUGIN, 0, "Error when accessing argument <push>");
         goto done;
     }
     op = cv_string_get(cv);
     if (strcmp(op, "replace") != 0 && strcmp(op, "merge") != 0){
-        clicon_err(OE_PLUGIN, EINVAL, "pull <type> argument is %s, expected \"validate\" or \"commit\"", op);
+        clixon_err(OE_PLUGIN, EINVAL, "pull <type> argument is %s, expected \"validate\" or \"commit\"", op);
         goto done;
     }
     if ((cv = cvec_find(cvv, "name")) != NULL)
         name = cv_string_get(cv);
     if ((cb = cbuf_new()) == NULL){
-        clicon_err(OE_PLUGIN, errno, "cbuf_new");
+        clixon_err(OE_PLUGIN, errno, "cbuf_new");
         goto done;
     }
     cprintf(cb, "<rpc xmlns=\"%s\" username=\"%s\" %s>",
@@ -629,15 +631,15 @@ cli_rpc_pull(clixon_handle h,
     if (clicon_rpc_netconf_xml(h, xrpc, &xret, NULL) < 0)
         goto done;
     if ((xreply = xpath_first(xret, NULL, "rpc-reply")) == NULL){
-        clicon_err(OE_CFG, 0, "Malformed rpc reply");
+        clixon_err(OE_CFG, 0, "Malformed rpc reply");
         goto done;
     }
     if ((xerr = xpath_first(xreply, NULL, "rpc-error")) != NULL){
-        clixon_netconf_error(h, xerr, "Get configuration", NULL);
+        clixon_err_netconf(h, OE_XML, 0, xerr, "Get configuration");
         goto done;
     }
     if ((xid = xpath_first(xreply, NULL, "tid")) == NULL){
-        clicon_err(OE_CFG, 0, "No returned id");
+        clixon_err(OE_CFG, 0, "No returned id");
         goto done;
     }
     tidstr = xml_body(xid);
@@ -659,7 +661,7 @@ cli_rpc_pull(clixon_handle h,
 }
 
 static int
-cli_rpc_commit_diff_one(clicon_handle h,
+cli_rpc_commit_diff_one(clixon_handle h,
                         char         *name)
 {
     int     retval = -1;
@@ -675,7 +677,7 @@ cli_rpc_commit_diff_one(clicon_handle h,
     int     i;
 
     if ((cb = cbuf_new()) == NULL){
-        clicon_err(OE_PLUGIN, errno, "cbuf_new");
+        clixon_err(OE_PLUGIN, errno, "cbuf_new");
         goto done;
     }
     cprintf(cb, "<rpc xmlns=\"%s\" username=\"%s\" %s>",
@@ -699,11 +701,11 @@ cli_rpc_commit_diff_one(clicon_handle h,
     if (clicon_rpc_netconf_xml(h, xrpc, &xret, NULL) < 0)
         goto done;
     if ((xreply = xpath_first(xret, NULL, "rpc-reply")) == NULL){
-        clicon_err(OE_CFG, 0, "Malformed rpc reply");
+        clixon_err(OE_CFG, 0, "Malformed rpc reply");
         goto done;
     }
     if ((xerr = xpath_first(xreply, NULL, "rpc-error")) != NULL){
-        clixon_netconf_error(h, xerr, "Get configuration", NULL);
+        clixon_err_netconf(h, OE_XML, 0, xerr, "Get configuration");
         goto done;
     }
     if (xpath_vec(xreply, NULL, "diff", &vec, &veclen) < 0)
@@ -802,36 +804,36 @@ cli_rpc_controller_commit(clixon_handle h,
     transaction_result result;
 
     if (argv == NULL || cvec_len(argv) != 3){
-        clicon_err(OE_PLUGIN, EINVAL, "requires arguments: <datastore> <actions-type> <push-type>");
+        clixon_err(OE_PLUGIN, EINVAL, "requires arguments: <datastore> <actions-type> <push-type>");
         goto done;
     }
     if ((cv = cvec_i(argv, 0)) == NULL){
-        clicon_err(OE_PLUGIN, 0, "Error when accessing argument <datastore>");
+        clixon_err(OE_PLUGIN, 0, "Error when accessing argument <datastore>");
         goto done;
     }
     source = cv_string_get(cv);
     if ((cv = cvec_i(argv, 1)) == NULL){
-        clicon_err(OE_PLUGIN, 0, "Error when accessing argument <actions-type>");
+        clixon_err(OE_PLUGIN, 0, "Error when accessing argument <actions-type>");
         goto done;
     }
     actions_type = cv_string_get(cv);
     if (actions_type_str2int(actions_type) == -1){
-        clicon_err(OE_PLUGIN, EINVAL, "<actions-type> argument is %s, expected NONE/CHANGE/FORCE", actions_type);
+        clixon_err(OE_PLUGIN, EINVAL, "<actions-type> argument is %s, expected NONE/CHANGE/FORCE", actions_type);
         goto done;
     }
     if ((cv = cvec_i(argv, 2)) == NULL){
-        clicon_err(OE_PLUGIN, 0, "Error when accessing argument <push-type>");
+        clixon_err(OE_PLUGIN, 0, "Error when accessing argument <push-type>");
         goto done;
     }
     push_type = cv_string_get(cv);
     if (push_type_str2int(push_type) == -1){
-        clicon_err(OE_PLUGIN, EINVAL, "<push-type> argument is %s, expected NONE/VALIDATE/COMMIT", push_type);
+        clixon_err(OE_PLUGIN, EINVAL, "<push-type> argument is %s, expected NONE/VALIDATE/COMMIT", push_type);
         goto done;
     }
     if ((cv = cvec_find(cvv, "name")) != NULL)
         name = cv_string_get(cv);
     if ((cb = cbuf_new()) == NULL){
-        clicon_err(OE_PLUGIN, errno, "cbuf_new");
+        clixon_err(OE_PLUGIN, errno, "cbuf_new");
         goto done;
     }
     cprintf(cb, "<rpc xmlns=\"%s\" username=\"%s\" %s>",
@@ -853,15 +855,15 @@ cli_rpc_controller_commit(clixon_handle h,
     if (clicon_rpc_netconf_xml(h, xrpc, &xret, NULL) < 0)
         goto done;
     if ((xreply = xpath_first(xret, NULL, "rpc-reply")) == NULL){
-        clicon_err(OE_CFG, 0, "Malformed rpc reply");
+        clixon_err(OE_CFG, 0, "Malformed rpc reply");
         goto done;
     }
     if ((xerr = xpath_first(xreply, NULL, "rpc-error")) != NULL){
-        clixon_netconf_error(h, xerr, "Get configuration", NULL);
+        clixon_err_netconf(h, OE_XML, 0, xerr, "Get configuration");
         goto done;
     }
     if ((xid = xpath_first(xreply, NULL, "tid")) == NULL){
-        clicon_err(OE_CFG, 0, "No returned id");
+        clixon_err(OE_CFG, 0, "No returned id");
         goto done;
     }
     tidstr = xml_body(xid);
@@ -915,18 +917,18 @@ cli_connection_change(clixon_handle h,
     char      *op;
 
     if (argv == NULL || cvec_len(argv) != 1){
-        clicon_err(OE_PLUGIN, EINVAL, "requires argument: <operation>");
+        clixon_err(OE_PLUGIN, EINVAL, "requires argument: <operation>");
         goto done;
     }
     if ((cv = cvec_i(argv, 0)) == NULL){
-        clicon_err(OE_PLUGIN, 0, "Error when accessing argument <push>");
+        clixon_err(OE_PLUGIN, 0, "Error when accessing argument <push>");
         goto done;
     }
     op = cv_string_get(cv);
     if ((cv = cvec_find(cvv, "name")) != NULL)
         name = cv_string_get(cv);
     if ((cb = cbuf_new()) == NULL){
-        clicon_err(OE_PLUGIN, errno, "cbuf_new");
+        clixon_err(OE_PLUGIN, errno, "cbuf_new");
         goto done;
     }
     cprintf(cb, "<rpc xmlns=\"%s\" username=\"%s\" %s>",
@@ -946,11 +948,11 @@ cli_connection_change(clixon_handle h,
     if (clicon_rpc_netconf_xml(h, xrpc, &xret, NULL) < 0)
         goto done;
     if ((xreply = xpath_first(xret, NULL, "rpc-reply")) == NULL){
-        clicon_err(OE_CFG, 0, "Malformed rpc reply");
+        clixon_err(OE_CFG, 0, "Malformed rpc reply");
         goto done;
     }
     if ((xerr = xpath_first(xreply, NULL, "rpc-error")) != NULL){
-        clixon_netconf_error(h, xerr, "Get configuration", NULL);
+        clixon_err_netconf(h, OE_XML, 0, xerr, "Get configuration");
         goto done;
     }
     retval = 0;
@@ -992,12 +994,12 @@ cli_show_devices(clixon_handle h,
     int                detail = 0;
 
     if (argv != NULL && cvec_len(argv) != 1){
-        clicon_err(OE_PLUGIN, EINVAL, "optional argument: <detail>");
+        clixon_err(OE_PLUGIN, EINVAL, "optional argument: <detail>");
         goto done;
     }
     if (cvec_len(argv) == 1){
         if ((cv = cvec_i(argv, 0)) == NULL){
-            clicon_err(OE_PLUGIN, 0, "Error when accessing argument <detail>");
+            clixon_err(OE_PLUGIN, 0, "Error when accessing argument <detail>");
             goto done;
         }
         detail = strcmp(cv_string_get(cv), "detail")==0;
@@ -1005,7 +1007,7 @@ cli_show_devices(clixon_handle h,
     if ((cv = cvec_find(cvv, "name")) != NULL)
         pattern = cv_string_get(cv);
     if ((cb = cbuf_new()) == NULL){
-        clicon_err(OE_PLUGIN, errno, "cbuf_new");
+        clixon_err(OE_PLUGIN, errno, "cbuf_new");
         goto done;
     }
     /* Get config */
@@ -1014,7 +1016,7 @@ cli_show_devices(clixon_handle h,
     if (clicon_rpc_get(h, "co:devices", nsc, CONTENT_ALL, -1, "report-all", &xn) < 0)
         goto done;
     if ((xerr = xpath_first(xn, NULL, "/rpc-error")) != NULL){
-        clixon_netconf_error(h, xerr, "Get devices", NULL);
+        clixon_err_netconf(h, OE_XML, 0, xerr, "Get devices");
         goto done;
     }
     /* Change top from "data" to "devices" */
@@ -1103,11 +1105,11 @@ cli_show_services_process(clixon_handle h,
     name = "Action process";
     opstr = "status";
     if (clixon_process_op_str2int(opstr) == -1){
-        clicon_err(OE_UNIX, 0, "No such process op: %s", opstr);
+        clixon_err(OE_UNIX, 0, "No such process op: %s", opstr);
         goto done;
     }
     if ((cb = cbuf_new()) == NULL){
-        clicon_err(OE_UNIX, errno, "cbuf_new");
+        clixon_err(OE_UNIX, errno, "cbuf_new");
         goto done;
     }
     cprintf(cb, "<rpc xmlns=\"%s\"", NETCONF_BASE_NAMESPACE);
@@ -1121,7 +1123,7 @@ cli_show_services_process(clixon_handle h,
     if (clicon_rpc_netconf(h, cbuf_get(cb), &xret, NULL) < 0)
         goto done;
     if ((xerr = xpath_first(xret, NULL, "//rpc-error")) != NULL){
-        clixon_netconf_error(h, xerr, "Get configuration", NULL);
+        clixon_err_netconf(h, OE_XML, 0, xerr, "Get configuration");
         goto done;
     }
     if ((x = xpath_first(xret, 0, "rpc-reply/active")) != NULL){
@@ -1163,16 +1165,16 @@ cli_show_transactions(clixon_handle h,
     int                all = 0;
 
     if (argv == NULL || cvec_len(argv) != 1){
-        clicon_err(OE_PLUGIN, EINVAL, "requires argument: <operation>");
+        clixon_err(OE_PLUGIN, EINVAL, "requires argument: <operation>");
         goto done;
     }
     if ((cv = cvec_i(argv, 0)) == NULL){
-        clicon_err(OE_PLUGIN, 0, "Error when accessing argument <all>");
+        clixon_err(OE_PLUGIN, 0, "Error when accessing argument <all>");
         goto done;
     }
     all = strcmp(cv_string_get(cv), "all")==0;
     if ((cb = cbuf_new()) == NULL){
-        clicon_err(OE_PLUGIN, errno, "cbuf_new");
+        clixon_err(OE_PLUGIN, errno, "cbuf_new");
         goto done;
     }
     /* Get config */
@@ -1181,7 +1183,7 @@ cli_show_transactions(clixon_handle h,
     if (clicon_rpc_get(h, "co:transactions", nsc, CONTENT_ALL, -1, "report-all", &xn) < 0)
         goto done;
     if ((xerr = xpath_first(xn, NULL, "/rpc-error")) != NULL){
-        clixon_netconf_error(h, xerr, "Get transactions", NULL);
+        clixon_err_netconf(h, OE_XML, 0, xerr, "Get transactions");
         goto done;
     }
     /* Change top from "data" to "devices" */
@@ -1243,18 +1245,18 @@ cli_show_sessions(clixon_handle h,
     uint32_t session_id;
 
     if (argv != NULL && cvec_len(argv) != 1){
-        clicon_err(OE_PLUGIN, EINVAL, "optional argument: <detail>");
+        clixon_err(OE_PLUGIN, EINVAL, "optional argument: <detail>");
         goto done;
     }
     if (cvec_len(argv) == 1){
         if ((cv = cvec_i(argv, 0)) == NULL){
-            clicon_err(OE_PLUGIN, 0, "Error when accessing argument <detail>");
+            clixon_err(OE_PLUGIN, 0, "Error when accessing argument <detail>");
             goto done;
         }
         detail = strcmp(cv_string_get(cv), "detail")==0;
     }
     if ((cb = cbuf_new()) == NULL){
-        clicon_err(OE_PLUGIN, errno, "cbuf_new");
+        clixon_err(OE_PLUGIN, errno, "cbuf_new");
         goto done;
     }
     /* Get config */
@@ -1263,7 +1265,7 @@ cli_show_sessions(clixon_handle h,
     if (clicon_rpc_get(h, "ncm:netconf-state/ncm:sessions", nsc, CONTENT_NONCONFIG, -1, "report-all", &xret) < 0)
         goto done;
     if ((xerr = xpath_first(xret, NULL, "/rpc-error")) != NULL){
-        clixon_netconf_error(h, xerr, "Get devices", NULL);
+        clixon_err_netconf(h, OE_XML, 0, xerr, "Get devices");
         goto done;
     }
     if (xpath_vec(xret, NULL, "netconf-state/sessions/session", &vec, &veclen) < 0)
@@ -1316,7 +1318,7 @@ cli_show_sessions(clixon_handle h,
  * @retval     -1    Error
  */
 static int
-send_pull_transient(clicon_handle h,
+send_pull_transient(clixon_handle h,
                     char         *name,
                     char        **tidstrp)
 {
@@ -1332,7 +1334,7 @@ send_pull_transient(clicon_handle h,
     uint64_t   tid=0;
 
     if ((cb = cbuf_new()) == NULL){
-        clicon_err(OE_PLUGIN, errno, "cbuf_new");
+        clixon_err(OE_PLUGIN, errno, "cbuf_new");
         goto done;
     }
     cprintf(cb, "<rpc xmlns=\"%s\" username=\"%s\" %s>",
@@ -1352,29 +1354,29 @@ send_pull_transient(clicon_handle h,
     if (clicon_rpc_netconf_xml(h, xrpc, &xret, NULL) < 0)
         goto done;
     if ((xreply = xpath_first(xret, NULL, "rpc-reply")) == NULL){
-        clicon_err(OE_CFG, 0, "Malformed rpc reply");
+        clixon_err(OE_CFG, 0, "Malformed rpc reply");
         goto done;
     }
     if ((xerr = xpath_first(xreply, NULL, "rpc-error")) != NULL){
-        clixon_netconf_error(h, xerr, "Get configuration", NULL);
+        clixon_err_netconf(h, OE_XML, 0, xerr, "Get configuration");
         goto done;
     }
     if ((xid = xpath_first(xreply, NULL, "tid")) == NULL){
-        clicon_err(OE_CFG, 0, "No returned id");
+        clixon_err(OE_CFG, 0, "No returned id");
         goto done;
     }
     if ((tidstr = strdup(xml_body(xid))) == NULL){
-        clicon_err(OE_UNIX, errno, "strdup");
+        clixon_err(OE_UNIX, errno, "strdup");
         goto done;
     }
     if (parse_uint64(tidstr, &tid, NULL) <= 0)
         goto done;
     if (tid == 0){
-        clicon_err(OE_UNIX, errno, "Invalid tid = 0");
+        clixon_err(OE_UNIX, errno, "Invalid tid = 0");
         goto done;
     }
     if (tidstrp && (*tidstrp = strdup(tidstr)) == NULL){
-        clicon_err(OE_UNIX, errno, "strdup");
+        clixon_err(OE_UNIX, errno, "strdup");
         goto done;
     }
     retval = 0;
@@ -1402,7 +1404,7 @@ send_pull_transient(clicon_handle h,
  * @retval     -1       Error
  */
 static int
-compare_device_config_type(clicon_handle      h,
+compare_device_config_type(clixon_handle      h,
                            cvec              *cvv,
                            cvec              *argv,
                            device_config_type dt1,
@@ -1429,17 +1431,17 @@ compare_device_config_type(clicon_handle      h,
     int                i;
 
     if (cvec_len(argv) > 1){
-        clicon_err(OE_PLUGIN, EINVAL, "Received %d arguments. Expected: <format>]", cvec_len(argv));
+        clixon_err(OE_PLUGIN, EINVAL, "Received %d arguments. Expected: <format>]", cvec_len(argv));
         goto done;
     }
     if (cbdiff == NULL){
-        clicon_err(OE_PLUGIN, EINVAL, "cbdiff is NULL");
+        clixon_err(OE_PLUGIN, EINVAL, "cbdiff is NULL");
         goto done;
     }
     cv = cvec_i(argv, 0);
     formatstr = cv_string_get(cv);
     if ((int)(format = format_str2int(formatstr)) < 0){
-        clicon_err(OE_PLUGIN, 0, "Not valid format: %s", formatstr);
+        clixon_err(OE_PLUGIN, 0, "Not valid format: %s", formatstr);
         goto done;
     }
     if ((cv = cvec_find(cvv, "name")) != NULL)
@@ -1456,7 +1458,7 @@ compare_device_config_type(clicon_handle      h,
             goto done;
     }
     if ((cb = cbuf_new()) == NULL){
-        clicon_err(OE_PLUGIN, errno, "cbuf_new");
+        clixon_err(OE_PLUGIN, errno, "cbuf_new");
         goto done;
     }
     cprintf(cb, "<rpc xmlns=\"%s\" username=\"%s\" %s>",
@@ -1484,11 +1486,11 @@ compare_device_config_type(clicon_handle      h,
     if (clicon_rpc_netconf_xml(h, xrpc, &xret, NULL) < 0)
         goto done;
     if ((xreply = xpath_first(xret, NULL, "rpc-reply")) == NULL){
-        clicon_err(OE_CFG, 0, "Malformed rpc reply");
+        clixon_err(OE_CFG, 0, "Malformed rpc reply");
         goto done;
     }
     if ((xerr = xpath_first(xreply, NULL, "rpc-error")) != NULL){
-        clixon_netconf_error(h, xerr, "Get configuration", NULL);
+        clixon_err_netconf(h, OE_XML, 0, xerr, "Get configuration");
         goto done;
     }
     if (xpath_vec(xreply, NULL, "diff", &vec, &veclen) < 0)
@@ -1525,7 +1527,7 @@ compare_device_config_type(clicon_handle      h,
  * @see compare_dbs  original function
  */
 int
-compare_dbs_rpc(clicon_handle h,
+compare_dbs_rpc(clixon_handle h,
                 cvec         *cvv,
                 cvec         *argv)
 {
@@ -1545,18 +1547,18 @@ compare_dbs_rpc(clicon_handle h,
     int     i;
 
     if (cvec_len(argv) != 3){
-        clicon_err(OE_PLUGIN, EINVAL, "Expected arguments: <db1> <db2> <format>");
+        clixon_err(OE_PLUGIN, EINVAL, "Expected arguments: <db1> <db2> <format>");
         goto done;
     }
     db1 = cv_string_get(cvec_i(argv, 0));
     db2 = cv_string_get(cvec_i(argv, 1));
     formatstr = cv_string_get(cvec_i(argv, 2));
     if (format_str2int(formatstr) < 0){
-        clicon_err(OE_XML, 0, "format not found %s", formatstr);
+        clixon_err(OE_XML, 0, "format not found %s", formatstr);
         goto done;
     }
     if ((cb = cbuf_new()) == NULL){
-        clicon_err(OE_PLUGIN, errno, "cbuf_new");
+        clixon_err(OE_PLUGIN, errno, "cbuf_new");
         goto done;
     }
     cprintf(cb, "<rpc xmlns=\"%s\" username=\"%s\" %s>",
@@ -1580,11 +1582,11 @@ compare_dbs_rpc(clicon_handle h,
     if (clicon_rpc_netconf_xml(h, xrpc, &xret, NULL) < 0)
         goto done;
     if ((xreply = xpath_first(xret, NULL, "rpc-reply")) == NULL){
-        clicon_err(OE_CFG, 0, "Malformed rpc reply");
+        clixon_err(OE_CFG, 0, "Malformed rpc reply");
         goto done;
     }
     if ((xerr = xpath_first(xreply, NULL, "rpc-error")) != NULL){
-        clixon_netconf_error(h, xerr, "Get configuration", NULL);
+        clixon_err_netconf(h, OE_XML, 0, xerr, "Get configuration");
         goto done;
     }
     if (xpath_vec(xreply, NULL, "diff", &vec, &veclen) < 0)
@@ -1616,7 +1618,7 @@ compare_dbs_rpc(clicon_handle h,
  * @retval     -1     Error
  */
 int
-compare_device_db_sync(clicon_handle h,
+compare_device_db_sync(clixon_handle h,
                        cvec         *cvv,
                        cvec         *argv)
 {
@@ -1624,7 +1626,7 @@ compare_device_db_sync(clicon_handle h,
     cbuf *cbdiff = NULL;
 
     if ((cbdiff = cbuf_new()) == NULL){
-        clicon_err(OE_PLUGIN, errno, "cbuf_new");
+        clixon_err(OE_PLUGIN, errno, "cbuf_new");
         goto done;
     }
     if (compare_device_config_type(h, cvv, argv, DT_SYNCED, DT_RUNNING, cbdiff) < 0)
@@ -1648,7 +1650,7 @@ compare_device_db_sync(clicon_handle h,
  * @see check_device_db  only replies with boolean
  */
 int
-compare_device_db_dev(clicon_handle h,
+compare_device_db_dev(clixon_handle h,
                       cvec         *cvv,
                       cvec         *argv)
 {
@@ -1656,7 +1658,7 @@ compare_device_db_dev(clicon_handle h,
     cbuf *cbdiff = NULL;
 
     if ((cbdiff = cbuf_new()) == NULL){
-        clicon_err(OE_PLUGIN, errno, "cbuf_new");
+        clixon_err(OE_PLUGIN, errno, "cbuf_new");
         goto done;
     }
     if (compare_device_config_type(h, cvv, argv, DT_TRANSIENT, DT_RUNNING, cbdiff) < 0)
@@ -1688,7 +1690,7 @@ check_device_db(clixon_handle h,
     cbuf *cbdiff = NULL;
 
     if ((cbdiff = cbuf_new()) == NULL){
-        clicon_err(OE_PLUGIN, errno, "cbuf_new");
+        clixon_err(OE_PLUGIN, errno, "cbuf_new");
         goto done;
     }
     if (compare_device_config_type(h, cvv, argv, DT_RUNNING, DT_TRANSIENT, cbdiff) < 0)
@@ -1715,7 +1717,7 @@ check_device_db(clixon_handle h,
  * @retval    -1     Error
  */
 static int
-cli_dbxml_devs_sub(clicon_handle       h,
+cli_dbxml_devs_sub(clixon_handle       h,
                    cvec               *cvv,
                    enum operation_type op,
                    cvec               *nsctx,
@@ -1735,7 +1737,7 @@ cli_dbxml_devs_sub(clicon_handle       h,
 
     /* Top-level yspec */
     if ((yspec0 = clicon_dbspec_yang(h)) == NULL){
-        clicon_err(OE_FATAL, 0, "No DB_SPEC");
+        clixon_err(OE_FATAL, 0, "No DB_SPEC");
         goto done;
     }
     /* Create config top-of-tree */
@@ -1747,13 +1749,13 @@ cli_dbxml_devs_sub(clicon_handle       h,
             goto done;
         if (ret == 0){
             if ((cb = cbuf_new()) == NULL){
-                clicon_err(OE_UNIX, errno, "cbuf_new");
+                clixon_err(OE_UNIX, errno, "cbuf_new");
                 goto done;
             }
             cprintf(cb, "api-path syntax error \"%s\": ", api_path);
             if (netconf_err2cb(h, xerr, cb) < 0)
                 goto done;
-            clicon_err(OE_CFG, EINVAL, "%s", cbuf_get(cb));
+            clixon_err(OE_CFG, EINVAL, "%s", cbuf_get(cb));
             goto done;
         }
     }
@@ -1793,7 +1795,7 @@ cli_dbxml_devs_sub(clicon_handle       h,
     if ((ret = xml_apply0(xbot, CX_ELMNT, identityref_add_ns, yspec)) < 0)
         goto done;
     if ((cb = cbuf_new()) == NULL){
-        clicon_err(OE_XML, errno, "cbuf_new");
+        clixon_err(OE_XML, errno, "cbuf_new");
         goto done;
     }
     if (clixon_xml2cbuf(cb, xtop, 0, 0, NULL, -1, 0) < 0)
@@ -1836,7 +1838,7 @@ cli_dbxml_devs_sub(clicon_handle       h,
  * @see cli_show_auto_devs Similar controller handling
  */
 static int
-cli_dbxml_devs(clicon_handle       h,
+cli_dbxml_devs(clixon_handle       h,
                cvec               *cvv,
                cvec               *argv,
                enum operation_type op,
@@ -1859,11 +1861,11 @@ cli_dbxml_devs(clicon_handle       h,
     int        i;
 
     if (cvec_len(argv) < 1){
-        clicon_err(OE_PLUGIN, EINVAL, "Requires first element to be xml key format string");
+        clixon_err(OE_PLUGIN, EINVAL, "Requires first element to be xml key format string");
         goto done;
     }
     if ((api_path_fmt_cb = cbuf_new()) == NULL){
-        clicon_err(OE_UNIX, errno, "cbuf_new");
+        clixon_err(OE_UNIX, errno, "cbuf_new");
         goto done;
     }
     /* Concatenate all argv strings to a single string
@@ -1946,7 +1948,7 @@ cli_dbxml_devs(clicon_handle       h,
  * @see cli_auto_set  original callback
  */
 int
-cli_auto_set_devs(clicon_handle h,
+cli_auto_set_devs(clixon_handle h,
                   cvec         *cvv,
                   cvec         *argv)
 {
@@ -1971,7 +1973,7 @@ cli_auto_set_devs(clicon_handle h,
  * @see cli_auto_merge  original callback
  */
 int
-cli_auto_merge_devs(clicon_handle h,
+cli_auto_merge_devs(clixon_handle h,
                     cvec         *cvv,
                     cvec         *argv)
 {
@@ -1996,7 +1998,7 @@ cli_auto_merge_devs(clicon_handle h,
  * @see cli_auto_del  original callback
  */
 int
-cli_auto_del_devs(clicon_handle h,
+cli_auto_del_devs(clixon_handle h,
                   cvec         *cvv,
                   cvec         *argv)
 {
@@ -2021,7 +2023,7 @@ cli_auto_del_devs(clicon_handle h,
  * @see cli_auto_merge  original callback
  */
 int
-cli_auto_load_devs(clicon_handle h,
+cli_auto_load_devs(clixon_handle h,
                    cvec         *cvv0,
                    cvec         *argv)
 {
@@ -2051,12 +2053,12 @@ cli_auto_load_devs(clicon_handle h,
     if ((cv = cvec_find(cvv, "filename")) != NULL){
         filename = cv_string_get(cv);
         if (stat(filename, &st) < 0){
-            clicon_err(OE_UNIX, errno, "load_config: stat(%s)", filename);
+            clixon_err(OE_UNIX, errno, "load_config: stat(%s)", filename);
             goto done;
         }
         /* Open and parse local file into xml */
         if ((fp = fopen(filename, "r")) == NULL){
-            clicon_err(OE_UNIX, errno, "fopen(%s)", filename);
+            clixon_err(OE_UNIX, errno, "fopen(%s)", filename);
             goto done;
         }
     }
@@ -2066,11 +2068,11 @@ cli_auto_load_devs(clicon_handle h,
         if ((ret = clixon_xml_parse_file(fp, YB_NONE, NULL, &xt, &xerr)) < 0)
             goto done;
         if (ret == 0){
-            clixon_netconf_error(h, xerr, "Loading", filename?filename:"stdin");
+            clixon_err_netconf(h, OE_XML, 0, xerr, "Loading: %s", filename?filename:"stdin");
             goto done;
         }
         if (xml_child_nr(xt) == 0){
-            clicon_err(OE_XML, 0, "No XML in file %s", filename?filename:"stdin");
+            clixon_err(OE_XML, 0, "No XML in file %s", filename?filename:"stdin");
             goto done;
         }
         break;
@@ -2078,23 +2080,23 @@ cli_auto_load_devs(clicon_handle h,
         if ((ret = clixon_json_parse_file(fp, 1, YB_NONE, NULL, &xt, &xerr)) < 0)
             goto done;
         if (ret == 0){
-            clixon_netconf_error(h, xerr, "Loading", filename?filename:"stdin");
+            clixon_err_netconf(h, OE_XML, 0, xerr, "Loading: %s", filename?filename:"stdin");
             goto done;
         }
         if (xml_child_nr(xt) == 0){
-            clicon_err(OE_XML, 0, "No XML in file %s", filename?filename:"stdin");
+            clixon_err(OE_XML, 0, "No XML in file %s", filename?filename:"stdin");
             goto done;
         }
         break;
     default:
-        clicon_err(OE_PLUGIN, 0, "format: %s not implemented", format_int2str(format));
+        clixon_err(OE_PLUGIN, 0, "format: %s not implemented", format_int2str(format));
         goto done;
         break;
     }
     if (xt == NULL)
         goto done;
     if ((cb = cbuf_new()) == NULL){
-        clicon_err(OE_UNIX, errno, "cbuf_new");
+        clixon_err(OE_UNIX, errno, "cbuf_new");
         goto done;
     }
     if (clixon_xml2cbuf(cb, xt, 0, 0, NULL, -1, 1) < 0)
@@ -2125,7 +2127,7 @@ cli_auto_load_devs(clicon_handle h,
 /*! Show controller and clixon version
  */
 int
-cli_controller_show_version(clicon_handle h,
+cli_controller_show_version(clixon_handle h,
                             cvec         *vars,
                             cvec         *argv)
 {
@@ -2161,18 +2163,18 @@ cli_apply_device_template(clixon_handle h,
     char   *var;
 
     if (argv != NULL){
-        clicon_err(OE_PLUGIN, EINVAL, "requires expected NULL");
+        clixon_err(OE_PLUGIN, EINVAL, "requires expected NULL");
         goto done;
     }
     if ((cv = cvec_find(cvv, "templ")) == NULL){
-        clicon_err(OE_PLUGIN, EINVAL, "template variable required");
+        clixon_err(OE_PLUGIN, EINVAL, "template variable required");
         goto done;
     }
     templ = cv_string_get(cv);
     if ((cv = cvec_find(cvv, "devs")) != NULL)
         devs = cv_string_get(cv);
     if ((cb = cbuf_new()) == NULL){
-        clicon_err(OE_PLUGIN, errno, "cbuf_new");
+        clixon_err(OE_PLUGIN, errno, "cbuf_new");
         goto done;
     }
     cprintf(cb, "<rpc xmlns=\"%s\" username=\"%s\" %s>",
@@ -2206,11 +2208,11 @@ cli_apply_device_template(clixon_handle h,
     if (clicon_rpc_netconf_xml(h, xrpc, &xret, NULL) < 0)
         goto done;
     if ((xreply = xpath_first(xret, NULL, "rpc-reply")) == NULL){
-        clicon_err(OE_CFG, 0, "Malformed rpc reply");
+        clixon_err(OE_CFG, 0, "Malformed rpc reply");
         goto done;
     }
     if ((xerr = xpath_first(xreply, NULL, "rpc-error")) != NULL){
-        clixon_netconf_error(h, xerr, "Get configuration", NULL);
+        clixon_err_netconf(h, OE_XML, 0, xerr, "Get configuration");
         goto done;
     }
     retval = 0;

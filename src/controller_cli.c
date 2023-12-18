@@ -55,7 +55,7 @@
  * @retval   -1    Error
  */
 int
-controller_cli_start(clicon_handle h)
+controller_cli_start(clixon_handle h)
 {
     int   retval = -1;
     int   s;
@@ -78,7 +78,7 @@ controller_cli_start(clicon_handle h)
  * @retval   -1    Error
  */
 int
-controller_cli_exit(clicon_handle h)
+controller_cli_exit(clixon_handle h)
 {
     int                retval = -1;
     int                s;
@@ -90,7 +90,7 @@ controller_cli_exit(clicon_handle h)
     if ((s = clicon_data_int_get(h, "controller-transaction-notify-socket")) > 0){
         /* Inline of clicon_rpc_close_session() w other socket */
         if ((cb = cbuf_new()) == NULL){
-            clicon_err(OE_XML, errno, "cbuf_new");
+            clixon_err(OE_XML, errno, "cbuf_new");
             goto done;
         }
         clicon_session_id_get(h, &session_id);
@@ -138,7 +138,7 @@ controller_cli_exit(clicon_handle h)
  * ßee device_shared_yspec for backend code
  */
 static int
-device_shared_yspec_xml(clicon_handle h,
+device_shared_yspec_xml(clixon_handle h,
                         cxobj        *xdev0,
                         cxobj        *xyanglib0,
                         yang_stmt   **yspec1)
@@ -152,7 +152,7 @@ device_shared_yspec_xml(clicon_handle h,
     char      *devname;
 
     if ((xdevs = xml_parent(xdev0)) == NULL){
-        clicon_err(OE_XML, 0, "Device has no parent");
+        clixon_err(OE_XML, 0, "Device has no parent");
         goto done;
     }
     xdev = NULL;
@@ -206,7 +206,7 @@ device_shared_yspec_xml(clicon_handle h,
  * @retval    -1         Error
  */
 static int
-create_autocli_mount_tree(clicon_handle h,
+create_autocli_mount_tree(clixon_handle h,
                           cxobj        *xdev,
                           char         *treename,
                           yang_stmt   **yspec1p)
@@ -310,7 +310,7 @@ controller_cligen_treeref_wrap(cligen_handle ch,
     char         *firsttree = NULL;
     cbuf         *cb = NULL;
     yang_stmt    *yspec1 = NULL;
-    clicon_handle h;
+    clixon_handle h;
     cvec         *cvv_edit;
     cxobj        *xdevs = NULL;
     cxobj        *xdev;
@@ -349,7 +349,7 @@ controller_cligen_treeref_wrap(cligen_handle ch,
     if (rpc_get_yanglib_mount_match(h, pattern, 0, 0, &xdevs) < 0)
         goto done;
     if ((cb = cbuf_new()) == NULL){
-        clicon_err(OE_UNIX, errno, "cbuf_new");
+        clixon_err(OE_UNIX, errno, "cbuf_new");
         goto done;
     }
     /* Loop through all matching devices, check if clispec exists, if not generate
@@ -364,7 +364,7 @@ controller_cligen_treeref_wrap(cligen_handle ch,
         newtree = cbuf_get(cb);
         if (firsttree == NULL &&
             (firsttree= strdup(newtree)) == NULL){
-            clicon_err(OE_UNIX, errno, "strdup");
+            clixon_err(OE_UNIX, errno, "strdup");
             goto done;
         }
         if ((ph = cligen_ph_find(ch, newtree)) == NULL){
@@ -380,7 +380,7 @@ controller_cligen_treeref_wrap(cligen_handle ch,
                     xdev1 = NULL;
                 }
                 if (yspec1 == NULL){
-                    clicon_err(OE_YANG, 0, "No yang spec");
+                    clixon_err(OE_YANG, 0, "No yang spec");
                     goto done;
                 }
                 /* Generate auto-cligen tree from the specs */
@@ -388,7 +388,7 @@ controller_cligen_treeref_wrap(cligen_handle ch,
                     goto done;
                 /* Sanity */
                 if ((ph = cligen_ph_find(ch, newtree)) == NULL){
-                    clicon_err(OE_YANG, 0, "autocli should have been generated but is not?");
+                    clixon_err(OE_YANG, 0, "autocli should have been generated but is not?");
                     goto done;
                 }
             }
@@ -413,11 +413,11 @@ controller_cligen_treeref_wrap(cligen_handle ch,
                 if ((ph = cligen_ph_add(ch, "mountpoint")) == NULL)
                     goto done;
                 if ((pt0 = pt_new()) == NULL){
-                    clicon_err(OE_UNIX, errno, "pt_new");
+                    clixon_err(OE_UNIX, errno, "pt_new");
                     goto done;
                 }
                 if (cligen_ph_parsetree_set(ph, pt0) < 0){
-                    clicon_err(OE_UNIX, 0, "cligen_ph_parsetree_set");
+                    clixon_err(OE_UNIX, 0, "cligen_ph_parsetree_set");
                     goto done;
                 }
             }
@@ -463,7 +463,7 @@ controller_cligen_treeref_wrap(cligen_handle ch,
  * XXX 2. Cache somewhere?
  */
 int
-controller_cli_yang_mount(clicon_handle   h,
+controller_cli_yang_mount(clixon_handle   h,
                           cxobj          *xm,
                           int            *config,
                           validate_level *vl,
@@ -482,7 +482,7 @@ controller_cli_yang_mount(clicon_handle   h,
     if (recursion)
         goto ok;
     if ((cb = cbuf_new()) == NULL){
-        clicon_err(OE_XML, errno, "cbuf_new");
+        clixon_err(OE_XML, errno, "cbuf_new");
         goto done;
     }
     if (xml_nsctx_node(xm, &nsc) < 0)
@@ -501,7 +501,7 @@ controller_cli_yang_mount(clicon_handle   h,
     }
     recursion--;
     if ((xerr = xpath_first(xt, NULL, "/rpc-error")) != NULL){
-        clixon_netconf_error(h, xerr, "clicon_rpc_get", NULL);
+        clixon_err_netconf(h, OE_XML, 0, xerr, "clicon_rpc_get");
         goto done;
     }
     /* Second xpath is specific on module-set */

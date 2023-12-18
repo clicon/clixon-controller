@@ -165,7 +165,7 @@ device_close_connection(device_handle dh,
     name = device_handle_name_get(dh);
     clixon_debug(CLIXON_DBG_DETAIL, "%s %s", __FUNCTION__, name);
     if ((s = device_handle_socket_get(dh)) == -1){
-        clicon_err(OE_UNIX, errno, "%s: socket is -1", device_handle_name_get(dh));
+        clixon_err(OE_UNIX, errno, "%s: socket is -1", device_handle_name_get(dh));
         goto done;
     }
     clixon_event_unreg_fd(s, device_input_cb); /* deregister events */
@@ -183,12 +183,12 @@ device_close_connection(device_handle dh,
             goto done;
         va_end(ap);
         if ((str = malloc(len+1)) == NULL){
-            clicon_err(OE_UNIX, errno, "malloc");
+            clixon_err(OE_UNIX, errno, "malloc");
             goto done;
         }
         va_start(ap, format); /* real */
         if (vsnprintf(str, len+1, format, ap) < 0){
-            clicon_err(OE_UNIX, errno, "vsnprintf");
+            clixon_err(OE_UNIX, errno, "vsnprintf");
             goto done;
         }
         va_end(ap);
@@ -280,7 +280,7 @@ device_input_cb(int   s,
         cbuf_reset(cbmsg);
         if (ret == 0){
             if ((cberr = cbuf_new()) == NULL){
-                clicon_err(OE_UNIX, errno, "cbuf_new");
+                clixon_err(OE_UNIX, errno, "cbuf_new");
                 goto done;
             }
             if (netconf_err2cb(h, xerr, cberr) < 0)
@@ -335,7 +335,7 @@ device_state_mount_point_get(char      *devicename,
     cxobj *xroot;
 
     if ((cb = cbuf_new()) == NULL){
-        clicon_err(OE_UNIX, errno, "cbuf_new");
+        clixon_err(OE_UNIX, errno, "cbuf_new");
         goto done;
     }
     cprintf(cb, "<devices xmlns=\"%s\" xmlns:nc=\"%s\"><device><name>%s</name>",
@@ -349,7 +349,7 @@ device_state_mount_point_get(char      *devicename,
     if (xml_name_set(xt, "config") < 0)
         goto done;
     if ((xroot = xpath_first(xt, NULL, "devices/device/config")) == NULL){
-        clicon_err(OE_XML, 0, "device/config mountpoint not found");
+        clixon_err(OE_XML, 0, "device/config mountpoint not found");
         goto done;
     }
     *xtp = xt;
@@ -390,15 +390,15 @@ device_schemas_mount_parse(clixon_handle h,
                                    &yspec1) < 0)
         goto done;
     if (yspec1 == NULL){
-        clicon_err(OE_YANG, 0, "No yang spec");
+        clixon_err(OE_YANG, 0, "No yang spec");
         goto done;
     }
     /* Given yang-lib, actual parsing of all modules into yspec */
     if ((ret = yang_lib2yspec(h, xyanglib, yspec1)) < 0)
         goto done;
     if (ret == 0){
-        device_close_connection(dh, "%s", clicon_err_reason);
-        clicon_err_reset();
+        device_close_connection(dh, "%s", clixon_err_reason());
+        clixon_err_reset();
         goto fail;
     }
     retval = 1;
@@ -475,7 +475,7 @@ device_state_timeout(int   s,
     device_handle           dh = (device_handle)arg;
     uint64_t                tid;
     controller_transaction *ct = NULL;
-    clicon_handle           h;
+    clixon_handle           h;
     char                   *name;
 
     name = device_handle_name_get(dh);
@@ -524,7 +524,7 @@ device_state_timeout_register(device_handle dh)
     clixon_debug(CLIXON_DBG_DETAIL, "%s timeout:%ld s", __FUNCTION__, t1.tv_sec);
     timeradd(&t, &t1, &t);
     if ((cb = cbuf_new()) == NULL){
-        clicon_err(OE_UNIX, errno, "cbuf_new");
+        clixon_err(OE_UNIX, errno, "cbuf_new");
         goto done;
     }
     cprintf(cb, "Device %s in state %s",
@@ -628,11 +628,11 @@ device_config_write(clixon_handle h,
     char  *db;
 
     if (devname == NULL || config_type == NULL){
-        clicon_err(OE_UNIX, EINVAL, "devname or config_type is NULL");
+        clixon_err(OE_UNIX, EINVAL, "devname or config_type is NULL");
         goto done;
     }
     if ((cbdb = cbuf_new()) == NULL){
-        clicon_err(OE_UNIX, errno, "cbuf_new");
+        clixon_err(OE_UNIX, errno, "cbuf_new");
         goto done;
     }
     cprintf(cbdb, "device-%s-%s", devname, config_type);
@@ -658,7 +658,7 @@ device_config_write(clixon_handle h,
  * @retval    -1           Error
  */
 int
-device_config_read(clicon_handle h,
+device_config_read(clixon_handle h,
                    char         *devname,
                    char         *config_type,
                    cxobj       **xdatap,
@@ -672,11 +672,11 @@ device_config_read(clicon_handle h,
     cxobj *xroot;
 
     if (devname == NULL || config_type == NULL){
-        clicon_err(OE_UNIX, EINVAL, "devname or config_type is NULL");
+        clixon_err(OE_UNIX, EINVAL, "devname or config_type is NULL");
         goto done;
     }
     if ((cbdb = cbuf_new()) == NULL){
-        clicon_err(OE_UNIX, errno, "cbuf_new");
+        clixon_err(OE_UNIX, errno, "cbuf_new");
         goto done;
     }
     cprintf(cbdb, "device-%s-%s", devname, config_type);
@@ -685,7 +685,7 @@ device_config_read(clicon_handle h,
         goto done;
     if ((xroot = xpath_first(xt, NULL, "devices/device/config")) == NULL){
         if ((*cberr = cbuf_new()) == NULL){
-            clicon_err(OE_UNIX, errno, "cbuf_new");
+            clixon_err(OE_UNIX, errno, "cbuf_new");
             goto done;
         }
         cprintf(*cberr, "No such device tree");
@@ -717,7 +717,7 @@ device_config_read(clicon_handle h,
  * @retval    -1        Error
  */
 int
-device_config_copy(clicon_handle h,
+device_config_copy(clixon_handle h,
                    char         *devname,
                    char         *from,
                    char         *to)
@@ -727,15 +727,15 @@ device_config_copy(clicon_handle h,
     cbuf  *db1 = NULL;
 
     if (devname == NULL || from == NULL || to == NULL){
-        clicon_err(OE_UNIX, EINVAL, "devname, from or to is NULL");
+        clixon_err(OE_UNIX, EINVAL, "devname, from or to is NULL");
         goto done;
     }
     if ((db0 = cbuf_new()) == NULL){
-        clicon_err(OE_UNIX, errno, "cbuf_new");
+        clixon_err(OE_UNIX, errno, "cbuf_new");
         goto done;
     }
     if ((db1 = cbuf_new()) == NULL){
-        clicon_err(OE_UNIX, errno, "cbuf_new");
+        clixon_err(OE_UNIX, errno, "cbuf_new");
         goto done;
     }
     cprintf(db0, "device-%s-%s", devname, from);
@@ -763,7 +763,7 @@ device_config_copy(clicon_handle h,
  * @retval    -1      Error
  */
 static int
-device_config_compare(clicon_handle           h,
+device_config_compare(clixon_handle           h,
                       device_handle           dh,
                       char                   *name,
                       controller_transaction *ct,
@@ -788,7 +788,7 @@ device_config_compare(clicon_handle           h,
     }
     if ((eq = xml_tree_equal(x0, x1)) != 0 && cberr0){
         if ((*cberr0 = cbuf_new()) == NULL){
-            clicon_err(OE_UNIX, errno, "cbuf_new");
+            clixon_err(OE_UNIX, errno, "cbuf_new");
             goto done;
         }
         cprintf(*cberr0, "Device %s has changed config. See: diff device-%s-SYNCED_db device-%s-TRANSIENT_db",
@@ -825,7 +825,7 @@ device_config_compare(clicon_handle           h,
  * @retval    -1         Error
  */
 static int
-device_shared_yspec(clicon_handle h,
+device_shared_yspec(clixon_handle h,
                     device_handle dh0,
                     cxobj        *xyanglib0,
                     yang_stmt   **yspec1)
@@ -1312,7 +1312,7 @@ device_state_handler(clixon_handle h,
             /* Not running */
             if (ct->ct_actions_type != AT_NONE && strcmp(ct->ct_sourcedb, "candidate")==0){
                 if ((cberr = cbuf_new()) == NULL){
-                    clicon_err(OE_UNIX, errno, "cbuf_new");
+                    clixon_err(OE_UNIX, errno, "cbuf_new");
                     goto done;
                 }
                 /* What to copy to candidate and commit to running? */
@@ -1321,8 +1321,8 @@ device_state_handler(clixon_handle h,
                 if ((ret = candidate_commit(h, NULL, "candidate", 0, 0, cberr)) < 0){
                     /* Handle that candidate_commit can return < 0 if transaction ongoing */
                     cprintf(cberr, "%s: Commit error", name);
-                    if (strlen(clicon_err_reason) > 0)
-                        cprintf(cberr, " %s", clicon_err_reason);
+                    if (strlen(clixon_err_reason()) > 0)
+                        cprintf(cberr, " %s", clixon_err_reason());
                     if (controller_transaction_failed(h, ct->ct_id, ct, dh, TR_FAILED_DEV_LEAVE, name, cbuf_get(cberr)) < 0)
                         goto done;
                     break;
@@ -1331,7 +1331,7 @@ device_state_handler(clixon_handle h,
                     cxobj *xerr = NULL;
                     cbuf  *cberr2 = NULL;
                     if ((cberr2 = cbuf_new()) == NULL){
-                        clicon_err(OE_UNIX, errno, "cbuf_new");
+                        clixon_err(OE_UNIX, errno, "cbuf_new");
                         goto done;
                     }
                     if (clixon_xml_parse_string(cbuf_get(cberr), YB_NONE, NULL, &xerr, NULL) < 0)
@@ -1401,11 +1401,11 @@ device_state_handler(clixon_handle h,
                XXXX in commit push
              */
             if ((cb = cbuf_new()) == NULL){
-                clicon_err(OE_UNIX, errno, "cbuf_new");
+                clixon_err(OE_UNIX, errno, "cbuf_new");
                 goto done;
             }
             if ((cberr = cbuf_new()) == NULL){
-                clicon_err(OE_UNIX, errno, "cbuf_new");
+                clixon_err(OE_UNIX, errno, "cbuf_new");
                 goto done;
             }
             cprintf(cb, "devices/device[name='%s']/config", name);
@@ -1421,7 +1421,7 @@ device_state_handler(clixon_handle h,
                 if ((ret = device_config_write(h, name, "SYNCED", xt, cberr)) < 0)
                     goto done;
                 if (ret == 0){
-                    clicon_err(OE_XML, 0, "%s", cbuf_get(cberr));
+                    clixon_err(OE_XML, 0, "%s", cbuf_get(cberr));
                     goto done;
                 }
             }
@@ -1580,7 +1580,7 @@ devices_statedata(clixon_handle   h,
 
     
     if ((cb = cbuf_new()) == NULL){
-        clicon_err(OE_UNIX, errno, "cbuf_new");
+        clixon_err(OE_UNIX, errno, "cbuf_new");
         goto done;
     }
     dh = NULL;

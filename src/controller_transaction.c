@@ -179,11 +179,11 @@ controller_transaction_notify(clixon_handle           h,
 
     clixon_debug(1, "%s %" PRIu64, __FUNCTION__, ct->ct_id);
     if (ct->ct_state == TS_INIT){
-        clicon_err(OE_CFG, EINVAL, "Transaction notify sent in state INIT");
+        clixon_err(OE_CFG, EINVAL, "Transaction notify sent in state INIT");
         goto done;
     }
     if ((cb = cbuf_new()) == NULL){
-        clicon_err(OE_UNIX, errno, "cbuf_new");
+        clixon_err(OE_UNIX, errno, "cbuf_new");
         goto done;
     }
     cprintf(cb, "<controller-transaction xmlns=\"%s\">", CONTROLLER_NAMESPACE);
@@ -210,7 +210,7 @@ controller_transaction_notify(clixon_handle           h,
 /*! Create new transaction id
  */
 static int
-transaction_new_id(clicon_handle h,
+transaction_new_id(clixon_handle h,
                    uint64_t     *idp)
 {
     int      retval = -1;
@@ -253,7 +253,7 @@ transaction_new_id(clicon_handle h,
  * @see controller_transaction_state_done
  */
 int
-controller_transaction_new(clicon_handle            h,
+controller_transaction_new(clixon_handle            h,
                            char                    *description,
                            controller_transaction **ctp,
                            cbuf                   **cberr)
@@ -267,14 +267,14 @@ controller_transaction_new(clicon_handle            h,
     char                   *db = "candidate";
 
     if (ctp == NULL){
-        clicon_err(OE_PLUGIN, EINVAL, "ctp is NULL");
+        clixon_err(OE_PLUGIN, EINVAL, "ctp is NULL");
         goto done;
     }
     clixon_debug(1, "%s", __FUNCTION__);
     if ((iddb = xmldb_islocked(h, db)) != 0){
         if (cberr){
             if ((*cberr = cbuf_new()) == NULL){
-                clicon_err(OE_UNIX, errno, "cbuf_new");
+                clixon_err(OE_UNIX, errno, "cbuf_new");
                 goto done;
             }
             cprintf(*cberr, "Candidate db is locked by %u", iddb);
@@ -288,7 +288,7 @@ controller_transaction_new(clicon_handle            h,
             if (ct->ct_state != TS_DONE){
                 if (cberr){
                     if ((*cberr = cbuf_new()) == NULL){
-                        clicon_err(OE_UNIX, errno, "cbuf_new");
+                        clixon_err(OE_UNIX, errno, "cbuf_new");
                         goto done;
                     }
                     cprintf(*cberr, "Transaction %s is ongoing", ct->ct_description);
@@ -300,7 +300,7 @@ controller_transaction_new(clicon_handle            h,
     }
     sz = sizeof(controller_transaction);
     if ((ct = malloc(sz)) == NULL){
-        clicon_err(OE_NETCONF, errno, "malloc");
+        clixon_err(OE_NETCONF, errno, "malloc");
         goto done;
     }
     memset(ct, 0, sz);
@@ -309,7 +309,7 @@ controller_transaction_new(clicon_handle            h,
         goto done;
     if (description &&
         (ct->ct_description = strdup(description)) == NULL){
-        clicon_err(OE_UNIX, errno, "strdup");
+        clixon_err(OE_UNIX, errno, "strdup");
         goto done;
     }
     (void)clicon_ptr_get(h, "controller-transaction-list", (void**)&ct_list);
@@ -354,7 +354,7 @@ controller_transaction_free1(controller_transaction *ct)
 /*! Remove and free single controller transaction
  */
 int
-controller_transaction_free(clicon_handle           h,
+controller_transaction_free(clixon_handle           h,
                             controller_transaction *ct)
 {
     controller_transaction *ct_list = NULL;
@@ -370,7 +370,7 @@ controller_transaction_free(clicon_handle           h,
  * @param[in]  h   Clixon handle
  */
 int
-controller_transaction_free_all(clicon_handle h)
+controller_transaction_free_all(clixon_handle h)
 {
     controller_transaction *ct_list = NULL;
     controller_transaction *ct;
@@ -394,7 +394,7 @@ controller_transaction_free_all(clicon_handle h)
  * @see controller_transaction_new
  */
 int
-controller_transaction_done(clicon_handle           h,
+controller_transaction_done(clixon_handle           h,
                             controller_transaction *ct,
                             transaction_result      result)
 {
@@ -406,7 +406,7 @@ controller_transaction_done(clicon_handle           h,
     controller_transaction_state_set(ct, TS_DONE, result);
     iddb = xmldb_islocked(h, db);
     if (iddb != TRANSACTION_CLIENT_ID){
-        clicon_err(OE_NETCONF, 0, "Unlock failed, not locked by transaction");
+        clixon_err(OE_NETCONF, 0, "Unlock failed, not locked by transaction");
         goto done;
     }
     if (xmldb_unlock(h, db) < 0)
@@ -457,7 +457,7 @@ controller_transaction_find(clixon_handle  h,
  * @retval     nr     Number of devices in transaction
  */
 int
-controller_transaction_devices(clicon_handle h,
+controller_transaction_devices(clixon_handle h,
                                uint64_t      tid)
 {
     device_handle dh = NULL;
@@ -495,7 +495,7 @@ controller_transaction_devices(clicon_handle h,
  * @retval    -1      Error
  */
 int
-controller_transaction_failed(clicon_handle           h,
+controller_transaction_failed(clixon_handle           h,
                               uint64_t                tid,
                               controller_transaction *ct,
                               device_handle           dh,
@@ -521,13 +521,13 @@ controller_transaction_failed(clicon_handle           h,
                 goto done;
             if (origin && ct->ct_origin == NULL){
                 if ((ct->ct_origin = strdup(origin)) == NULL){
-                    clicon_err(OE_UNIX, errno, "strdup");
+                    clixon_err(OE_UNIX, errno, "strdup");
                     goto done;
                 }
             }
             if (reason && ct->ct_reason == NULL){
                 if ((ct->ct_reason = strdup(reason)) == NULL){
-                    clicon_err(OE_UNIX, errno, "strdup");
+                    clixon_err(OE_UNIX, errno, "strdup");
                     goto done;
                 }
             }
@@ -542,13 +542,13 @@ controller_transaction_failed(clicon_handle           h,
         controller_transaction_state_set(ct, TS_RESOLVED, TR_FAILED);
         if (origin && ct->ct_origin == NULL) {
             if ((ct->ct_origin = strdup(origin)) == NULL){
-                clicon_err(OE_UNIX, errno, "strdup");
+                clixon_err(OE_UNIX, errno, "strdup");
                 goto done;
             }
         }
         if (reason && ct->ct_reason == NULL) {
             if ((ct->ct_reason = strdup(reason)) == NULL){
-                clicon_err(OE_UNIX, errno, "strdup");
+                clixon_err(OE_UNIX, errno, "strdup");
                 goto done;
             }
         }
@@ -559,7 +559,7 @@ controller_transaction_failed(clicon_handle           h,
             goto done;
     }
     else if (ct->ct_result == TR_SUCCESS){
-        clicon_err(OE_XML, 0, "Sanity: may not be in resolved OK state");
+        clixon_err(OE_XML, 0, "Sanity: may not be in resolved OK state");
     }
     retval = 0;
  done:
@@ -574,7 +574,7 @@ controller_transaction_failed(clicon_handle           h,
  * @retval -1 Error: inconsistent states
  */
 int
-controller_transaction_wait(clicon_handle h,
+controller_transaction_wait(clixon_handle h,
                             uint64_t      tid)
 {
     int           retval = -1;
@@ -600,7 +600,7 @@ controller_transaction_wait(clicon_handle h,
             other++;
     }
     if ((notready||wait) && other){
-        clicon_err(OE_YANG, 0, "Inconsistent states: (notready||wait) && other");
+        clixon_err(OE_YANG, 0, "Inconsistent states: (notready||wait) && other");
         goto done;
     }
     if (wait && notready==0)
@@ -620,7 +620,7 @@ controller_transaction_wait(clicon_handle h,
  * @retval    -1      Error
  */
 int
-controller_transaction_wait_trigger(clicon_handle h,
+controller_transaction_wait_trigger(clixon_handle h,
                                     uint64_t      tid,
                                     int           commit)
 {
@@ -675,7 +675,7 @@ controller_transactions_statedata(clixon_handle   h,
 
     clixon_debug(1, "%s", __FUNCTION__);
     if ((cb = cbuf_new()) == NULL){
-        clicon_err(OE_UNIX, errno, "cbuf_new");
+        clixon_err(OE_UNIX, errno, "cbuf_new");
         goto done;
     }
     cprintf(cb, "<transactions xmlns=\"%s\">", CONTROLLER_NAMESPACE);

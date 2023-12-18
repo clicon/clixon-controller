@@ -128,7 +128,7 @@ device_handle_new(clixon_handle h,
     clixon_debug(1, "%s", __FUNCTION__);
     sz = sizeof(struct controller_device_handle);
     if ((cdh = malloc(sz)) == NULL){
-        clicon_err(OE_NETCONF, errno, "malloc");
+        clixon_err(OE_NETCONF, errno, "malloc");
         return NULL;
     }
     memset(cdh, 0, sz);
@@ -137,11 +137,11 @@ device_handle_new(clixon_handle h,
     cdh->cdh_socket = -1;
     cdh->cdh_conn_state = CS_CLOSED;
     if ((cdh->cdh_name = strdup(name)) == NULL){
-        clicon_err(OE_UNIX, errno, "strdup");
+        clixon_err(OE_UNIX, errno, "strdup");
         return NULL;
     }
     if ((cdh->cdh_frame_buf = cbuf_new()) == NULL){
-        clicon_err(OE_UNIX, errno, "cbuf_new");
+        clixon_err(OE_UNIX, errno, "cbuf_new");
         return NULL;
     }
     (void)clicon_ptr_get(h, "client-list", (void**)&cdh_list);
@@ -294,7 +294,7 @@ device_handle_connect(device_handle      dh,
 
     clixon_debug(1, "%s", __FUNCTION__);
     if (cdh == NULL){
-        clicon_err(OE_XML, EINVAL, "dh is NULL");
+        clixon_err(OE_XML, EINVAL, "dh is NULL");
         goto done;
     }
     h = cdh->cdh_h;
@@ -313,7 +313,7 @@ device_handle_connect(device_handle      dh,
         if (clixon_client_connect_ssh(h, dest, &cdh->cdh_pid, &cdh->cdh_socket) < 0)
             goto err;
 #else
-        clicon_err(OE_UNIX, 0, "No ssh bin");
+        clixon_err(OE_UNIX, 0, "No ssh bin");
         goto done;
 #endif
         break;
@@ -344,7 +344,7 @@ device_handle_disconnect(device_handle dh)
 
     clixon_debug(1, "%s %s", __FUNCTION__, cdh->cdh_name);
     if (cdh == NULL){
-        clicon_err(OE_XML, EINVAL, "Expected cdh handle");
+        clixon_err(OE_XML, EINVAL, "Expected cdh handle");
         goto done;
     }
     switch(cdh->cdh_type){
@@ -760,14 +760,14 @@ device_handle_yang_lib_append(device_handle dh,
     /* Sanity check */
     if (xylib){
         if ((xms = xml_find_type(xylib, NULL, "module-set", CX_ELMNT)) == NULL){
-            clicon_err(OE_XML, EINVAL, "yang-lib top-level malformed: not module-set");
+            clixon_err(OE_XML, EINVAL, "yang-lib top-level malformed: not module-set");
             goto done;
         }
     }
     if (cdh->cdh_yang_lib) {
         if (xylib){
             if ((xms0 = xml_find_type(cdh->cdh_yang_lib, NULL, "module-set", CX_ELMNT)) == NULL){
-                clicon_err(OE_XML, EINVAL, "yang-lib top-level malformed: not module-set");
+                clixon_err(OE_XML, EINVAL, "yang-lib top-level malformed: not module-set");
                 goto done;
             }
             x = NULL;

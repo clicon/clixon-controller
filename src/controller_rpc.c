@@ -76,15 +76,15 @@ connect_netconf_ssh(clixon_handle h,
     int   s;
 
     if (addr == NULL || dh == NULL){
-        clicon_err(OE_PLUGIN, EINVAL, "xn, addr or dh is NULL");
+        clixon_err(OE_PLUGIN, EINVAL, "xn, addr or dh is NULL");
         goto done;
     }
     if (device_handle_conn_state_get(dh) != CS_CLOSED){
-        clicon_err(OE_PLUGIN, EINVAL, "dh is not closed");
+        clixon_err(OE_PLUGIN, EINVAL, "dh is not closed");
         goto done;
     }
     if ((cb = cbuf_new()) == NULL){
-        clicon_err(OE_UNIX, errno, "cbuf_new");
+        clixon_err(OE_UNIX, errno, "cbuf_new");
         goto done;
     }
     if (user)
@@ -277,7 +277,7 @@ push_device_one(clixon_handle           h,
         goto failed;
     /* 2) get current and compute diff with previous */
     if ((cb = cbuf_new()) == NULL){
-        clicon_err(OE_UNIX, errno, "cbuf_new");
+        clixon_err(OE_UNIX, errno, "cbuf_new");
         goto done;
     }
     cprintf(cb, "devices/device[name='%s']/config", name);
@@ -285,7 +285,7 @@ push_device_one(clixon_handle           h,
         goto done;
     if ((x1 = xpath_first(x1t, nsc, "%s", cbuf_get(cb))) == NULL){
         if ((*cberr = cbuf_new()) == NULL){
-            clicon_err(OE_UNIX, errno, "cbuf_new");
+            clixon_err(OE_UNIX, errno, "cbuf_new");
             goto done;
         }
         cprintf(*cberr, "Device not configured");
@@ -300,7 +300,7 @@ push_device_one(clixon_handle           h,
         goto done;
     if (yspec == NULL){
         if ((*cberr = cbuf_new()) == NULL){
-            clicon_err(OE_UNIX, errno, "cbuf_new");
+            clixon_err(OE_UNIX, errno, "cbuf_new");
             goto done;
         }
         cprintf(*cberr, "No YANGs in device");
@@ -494,11 +494,11 @@ actions_timeout(int   s,
     if (ct->ct_state == TS_INIT){ /* 1.3 The transition is not in an error state */
         controller_transaction_state_set(ct, TS_RESOLVED, TR_FAILED);
         if ((ct->ct_origin = strdup("actions")) == NULL){
-            clicon_err(OE_UNIX, errno, "strdup");
+            clixon_err(OE_UNIX, errno, "strdup");
             goto done;
         }
         if ((ct->ct_reason = strdup("Timeout waiting for service actions to complete")) == NULL){
-            clicon_err(OE_UNIX, errno, "strdup");
+            clixon_err(OE_UNIX, errno, "strdup");
             goto done;
         }
         if (controller_transaction_notify(ct->ct_h, ct) < 0)
@@ -588,7 +588,7 @@ controller_actions_diff(clixon_handle           h,
     }
     *services = 1;
     if ((cb = cbuf_new()) == NULL){
-        clicon_err(OE_UNIX, errno, "cbuf_new");
+        clixon_err(OE_UNIX, errno, "cbuf_new");
         goto done;
     }
     /* Check deleted */
@@ -604,7 +604,7 @@ controller_actions_diff(clixon_handle           h,
             /* XXX See also service_action_one where tags are also created */
             cprintf(cb, "%s[%s='%s']", xml_name(xn), xml_name(xi), instance);
             if (cvec_add_string(cvv, cbuf_get(cb), NULL) < 0){
-                clicon_err(OE_UNIX, errno, "cvec_add_string");
+                clixon_err(OE_UNIX, errno, "cvec_add_string");
                 goto done;
             }
             cbuf_reset(cb);
@@ -623,7 +623,7 @@ controller_actions_diff(clixon_handle           h,
             /* XXX See also service_action_one where tags are also created */
             cprintf(cb, "%s[%s='%s']", xml_name(xn), xml_name(xi), instance);
             if (cvec_add_string(cvv, cbuf_get(cb), NULL) < 0){
-                clicon_err(OE_UNIX, errno, "cvec_add_string");
+                clixon_err(OE_UNIX, errno, "cvec_add_string");
                 goto done;
             }
             cbuf_reset(cb);
@@ -722,7 +722,7 @@ strip_service_data_from_device_config(clixon_handle h,
     }
     if (veclen){
         if ((cbret = cbuf_new()) == NULL){
-            clicon_err(OE_UNIX, errno, "cbuf_new");
+            clixon_err(OE_UNIX, errno, "cbuf_new");
             goto done;
         }
         /* XXX Somewhat raw to replace the top-level tree, could do with op=REMOVE
@@ -731,7 +731,7 @@ strip_service_data_from_device_config(clixon_handle h,
         if ((ret = xmldb_put(h, db, OP_REPLACE, xt, NULL, cbret)) < 0)
             goto done;
         if (ret == 0){
-            clicon_err(OE_XML, 0, "xmldb_ut failed");
+            clixon_err(OE_XML, 0, "xmldb_ut failed");
             goto done;
         }
     }
@@ -812,11 +812,11 @@ commit_push_after_actions(clixon_handle           h,
             goto done;
         if (ret == 0){
             if ((ct->ct_origin = strdup("controller")) == NULL){
-                clicon_err(OE_UNIX, errno, "strdup");
+                clixon_err(OE_UNIX, errno, "strdup");
                 goto done;
             }
             if ((ct->ct_reason = strdup(cbuf_get(cberr))) == NULL){
-                clicon_err(OE_UNIX, errno, "strdup");
+                clixon_err(OE_UNIX, errno, "strdup");
                 goto done;
             }
             if (controller_transaction_done(h, ct, TR_FAILED) < 0)
@@ -828,7 +828,7 @@ commit_push_after_actions(clixon_handle           h,
         else if (controller_transaction_devices(h, ct->ct_id) == 0){
             if (ct->ct_actions_type != AT_NONE && strcmp(ct->ct_sourcedb, "candidate")==0){
                 if ((cberr = cbuf_new()) == NULL){
-                    clicon_err(OE_UNIX, errno, "cbuf_new");
+                    clixon_err(OE_UNIX, errno, "cbuf_new");
                     goto done;
                 }
                 /* What to copy to candidate and commit to running? */
@@ -837,14 +837,14 @@ commit_push_after_actions(clixon_handle           h,
                 /* XXX: recursive creates transaction */
                 if ((ret = candidate_commit(h, NULL, "candidate", 0, 0, cberr)) < 0){
                     /* Handle that candidate_commit can return < 0 if transaction ongoing */
-                    cprintf(cberr, "%s", clicon_err_reason); // XXX encode
+                    cprintf(cberr, "%s", clixon_err_reason()); // XXX encode
                     ret = 0;
                 }
                 if (ret == 0){ // XXX awkward, cb ->xml->cb
                     cxobj *xerr = NULL;
                     cbuf *cberr2 = NULL;
                     if ((cberr2 = cbuf_new()) == NULL){
-                        clicon_err(OE_UNIX, errno, "cbuf_new");
+                        clixon_err(OE_UNIX, errno, "cbuf_new");
                         goto done;
                     }
                     if (clixon_xml_parse_string(cbuf_get(cberr), YB_NONE, NULL, &xerr, NULL) < 0)
@@ -863,7 +863,7 @@ commit_push_after_actions(clixon_handle           h,
                 }
             }
             if ((ct->ct_reason = strdup("No device  configuration changed, no push necessary")) == NULL){
-                clicon_err(OE_UNIX, errno, "strdup");
+                clixon_err(OE_UNIX, errno, "strdup");
                 goto done;
             }
             if (controller_transaction_done(h, ct, TR_SUCCESS) < 0)
@@ -904,7 +904,7 @@ controller_commit_actions(clixon_handle           h,
     cg_var *cv = NULL;
 
     if ((cvv = cvec_new(0)) == NULL){
-        clicon_err(OE_UNIX, errno, "cvec_new");
+        clixon_err(OE_UNIX, errno, "cvec_new");
         goto done;
     }
     /* Get candidate and running, compute diff and get notification msg in return */
@@ -922,7 +922,7 @@ controller_commit_actions(clixon_handle           h,
            THEN notify services 
         */
         if ((notifycb = cbuf_new()) == NULL){
-            clicon_err(OE_UNIX, errno, "cbuf_new");
+            clixon_err(OE_UNIX, errno, "cbuf_new");
             goto done;
         }
         cprintf(notifycb, "<services-commit xmlns=\"%s\">", CONTROLLER_NAMESPACE);
@@ -1090,7 +1090,7 @@ devices_local_change(clixon_handle       h,
     if (xd){
         name = xml_find_body(xd, "name");
         if ((*changed = device_handle_find(h, name)) == NULL){
-            clicon_err(OE_XML, 0, "device %s not found in transaction", name);
+            clixon_err(OE_XML, 0, "device %s not found in transaction", name);
             goto done;
         }
     }
@@ -1181,7 +1181,7 @@ devices_diff(clixon_handle           h,
  * @retval    -1      Error
  */
 static int
-device_error(clicon_handle           h,
+device_error(clixon_handle           h,
              controller_transaction *ct,
              device_handle           dh,
              int                     reason,
@@ -1192,7 +1192,7 @@ device_error(clicon_handle           h,
     char *name = NULL;
 
     if ((cb = cbuf_new()) == NULL){
-        clicon_err(OE_UNIX, errno, "cbuf_new");
+        clixon_err(OE_UNIX, errno, "cbuf_new");
         goto done;
     }
     if (dh)
@@ -1208,11 +1208,11 @@ device_error(clicon_handle           h,
     if (controller_transaction_done(h, ct, TR_FAILED) < 0)
         goto done;
     if (name && (ct->ct_origin = strdup(name)) == NULL){
-        clicon_err(OE_UNIX, errno, "strdup");
+        clixon_err(OE_UNIX, errno, "strdup");
         goto done;
     }
     if ((ct->ct_reason = strdup(cbuf_get(cb))) == NULL){
-        clicon_err(OE_UNIX, errno, "strdup");
+        clixon_err(OE_UNIX, errno, "strdup");
         goto done;
     }
     retval = 0;
@@ -1285,7 +1285,7 @@ rpc_controller_commit(clixon_handle h,
             goto ok;
     }
     if ((cbtr = cbuf_new()) == NULL){
-        clicon_err(OE_UNIX, errno, "cbuf_new");
+        clixon_err(OE_UNIX, errno, "cbuf_new");
         goto done;
     }
     cprintf(cbtr, "Controller commit");
@@ -1447,7 +1447,7 @@ rpc_get_device_config(clixon_handle h,
     if (xpath_vec(xret, nsc, "devices/device", &vec, &veclen) < 0)
         goto done;
     if ((cb = cbuf_new()) == NULL){
-        clicon_err(OE_UNIX, errno, "cbuf_new");
+        clixon_err(OE_UNIX, errno, "cbuf_new");
         goto done;
     }
     cprintf(cb, "<rpc-reply xmlns=\"%s\">", NETCONF_BASE_NAMESPACE);
@@ -1546,7 +1546,7 @@ rpc_connection_change(clixon_handle h,
     clixon_debug(1, "%s", __FUNCTION__);
     ce = (client_entry *)arg;
     if ((cbtr = cbuf_new()) == NULL){
-        clicon_err(OE_UNIX, errno, "cbuf_new");
+        clixon_err(OE_UNIX, errno, "cbuf_new");
         goto done;
     }
     cprintf(cbtr, "Controller commit");
@@ -1614,7 +1614,7 @@ rpc_connection_change(clixon_handle h,
             }
         }
         else {
-            clicon_err(OE_NETCONF, 0, "%s is not a connection-operation", operation);
+            clixon_err(OE_NETCONF, 0, "%s is not a connection-operation", operation);
             goto done;
         }
     } /* for */
@@ -1822,7 +1822,7 @@ datastore_diff_dsref(clixon_handle    h,
     else
         x2 = xt2;
     if ((cb = cbuf_new()) == NULL){
-        clicon_err(OE_UNIX, errno, "cbuf_new");
+        clixon_err(OE_UNIX, errno, "cbuf_new");
         goto done;
     }
     switch (format){
@@ -1900,11 +1900,11 @@ datastore_diff_device(clixon_handle      h,
     char         *ct;
 
     if ((cbxpath = cbuf_new()) == NULL){
-        clicon_err(OE_UNIX, errno, "cbuf_new");
+        clixon_err(OE_UNIX, errno, "cbuf_new");
         goto done;
     }
     if ((cb = cbuf_new()) == NULL){
-        clicon_err(OE_UNIX, errno, "cbuf_new");
+        clixon_err(OE_UNIX, errno, "cbuf_new");
         goto done;
     }
     if (xmldb_get0(h, "running", Y_MODULE, nsc, "devices/device/name", 1, WITHDEFAULTS_EXPLICIT, &xret, NULL, NULL) < 0)
@@ -2099,7 +2099,7 @@ rpc_datastore_diff(clixon_handle h,
     xpath = xml_find_body(xe, "xpath");
     if ((formatstr = xml_find_body(xe, "format")) != NULL){
         if ((int)(format = format_str2int(formatstr)) < 0){
-            clicon_err(OE_PLUGIN, 0, "Not valid format: %s", formatstr);
+            clixon_err(OE_PLUGIN, 0, "Not valid format: %s", formatstr);
             goto done;
         }
         if (format != FORMAT_XML && format != FORMAT_TEXT){
@@ -2260,7 +2260,7 @@ clixon_strsep2(char   *str,
     /* alloc vector and append copy of string */
     sz = (nr+1)* sizeof(char*) + strlen(str)+1;
     if ((vec = (char**)malloc(sz)) == NULL){
-        clicon_err(OE_UNIX, errno, "malloc");
+        clixon_err(OE_UNIX, errno, "malloc");
         goto done;
     }
     memset(vec, 0, sz);
@@ -2322,7 +2322,7 @@ apply_template(cxobj *x,
         assert(nvec%2 == 1); /* Must be odd */
         if (nvec > 1){
             if ((cb = cbuf_new()) == NULL){
-                clicon_err(OE_UNIX, errno, "cbuf_new");
+                clixon_err(OE_UNIX, errno, "cbuf_new");
                 goto done;
             }
             i = 0;
@@ -2366,7 +2366,7 @@ apply_template(cxobj *x,
  * @retval    -1       Error
  */
 int
-rpc_device_template_apply(clicon_handle h,
+rpc_device_template_apply(clixon_handle h,
                           cxobj        *xe,
                           cbuf         *cbret,
                           void         *arg,
@@ -2426,7 +2426,7 @@ rpc_device_template_apply(clicon_handle h,
     if (xml_sort_recurse(xtmpl) < 0)
         goto done;
     if ((cb = cbuf_new()) == NULL){
-        clicon_err(OE_UNIX, errno, "cbuf_new");
+        clixon_err(OE_UNIX, errno, "cbuf_new");
         goto done;
     }
     cprintf(cb, "<devices xmlns=\"%s\" xmlns:%s=\"%s\" %s:operation=\"merge\">",
@@ -2496,7 +2496,7 @@ rpc_device_template_apply(clicon_handle h,
 /*! Register callback for rpc calls 
  */
 int
-controller_rpc_init(clicon_handle h)
+controller_rpc_init(clixon_handle h)
 {
     int retval = -1;
 

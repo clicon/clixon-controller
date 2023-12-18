@@ -180,7 +180,7 @@ controller_commit_device(clixon_handle h,
         if ((body = xml_body(vec0[i])) == NULL)
             continue;
         if (parse_uint32(body, &dt, NULL) < 1){
-            clicon_err(OE_UNIX, errno, "error parsing limit:%s", body);
+            clixon_err(OE_UNIX, errno, "error parsing limit:%s", body);
             goto done;
         }
         clicon_data_int_set(h, "controller-device-timeout", dt);
@@ -257,7 +257,7 @@ controller_commit(clixon_handle    h,
  * @retval   -1    Error
  */
 int
-controller_unknown(clicon_handle h,
+controller_unknown(clixon_handle h,
                      yang_stmt    *yext,
                      yang_stmt    *ys)
 {
@@ -287,7 +287,7 @@ controller_unknown(clicon_handle h,
  * @see controller_connect  where yang-lib is iniated from local yangs
  */
 int
-controller_yang_mount(clicon_handle   h,
+controller_yang_mount(clixon_handle   h,
                       cxobj          *xt,
                       int            *config,
                       validate_level *vl,
@@ -346,7 +346,7 @@ controller_yang_mount(clicon_handle   h,
  * @retval       -1   Error
  */
 int
-controller_action_proc_cb(clicon_handle    h,
+controller_action_proc_cb(clixon_handle    h,
                           process_entry_t *pe,
                           proc_operation  *operation)
 {
@@ -376,7 +376,7 @@ controller_action_proc_cb(clicon_handle    h,
  * @retval   -1    Error
  */
 static int
-action_daemon_register(clicon_handle h)
+action_daemon_register(clixon_handle h)
 {
     int         retval = -1;
     char       *cmd;
@@ -403,29 +403,29 @@ action_daemon_register(clicon_handle h)
     pgm = argv0[0];
     /* Sanity check of executable */
     if (stat(pgm, &fstat) < 0){
-        clicon_err(OE_XML, 0, "%s not found", pgm);
+        clixon_err(OE_XML, 0, "%s not found", pgm);
         goto done;
     }
     else if (S_ISREG(fstat.st_mode) == 0){
-        clicon_err(OE_XML, 0, "%s not regulare device", pgm);
+        clixon_err(OE_XML, 0, "%s not regulare device", pgm);
         goto done;
     }
     /* Get user id, kludge: assume clixon sock group has an associated user */
     if ((group = clicon_sock_group(h)) != NULL){
         if (group_name2gid(group, &gid) < 0){
-            clicon_err(OE_DAEMON, errno, "'%s' is not a valid group\n", group);
+            clixon_err(OE_DAEMON, errno, "'%s' is not a valid group\n", group);
             goto done;
         }
     }
     if ((user = clicon_backend_user(h)) != NULL){
         if (name2uid(user, &uid) < 0){
-            clicon_err(OE_DAEMON, errno, "'%s' is not a valid user .\n", user);
+            clixon_err(OE_DAEMON, errno, "'%s' is not a valid user .\n", user);
             goto done;
         }
     }
     nr = argc0 + 1;
     if ((argv1 = calloc(nr, sizeof(char *))) == NULL){
-        clicon_err(OE_UNIX, errno, "calloc");
+        clixon_err(OE_UNIX, errno, "calloc");
         goto done;
     }
     i = 0;
@@ -433,7 +433,7 @@ action_daemon_register(clicon_handle h)
         argv1[i++] = argv0[j];
     argv1[i++] = NULL;
     if (i > nr){
-        clicon_err(OE_UNIX, 0, "calloc mismatatch i:%d nr:%d", i, nr);
+        clixon_err(OE_UNIX, 0, "calloc mismatatch i:%d nr:%d", i, nr);
         goto done;
     }
     /* The actual fork/exec is made in clixon_process_operation/clixon_proc_background */
@@ -472,7 +472,7 @@ action_daemon_register(clicon_handle h)
  * @retval    -1   Fatal error
 */
 static int
-controller_reset(clicon_handle h,
+controller_reset(clixon_handle h,
                  const char   *db)
 {
     int    retval = -1;
@@ -548,7 +548,7 @@ clixon_plugin_api *
 clixon_plugin_init(clixon_handle h)
 {
     if (!clicon_option_bool(h, "CLICON_YANG_SCHEMA_MOUNT")){
-        clicon_err(OE_YANG, 0, "The clixon controller requires CLICON_YANG_SCHEMA_MOUNT set to true");
+        clixon_err(OE_YANG, 0, "The clixon controller requires CLICON_YANG_SCHEMA_MOUNT set to true");
         goto done;
     }
     /* Register callback for rpc calls */

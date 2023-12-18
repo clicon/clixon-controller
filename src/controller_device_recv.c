@@ -143,7 +143,7 @@ device_state_recv_hello(clixon_handle h,
         goto done;
     // XXX not prefix/namespace independent
     if ((xcaps = xpath_first(xmsg, nsc, "/hello/capabilities")) == NULL){
-        clicon_err(OE_PROTO, ESHUTDOWN, "No capabilities found");
+        clixon_err(OE_PROTO, ESHUTDOWN, "No capabilities found");
         goto done;
     }
     /* Destructive, actually move subtree from xmsg */
@@ -234,7 +234,7 @@ device_state_recv_config(clixon_handle h,
     xml_sort(xdata);
     name = device_handle_name_get(dh);
     if ((cbret = cbuf_new()) == NULL){
-        clicon_err(OE_UNIX, errno, "cbuf_new");
+        clixon_err(OE_UNIX, errno, "cbuf_new");
         goto done;
     }
     /* Create config tree (xt) and device mount-point (xroot) */
@@ -245,7 +245,7 @@ device_state_recv_config(clixon_handle h,
     if ((ret = yang_schema_mount_point(yroot)) < 0)
         goto done;
     if (ret == 0){
-        clicon_err(OE_YANG, 0, "Device root is not a YANG schema mount-point");
+        clixon_err(OE_YANG, 0, "Device root is not a YANG schema mount-point");
         goto done;
     }
     yspec1 = NULL;
@@ -264,7 +264,7 @@ device_state_recv_config(clixon_handle h,
         goto done;
     if (ret == 0){
         if ((cberr = cbuf_new()) == NULL){
-            clicon_err(OE_UNIX, errno, "cbuf_new");
+            clixon_err(OE_UNIX, errno, "cbuf_new");
             goto done;
         }
         cprintf(cberr, "YANG bind failed at mountpoint:");
@@ -327,7 +327,7 @@ device_state_recv_config(clixon_handle h,
         /* XXX trigger plugin which starts a commit transaction */
         if ((ret = candidate_commit(h, NULL, "candidate", 0, 0, cbret)) < 0){
             /* Handle that candidate_commit can return < 0 if transaction ongoing */
-            cprintf(cbret, "%s", clicon_err_reason);
+            cprintf(cbret, "%s", clixon_err_reason());
             ret = 0;
         }
         if (ret == 0){
@@ -497,11 +497,11 @@ device_state_recv_get_schema(device_handle dh,
     modname = device_handle_schema_name_get(dh);
     /* Write to file */
     if ((cb = cbuf_new()) == NULL){
-        clicon_err(OE_UNIX, errno, "cbuf_new");
+        clixon_err(OE_UNIX, errno, "cbuf_new");
         goto done;
     }
     if ((dir = clicon_option_str(h, "CONTROLLER_YANG_SCHEMA_MOUNT_DIR")) == NULL){
-        clicon_err(OE_YANG, 0, "schema mount dir not set");
+        clixon_err(OE_YANG, 0, "schema mount dir not set");
         goto done;
     }
     cprintf(cb, "%s/%s", dir, modname);
@@ -510,11 +510,11 @@ device_state_recv_get_schema(device_handle dh,
     cprintf(cb, ".yang");
     clixon_debug(1, "%s: Write yang to %s", __FUNCTION__, cbuf_get(cb));
     if ((f = fopen(cbuf_get(cb), "w")) == NULL){
-        clicon_err(OE_UNIX, errno, "fopen(%s)", cbuf_get(cb));
+        clixon_err(OE_UNIX, errno, "fopen(%s)", cbuf_get(cb));
         goto done;
     }
     if (fwrite(ydec, 1, sz, f) != sz){
-        clicon_err(OE_UNIX, errno, "fwrite");
+        clixon_err(OE_UNIX, errno, "fwrite");
         goto done;
     }
     fflush(f);
@@ -581,7 +581,7 @@ device_state_recv_ok(clixon_handle h,
                     ct->ct_warning == NULL){
                     x = xml_find_type(xerr, NULL, "error-message", CX_ELMNT);
                     if ((cb = cbuf_new()) == NULL){
-                        clicon_err(OE_UNIX, errno, "cbuf_new");
+                        clixon_err(OE_UNIX, errno, "cbuf_new");
                         goto done;
                     }
                     cprintf(cb, "Device %s: %s in state %s",
@@ -589,7 +589,7 @@ device_state_recv_ok(clixon_handle h,
                             x?xml_body(x):"reply",
                             device_state_int2str(conn_state));
                     if ((ct->ct_warning = strdup(cbuf_get(cb))) == NULL){
-                        clicon_err(OE_UNIX, EINVAL, "strdup");
+                        clixon_err(OE_UNIX, EINVAL, "strdup");
                         goto done;
                     }
                     cbuf_free(cb);
@@ -599,7 +599,7 @@ device_state_recv_ok(clixon_handle h,
             else { /* assume error */
                 x = xml_find_type(xerr, NULL, "error-message", CX_ELMNT);
                 if ((cb = cbuf_new()) == NULL){
-                    clicon_err(OE_UNIX, errno, "cbuf_new");
+                    clixon_err(OE_UNIX, errno, "cbuf_new");
                     goto done;
                 }
                 cprintf(cb, "Error %s in state %s of device %s",
@@ -617,7 +617,7 @@ device_state_recv_ok(clixon_handle h,
     if (xml_find_type(xmsg, NULL, "ok", CX_ELMNT) == NULL){
         h = device_handle_handle_get(dh);
         if ((cb = cbuf_new()) == NULL){
-            clicon_err(OE_UNIX, errno, "cbuf_new");
+            clixon_err(OE_UNIX, errno, "cbuf_new");
             goto done;
         }
         cprintf(cb, "Unexpected reply from %s in state %s:",

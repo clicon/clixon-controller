@@ -264,7 +264,7 @@ schema_list2yang_library(cxobj  *xschemas,
     char  *namespace;
 
     if ((cb = cbuf_new()) == NULL){
-        clicon_err(OE_UNIX, errno, "cbuf_new");
+        clixon_err(OE_UNIX, errno, "cbuf_new");
         goto done;
     }
     cprintf(cb, "<yang-library xmlns=\"urn:ietf:params:xml:ns:yang:ietf-yang-library\">");
@@ -321,7 +321,7 @@ xdev2yang_library(cxobj  *xmodset,
     char  *namespace;
 
     if ((cb = cbuf_new()) == NULL){
-        clicon_err(OE_UNIX, errno, "cbuf_new");
+        clixon_err(OE_UNIX, errno, "cbuf_new");
         goto done;
     }
     cprintf(cb, "<yang-library xmlns=\"urn:ietf:params:xml:ns:yang:ietf-yang-library\">");
@@ -366,7 +366,7 @@ xdev2yang_library(cxobj  *xmodset,
  * @retval    -1        Error
  */
 static int
-controller_mount_yang_get(clicon_handle h,
+controller_mount_yang_get(clixon_handle h,
                           yang_stmt   **yu)
 {
     int        retval = -1;
@@ -375,7 +375,7 @@ controller_mount_yang_get(clicon_handle h,
 
     yspec0 = clicon_dbspec_yang(h);
     if ((ymod = yang_find(yspec0, Y_MODULE, "clixon-controller")) == NULL){
-        clicon_err(OE_YANG, 0, "module clixon-controller not found");
+        clixon_err(OE_YANG, 0, "module clixon-controller not found");
         goto done;
     }
     if (yang_path_arg(ymod, "/devices/device/config", yu) < 0)
@@ -400,7 +400,7 @@ controller_mount_xpath_get(char  *devname,
     int        retval = -1;
 
     if ((*cbxpath = cbuf_new()) == NULL){
-        clicon_err(OE_UNIX, errno, "cbuf_new");
+        clixon_err(OE_UNIX, errno, "cbuf_new");
         goto done;
     }
     cprintf(*cbxpath, "/ctrl:devices/ctrl:device[ctrl:name='%s']/ctrl:config", devname);
@@ -418,7 +418,7 @@ controller_mount_xpath_get(char  *devname,
  * @retval    -1        Error
  */
 int
-controller_mount_yspec_get(clicon_handle h,
+controller_mount_yspec_get(clixon_handle h,
                            char         *devname,
                            yang_stmt   **yspec1)
 {
@@ -449,7 +449,7 @@ controller_mount_yspec_get(clicon_handle h,
  * @retval    -1        Error
  */
 int
-controller_mount_yspec_set(clicon_handle h,
+controller_mount_yspec_set(clixon_handle h,
                            char         *devname,
                            yang_stmt    *yspec1)
 {
@@ -484,7 +484,7 @@ controller_mount_yspec_set(clicon_handle h,
  * @retval    -1       Error
  */
 int
-controller_yang_patch_junos(clicon_handle h,
+controller_yang_patch_junos(clixon_handle h,
                             yang_stmt    *ymod)
 {
 
@@ -494,7 +494,7 @@ controller_yang_patch_junos(clicon_handle h,
     char       *arg = NULL;
 
     if (ymod == NULL){
-        clicon_err(OE_PLUGIN, EINVAL, "ymod is NULL");
+        clixon_err(OE_PLUGIN, EINVAL, "ymod is NULL");
         goto done;
     }
     modname = yang_argument_get(ymod);
@@ -503,7 +503,7 @@ controller_yang_patch_junos(clicon_handle h,
             if ((ygr = ys_new(Y_GROUPING)) == NULL)
                 goto done;
             if ((arg = strdup("command-forwarding")) == NULL){
-                clicon_err(OE_UNIX, errno, "strdup");
+                clixon_err(OE_UNIX, errno, "strdup");
                 goto done;
             }
             if (yang_argument_set(ygr, arg) < 0)

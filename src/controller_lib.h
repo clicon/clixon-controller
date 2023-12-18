@@ -120,10 +120,10 @@ char *actions_type_int2str(actions_type t);
 actions_type actions_type_str2int(char *str);
 int schema_list2yang_library(cxobj *xschemas, cxobj **xyanglib);
 int xdev2yang_library(cxobj *xdev, cxobj **xyanglib);
-int controller_mount_yspec_get(clicon_handle h, char *devname, yang_stmt **yspec1);
-int controller_mount_yspec_set(clicon_handle h, char *devname, yang_stmt *yspec1);
+int controller_mount_yspec_get(clixon_handle h, char *devname, yang_stmt **yspec1);
+int controller_mount_yspec_set(clixon_handle h, char *devname, yang_stmt *yspec1);
 #ifdef CONTROLLER_JUNOS_ADD_COMMAND_FORWARDING
-int controller_yang_patch_junos(clicon_handle h, yang_stmt *ymod);
+int controller_yang_patch_junos(clixon_handle h, yang_stmt *ymod);
 #endif
 
 #ifdef __cplusplus

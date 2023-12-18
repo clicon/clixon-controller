@@ -76,14 +76,14 @@ clixon_client_connect_netconf(clixon_handle  h,
     if (clixon_debug_get() != 0)
         nr += 2;
     if ((argv = calloc(nr, sizeof(char *))) == NULL){
-        clicon_err(OE_UNIX, errno, "calloc");
+        clixon_err(OE_UNIX, errno, "calloc");
         goto done;
     }
     i = 0;
     if ((netconf_bin = getenv("CLIXON_NETCONF_BIN")) == NULL)
         netconf_bin = CLIXON_NETCONF_BIN;
     if (stat(netconf_bin, &st) < 0){
-        clicon_err(OE_NETCONF, errno, "netconf binary %s. Set with CLIXON_NETCONF_BIN=",
+        clixon_err(OE_NETCONF, errno, "netconf binary %s. Set with CLIXON_NETCONF_BIN=",
                    netconf_bin);
         goto done;
     }
@@ -100,7 +100,7 @@ clixon_client_connect_netconf(clixon_handle  h,
     }
     argv[i++] = NULL;
     if (i !=nr){
-        clicon_err(OE_NETCONF, 0, "argv mismatch, internal error");
+        clixon_err(OE_NETCONF, 0, "argv mismatch, internal error");
         goto done;
     }
     if (clixon_proc_socket(h, argv, SOCK_DGRAM, pid, sock) < 0){
@@ -129,12 +129,12 @@ clixon_client_connect_ssh(clixon_handle  h,
     clixon_debug(1, "%s %s", __FUNCTION__, dest);
     nr = 12;  /* NOTE this is hardcoded */
     if ((argv = calloc(nr, sizeof(char *))) == NULL){
-        clicon_err(OE_UNIX, errno, "calloc");
+        clixon_err(OE_UNIX, errno, "calloc");
         goto done;
     }
     i = 0;
     if (stat(ssh_bin, &st) < 0){
-        clicon_err(OE_NETCONF, errno, "ssh binary %s", ssh_bin);
+        clixon_err(OE_NETCONF, errno, "ssh binary %s", ssh_bin);
         goto done;
     }
     argv[i++] = ssh_bin;
@@ -150,7 +150,7 @@ clixon_client_connect_ssh(clixon_handle  h,
     argv[i++] = "netconf";
     argv[i++] = NULL;
     if (i !=nr){
-        clicon_err(OE_NETCONF, 0, "argv mismatch, internal error");
+        clixon_err(OE_NETCONF, 0, "argv mismatch, internal error");
         goto done;
     }
     for (i=0;i<nr;i++)
