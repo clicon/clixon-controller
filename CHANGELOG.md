@@ -5,7 +5,9 @@ Expected: February 2024
 
 ### New features
 
-* CLI `show sessions [detail]` command
+* New CLI commands:
+  * `show sessions [detail]`
+  * `unlock <datastore>` [Add unlock CLI command](https://github.com/clicon/clixon-controller/issues/81)
 * Optimization
   * [YANG memory-footprint optimization](https://github.com/clicon/clixon-controller/issues/61)
     * Optimize memory by sharing yspec between devices

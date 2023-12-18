@@ -59,7 +59,7 @@ save("Save candidate configuration to XML file") <filename:string>("Filename (lo
     netconf("Save configuration as NETCONF"), save_config_file("candidate","filename", "netconf");
 }
 
-load <operation:string choice:replace|merge|create>("Write operation on candidate") <format:string choice:xml|json>("File format") [filename <filename:string>("Filename (local filename)")], cli_auto_load_devs(); 
+load("Load configuration from file to candidate") <operation:string choice:replace|merge|create>("Write operation on candidate") <format:string choice:xml|json>("File format") [filename <filename:string>("Filename (local filename)")], cli_auto_load_devs(); 
 # {    @datamodel, cli_auto_load_devs(); }
 
 services("Services operation") reapply("(re)apply services scripts"), cli_rpc_controller_commit("candidate", "FORCE", "COMMIT");

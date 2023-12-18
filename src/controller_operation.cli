@@ -113,5 +113,10 @@ connection("Change connection state of one or several devices")  [<name:string>(
               open("Open closed connections"), cli_connection_change("OPEN");
               reconnect("Close all open connections and open all connections"), cli_connection_change("RECONNECT");
               }
+unlock("Unlock datastore if locked") {
+       running("Unlock running datastore"), cli_unlock("running");
+       candidate("Unlock running datastore"), cli_unlock("candidate");
+       action("Unlock action datastore"), cli_unlock("action");
+}
 
 
