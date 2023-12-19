@@ -321,11 +321,16 @@ device_state_recv_config(clixon_handle h,
         }
         goto ok;
     }
-    if ((ret = xmldb_put(h, "candidate", OP_NONE, xt, NULL, cbret)) < 0)
+    /*
+     * Write changed device to tmp-db, make a regular commit from tmp-db
+     * If not revert, write changed device to candidate
+     */
+    if (xmldb_copy(h, "running", "tmp") < 0)
+        goto done;
+    if ((ret = xmldb_put(h, "tmp", OP_NONE, xt, NULL, cbret)) < 0)
         goto done;
     if (ret == 1){
-        /* XXX trigger plugin which starts a commit transaction */
-        if ((ret = candidate_commit(h, NULL, "candidate", 0, 0, cbret)) < 0){
+        if ((ret = candidate_commit(h, NULL, "tmp", 0, 0, cbret)) < 0){
             /* Handle that candidate_commit can return < 0 if transaction ongoing */
             cprintf(cbret, "%s", clixon_err_reason());
             ret = 0;
@@ -340,8 +345,6 @@ device_state_recv_config(clixon_handle h,
         }
     }
     if (ret == 0){ /* discard */
-        xmldb_copy(h, "running", "candidate");
-        xmldb_modified_set(h, "candidate", 0); /* reset dirty bit */
         clixon_debug(CLIXON_DBG_DEFAULT, "%s", cbuf_get(cbret));
         if (device_close_connection(dh, "Failed to commit: %s", cbuf_get(cbret)) < 0)
             goto done;
@@ -350,6 +353,9 @@ device_state_recv_config(clixon_handle h,
     else {
         device_handle_sync_time_set(dh, NULL);
     }
+    if ((ret = xmldb_put(h, "candidate", OP_NONE, xt, NULL, cbret)) < 0)
+        goto done;
+    xmldb_delete(h, "tmp");
     if ((ret = device_config_write(h, name, "SYNCED", xt, cbret)) < 0)
         goto done;
     if (ret == 0){

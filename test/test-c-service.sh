@@ -605,6 +605,53 @@ if [ -n "$match" ]; then
     err "Bx is removed in $NAME" "$ret"
 fi
 
+
+# Edit service, pull, check service still in candidate,
+# see https://github.com/clicon/clixon-controller/issues/82
+new "edit testC"
+ret=$(${clixon_netconf} -0 -f $CFG <<EOF
+<?xml version="1.0" encoding="UTF-8"?>
+<hello xmlns="urn:ietf:params:xml:ns:netconf:base:1.0">
+   <capabilities>
+      <capability>urn:ietf:params:netconf:base:1.0</capability>
+   </capabilities>
+</hello>]]>]]>
+<rpc xmlns="urn:ietf:params:xml:ns:netconf:base:1.0"
+     xmlns:nc="urn:ietf:params:xml:ns:netconf:base:1.0"
+     message-id="42">
+  <edit-config>
+    <target><candidate/></target>
+    <default-operation>none</default-operation>
+    <config>
+       <services xmlns="http://clicon.org/controller">
+	  <testA xmlns="urn:example:test" nc:operation="replace">
+	     <name>fie</name>
+	     <params>ZZ</params>
+	 </testA>
+      </services>
+    </config>
+  </edit-config>
+</rpc>]]>]]>
+EOF
+)
+
+match=$(echo "$ret" | grep --null -Eo "<rpc-error>") || true
+if [ -n "$match" ]; then
+    err "<ok/>" "$ret"
+fi
+
+new "show compare service"
+expectpart "$($clixon_cli -1 -f $CFG -m configure show compare xml)" 0 "^+\ *<services xmlns=\"http://clicon.org/controller\">" "^+\ *<testA xmlns=\"urn:example:test\">" "^+\ *<name>fie</name>" "^+\ *<params>ZZ</params>"
+
+new "Pull replace"
+expectpart "$(${clixon_cli} -1f $CFG pull)" 0 ""
+
+new "Verify show compare still there"
+expectpart "$($clixon_cli -1 -f $CFG -m configure show compare xml)" 0 "^+\ *<services xmlns=\"http://clicon.org/controller\">" "^+\ *<testA xmlns=\"urn:example:test\">" "^+\ *<name>fie</name>" "^+\ *<params>ZZ</params>"
+
+new "Rollback hostnames on openconfig*"
+expectpart "$($clixon_cli -1 -f $CFG -m configure rollback)" 0 ""
+
 # Negative errors
 new "Create empty testA"
 ret=$(${clixon_cli} -m configure -1f $CFG set services testA foo 2> /dev/null) 
