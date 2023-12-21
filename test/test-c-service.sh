@@ -212,6 +212,25 @@ wait_backend
 
 check_services stopped
 
+# see https://github.com/clicon/clixon-controller/issues/84
+new "set small timeout"
+expectpart "$(${clixon_cli} -m configure -1f $CFG set devices device-timeout 3)" 0 ""
+
+new "commit local"
+expectpart "$(${clixon_cli} -m configure -1f $CFG commit local)" 0 ""
+
+new "edit service"
+expectpart "$(${clixon_cli} -m configure -1f $CFG set services testA foo params Ax)" 0 ""
+
+new "commit diff w timeout nr 1"
+expectpart "$(${clixon_cli} -m configure -1f $CFG commit diff 2>&1)" 0 "Timeout waiting for action daemon"
+
+new "commit diff w timeout nr 2"
+expectpart "$(${clixon_cli} -m configure -1f $CFG commit diff 2>&1)" 0 "Timeout waiting for action daemon"
+
+new "discard"
+expectpart "$(${clixon_cli} -m configure -1f $CFG discard)" 0 ""
+
 if $BE; then
     new "Kill old backend"
     sudo clixon_backend -s init -f $CFG -z

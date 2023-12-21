@@ -25,6 +25,7 @@ Expected: February 2024
 
 ### Corrected Bugs
 
+* Fixed: [Commit/connect transaction may lock datastore with no info or method to break it]([Commit/connect transaction may lock datastore with no info or method to break)
 * Fixed: [pull config from device also does commit local config](https://github.com/clicon/clixon-controller/issues/82)
 * Fixed: [Commit don't push configuration if service is configured](https://github.com/clicon/clixon-controller/issues/78)
 * Fixed: ["commit diff" after applying a service always seems to show a diff](https://github.com/clicon/clixon-controller/issues/70)

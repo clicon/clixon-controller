@@ -270,7 +270,7 @@ controller_transaction_new(clixon_handle            h,
         clixon_err(OE_PLUGIN, EINVAL, "ctp is NULL");
         goto done;
     }
-    clixon_debug(1, "%s", __FUNCTION__);
+    clixon_debug(CLIXON_DBG_DEFAULT, "%s", __FUNCTION__);
     if ((iddb = xmldb_islocked(h, db)) != 0){
         if (cberr){
             if ((*cberr = cbuf_new()) == NULL){
@@ -388,7 +388,7 @@ controller_transaction_free_all(clixon_handle h)
  *
  * @param[in]  h      Clixon handle
  * @param[in]  ct     Transaction
- * @param[in]  result Can be -1 for already setche
+ * @param[in]  result Can be -1 for already set
  * @retval     0      OK
  * @retval    -1      Error
  * @see controller_transaction_new
@@ -403,6 +403,7 @@ controller_transaction_done(clixon_handle           h,
     char         *db = "candidate";
     device_handle dh;
 
+    clixon_debug(CLIXON_DBG_DEFAULT, "%s", __FUNCTION__);
     controller_transaction_state_set(ct, TS_DONE, result);
     iddb = xmldb_islocked(h, db);
     if (iddb != TRANSACTION_CLIENT_ID){
@@ -517,8 +518,6 @@ controller_transaction_failed(clixon_handle           h,
         device_handle_tid_set(dh, 0);
         /* 1.2.3 If no devices left in transaction, mark it as done */
         if (controller_transaction_devices(h, tid) == 0){
-            if (controller_transaction_done(h, ct, TR_FAILED) < 0)
-                goto done;
             if (origin && ct->ct_origin == NULL){
                 if ((ct->ct_origin = strdup(origin)) == NULL){
                     clixon_err(OE_UNIX, errno, "strdup");
@@ -531,10 +530,11 @@ controller_transaction_failed(clixon_handle           h,
                     goto done;
                 }
             }
+            if (controller_transaction_done(h, ct, TR_FAILED) < 0)
+                goto done;
             if (controller_transaction_notify(h, ct) < 0)
                 goto done;
         }
-
     }
     if (ct->ct_state == TS_INIT || ct->ct_state == TS_ACTIONS){
         /* 1.3 The transition is not in an error state

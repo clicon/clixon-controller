@@ -487,25 +487,23 @@ actions_timeout(int   s,
 {
     int                     retval = -1;
     controller_transaction *ct = (controller_transaction *)arg;
+    clixon_handle           h;
 
-    clixon_debug(1, "%s", __FUNCTION__);
-    if (controller_transaction_failed(ct->ct_h, ct->ct_id, ct, NULL, TR_FAILED_DEV_IGNORE, "Actions", "Timeout waiting for action daemon") < 0)
-        goto done;
-    if (ct->ct_state == TS_INIT){ /* 1.3 The transition is not in an error state */
-        controller_transaction_state_set(ct, TS_RESOLVED, TR_FAILED);
-        if ((ct->ct_origin = strdup("actions")) == NULL){
-            clixon_err(OE_UNIX, errno, "strdup");
+    clixon_debug(CLIXON_DBG_DEFAULT, "%s", __FUNCTION__);
+    h = ct->ct_h;
+    if (ct->ct_state == TS_DONE)
+        goto ok;
+    if (ct->ct_state != TS_RESOLVED){ /* 1.3 The transition is not in an error state */
+        if (controller_transaction_failed(h, ct->ct_id, ct, NULL, TR_FAILED_DEV_IGNORE, "Actions", "Timeout waiting for action daemon") < 0)
             goto done;
+        if (controller_transaction_devices(h, ct->ct_id) == 0){
+            if (controller_transaction_done(h, ct, TR_FAILED) < 0)
+                goto done;
+            if (controller_transaction_notify(h, ct) < 0)
+                goto done;
         }
-        if ((ct->ct_reason = strdup("Timeout waiting for service actions to complete")) == NULL){
-            clixon_err(OE_UNIX, errno, "strdup");
-            goto done;
-        }
-        if (controller_transaction_notify(ct->ct_h, ct) < 0)
-            goto done;
-        if (controller_transaction_done(ct->ct_h, ct, TR_FAILED) < 0)
-            goto done;
     }
+ ok:
     retval = 0;
  done:
     return retval;
@@ -531,7 +529,7 @@ actions_timeout_register(controller_transaction *ct)
     if (d != -1)
         t1.tv_sec = d;
     else
-        t1.tv_sec = 60;
+        t1.tv_sec = CONTROLLER_DEVICE_TIMEOUT_DEFAULT;
     t1.tv_usec = 0;
     clixon_debug(1, "%s timeout:%ld s", __FUNCTION__, t1.tv_sec);
     timeradd(&t, &t1, &t);
@@ -1207,6 +1205,8 @@ device_error(clixon_handle           h,
         goto done;
     if (controller_transaction_done(h, ct, TR_FAILED) < 0)
         goto done;
+    if (controller_transaction_notify(h, ct) < 0)
+        goto done;
     if (name && (ct->ct_origin = strdup(name)) == NULL){
         clixon_err(OE_UNIX, errno, "strdup");
         goto done;
@@ -1350,6 +1350,8 @@ rpc_controller_commit(clixon_handle h,
                 goto done;
             if (controller_transaction_done(h, ct, TR_FAILED) < 0)
                 goto done;
+            if (controller_transaction_notify(h, ct) < 0)
+                goto done;
             goto ok;
         }
         if (controller_transaction_devices(h, ct->ct_id) == 0){
@@ -1357,6 +1359,8 @@ rpc_controller_commit(clixon_handle h,
             if (netconf_operation_failed(cbret, "application", "No changes to push")< 0)
                 goto done;
             if (controller_transaction_done(h, ct, TR_FAILED) < 0)
+                goto done;
+            if (controller_transaction_notify(h, ct) < 0)
                 goto done;
             goto ok;
         }
@@ -1367,6 +1371,8 @@ rpc_controller_commit(clixon_handle h,
             if (netconf_operation_failed(cbret, "application", "Only candidates db supported if actions")< 0)
                 goto done;
             if (controller_transaction_done(h, ct, TR_FAILED) < 0)
+                goto done;
+            if (controller_transaction_notify(h, ct) < 0)
                 goto done;
             goto ok;
         }
@@ -1702,8 +1708,6 @@ rpc_transaction_error(clixon_handle h,
     origin = xml_find_body(xe, "origin");
     reason = xml_find_body(xe, "reason");
     if (controller_transaction_failed(h, tid, ct, NULL, TR_FAILED_DEV_IGNORE, origin, reason) < 0)
-        goto done;
-    if (controller_transaction_done(h, ct, TR_FAILED) < 0)
         goto done;
     cprintf(cbret, "<rpc-reply xmlns=\"%s\">", NETCONF_BASE_NAMESPACE);
     cprintf(cbret, "<ok/>");

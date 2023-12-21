@@ -38,6 +38,11 @@
 #define _CONTROLLER_RPC_H
 
 /*
+ * Constants
+ */
+#define CONTROLLER_DEVICE_TIMEOUT_DEFAULT 30
+
+/*
  * Prototypes
  */
 #ifdef __cplusplus
