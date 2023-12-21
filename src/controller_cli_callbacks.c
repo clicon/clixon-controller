@@ -402,11 +402,19 @@ transaction_notification_handler(clixon_handle       h,
     char              *reason = NULL;
     char              *resstr;
     transaction_result result;
+    void              *wh = NULL;
 
-    clixon_debug(CLIXON_DBG_DEFAULT, "%s tid:%s", __FUNCTION__, tidstr0); /* XXX: see https://github.com/clicon/clixon-controller/issues/43 */
-    if (clicon_msg_rcv(s, NULL, 0, &reply, eof) < 0)
+    clixon_debug(CLIXON_DBG_DEFAULT, "%s tid:%s", __FUNCTION__, tidstr0);
+    /* Need to set "intr" to enable ^C */
+    if (clixon_resource_check(h, &wh, tidstr0, __FUNCTION__) < 0)
         goto done;
-    clixon_debug(CLIXON_DBG_DEFAULT, "%s eof:%d", __FUNCTION__, *eof); /* XXX: see https://github.com/clicon/clixon-controller/issues/43 */
+    if (clicon_msg_rcv(s, NULL, 1, &reply, eof) < 0){
+        if (clixon_resource_check(h, &wh, tidstr0, __FUNCTION__) < 0)
+            goto done;
+        goto done;
+    }
+    if (clixon_resource_check(h, &wh, tidstr0, __FUNCTION__) < 0)
+        goto done;
     if (*eof){
         clixon_err(OE_PROTO, ESHUTDOWN, "Socket unexpected close");
         close(s);

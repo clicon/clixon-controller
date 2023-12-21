@@ -1577,7 +1577,6 @@ devices_statedata(clixon_handle   h,
     cxobj         *x;
     char          *xb;
     char           timestr[28];
-
     
     if ((cb = cbuf_new()) == NULL){
         clixon_err(OE_UNIX, errno, "cbuf_new");

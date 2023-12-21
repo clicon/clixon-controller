@@ -248,7 +248,7 @@ check_services running
 new "Start service process, expect fail (already started)"
 expectpart "$(clixon_controller_service -f $CFG -1 -l o)" 255 "services-commit client already registered"
 
-# Reset controller by initiaiting with clixon/openconfig devices and a pull
+# Reset controller by initiating with clixon/openconfig devices and a pull
 . ./reset-controller.sh
 
 DEV0="<config>
