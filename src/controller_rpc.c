@@ -459,8 +459,6 @@ rpc_config_pull(clixon_handle h,
     if (controller_transaction_devices(h, ct->ct_id) == 0){
         if (controller_transaction_done(h, ct, TR_SUCCESS) < 0)
             goto done;
-        if (controller_transaction_notify(h, ct) < 0)
-            goto done;
     }
  ok:
     retval = 0;
@@ -498,8 +496,6 @@ actions_timeout(int   s,
             goto done;
         if (controller_transaction_devices(h, ct->ct_id) == 0){
             if (controller_transaction_done(h, ct, TR_FAILED) < 0)
-                goto done;
-            if (controller_transaction_notify(h, ct) < 0)
                 goto done;
         }
     }
@@ -799,8 +795,6 @@ commit_push_after_actions(clixon_handle           h,
     if (ct->ct_push_type == PT_NONE){
         if (controller_transaction_done(h, ct, TR_SUCCESS) < 0)
             goto done;
-        if (controller_transaction_notify(h, ct) < 0)
-            goto done;
     }
     else{
         /* Compute diff of candidate + commit and trigger service
@@ -818,8 +812,6 @@ commit_push_after_actions(clixon_handle           h,
                 goto done;
             }
             if (controller_transaction_done(h, ct, TR_FAILED) < 0)
-                goto done;
-            if (controller_transaction_notify(ct->ct_h, ct) < 0)
                 goto done;
         }
         /* No device started, close transaction */
@@ -865,8 +857,6 @@ commit_push_after_actions(clixon_handle           h,
                 goto done;
             }
             if (controller_transaction_done(h, ct, TR_SUCCESS) < 0)
-                goto done;
-            if (controller_transaction_notify(h, ct) < 0)
                 goto done;
         }
         else{
@@ -1205,8 +1195,6 @@ device_error(clixon_handle           h,
         goto done;
     if (controller_transaction_done(h, ct, TR_FAILED) < 0)
         goto done;
-    if (controller_transaction_notify(h, ct) < 0)
-        goto done;
     if (name && (ct->ct_origin = strdup(name)) == NULL){
         clixon_err(OE_UNIX, errno, "strdup");
         goto done;
@@ -1350,8 +1338,6 @@ rpc_controller_commit(clixon_handle h,
                 goto done;
             if (controller_transaction_done(h, ct, TR_FAILED) < 0)
                 goto done;
-            if (controller_transaction_notify(h, ct) < 0)
-                goto done;
             goto ok;
         }
         if (controller_transaction_devices(h, ct->ct_id) == 0){
@@ -1359,8 +1345,6 @@ rpc_controller_commit(clixon_handle h,
             if (netconf_operation_failed(cbret, "application", "No changes to push")< 0)
                 goto done;
             if (controller_transaction_done(h, ct, TR_FAILED) < 0)
-                goto done;
-            if (controller_transaction_notify(h, ct) < 0)
                 goto done;
             goto ok;
         }
@@ -1371,8 +1355,6 @@ rpc_controller_commit(clixon_handle h,
             if (netconf_operation_failed(cbret, "application", "Only candidates db supported if actions")< 0)
                 goto done;
             if (controller_transaction_done(h, ct, TR_FAILED) < 0)
-                goto done;
-            if (controller_transaction_notify(h, ct) < 0)
                 goto done;
             goto ok;
         }
@@ -1630,8 +1612,6 @@ rpc_connection_change(clixon_handle h,
     /* No device started, close transaction */
     if (controller_transaction_devices(h, ct->ct_id) == 0){
         if (controller_transaction_done(h, ct, TR_SUCCESS) < 0)
-            goto done;
-        if (controller_transaction_notify(h, ct) < 0)
             goto done;
     }
  ok:

@@ -384,7 +384,7 @@ controller_transaction_free_all(clixon_handle h)
     return 0;
 }
 
-/*! Terminate/close transaction, unlock candidate, and unmark all devices from transaction
+/*! Terminate/close transaction, unlock candidate, unmark all devices and notify
  *
  * @param[in]  h      Clixon handle
  * @param[in]  ct     Transaction
@@ -421,6 +421,8 @@ controller_transaction_done(clixon_handle           h,
         if (device_handle_tid_get(dh) == ct->ct_id)
             device_handle_tid_set(dh, 0);
     }
+    if (controller_transaction_notify(h, ct) < 0)
+        goto done;
     retval = 0;
  done:
     return retval;
@@ -531,8 +533,6 @@ controller_transaction_failed(clixon_handle           h,
                 }
             }
             if (controller_transaction_done(h, ct, TR_FAILED) < 0)
-                goto done;
-            if (controller_transaction_notify(h, ct) < 0)
                 goto done;
         }
     }

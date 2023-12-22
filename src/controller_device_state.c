@@ -1143,8 +1143,6 @@ device_state_handler(clixon_handle h,
                 controller_transaction_state_set(ct, TS_RESOLVED, TR_SUCCESS);
                 if (controller_transaction_done(h, ct, TR_SUCCESS) < 0)
                     goto done;
-                if (controller_transaction_notify(h, ct) < 0)
-                    goto done;
             }
         }
         break;
@@ -1180,8 +1178,6 @@ device_state_handler(clixon_handle h,
             /* 2.2.2.2 If no devices in transaction, mark as OK and close it*/
             if (controller_transaction_devices(h, tid) == 0){
                 if (controller_transaction_done(h, ct, TR_FAILED) < 0)
-                    goto done;
-                if (controller_transaction_notify(h, ct) < 0)
                     goto done;
             }
             break;
@@ -1436,8 +1432,6 @@ device_state_handler(clixon_handle h,
             controller_transaction_state_set(ct, TS_RESOLVED, TR_SUCCESS);
             if (controller_transaction_done(h, ct, -1) < 0)
                 goto done;
-            if (controller_transaction_notify(h, ct) < 0)
-                goto done;
         }
 #endif // CONTROLLER_EXTRA_PUSH_SYNC
         break;
@@ -1485,8 +1479,6 @@ device_state_handler(clixon_handle h,
                 controller_transaction_state_set(ct, TS_RESOLVED, TR_SUCCESS);
                 if (controller_transaction_done(h, ct, -1) < 0)
                     goto done;
-                if (controller_transaction_notify(h, ct) < 0)
-                    goto done;
             }
         }
         break;
@@ -1524,8 +1516,6 @@ device_state_handler(clixon_handle h,
             if (ct->ct_state != TS_RESOLVED){
                 controller_transaction_state_set(ct, TS_RESOLVED, TR_SUCCESS);
                 if (controller_transaction_done(h, ct, TR_SUCCESS) < 0)
-                    goto done;
-                if (controller_transaction_notify(h, ct) < 0)
                     goto done;
             }
         }
