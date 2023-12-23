@@ -7,6 +7,7 @@
   * [How to configure JunOS and the Clixon controller?](#how-to-configure-junos-and-the-clixon-controller)
   * [How do I add a device in Clixon?](#how-do-i-add-a-device-in-clixon)
   * [What about the directory structure?](#what-about-the-directory-structure)
+  * [Candidate is locked](#candidate-is-locked)
 
 ## What is the Clixon controller?
 
@@ -101,3 +102,15 @@ The top-level YANG directory is in `/usr/local/share/clixon/controller`. YANGs a
   - `main`. Main controller YANGs for the top-level. Note: only place YANGs here if you want them loaded to the top-level.
   - `mounts`. YANGs retreived from devices are written here
   - `modules`. YANGs for the pyapi
+
+## Candidate is locked
+
+You may encounter an error when doing commit or connect something like:
+```
+   Candidate db is lockaed by 1677721
+```
+This happens if a commit/connect transaction terminates without releasing the candidate datastore.
+It should not happen, but if it does, you can unlock candidate with the CLI command:
+```
+cli> transaction unlock
+```
