@@ -14,6 +14,10 @@ test/py
 
 src/controller.xml
 
+# purged from history with git filter-repo
+templates-min.gif
+demo-min.gif
+
 # Prerequisites
 *.d
 
