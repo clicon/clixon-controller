@@ -1876,6 +1876,9 @@ cli_dbxml_devs(clixon_handle       h,
         clixon_err(OE_UNIX, errno, "cbuf_new");
         goto done;
     }
+    /* Remove all keywords */
+    if (cvec_exclude_keys(cvv) < 0)
+        goto done;
     /* Concatenate all argv strings to a single string
      * Variant of cvec_concat_cb() where api-path-fmt may be interleaved with mtpoint,
      * eg /api-path-fmt2 mtpoint /api-path-fmt1 /api-path-fmt0
@@ -1899,9 +1902,6 @@ cli_dbxml_devs(clixon_handle       h,
     else{
         devices = strstr(api_path_fmt, "/clixon-controller:devices") != NULL;
     }
-    /* Remove all keywords */
-    if (cvec_exclude_keys(cvv) < 0)
-        goto done;
     if (devices && (cv = cvec_find(cvv, "name")) != NULL){
         pattern = cv_string_get(cv);
         if (rpc_get_yanglib_mount_match(h, pattern, 0, 0, &xdevs) < 0)

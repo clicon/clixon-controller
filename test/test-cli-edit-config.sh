@@ -97,6 +97,15 @@ function testrun()
     new "validate"
     expectpart "$($clixon_cli -1 -m configure -f $CFG validate)" 0 ""
 
+    # Completion test for https://github.com/clicon/clixon-controller/issues/72
+    new "Configure interface xintf on openconfig1"
+    expectpart "$($clixon_cli -1 -f $CFG -m configure set devices device openconfig1 config interfaces interface xintf config name xintf)" 0 ""
+
+    new "Completion of interfaces"
+    expectpart "$(echo "set devices device openconfig1 config interfaces interface ?" | $clixon_cli -f $CFG -m configure 2> /dev/null)" 0 "<name>" "xintf"
+
+    new "Delete interface"
+    expectpart "$($clixon_cli -1 -f $CFG -m configure delete devices device openconfig1 config interfaces interface xintf)" 0 ""
 }
 
 if $BE; then
