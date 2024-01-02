@@ -1689,6 +1689,8 @@ rpc_transaction_error(clixon_handle h,
     reason = xml_find_body(xe, "reason");
     if (controller_transaction_failed(h, tid, ct, NULL, TR_FAILED_DEV_IGNORE, origin, reason) < 0)
         goto done;
+    if (controller_transaction_done(h, ct, TR_FAILED) < 0)
+        goto done;
     cprintf(cbret, "<rpc-reply xmlns=\"%s\">", NETCONF_BASE_NAMESPACE);
     cprintf(cbret, "<ok/>");
     cprintf(cbret, "</rpc-reply>");
