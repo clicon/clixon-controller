@@ -110,19 +110,19 @@ controller_transaction_state_set(controller_transaction *ct,
     case TS_INIT:
         assert(ct->ct_state != TS_DONE);
         if (ct->ct_state != TS_INIT)
-            clixon_debug(1, "%s %" PRIu64 " : %s -> %s",
+            clixon_debug(CLIXON_DBG_DEFAULT, "%s %" PRIu64 " : %s -> %s",
                          __FUNCTION__,
                          ct->ct_id,
                          transaction_state_int2str(ct->ct_state),
                          transaction_state_int2str(state));
         else
-            clixon_debug(1, "%s %" PRIu64 " : -> %s",
+            clixon_debug(CLIXON_DBG_DEFAULT, "%s %" PRIu64 " : -> %s",
                          __FUNCTION__,
                          ct->ct_id,
                          transaction_state_int2str(state));
         break;
     case TS_ACTIONS:
-        clixon_debug(1, "%s %" PRIu64 " : %s -> %s",
+        clixon_debug(CLIXON_DBG_DEFAULT, "%s %" PRIu64 " : %s -> %s",
                      __FUNCTION__,
                      ct->ct_id,
                      transaction_state_int2str(ct->ct_state),
@@ -131,7 +131,7 @@ controller_transaction_state_set(controller_transaction *ct,
     case TS_RESOLVED:
         assert(result != -1);
         assert(state != ct->ct_state);
-        clixon_debug(1, "%s %" PRIu64 " : %s -> %s result: %s",
+        clixon_debug(CLIXON_DBG_DEFAULT, "%s %" PRIu64 " : %s -> %s result: %s",
                      __FUNCTION__,
                      ct->ct_id,
                      transaction_state_int2str(ct->ct_state),
@@ -141,14 +141,14 @@ controller_transaction_state_set(controller_transaction *ct,
     case TS_DONE:
         assert(state != ct->ct_state);
         if (result != -1 && result != ct->ct_result)
-            clixon_debug(1, "%s %" PRIu64 " : %s -> %s result: %s",
+            clixon_debug(CLIXON_DBG_DEFAULT, "%s %" PRIu64 " : %s -> %s result: %s",
                          __FUNCTION__,
                          ct->ct_id,
                          transaction_state_int2str(ct->ct_state),
                          transaction_state_int2str(state),
                          transaction_result_int2str(result));
         else
-            clixon_debug(1, "%s %" PRIu64 " : %s -> %s",
+            clixon_debug(CLIXON_DBG_DEFAULT, "%s %" PRIu64 " : %s -> %s",
                          __FUNCTION__,
                          ct->ct_id,
                          transaction_state_int2str(ct->ct_state),
@@ -177,7 +177,7 @@ controller_transaction_notify(clixon_handle           h,
     int   retval = -1;
     cbuf *cb = NULL;
 
-    clixon_debug(1, "%s %" PRIu64, __FUNCTION__, ct->ct_id);
+    clixon_debug(CLIXON_DBG_DEFAULT, "%s %" PRIu64, __FUNCTION__, ct->ct_id);
     if (ct->ct_state == TS_INIT){
         clixon_err(OE_CFG, EINVAL, "Transaction notify sent in state INIT");
         goto done;
@@ -403,7 +403,7 @@ controller_transaction_done(clixon_handle           h,
     char         *db = "candidate";
     device_handle dh;
 
-    clixon_debug(CLIXON_DBG_DEFAULT, "%s", __FUNCTION__);
+    clixon_debug(CLIXON_DBG_DEFAULT, "%s %s", __FUNCTION__, transaction_result_int2str(ct->ct_state));
     controller_transaction_state_set(ct, TS_DONE, result);
     iddb = xmldb_islocked(h, db);
     if (iddb != TRANSACTION_CLIENT_ID){
@@ -421,6 +421,7 @@ controller_transaction_done(clixon_handle           h,
         if (device_handle_tid_get(dh) == ct->ct_id)
             device_handle_tid_set(dh, 0);
     }
+    /* This should be the only place */
     if (controller_transaction_notify(h, ct) < 0)
         goto done;
     retval = 0;
@@ -508,7 +509,7 @@ controller_transaction_failed(clixon_handle           h,
 {
     int retval = -1;
 
-    clixon_debug(1, "%s", __FUNCTION__);
+    clixon_debug(CLIXON_DBG_DEFAULT, "%s", __FUNCTION__);
     if (dh != NULL && devclose != TR_FAILED_DEV_IGNORE){
         if (devclose == TR_FAILED_DEV_CLOSE){
             /* 1.2 The error is not recoverable */
@@ -552,8 +553,6 @@ controller_transaction_failed(clixon_handle           h,
                 goto done;
             }
         }
-        if (controller_transaction_notify(h, ct) < 0)
-            goto done;
         /* 1.3.2 For all other devices in WAIT state trigger DISCARD */
         if (controller_transaction_wait_trigger(h, tid, 0) < 0)
             goto done;
@@ -563,7 +562,7 @@ controller_transaction_failed(clixon_handle           h,
     }
     retval = 0;
  done:
-    clixon_debug(1, "%s retval:%d", __FUNCTION__, retval);
+    clixon_debug(CLIXON_DBG_DEFAULT, "%s retval:%d", __FUNCTION__, retval);
     return retval;
 }
 
@@ -673,7 +672,7 @@ controller_transactions_statedata(clixon_handle   h,
     controller_transaction *ct_list = NULL;
     controller_transaction *ct = NULL;
 
-    clixon_debug(1, "%s", __FUNCTION__);
+    clixon_debug(CLIXON_DBG_DEFAULT, "%s", __FUNCTION__);
     if ((cb = cbuf_new()) == NULL){
         clixon_err(OE_UNIX, errno, "cbuf_new");
         goto done;
