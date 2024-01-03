@@ -1138,7 +1138,7 @@ device_state_handler(clixon_handle h,
         /* 2.2.2.1 Leave transaction */
         device_handle_tid_set(dh, 0);
         /* 2.2.2.2 If no devices in transaction, mark as OK and close it*/
-        if (controller_transaction_devices(h, tid) == 0){
+        if (controller_transaction_nr_devices(h, tid) == 0){
             if (ct->ct_state != TS_RESOLVED){
                 controller_transaction_state_set(ct, TS_RESOLVED, TR_SUCCESS);
                 if (controller_transaction_done(h, ct, TR_SUCCESS) < 0)
@@ -1176,7 +1176,7 @@ device_state_handler(clixon_handle h,
             /* 2.2.2.1 Leave transaction */
             device_handle_tid_set(dh, 0);
             /* 2.2.2.2 If no devices in transaction, mark as OK and close it*/
-            if (controller_transaction_devices(h, tid) == 0){
+            if (controller_transaction_nr_devices(h, tid) == 0){
                 if (controller_transaction_done(h, ct, TR_FAILED) < 0)
                     goto done;
             }
@@ -1213,6 +1213,7 @@ device_state_handler(clixon_handle h,
                          __FUNCTION__, name, rpcname, transaction_state_int2str(ct->ct_state));
             break;
         }
+        /* Retval: 2 OK, 1 Closed, 0 Failed, -1 Error */
         if ((ret = device_state_recv_ok(h, dh, xmsg, rpcname, conn_state, &cberr)) < 0)
             goto done;
         if (ret == 0){      /* 1. The device has failed: received rpc-error/not <ok>  */
@@ -1260,6 +1261,7 @@ device_state_handler(clixon_handle h,
                          __FUNCTION__, name, rpcname, transaction_state_int2str(ct->ct_state));
             break;
         }
+        /* Retval: 2 OK, 1 Closed, 0 Failed, -1 Error */
         if ((ret = device_state_recv_ok(h, dh, xmsg, rpcname, conn_state, &cberr)) < 0)
             goto done;
         if (ret == 0){      /* 1. The device has failed: received rpc-error/not <ok>  */
@@ -1358,6 +1360,7 @@ device_state_handler(clixon_handle h,
                          __FUNCTION__, name, rpcname, transaction_state_int2str(ct->ct_state));
             break;
         }
+        /* Retval: 2 OK, 1 Closed, 0 Failed, -1 Error */
         if ((ret = device_state_recv_ok(h, dh, xmsg, rpcname, conn_state, &cberr)) < 0)
             goto done;
         if (ret == 0){      /* 1. The device has failed: received rpc-error/not <ok>  */
@@ -1428,7 +1431,7 @@ device_state_handler(clixon_handle h,
             if (xt)
                 xml_free(xt);
         }
-        if (controller_transaction_devices(h, tid) == 0){
+        if (controller_transaction_nr_devices(h, tid) == 0){
             controller_transaction_state_set(ct, TS_RESOLVED, TR_SUCCESS);
             if (controller_transaction_done(h, ct, -1) < 0)
                 goto done;
@@ -1446,6 +1449,7 @@ device_state_handler(clixon_handle h,
                          __FUNCTION__, name, rpcname, transaction_state_int2str(ct->ct_state));
             break;
         }
+        /* Retval: 2 OK, 1 Closed, 0 Failed, -1 Error */
         if ((ret = device_state_recv_ok(h, dh, xmsg, rpcname, conn_state, &cberr)) < 0)
             goto done;
         if (ret == 0){      /* 1. The device has failed: received rpc-error/not <ok>  */
@@ -1470,16 +1474,16 @@ device_state_handler(clixon_handle h,
         device_handle_tid_set(dh, 0);
 
         /* 2.2.2.2 If no devices in transaction, mark as OK and close it*/
-        if (controller_transaction_devices(h, tid) == 0){
+        if (controller_transaction_nr_devices(h, tid) == 0){
             /* If source datastore is candidate, then commit (from actions)
              * - if actions=AT_COMMIT, commit is made from actions-db
              * - otherwise if datastore is candidate, commit is made from candidate
              */
             if (ct->ct_state != TS_RESOLVED){
                 controller_transaction_state_set(ct, TS_RESOLVED, TR_SUCCESS);
-                if (controller_transaction_done(h, ct, -1) < 0)
-                    goto done;
             }
+            if (controller_transaction_done(h, ct, -1) < 0)
+                goto done;
         }
         break;
 #ifdef CONTROLLER_EXTRA_PUSH_SYNC
@@ -1512,12 +1516,12 @@ device_state_handler(clixon_handle h,
         /* 2.2.2.1 Leave transaction */
         device_handle_tid_set(dh, 0);
         /* 2.2.2.2 If no devices in transaction, mark as OK and close it*/
-        if (controller_transaction_devices(h, tid) == 0){
+        if (controller_transaction_nr_devices(h, tid) == 0){
             if (ct->ct_state != TS_RESOLVED){
                 controller_transaction_state_set(ct, TS_RESOLVED, TR_SUCCESS);
-                if (controller_transaction_done(h, ct, TR_SUCCESS) < 0)
-                    goto done;
             }
+            if (controller_transaction_done(h, ct, -1) < 0)
+                goto done;
         }
         break;
 #endif

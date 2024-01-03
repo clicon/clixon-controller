@@ -461,8 +461,8 @@ controller_transaction_find(clixon_handle  h,
  * @retval     nr     Number of devices in transaction
  */
 int
-controller_transaction_devices(clixon_handle h,
-                               uint64_t      tid)
+controller_transaction_nr_devices(clixon_handle h,
+                                  uint64_t      tid)
 {
     device_handle dh = NULL;
     int           nr = 0;
@@ -520,7 +520,7 @@ controller_transaction_failed(clixon_handle           h,
         /* 1.2.2 Leave transaction */
         device_handle_tid_set(dh, 0);
         /* 1.2.3 If no devices left in transaction, mark it as done */
-        if (controller_transaction_devices(h, tid) == 0){
+        if (controller_transaction_nr_devices(h, tid) == 0){
             if (origin && ct->ct_origin == NULL){
                 if ((ct->ct_origin = strdup(origin)) == NULL){
                     clixon_err(OE_UNIX, errno, "strdup");

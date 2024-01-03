@@ -94,7 +94,7 @@ int   controller_transaction_free_all(clixon_handle h);
 int   controller_transaction_done(clixon_handle h, controller_transaction *ct, transaction_result result);
 
 controller_transaction *controller_transaction_find(clixon_handle h, const uint64_t id);
-int   controller_transaction_devices(clixon_handle h, uint64_t tid);
+int   controller_transaction_nr_devices(clixon_handle h, uint64_t tid);
 int   controller_transaction_failed(clixon_handle h, uint64_t tid, controller_transaction *ct, device_handle dh,
                                     tr_failed_devclose devclose, char *origin, char *reason);
 int   controller_transaction_wait(clixon_handle h, uint64_t tid);

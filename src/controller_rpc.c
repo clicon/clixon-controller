@@ -138,7 +138,7 @@ controller_connect(clixon_handle           h,
     cxobj        *xmod = NULL;
     cxobj        *xyanglib = NULL;
 
-    clixon_debug(1, "%s", __FUNCTION__);
+    clixon_debug(CLIXON_DBG_DEFAULT, "%s", __FUNCTION__);
     if ((name = xml_find_body(xn, "name")) == NULL)
         goto ok;
     if ((enablestr = xml_find_body(xn, "enabled")) == NULL)
@@ -373,7 +373,7 @@ pull_device_one(clixon_handle h,
     int  retval = -1;
     int  s;
 
-    clixon_debug(1, "%s", __FUNCTION__);
+    clixon_debug(CLIXON_DBG_DEFAULT, "%s", __FUNCTION__);
     s = device_handle_socket_get(dh);
     if (device_send_get_config(h, dh, s) < 0)
         goto done;
@@ -418,7 +418,7 @@ rpc_config_pull(clixon_handle h,
     char                   *str;
     cbuf                   *cberr = NULL;
 
-    clixon_debug(1, "%s", __FUNCTION__);
+    clixon_debug(CLIXON_DBG_DEFAULT, "%s", __FUNCTION__);
     /* Initiate new transaction */
     if ((ret = controller_transaction_new(h, "pull", &ct, &cberr)) < 0)
         goto done;
@@ -456,7 +456,7 @@ rpc_config_pull(clixon_handle h,
     cprintf(cbret, "<tid xmlns=\"%s\">%" PRIu64"</tid>", CONTROLLER_NAMESPACE, ct->ct_id);
     cprintf(cbret, "</rpc-reply>");
     /* No device started, close transaction */
-    if (controller_transaction_devices(h, ct->ct_id) == 0){
+    if (controller_transaction_nr_devices(h, ct->ct_id) == 0){
         if (controller_transaction_done(h, ct, TR_SUCCESS) < 0)
             goto done;
     }
@@ -494,7 +494,7 @@ actions_timeout(int   s,
     if (ct->ct_state != TS_RESOLVED){ /* 1.3 The transition is not in an error state */
         if (controller_transaction_failed(h, ct->ct_id, ct, NULL, TR_FAILED_DEV_IGNORE, "Actions", "Timeout waiting for action daemon") < 0)
             goto done;
-        if (controller_transaction_devices(h, ct->ct_id) == 0){
+        if (controller_transaction_nr_devices(h, ct->ct_id) == 0){
             if (controller_transaction_done(h, ct, TR_FAILED) < 0)
                 goto done;
         }
@@ -519,7 +519,7 @@ actions_timeout_register(controller_transaction *ct)
     struct timeval t1;
     int            d;
 
-    clixon_debug(1, "%s", __FUNCTION__);
+    clixon_debug(CLIXON_DBG_DEFAULT, "%s", __FUNCTION__);
     gettimeofday(&t, NULL);
     d = clicon_data_int_get(ct->ct_h, "controller-device-timeout");
     if (d != -1)
@@ -527,7 +527,7 @@ actions_timeout_register(controller_transaction *ct)
     else
         t1.tv_sec = CONTROLLER_DEVICE_TIMEOUT_DEFAULT;
     t1.tv_usec = 0;
-    clixon_debug(1, "%s timeout:%ld s", __FUNCTION__, t1.tv_sec);
+    clixon_debug(CLIXON_DBG_DEFAULT, "%s timeout:%ld s", __FUNCTION__, t1.tv_sec);
     timeradd(&t, &t1, &t);
     if (clixon_event_reg_timeout(t, actions_timeout, ct, "Controller service actions") < 0)
         goto done;
@@ -815,7 +815,7 @@ commit_push_after_actions(clixon_handle           h,
                 goto done;
         }
         /* No device started, close transaction */
-        else if (controller_transaction_devices(h, ct->ct_id) == 0){
+        else if (controller_transaction_nr_devices(h, ct->ct_id) == 0){
             if (ct->ct_actions_type != AT_NONE && strcmp(ct->ct_sourcedb, "candidate")==0){
                 if ((cberr = cbuf_new()) == NULL){
                     clixon_err(OE_UNIX, errno, "cbuf_new");
@@ -926,7 +926,7 @@ controller_commit_actions(clixon_handle           h,
         /* Strip service data in device config for services that changed */
         if (strip_service_data_from_device_config(h, "actions", cvv) < 0)
             goto done;
-        clixon_debug(1, "%s stream_notify: services-commit: %" PRIu64, __FUNCTION__, ct->ct_id);
+        clixon_debug(CLIXON_DBG_DEFAULT, "%s stream_notify: services-commit: %" PRIu64, __FUNCTION__, ct->ct_id);
         if (stream_notify(h, "services-commit", "%s", cbuf_get(notifycb)) < 0)
             goto done;
         controller_transaction_state_set(ct, TS_ACTIONS, -1);
@@ -1244,7 +1244,7 @@ rpc_controller_commit(clixon_handle h,
     device_handle           changed = NULL;
     transaction_data_t     *td = NULL;
 
-    clixon_debug(1, "%s", __FUNCTION__);
+    clixon_debug(CLIXON_DBG_DEFAULT, "%s", __FUNCTION__);
     device = xml_find_body(xe, "device");
     if ((device_group = xml_find_body(xe, "device-group")) != NULL){
         if (netconf_operation_failed(cbret, "application", "Device-groups NYI")< 0)
@@ -1310,7 +1310,7 @@ rpc_controller_commit(clixon_handle h,
         goto ok;
     }
     /* If there are no devices selected and push != NONE */
-    if (controller_transaction_devices(h, ct->ct_id) == 0 && pusht != PT_NONE){
+    if (controller_transaction_nr_devices(h, ct->ct_id) == 0 && pusht != PT_NONE){
         if (device_error(h, ct, closed, 2, cbret) < 0)
             goto done;
         goto ok;
@@ -1340,7 +1340,7 @@ rpc_controller_commit(clixon_handle h,
                 goto done;
             goto ok;
         }
-        if (controller_transaction_devices(h, ct->ct_id) == 0){
+        if (controller_transaction_nr_devices(h, ct->ct_id) == 0){
             /* No device started, close transaction */
             if (netconf_operation_failed(cbret, "application", "No changes to push")< 0)
                 goto done;
@@ -1531,7 +1531,7 @@ rpc_connection_change(clixon_handle h,
     char                   *reason = NULL;
     int                     ret;
 
-    clixon_debug(1, "%s", __FUNCTION__);
+    clixon_debug(CLIXON_DBG_DEFAULT, "%s", __FUNCTION__);
     ce = (client_entry *)arg;
     if ((cbtr = cbuf_new()) == NULL){
         clixon_err(OE_UNIX, errno, "cbuf_new");
@@ -1610,7 +1610,7 @@ rpc_connection_change(clixon_handle h,
     cprintf(cbret, "<tid xmlns=\"%s\">%" PRIu64"</tid>", CONTROLLER_NAMESPACE, ct->ct_id);
     cprintf(cbret, "</rpc-reply>");
     /* No device started, close transaction */
-    if (controller_transaction_devices(h, ct->ct_id) == 0){
+    if (controller_transaction_nr_devices(h, ct->ct_id) == 0){
         if (controller_transaction_done(h, ct, TR_SUCCESS) < 0)
             goto done;
     }
@@ -1656,7 +1656,7 @@ rpc_transaction_error(clixon_handle h,
     int                     ret;
     controller_transaction *ct;
 
-    clixon_debug(1, "%s", __FUNCTION__);
+    clixon_debug(CLIXON_DBG_DEFAULT, "%s", __FUNCTION__);
     if ((tidstr = xml_find_body(xe, "tid")) == NULL){
         if (netconf_operation_failed(cbret, "application", "No tid")< 0)
             goto done;
@@ -1723,7 +1723,7 @@ rpc_transactions_actions_done(clixon_handle h,
     int                     ret;
     controller_transaction *ct;
 
-    clixon_debug(1, "%s", __FUNCTION__);
+    clixon_debug(CLIXON_DBG_DEFAULT, "%s", __FUNCTION__);
     if ((tidstr = xml_find_body(xe, "tid")) == NULL){
         if (netconf_operation_failed(cbret, "application", "No tid")< 0)
             goto done;
