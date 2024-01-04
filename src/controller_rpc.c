@@ -549,13 +549,13 @@ actions_timeout_unregister(controller_transaction *ct)
 
 /*! Get candidate and running, compute diff and return notification
  *
- * @param[in]  h       Clixon handle
- * @param[in]  ct      Transaction
- * @param[in]  td      Local diff transaction
+ * @param[in]  h        Clixon handle
+ * @param[in]  ct       Transaction
+ * @param[in]  td       Local diff transaction
  * @param[out] services 0:  No service configuration, 1: Service config
- * @param[out] cvv     Vector of changed service instances, on the form name:<service> value:<instance>
- * @retval     0       OK, cb including notify msg (or not)
- * @retval    -1       Error
+ * @param[out] cvv      Vector of changed service instances, on the form name:<service> value:<instance>
+ * @retval     0        OK, cb including notify msg (or not)
+ * @retval    -1        Error
  * @see devices_diff   where diff is constructed
  */
 static int
@@ -589,7 +589,7 @@ controller_actions_diff(clixon_handle           h,
     if (x0s){
         xn = NULL;
         while ((xn = xml_child_each(x0s, xn,  CX_ELMNT)) != NULL){
-            if (xml_flag(xn, XML_FLAG_DEL) == 0)
+            if (xml_flag(xn, XML_FLAG_CHANGE|XML_FLAG_DEL) == 0)
                 continue;
             /* Assume first entry is key, Alt: get key via YANG */
             if ((xi = xml_find_type(xn, NULL, NULL, CX_ELMNT)) == NULL ||

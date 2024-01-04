@@ -25,6 +25,7 @@ Expected: February 2024
 
 ### Corrected Bugs
 
+* Fixed: [Notification is not sent when a service parameter is changed](https://github.com/clicon/clixon-controller/issues/89)
 * Fixed: [Commit/connect transaction may lock datastore with no info or method to break it]([Commit/connect transaction may lock datastore with no info or method to break)
 * Fixed: [pull config from device also does commit local config](https://github.com/clicon/clixon-controller/issues/82)
 * Fixed: [Commit don't push configuration if service is configured](https://github.com/clicon/clixon-controller/issues/78)

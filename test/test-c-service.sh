@@ -93,7 +93,6 @@ cat<<EOF > $CFD/action-command.xml
   <CONTROLLER_ACTION_COMMAND xmlns="http://clicon.org/controller-config">${BINDIR}/clixon_controller_service -f $CFG</CONTROLLER_ACTION_COMMAND>
 </clixon-config>
 EOF
-#  <CONTROLLER_ACTION_COMMAND xmlns="http://clicon.org/controller-config">${BINDIR}/clixon_controller_service -f $CFG -D 3 -lf/tmp/services.log</CONTROLLER_ACTION_COMMAND>
 
 cat<<EOF > $CFD/autocli.xml
 <clixon-config xmlns="http://clicon.org/config">
@@ -690,6 +689,60 @@ if $BE; then
     stop_backend -f $CFG
 fi
 
+# Edit sub-service fields https://github.com/clicon/clixon-controller/issues/89
+if $BE; then
+    new "Start new backend -s running -f $CFG -D $DBG"
+    sudo clixon_backend -s running -f $CFG -D $DBG
+fi
+
+new "Wait backend 4"
+wait_backend
+
+new "open connections"
+expectpart "$(${clixon_cli} -1f $CFG connect open)" 0 ""
+
+new "Verify open devices"
+sleep $sleep
+
+imax=5
+for i in $(seq 1 $imax); do
+    res=$(${clixon_cli} -1f $CFG show devices | grep OPEN | wc -l)
+    if [ "$res" = "$nr" ]; then
+        break;
+    fi
+    echo "retry $i after sleep"
+    sleep $sleep
+done
+if [ $i -eq $imax ]; then
+    err1 "$nr open devices" "$res"
+fi
+
+new "Add Sx"
+expectpart "$(${clixon_cli} -m configure -1f $CFG set services testA foo params Sx)" 0 "^$"
+
+new "Add Sy"
+expectpart "$(${clixon_cli} -m configure -1f $CFG set services testA foo params Sy)" 0 "^$"
+
+new "commit base"
+expectpart "$(${clixon_cli} -m configure -1f $CFG commit 2>&1)" 0 "OK"
+
+new "Check Sy"
+expectpart "$(${clixon_cli} -1f $CFG show configuration devices device openconfig1 config interfaces interface Sy)" 0 "<name>Sy</name>"
+
+new "remove Sy"
+expectpart "$(${clixon_cli} -m configure -1f $CFG delete services testA foo params Sy)" 0 "^$"
+
+new "commit remove"
+expectpart "$(${clixon_cli} -m configure -1f $CFG commit 2>&1)" 0 "OK"
+
+new "Check not Sy"
+expectpart "$(${clixon_cli} -1f $CFG show configuration devices device openconfig1 config interfaces interface Sy)" 0 --not-- "<name>Sy</name>"
+
+if $BE; then
+    new "Kill old backend"
+    stop_backend -f $CFG
+fi
+
 # Simulated error
 cat<<EOF > $CFD/action-command.xml
 <clixon-config xmlns="http://clicon.org/config">
@@ -702,7 +755,7 @@ if $BE; then
     sudo clixon_backend -s running -f $CFG -D $DBG
 fi
 
-new "Wait backend 4"
+new "Wait backend 5"
 wait_backend
 
 new "open connections"
@@ -760,7 +813,6 @@ match=$(echo "$ret" | grep --null -Eo "<rpc-error>") || true
 if [ -n "$match" ]; then
     err "<ok/>" "$ret"
 fi
-
 
 new "commit"
 expectpart "$(${clixon_cli} -m configure -1f $CFG commit 2>&1)" 0 "simulated error"
