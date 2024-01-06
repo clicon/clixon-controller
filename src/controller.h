@@ -76,6 +76,13 @@
  */
 #define SHARED_PROFILE_YSPEC
 
+/*! Workaround for https://github.com/clicon/clixon/issues/475
+ *
+ * Diff is broken, a deleted object may also be added:
+ * Go thru deleted and added, and delete both if they are equal
+ */
+#define DELETE_WORKAROUND
+
 #define ACTION_PROCESS "Action process"
 
 #endif /* _CONTROLLER_H */
