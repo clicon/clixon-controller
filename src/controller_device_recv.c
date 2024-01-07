@@ -267,10 +267,10 @@ device_state_recv_config(clixon_handle h,
             clixon_err(OE_UNIX, errno, "cbuf_new");
             goto done;
         }
-        cprintf(cberr, "YANG bind failed at mountpoint:");
+        cprintf(cberr, "YANG bind failed at mountpoint");
         // XXX not prefix/namespace independent
-        if ((x=xpath_first(xerr, NULL, "//error-message"))!=NULL)
-            cprintf(cberr, "%s", xml_body(x));
+        if (xerr && (x=xpath_first(xerr, NULL, "//error-message"))!=NULL)
+            cprintf(cberr, ": %s", xml_body(x));
         if (device_close_connection(dh, "%s", cbuf_get(cberr)) < 0)
             goto done;
         goto closed;
