@@ -312,30 +312,6 @@ push_device_one(clixon_handle           h,
                  &avec, &alen,
                  &chvec0, &chvec1, &chlen) < 0)
         goto done;
-#ifdef DELETE_WORKAROUND
-    /* Go thru deleted and added, and delete both if they are equal */
-    if (dlen && alen){
-        int i;
-        int j;
-        cxobj *xd;
-        cxobj *xa;
-        for (i=0; i<dlen; i++){
-            xd = dvec[i];
-            for (j=0; j<alen; j++){
-                xa = avec[j];
-                if (xml_cmp(xd,xa,0,0,NULL)==0)
-                    break;
-            }
-            if (j < alen){
-                memmove(&avec[j], &avec[j+1], (alen-j)*sizeof(cxobj*));
-                alen--;
-                memmove(&dvec[i], &dvec[i+1], (dlen-i)*sizeof(cxobj*));
-                dlen--;
-                i--;
-            }
-        }
-    }
-#endif
     /* 3) construct an edit-config, send it and validate it */
     if (dlen || alen || chlen){
         if (device_create_edit_config_diff(h, dh,
