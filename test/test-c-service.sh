@@ -402,6 +402,9 @@ expectpart "$(${clixon_cli} -1f $CFG pull)" 0 ""
 new "Check creator attributes after pull"
 expectpart "$(sudo $clixon_controller_xpath -f $dir/running_db -p /config/creators)" 0 "${CREATORSA}" "${CREATORSB}"
 
+new "Show creator attributes"
+expectpart "$($clixon_cli -1 -f $CFG show services creators)" 0 "<name>testA\[name='foo'\]</name>" "<path>/devices/device\[name=\"openconfig1\"\]/config/interfaces/interface\[name=\"A0x\"\]</path>"
+
 # Restart backend and ensure attributes remain
 if $BE; then
     new "Kill old backend $CFG"
@@ -668,11 +671,11 @@ fi
 new "show compare service"
 expectpart "$($clixon_cli -1 -f $CFG -m configure show compare xml)" 0 "^+\ *<services xmlns=\"http://clicon.org/controller\">" "^+\ *<testA xmlns=\"urn:example:test\">" "^+\ *<name>fie</name>" "^+\ *<params>ZZ</params>"
 
+new "discard"
+expectpart "$(${clixon_cli} -1f $CFG -m configure discard)" 0 ""
+
 new "Pull replace"
 expectpart "$(${clixon_cli} -1f $CFG pull)" 0 ""
-
-new "Verify show compare still there"
-expectpart "$($clixon_cli -1 -f $CFG -m configure show compare xml)" 0 "^+\ *<services xmlns=\"http://clicon.org/controller\">" "^+\ *<testA xmlns=\"urn:example:test\">" "^+\ *<name>fie</name>" "^+\ *<params>ZZ</params>"
 
 new "Rollback hostnames on openconfig*"
 expectpart "$($clixon_cli -1 -f $CFG -m configure rollback)" 0 ""

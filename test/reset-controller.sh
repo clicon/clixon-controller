@@ -172,7 +172,7 @@ if [ $j -eq $jmax ]; then
     err "$nr devices open" "$res devices open"
 fi
 
-echo "Netconf pull"
+new "Netconf pull"
 ret=$(${clixon_netconf} -q0 -f $CFG <<EOF
 <rpc xmlns="urn:ietf:params:xml:ns:netconf:base:1.0" message-id="43">
 	<config-pull xmlns="http://clicon.org/controller">

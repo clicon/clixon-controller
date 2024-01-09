@@ -417,8 +417,19 @@ rpc_config_pull(clixon_handle h,
     controller_transaction *ct = NULL;
     char                   *str;
     cbuf                   *cberr = NULL;
+    int                     transient = 0;
 
     clixon_debug(CLIXON_DBG_DEFAULT, "%s", __FUNCTION__);
+    if ((str = xml_find_body(xe, "transient")) != NULL)
+        transient = strcmp(str, "true") == 0;
+    /* Dont pull if candidate */
+    if (!transient &&
+        xmldb_exists(h, "candidate") == 1 &&
+        xmldb_modified_get(h, "candidate")){
+        if (netconf_operation_failed(cbret, "application", "Cannot pull if the candidate datastore is modified")< 0)
+            goto done;
+        goto ok;
+    }
     /* Initiate new transaction */
     if ((ret = controller_transaction_new(h, "pull", &ct, &cberr)) < 0)
         goto done;
@@ -429,8 +440,7 @@ rpc_config_pull(clixon_handle h,
     }
     ct->ct_client_id = ce->ce_id;
     pattern = xml_find_body(xe, "devname");
-    if ((str = xml_find_body(xe, "transient")) != NULL)
-        ct->ct_pull_transient = strcmp(str, "true") == 0;
+    ct->ct_pull_transient = transient;
     if ((str = xml_find_body(xe, "merge")) != NULL)
         ct->ct_pull_merge = strcmp(str, "true") == 0;
     if (xmldb_get(h, "running", nsc, "devices/device", &xret) < 0)

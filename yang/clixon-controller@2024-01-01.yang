@@ -599,7 +599,7 @@ module clixon-controller {
              The pulled config is either:
              - cached as device-<devname>-SYNCED.xml and committed as master OR
              - cached as device-<devname>-TRANSIENT.xml (not installed)
-             And potentially ";
+             Commit to master is not allowed if there are candidate edits";
         input {
             leaf devname {
                 description

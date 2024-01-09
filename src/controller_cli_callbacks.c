@@ -1229,7 +1229,7 @@ cli_show_transactions(clixon_handle h,
  *
  * @param[in] h
  * @param[in] cvv
- * @param[in] argv : "last" or "all"
+ * @param[in] argv : {<pretty>]
  * @retval    0    OK
  * @retval   -1    Error
  */
@@ -1246,7 +1246,17 @@ cli_show_creator_attributes(clixon_handle h,
     size_t  veclen;
     int     i;
     cxobj  *xcr;
+    int     pretty = 0;
+    int     argc = 0;
 
+    if (cvec_len(argv) > 2){
+        clixon_err(OE_PLUGIN, EINVAL, "Received %d arguments. Expected: [<pretty>]", cvec_len(argv));
+        goto done;
+    }
+    if (cvec_len(argv) > argc){
+        if (cli_show_option_bool(argv, argc++, &pretty) < 0)
+            goto done;
+    }
     /* Get config */
     if ((nsc = xml_nsctx_init(CLIXON_LIB_PREFIX, CLIXON_LIB_NS)) == NULL)
         goto done;
@@ -1260,7 +1270,7 @@ cli_show_creator_attributes(clixon_handle h,
         goto done;
     for (i=0; i<veclen; i++){
         xcr = vec[i];
-        if (clixon_xml2file(stdout, xcr, 0, 1, NULL, cligen_output, 0, 1) < 0)
+        if (clixon_xml2file(stdout, xcr, 0, pretty, NULL, cligen_output, 0, 1) < 0)
             goto done;
     }
     retval = 0;

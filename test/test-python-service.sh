@@ -421,9 +421,6 @@ openconfig2:
   </system>
 OK"
 
-new "Show creator attributes"
-expectpart "$($clixon_cli -1 -f $CFG show services creators)" 0 "<creators xmlns=\"http://clicon.org/lib\">" "<name>ssh-users\[service-name='test1'\]</name>" "<path>/devices/device\[name=\"openconfig1\"\]/config/system/aaa/authentication/users/user\[username=\"test1\"\]</path>"
-
 new "Commit configuration."
 expectpart "$($clixon_cli -1 -f $CFG -m configure commit)" 0 ""
 
