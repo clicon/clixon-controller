@@ -73,4 +73,10 @@ expectpart "$($clixon_cli -1 -m configure -f $CFG commit)" 0 ""
 
 expectpart "$($clixon_cli -1 -f $CFG show config)" 0 "<address>1.1.1.1</address>" "<address>2.2.2.2</address>" --not-- "<address>3.3.3.3</address>"
 
+new "delete first 1.1.1.1"
+expectpart "$($clixon_cli -1 -m configure -f $CFG delete devices device openconfig1 config system dns servers server 1.1.1.1)" 0 ""
+
+new "commit"
+expectpart "$($clixon_cli -1 -m configure -f $CFG commit)" 0 ""
+
 endtest

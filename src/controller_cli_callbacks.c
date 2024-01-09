@@ -1225,6 +1225,55 @@ cli_show_transactions(clixon_handle h,
     return retval;
 }
 
+/*! Show controller device states
+ *
+ * @param[in] h
+ * @param[in] cvv
+ * @param[in] argv : "last" or "all"
+ * @retval    0    OK
+ * @retval   -1    Error
+ */
+int
+cli_show_creator_attributes(clixon_handle h,
+                            cvec         *cvv,
+                            cvec         *argv)
+{
+    int     retval = -1;
+    cvec   *nsc = NULL;
+    cxobj  *xerr;
+    cxobj  *xtop = NULL; /* XML of senders */
+    cxobj **vec = NULL;
+    size_t  veclen;
+    int     i;
+    cxobj  *xcr;
+
+    /* Get config */
+    if ((nsc = xml_nsctx_init(CLIXON_LIB_PREFIX, CLIXON_LIB_NS)) == NULL)
+        goto done;
+    if (clicon_rpc_get(h, "cl:creators", nsc, CONTENT_ALL, -1, "report-all", &xtop) < 0)
+        goto done;
+    if ((xerr = xpath_first(xtop, NULL, "rpc-error")) != NULL){
+        clixon_err_netconf(h, OE_XML, 0, xerr, "Get transactions");
+        goto done;
+    }
+    if (xpath_vec(xtop, NULL, "creators", &vec, &veclen) < 0)
+        goto done;
+    for (i=0; i<veclen; i++){
+        xcr = vec[i];
+        if (clixon_xml2file(stdout, xcr, 0, 1, NULL, cligen_output, 0, 1) < 0)
+            goto done;
+    }
+    retval = 0;
+ done:
+    if (vec)
+        free(vec);
+    if (nsc)
+        cvec_free(nsc);
+    if (xtop)
+        xml_free(xtop);
+    return retval;
+}
+
 /*! Show controller client sessions
  *
  * @param[in] h

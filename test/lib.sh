@@ -166,7 +166,7 @@ function start_backend(){
         sudo $clixon_backend -D $DBG $*
     fi
     if [ $? -ne 0 ]; then
-        err
+        err1 backend 
     fi
 }
 

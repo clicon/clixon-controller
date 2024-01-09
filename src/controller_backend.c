@@ -55,6 +55,36 @@
 #include "controller_transaction.h"
 #include "controller_rpc.h"
 
+/*! Write services statedata: creator attributes
+ *
+ * @param[in]    h        Clixon handle
+ * @param[in]    nsc      External XML namespace context, or NULL
+ * @param[in]    xpath    String with XPath syntax. or NULL for all
+ * @param[out]   xstate   XML tree, <config/> on entry.
+ * @retval       0        OK
+ * @retval      -1        Error
+ */
+int
+services_statedata(clixon_handle   h,
+                   cvec           *nsc,
+                   char           *xpath,
+                   cxobj          *xstate)
+{
+    int    retval = -1;
+    cxobj *xt;
+    cxobj *xcreator = NULL;
+
+    if ((xt = xmldb_cache_get(h, "running")) != NULL){
+        if (xml_creator_tree(xt, &xcreator) < 0)
+            goto done;
+        if (xml_addsub(xstate, xcreator) < 0)
+            goto done;
+    }
+    retval = 0;
+ done:
+    return retval;
+}
+
 /*! Called to get state data from plugin by programmatically adding state
  *
  * @param[in]    h        Clixon handle
@@ -72,6 +102,8 @@ controller_statedata(clixon_handle   h,
 {
     int retval = -1;
 
+    if (services_statedata(h, nsc, xpath, xstate) < 0)
+        goto done;
     if (devices_statedata(h, nsc, xpath, xstate) < 0)
         goto done;
     if (controller_transactions_statedata(h, nsc, xpath, xstate) < 0)

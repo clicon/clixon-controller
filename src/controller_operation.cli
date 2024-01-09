@@ -28,19 +28,13 @@ processes("Process maintenace") services("Service daemon operation") {
     status, cli_process_control("Action process", "status");
 }
 show("Show a particular state of the system"){
-    configuration("Show configuration"), cli_show_auto_mode("running", "xml", true, false);{
-       @|pipe_show, cli_show_auto_mode("running", "xml", true, false);
-       @datamodelshow, cli_show_auto_devs("running", "xml", true, false, "explicit", "set ", true);
-    }
-    xpath("Show configuration") <xpath:string>("XPATH expression")
-       [<ns:string>("Namespace")], show_conf_xpath("running");{
-          @|pipe_show, show_conf_xpath("running");
-       }
-    version("Show version"), cli_controller_show_version("running", "text", "/");
-    options("Show clixon options"), cli_show_options();
     compare("Compare candidate and running databases"), compare_dbs_rpc("running", "candidate", "text");{
        xml("Show comparison in xml"), compare_dbs_rpc("running", "candidate","xml");
        text("Show comparison in text"), compare_dbs_rpc("running", "candidate", "text");
+    }
+    configuration("Show configuration"), cli_show_auto_mode("running", "xml", true, false);{
+       @|pipe_show, cli_show_auto_mode("running", "xml", true, false);
+       @datamodelshow, cli_show_auto_devs("running", "xml", true, false, "explicit", "set ", true);
     }
     devices("Show state of devices")[
                  (<name:string>("device pattern")|
@@ -53,9 +47,12 @@ show("Show a particular state of the system"){
                  }
                  detail("Show detailed state"), cli_show_devices("detail");
                  }
-    transactions("Show state of last transaction"), cli_show_transactions("last");{
-         last("Last most recent transactions"), cli_show_transactions("last");
-         all("All transactions"), cli_show_transactions("all");
+    options("Show clixon options"), cli_show_options();
+    services, cli_show_services_process();{
+       detail("Show detailed process status"), cli_process_control("Action process", "status");
+       creators("Show service creator attributes"), cli_show_creator_attributes();{
+          @|pipe_show, cli_show_creator_attributes();
+       }
     }
     sessions("Show client sessions"), cli_show_sessions();{
          detail("Show sessions detailed state"), cli_show_sessions("detail");
@@ -72,16 +69,22 @@ show("Show a particular state of the system"){
 	    }
         }
     }
-    yang("Show yang specs"), show_yang(); {
-        controller("Show clixon-controller yang spec"), show_yang("clixon-controller");
-    }		   
     statistics("Show statistics"), cli_show_statistics();{
       brief, cli_show_statistics();
       modules, cli_show_statistics("modules");
     }
-    services, cli_show_services_process();{
-       detail("Show detailed process status"), cli_process_control("Action process", "status");
+    transactions("Show state of last transaction"), cli_show_transactions("last");{
+         last("Last most recent transactions"), cli_show_transactions("last");
+         all("All transactions"), cli_show_transactions("all");
     }
+    version("Show version"), cli_controller_show_version("running", "text", "/");
+    xpath("Show configuration") <xpath:string>("XPATH expression")
+       [<ns:string>("Namespace")], show_conf_xpath("running");{
+          @|pipe_show, show_conf_xpath("running");
+       }
+    yang("Show yang specs"), show_yang(); {
+        controller("Show clixon-controller yang spec"), show_yang("clixon-controller");
+    }		   
 }
 
 save("Save running configuration to XML file") <filename:string>("Filename (local filename)"), save_config_file("running","filename", "xml");{

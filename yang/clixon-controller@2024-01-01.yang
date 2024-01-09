@@ -31,6 +31,7 @@ module clixon-controller {
     revision 2024-01-01 {
         description
             "Added warning field to transaction
+             Added creator attributes
              Release in 0.3.0";
     }
     revision 2023-11-01 {
@@ -541,6 +542,8 @@ module clixon-controller {
             }
         }
     }
+    /* List of config false creator attributes */
+    uses cl:clixon-creators;
     notification services-commit {
         description
             "A commit has been made that changes the services declaration and
