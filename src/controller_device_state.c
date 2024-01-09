@@ -639,7 +639,10 @@ device_config_write(clixon_handle h,
     db = cbuf_get(cbdb);
     if (xmldb_db_reset(h, db) < 0)
         goto done;
+    /* Dont write creator-attributes */
+    clicon_option_bool_set(h, "CLICON_NETCONF_CREATOR_ATTR", 0);
     retval = xmldb_put(h, db, OP_REPLACE, xdata, clicon_username_get(h), cbret);
+    clicon_option_bool_set(h, "CLICON_NETCONF_CREATOR_ATTR", 1);
  done:
     if (cbdb)
         cbuf_free(cbdb);
