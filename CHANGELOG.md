@@ -22,11 +22,14 @@ Expected: February 2024
 
 ### API changes on existing protocol/config features
 
+* In configure mode, reordered apply template/services to:
+  * `apply [template|services]`
 * New `clixon-controller@2024-01-01.yang` revision
   * Added warning field to transaction
 
 ### Corrected Bugs
 
+* Fixed: [services reapply does not allow specific service instance](https://github.com/clicon/clixon-controller/issues/80)
 * Fixed: [Device pull from configure only sync running](https://github.com/clicon/clixon-controller/issues/91)
 * Fixed: [Notification is not sent when a service parameter is changed](https://github.com/clicon/clixon-controller/issues/89)
 * Fixed: [Commit/connect transaction may lock datastore with no info or method to break it]([Commit/connect transaction may lock datastore with no info or method to break)
