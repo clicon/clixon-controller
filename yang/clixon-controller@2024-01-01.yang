@@ -32,7 +32,8 @@ module clixon-controller {
         description
             "Added warning field to transaction
              Added creator attributes
-             Release in 0.3.0";
+             Added service-instance parameter to rpc controller-commit
+             Released in 0.3.0";
     }
     revision 2023-11-01 {
         description
@@ -703,6 +704,12 @@ module clixon-controller {
                      ";
                 type push-type;
                 default NONE;
+            }
+            leaf service-instance {
+                when "../actions = 'FORCE'";
+                description
+                    "For forced reapply select which service-instance should be triggered";
+                type string;
             }
         }
         output {

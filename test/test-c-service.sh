@@ -746,6 +746,70 @@ if $BE; then
     stop_backend -f $CFG
 fi
 
+# reapply
+if $BE; then
+    new "Start new backend -s running -f $CFG -D $DBG"
+    sudo clixon_backend -s running -f $CFG -D $DBG
+fi
+
+new "Wait backend 5"
+wait_backend
+
+new "open connections"
+expectpart "$(${clixon_cli} -1f $CFG connect open)" 0 ""
+sleep $sleep
+
+new "edit testA(1)"
+ret=$(${clixon_netconf} -0 -f $CFG <<EOF
+<?xml version="1.0" encoding="UTF-8"?>
+<hello xmlns="urn:ietf:params:xml:ns:netconf:base:1.0">
+   <capabilities>
+      <capability>urn:ietf:params:netconf:base:1.0</capability>
+   </capabilities>
+</hello>]]>]]>
+<rpc xmlns="urn:ietf:params:xml:ns:netconf:base:1.0"
+     xmlns:nc="urn:ietf:params:xml:ns:netconf:base:1.0"
+     message-id="42">
+  <edit-config>
+    <target><candidate/></target>
+    <default-operation>none</default-operation>
+    <config>
+       <services xmlns="http://clicon.org/controller">
+	  <testA xmlns="urn:example:test" nc:operation="replace">
+	     <name>foo</name>
+	     <params>A0x</params>
+	 </testA>
+	  <testB xmlns="urn:example:test" nc:operation="replace">
+	     <name>foo</name>
+	     <params>A0x</params>
+	 </testB>
+      </services>
+    </config>
+  </edit-config>
+</rpc>]]>]]>
+EOF
+      )
+
+match=$(echo "$ret" | grep --null -Eo "<rpc-error>") || true
+if [ -n "$match" ]; then
+    err "<ok/>" "$ret"
+fi
+
+new "commit"
+expectpart "$(${clixon_cli} -m configure -1f $CFG commit 2>&1)" 0 "OK"
+
+# XXX: These are not properly tested
+new "apply all services"
+expectpart "$(${clixon_cli} -m configure -1f $CFG apply services 2>&1)" 0 "OK"
+
+new "apply single services"
+expectpart "$(${clixon_cli} -m configure -1f $CFG apply services "testA[name='foo']" 2>&1)" 0 "OK"
+
+if $BE; then
+    new "Kill old backend"
+    stop_backend -f $CFG
+fi
+
 # Simulated error
 cat<<EOF > $CFD/action-command.xml
 <clixon-config xmlns="http://clicon.org/config">
@@ -758,7 +822,8 @@ if $BE; then
     sudo clixon_backend -s running -f $CFG -D $DBG
 fi
 
-new "Wait backend 5"
+# Simulated error
+new "Wait backend 6"
 wait_backend
 
 new "open connections"

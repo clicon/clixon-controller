@@ -57,6 +57,8 @@ int check_device_db(clixon_handle h, cvec *cvv, cvec *argv);
 int cli_auto_set_devs(clixon_handle h, cvec *cvv, cvec *argv);
 int cli_auto_merge_devs(clixon_handle h, cvec *cvv, cvec *argv);
 int cli_auto_del_devs(clixon_handle h, cvec *cvv, cvec *argv);
+int expand_creators(void *h, char *name, cvec *cvv, cvec *argv, cvec *commands, cvec *helptexts);
+
 
 #ifdef __cplusplus
 }

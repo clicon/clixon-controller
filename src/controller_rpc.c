@@ -886,6 +886,8 @@ commit_push_after_actions(clixon_handle           h,
  * @param[in]  h         Clixon handle
  * @param[in]  ct        Transaction
  * @param[in]  actions   How to trigger service-commit notifications
+ * @param[in]  td        Transaction data
+ * @param[in]  service_instance Optional service instance if actions=FORCE
  * @retval     0         OK
  * @retval    -1         Error
  */
@@ -893,7 +895,9 @@ static int
 controller_commit_actions(clixon_handle           h,
                           controller_transaction *ct,
                           actions_type            actions,
-                          transaction_data_t     *td)
+                          transaction_data_t     *td,
+                          char                   *service_instance
+                          )
 {
     int     retval = -1;
     cbuf   *notifycb = NULL;
@@ -905,11 +909,15 @@ controller_commit_actions(clixon_handle           h,
         clixon_err(OE_UNIX, errno, "cvec_new");
         goto done;
     }
-    /* Get candidate and running, compute diff and get notification msg in return */
+    /* Get candidate and running, compute diff and get notification msg in return,
+     * and check if there are any services at all
+     */
     if (controller_actions_diff(h, ct, td, &services, cvv) < 0)
         goto done;
-    if (actions == AT_FORCE)
+    if (actions == AT_FORCE){
         cvec_reset(cvv);
+        cvec_add_string(cvv, service_instance, NULL);
+    }
     /* 1) copy candidate to actions and remove all device config tagged with services */
     if (xmldb_copy(h, "candidate", "actions") < 0)
         goto done;
@@ -1253,6 +1261,7 @@ rpc_controller_commit(clixon_handle h,
     device_handle           closed = NULL;
     device_handle           changed = NULL;
     transaction_data_t     *td = NULL;
+    char                   *service_instance = NULL;
 
     clixon_debug(CLIXON_DBG_DEFAULT, "%s", __FUNCTION__);
     device = xml_find_body(xe, "device");
@@ -1295,6 +1304,8 @@ rpc_controller_commit(clixon_handle h,
         pusht = push_type_str2int(str);
         cprintf(cbtr, " push:%s", str);
     }
+    service_instance = xml_find_body(xe, "service-instance");
+
     /* Initiate new transaction.
      * NB: this locks candidate, which always needs to be unlocked, eg by controller_transaction_done
      */
@@ -1369,7 +1380,7 @@ rpc_controller_commit(clixon_handle h,
             goto ok;
         }
         /* Compute diff of candidate + commit and trigger service-commit notify */
-        if (controller_commit_actions(h, ct, actions, td) < 0)
+        if (controller_commit_actions(h, ct, actions, td, service_instance) < 0)
             goto done;
         break;
     }

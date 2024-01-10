@@ -782,9 +782,12 @@ cli_rpc_commit_diff(clixon_handle h)
 
 /*! Make a controller commit rpc with its many variants
  *
+ * Relies on hardcoded "name" and "instance" variables in cvv
  * @param[in] h     Clixon handle
  * @param[in] cvv   Name pattern
- * @param[in] argv  Source:running/candidate, actions:NONE/CHANGE/FORCE, push:NONE/VALIDATE/COMMIT,
+ * @param[in] argv  Source:running/candidate, 
+                    actions:NONE/CHANGE/FORCE, 
+                    push:NONE/VALIDATE/COMMIT,
  * @retval    0     OK
  * @retval   -1     Error
  * @see controller-commit in clixon-controller.yang
@@ -795,6 +798,7 @@ cli_rpc_controller_commit(clixon_handle h,
                           cvec         *argv)
 {
     int                retval = -1;
+    int                argc = 0;
     cbuf              *cb = NULL;
     cg_var            *cv;
     cxobj             *xtop = NULL;
@@ -810,17 +814,18 @@ cli_rpc_controller_commit(clixon_handle h,
     char              *actions_type;
     char              *source;
     transaction_result result;
+    char              *service = NULL;
 
     if (argv == NULL || cvec_len(argv) != 3){
         clixon_err(OE_PLUGIN, EINVAL, "requires arguments: <datastore> <actions-type> <push-type>");
         goto done;
     }
-    if ((cv = cvec_i(argv, 0)) == NULL){
+    if ((cv = cvec_i(argv, argc++)) == NULL){
         clixon_err(OE_PLUGIN, 0, "Error when accessing argument <datastore>");
         goto done;
     }
     source = cv_string_get(cv);
-    if ((cv = cvec_i(argv, 1)) == NULL){
+    if ((cv = cvec_i(argv, argc++)) == NULL){
         clixon_err(OE_PLUGIN, 0, "Error when accessing argument <actions-type>");
         goto done;
     }
@@ -829,7 +834,7 @@ cli_rpc_controller_commit(clixon_handle h,
         clixon_err(OE_PLUGIN, EINVAL, "<actions-type> argument is %s, expected NONE/CHANGE/FORCE", actions_type);
         goto done;
     }
-    if ((cv = cvec_i(argv, 2)) == NULL){
+    if ((cv = cvec_i(argv, argc++)) == NULL){
         clixon_err(OE_PLUGIN, 0, "Error when accessing argument <push-type>");
         goto done;
     }
@@ -840,6 +845,9 @@ cli_rpc_controller_commit(clixon_handle h,
     }
     if ((cv = cvec_find(cvv, "name")) != NULL)
         name = cv_string_get(cv);
+    if ((cv = cvec_find(cvv, "instance")) != NULL){
+        service = cv_string_get(cv);
+    }
     if ((cb = cbuf_new()) == NULL){
         clixon_err(OE_PLUGIN, errno, "cbuf_new");
         goto done;
@@ -852,6 +860,12 @@ cli_rpc_controller_commit(clixon_handle h,
     cprintf(cb, "<device>%s</device>", name);
     cprintf(cb, "<push>%s</push>", push_type);
     cprintf(cb, "<actions>%s</actions>", actions_type);
+    if (service && actions_type_str2int(actions_type) == AT_FORCE){
+        cprintf(cb, "<service-instance>");
+        if (xml_chardata_cbuf_append(cb, service) < 0)
+            goto done;
+        cprintf(cb, "</service-instance>");
+    }
     cprintf(cb, "<source>ds:%s</source>", source); /* Note add datastore prefix */
     cprintf(cb, "</controller-commit>");
     cprintf(cb, "</rpc>");
@@ -1257,7 +1271,7 @@ cli_show_creator_attributes(clixon_handle h,
         if (cli_show_option_bool(argv, argc++, &pretty) < 0)
             goto done;
     }
-    /* Get config */
+    /* Get creators state */
     if ((nsc = xml_nsctx_init(CLIXON_LIB_PREFIX, CLIXON_LIB_NS)) == NULL)
         goto done;
     if (clicon_rpc_get(h, "cl:creators", nsc, CONTENT_ALL, -1, "report-all", &xtop) < 0)
@@ -2281,6 +2295,68 @@ cli_apply_device_template(clixon_handle h,
         cbuf_free(cb);
     if (xret)
         xml_free(xret);
+    if (xtop)
+        xml_free(xtop);
+    return retval;
+}
+
+/*! Completion callback of variable for yang schema
+ *
+ * @param[in]   h        clicon handle
+ * @param[in]   name     Name of this function (eg "expand_dbvar")
+ * @param[in]   cvv      The command so far. Eg: cvec [0]:"a 5 b"; [1]: x=5;
+ * @param[in]   argv     Arguments given at the callback:
+ *   <schemanode>       Absolute YANG schema-node
+ *   <var>*             List of variable names in cvv for traversing yang
+ * @param[out]  commands vector of function pointers to callback functions
+ * @param[out]  helptxt  vector of pointers to helptexts
+ * @retval      0        OK
+ * @retval     -1        Error
+ */
+int
+expand_creators(void   *h,
+                char   *name,
+                cvec   *cvv,
+                cvec   *argv,
+                cvec   *commands,
+                cvec   *helptexts)
+{
+    int     retval = -1;
+    cvec   *nsc = NULL;
+    cxobj  *xerr;
+    cxobj  *xtop = NULL; /* XML of senders */
+    cxobj **vec = NULL;
+    size_t  veclen;
+    int     i;
+    cxobj  *xs;
+    char   *body;
+
+    if (argv != NULL){
+        clixon_err(OE_PLUGIN, EINVAL, "No argument expected");
+        goto done;
+    }
+    /* Get config */
+    if ((nsc = xml_nsctx_init(CLIXON_LIB_PREFIX, CLIXON_LIB_NS)) == NULL)
+        goto done;
+    if (clicon_rpc_get(h, "cl:creators", nsc, CONTENT_ALL, -1, "report-all", &xtop) < 0)
+        goto done;
+    if ((xerr = xpath_first(xtop, NULL, "rpc-error")) != NULL){
+        clixon_err_netconf(h, OE_XML, 0, xerr, "Get transactions");
+        goto done;
+    }
+    if (xpath_vec(xtop, NULL, "creators/creator/name", &vec, &veclen) < 0)
+        goto done;
+    for (i=0; i<veclen; i++){
+        if ((xs = vec[i]) != NULL &&
+            (body = xml_body(xs)) != NULL)
+            cvec_add_string(commands, NULL, body);
+    }
+    retval = 0;
+ done:    
+    if (vec)
+        free(vec);
+    if (nsc)
+        cvec_free(nsc);
     if (xtop)
         xml_free(xtop);
     return retval;

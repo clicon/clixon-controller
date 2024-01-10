@@ -160,7 +160,7 @@ new "commit template local"
 expectpart "$($clixon_cli -1f $CFG -m configure commit local 2>&1)" 0 "^$"
 
 new "Apply template CLI"
-expectpart "$($clixon_cli -1 -f $CFG -m configure apply interfaces openconfig* variables NAME z TYPE ianaift:v35)" 0 "^$"
+expectpart "$($clixon_cli -1 -f $CFG -m configure apply template interfaces openconfig* variables NAME z TYPE ianaift:v35)" 0 "^$"
 
 new "Verify compare 2"
 expectpart "$($clixon_cli -1 -f $CFG -m configure show compare)" 0 "^+\ *interface z {" "^+\ *type ianaift:v35;" "^+\ *description \"Config of interface z,z and ianaift:v35 type\";" --not-- "^\-" 

@@ -220,14 +220,14 @@ new "Sleep and verify devices are open"
 sleep_open
 
 new "Show device diff, should be empty"
-expectpart "$($clixon_cli -1 -f $CFG show devices diff)" 0 ""
-expectpart "$($clixon_cli -1 -f $CFG show devices openconfig* diff)" 0 ""
+expectpart "$($clixon_cli -1 -f $CFG show devices diff)" 0 "^$"
 
 # Verify that service processes are running
 new "Verify service processes are running"
 expectpart "$($clixon_cli -1 -f $CFG processes service status)" 0 ".*running.*" ""
 
 # Why do we need to restart the service?
+new "process restart"
 expectpart "$($clixon_cli -1 -f $CFG processes service restart)" 0 '<ok xmlns="http://clicon.org/lib"/>'
 
 # Make sure that service processes are running after restart
