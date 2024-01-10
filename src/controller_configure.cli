@@ -70,7 +70,9 @@ apply("Apply template on devices") {
               variables @template_vars;
               }
      services("(Re)Apply services"), cli_rpc_controller_commit("candidate", "FORCE", "COMMIT"); {
-          <instance:string expand_creators()>("Service instance"), cli_rpc_controller_commit("candidate", "FORCE", "COMMIT");
-}
+          <instance:string expand_creators()>("Service instance"), cli_rpc_controller_commit("candidate", "FORCE", "COMMIT");{
+          diff("Show the result of running the services but do not commit"), cli_rpc_controller_commit("candidate", "FORCE", "NONE");
+          }
+    }
 }
 

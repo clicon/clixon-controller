@@ -29,6 +29,7 @@ Expected: February 2024
 
 ### Corrected Bugs
 
+* Fixed: [apply services does not allow dry-run](https://github.com/clicon/clixon-controller/issues/94)
 * Fixed: [old device config wrongly pushed back](https://github.com/clicon/clixon-controller/issues/93)
 * Fixed: [services reapply does not allow specific service instance](https://github.com/clicon/clixon-controller/issues/80)
 * Fixed: [Device pull from configure only sync running](https://github.com/clicon/clixon-controller/issues/91)

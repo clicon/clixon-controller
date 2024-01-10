@@ -1262,6 +1262,9 @@ cli_show_creator_attributes(clixon_handle h,
     cxobj  *xcr;
     int     pretty = 0;
     int     argc = 0;
+    char   *instance  = NULL;
+    cg_var *cv;
+    char   *name;
 
     if (cvec_len(argv) > 2){
         clixon_err(OE_PLUGIN, EINVAL, "Received %d arguments. Expected: [<pretty>]", cvec_len(argv));
@@ -1270,6 +1273,9 @@ cli_show_creator_attributes(clixon_handle h,
     if (cvec_len(argv) > argc){
         if (cli_show_option_bool(argv, argc++, &pretty) < 0)
             goto done;
+    }
+    if ((cv = cvec_find(cvv, "instance")) != NULL){
+        instance = cv_string_get(cv);
     }
     /* Get creators state */
     if ((nsc = xml_nsctx_init(CLIXON_LIB_PREFIX, CLIXON_LIB_NS)) == NULL)
@@ -1280,12 +1286,18 @@ cli_show_creator_attributes(clixon_handle h,
         clixon_err_netconf(h, OE_XML, 0, xerr, "Get transactions");
         goto done;
     }
-    if (xpath_vec(xtop, NULL, "creators", &vec, &veclen) < 0)
+    if (xpath_vec(xtop, NULL, "creators/creator", &vec, &veclen) < 0)
         goto done;
     for (i=0; i<veclen; i++){
         xcr = vec[i];
-        if (clixon_xml2file(stdout, xcr, 0, pretty, NULL, cligen_output, 0, 1) < 0)
-            goto done;
+        if (instance){
+            if ((name = xml_find_body(xcr, "name")) && strcmp(name, instance) == 0)
+                if (clixon_xml2file(stdout, xcr, 0, pretty, NULL, cligen_output, 0, 1) < 0)
+                    goto done;
+        }
+        else
+            if (clixon_xml2file(stdout, xcr, 0, pretty, NULL, cligen_output, 0, 1) < 0)
+                goto done;
     }
     retval = 0;
  done:

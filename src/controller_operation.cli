@@ -51,7 +51,8 @@ show("Show a particular state of the system"){
     services, cli_show_services_process();{
        detail("Show detailed process status"), cli_process_control("Action process", "status");
        creators("Show service creator attributes"), cli_show_creator_attributes(true);{
-          @|pipe_show, cli_show_creator_attributes();
+          @|pipe_show, cli_show_creator_attributes(true);
+          <instance:string expand_creators()>("Service instance"), cli_show_creator_attributes(true);
        }
     }
     sessions("Show client sessions"), cli_show_sessions();{

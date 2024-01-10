@@ -746,7 +746,7 @@ if $BE; then
     stop_backend -f $CFG
 fi
 
-# reapply
+# apply services
 if $BE; then
     new "Start new backend -s running -f $CFG -D $DBG"
     sudo clixon_backend -s running -f $CFG -D $DBG
@@ -799,11 +799,14 @@ new "commit"
 expectpart "$(${clixon_cli} -m configure -1f $CFG commit 2>&1)" 0 "OK"
 
 # XXX: These are not properly tested
-new "apply all services"
-expectpart "$(${clixon_cli} -m configure -1f $CFG apply services 2>&1)" 0 "OK"
+new "apply single services diff"
+expectpart "$(${clixon_cli} -m configure -1f $CFG apply services "testA[name='foo'] diff" 2>&1)" 0 "OK"
 
 new "apply single services"
 expectpart "$(${clixon_cli} -m configure -1f $CFG apply services "testA[name='foo']" 2>&1)" 0 "OK"
+
+new "apply all services"
+expectpart "$(${clixon_cli} -m configure -1f $CFG apply services 2>&1)" 0 "OK"
 
 if $BE; then
     new "Kill old backend"
