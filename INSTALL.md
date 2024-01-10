@@ -70,6 +70,7 @@ Kill old backend and start a new:
 ```console
 sudo clixon_backend -f /usr/local/etc/clixon/controller.xml -z
 sudo clixon_backend -f /usr/local/etc/clixon/controller.xml
+```
 
 Start the CLI and configure devices
 
