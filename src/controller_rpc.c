@@ -916,7 +916,8 @@ controller_commit_actions(clixon_handle           h,
         goto done;
     if (actions == AT_FORCE){
         cvec_reset(cvv);
-        cvec_add_string(cvv, service_instance, NULL);
+        if (service_instance)
+            cvec_add_string(cvv, service_instance, NULL);
     }
     /* 1) copy candidate to actions and remove all device config tagged with services */
     if (xmldb_copy(h, "candidate", "actions") < 0)
