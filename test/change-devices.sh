@@ -1,10 +1,28 @@
 #!/usr/bin/env bash
 # Change device config: Remove x, set y=122, and add z=99
+
 set -u
 
 echo "change-devices"
 
-CONFIG='<interfaces xmlns="http://openconfig.net/yang/interfaces"><interface nc:operation="remove"><name>x</name></interface><interface><name>y</name><config><type nc:operation="replace" xmlns:ianaift="urn:ietf:params:xml:ns:yang:iana-if-type">ianaift:atm</type></config></interface><interface nc_operation="merge"><name>z</name><config><name>z</name><type xmlns:ianaift="urn:ietf:params:xml:ns:yang:iana-if-type">ianaift:usb</type></config></interface></interfaces>'
+CONFIG='<interfaces xmlns="http://openconfig.net/yang/interfaces">\
+          <interface nc:operation="remove">\
+            <name>x</name>\
+          </interface>\
+          <interface>
+            <name>y</name>\
+            <config>\
+               <type nc:operation="replace" xmlns:ianaift="urn:ietf:params:xml:ns:yang:iana-if-type">ianaift:atm</type>\
+            </config>\
+          </interface>\
+         <interface nc_operation="merge">\
+           <name>z</name>\
+           <config>\
+             <name>z</name>\
+             <type xmlns:ianaift="urn:ietf:params:xml:ns:yang:iana-if-type">ianaift:usb</type>\
+           </config>\
+         </interface>\
+       </interfaces>'
 
 # Remove x, change y, and add z directly on devices
 i=1

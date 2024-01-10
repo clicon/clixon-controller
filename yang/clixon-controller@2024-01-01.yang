@@ -599,8 +599,7 @@ module clixon-controller {
             "Read(pull) the config of one or several devices.
              The pulled config is either:
              - cached as device-<devname>-SYNCED.xml and committed as master OR
-             - cached as device-<devname>-TRANSIENT.xml (not installed)
-             Commit to master is not allowed if there are candidate edits";
+             - cached as device-<devname>-TRANSIENT.xml (not installed)";
         input {
             leaf devname {
                 description

@@ -7,7 +7,7 @@
 # Magic line must be first in script (see README.md)
 s="$_" ; . ./lib.sh || if [ "$s" = $0 ]; then exit 0; else return 0; fi
 
-set -eu
+set -u
 
 # Reset devices with initial config
 . ./reset-devices.sh
@@ -74,6 +74,14 @@ EOF
         exit 1
     fi
 done
+
+# Now do a pull and candidate zapped: no show compare 
+# see https://github.com/clicon/clixon-controller/issues/93
+new "pull replace"
+expectpart "$($clixon_cli -1f $CFG pull replace 2>&1)" 0 "OK"
+
+new "show compare, expect NULL"
+expectpart "$($clixon_cli -1f $CFG -m configure show compare)" 0 "^$"
 
 if $BE; then
     new "Kill old backend"

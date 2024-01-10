@@ -265,8 +265,8 @@ fi
 new "edit local candidate"
 expectpart "$($clixon_cli -1f $CFG -m configure delete devices device openconfig1 config interfaces interface z)" 0 "^$"
 
-new "pull expect error"
-expectpart "$($clixon_cli -1f $CFG pull replace 2>&1)" 255 "Cannot pull if the candidate datastore is modified"
+new "pull dont expect error"
+expectpart "$($clixon_cli -1f $CFG pull replace 2>&1)" 0 "OK"
 
 new "discard"
 expectpart "$($clixon_cli -1f $CFG -m configure discard)" 0 "^$"
