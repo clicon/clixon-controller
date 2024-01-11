@@ -426,8 +426,7 @@ transaction_notification_handler(clixon_handle       h,
         clixon_err(OE_NETCONF, EFAULT, "Notification malformed");
         goto done;
     }
-    if (clixon_debug_xml(1, xt, "Transaction") < 0)
-        goto done;
+    clixon_debug_xml(1, xt, "Transaction");
     if ((xn = xpath_first(xt, 0, "notification/controller-transaction")) == NULL){
         clixon_err(OE_NETCONF, EFAULT, "Notification malformed");
         goto done;
