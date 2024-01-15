@@ -280,7 +280,7 @@ do_service(clixon_handle h,
            char         *db,
            char         *tag)
 {
-    int   retval = -1;
+    int    retval = -1;
     cbuf  *cb = NULL;
     cxobj *x;
     char  *p;

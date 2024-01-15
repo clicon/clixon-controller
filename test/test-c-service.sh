@@ -84,7 +84,6 @@ cat<<EOF > $CFG
   <CLICON_CLI_HELPSTRING_TRUNCATE>true</CLICON_CLI_HELPSTRING_TRUNCATE>
   <CLICON_CLI_HELPSTRING_LINES>1</CLICON_CLI_HELPSTRING_LINES>
   <CLICON_YANG_SCHEMA_MOUNT>true</CLICON_YANG_SCHEMA_MOUNT>
-  <CLICON_NETCONF_CREATOR_ATTR>true</CLICON_NETCONF_CREATOR_ATTR>
 </clixon-config>
 EOF
 
@@ -139,18 +138,20 @@ module myyang {
 	       type string;
                min-elements 1; /* For validate fail*/
 	   } 
+           uses ctrl:created-by-service;
 	}
     }
     augment "/ctrl:services" {
 	list testB {
-	    key name;
-	    leaf name {
-		type string;
-	    }
-	    description "Test service B";
-	    leaf-list params{
-	       type string;
-	    }
+	   key name;
+	   leaf name {
+	      type string;
+	   }
+	   description "Test service B";
+	   leaf-list params{
+	      type string;
+	   }
+           uses ctrl:created-by-service;
 	}
     }
 }
@@ -257,9 +258,6 @@ EOF
 . ./reset-devices.sh
 
 if $BE; then
-    new "Kill old backend $CFG"
-    sudo clixon_backend -f $CFG -z
-
     new "Start new backend -s startup -f $CFG -D $DBG"
     sudo clixon_backend -s startup -f $CFG -D $DBG
 fi
@@ -372,38 +370,118 @@ set +e
 expectpart "$(${clixon_cli} -m configure -1f $CFG commit push 2>&1)" 0 OK --not-- Error
 
 # see https://github.com/clicon/clixon-controller/issues/70
-new "commit diff"
+new "commit diff 1"
 expectpart "$(${clixon_cli} -m configure -1f $CFG commit diff 2>&1)" 0 OK --not-- "<interface"
 
 # see https://github.com/clicon/clixon-controller/issues/78
 new "local change"
 expectpart "$(${clixon_cli} -m configure -1f $CFG set devices device openconfig1 config system config login-banner mylogin-banner)" 0 ""
 
-new "commit diff"
+new "commit diff 2"
 expectpart "$(${clixon_cli} -m configure -1f $CFG commit diff 2>&1)" 0 "^+\ *<login-banner>mylogin-banner</login-banner>"
 
 new "commit"
 expectpart "$(${clixon_cli} -m configure -1f $CFG commit 2>&1)" 0 ""
 
-new "commit diff"
+new "commit diff 3"
 expectpart "$(${clixon_cli} -m configure -1f $CFG commit diff 2>&1)" 0 --not-- "^+\ *<login-banner>mylogin-banner</login-banner>"
 
-CREATORSA="<creator><name>testA\[name='foo'\]</name><path>/devices/device\[name=\"openconfig1\"\]/config/interfaces/interface\[name=\"A0x\"\]</path><path>/devices/device\[name=\"openconfig1\"\]/config/interfaces/interface\[name=\"A0y\"\]</path><path>/devices/device\[name=\"openconfig1\"\]/config/interfaces/interface\[name=\"ABx\"\]</path><path>/devices/device\[name=\"openconfig1\"\]/config/interfaces/interface\[name=\"ABy\"\]</path><path>/devices/device\[name=\"openconfig1\"\]/config/interfaces/interface\[name=\"Ax\"\]</path><path>/devices/device\[name=\"openconfig1\"\]/config/interfaces/interface\[name=\"Ay\"\]</path><path>/devices/device\[name=\"openconfig2\"\]/config/interfaces/interface\[name=\"A0x\"\]</path><path>/devices/device\[name=\"openconfig2\"\]/config/interfaces/interface\[name=\"A0y\"\]</path><path>/devices/device\[name=\"openconfig2\"\]/config/interfaces/interface\[name=\"ABx\"\]</path><path>/devices/device\[name=\"openconfig2\"\]/config/interfaces/interface\[name=\"ABy\"\]</path><path>/devices/device\[name=\"openconfig2\"\]/config/interfaces/interface\[name=\"Ax\"\]</path><path>/devices/device\[name=\"openconfig2\"\]/config/interfaces/interface\[name=\"Ay\"\]</path></creator>"
+CREATORSA="<created><path>/devices/device\[name=\"openconfig1\"\]/config/interfaces/interface\[name=\"A0x\"\]</path><path>/devices/device\[name=\"openconfig1\"\]/config/interfaces/interface\[name=\"A0y\"\]</path><path>/devices/device\[name=\"openconfig1\"\]/config/interfaces/interface\[name=\"ABx\"\]</path><path>/devices/device\[name=\"openconfig1\"\]/config/interfaces/interface\[name=\"ABy\"\]</path><path>/devices/device\[name=\"openconfig1\"\]/config/interfaces/interface\[name=\"Ax\"\]</path><path>/devices/device\[name=\"openconfig1\"\]/config/interfaces/interface\[name=\"Ay\"\]</path><path>/devices/device\[name=\"openconfig2\"\]/config/interfaces/interface\[name=\"A0x\"\]</path><path>/devices/device\[name=\"openconfig2\"\]/config/interfaces/interface\[name=\"A0y\"\]</path><path>/devices/device\[name=\"openconfig2\"\]/config/interfaces/interface\[name=\"ABx\"\]</path><path>/devices/device\[name=\"openconfig2\"\]/config/interfaces/interface\[name=\"ABy\"\]</path><path>/devices/device\[name=\"openconfig2\"\]/config/interfaces/interface\[name=\"Ax\"\]</path><path>/devices/device\[name=\"openconfig2\"\]/config/interfaces/interface\[name=\"Ay\"\]</path></created>"
 
-CREATORSB="<creator><name>testB\[name='foo'\]</name><path>/devices/device\[name=\"openconfig1\"\]/config/interfaces/interface\[name=\"A0x\"\]</path><path>/devices/device\[name=\"openconfig1\"\]/config/interfaces/interface\[name=\"A0y\"\]</path><path>/devices/device\[name=\"openconfig1\"\]/config/interfaces/interface\[name=\"ABx\"\]</path><path>/devices/device\[name=\"openconfig1\"\]/config/interfaces/interface\[name=\"ABy\"\]</path><path>/devices/device\[name=\"openconfig1\"\]/config/interfaces/interface\[name=\"ABz\"\]</path><path>/devices/device\[name=\"openconfig1\"\]/config/interfaces/interface\[name=\"Bx\"\]</path><path>/devices/device\[name=\"openconfig2\"\]/config/interfaces/interface\[name=\"A0x\"\]</path><path>/devices/device\[name=\"openconfig2\"\]/config/interfaces/interface\[name=\"A0y\"\]</path><path>/devices/device\[name=\"openconfig2\"\]/config/interfaces/interface\[name=\"ABx\"\]</path><path>/devices/device\[name=\"openconfig2\"\]/config/interfaces/interface\[name=\"ABy\"\]</path><path>/devices/device\[name=\"openconfig2\"\]/config/interfaces/interface\[name=\"ABz\"\]</path><path>/devices/device\[name=\"openconfig2\"\]/config/interfaces/interface\[name=\"Bx\"\]</path></creator></creators>"
+CREATORSB="<created><path>/devices/device\[name=\"openconfig1\"\]/config/interfaces/interface\[name=\"A0x\"\]</path><path>/devices/device\[name=\"openconfig1\"\]/config/interfaces/interface\[name=\"A0y\"\]</path><path>/devices/device\[name=\"openconfig1\"\]/config/interfaces/interface\[name=\"ABx\"\]</path><path>/devices/device\[name=\"openconfig1\"\]/config/interfaces/interface\[name=\"ABy\"\]</path><path>/devices/device\[name=\"openconfig1\"\]/config/interfaces/interface\[name=\"ABz\"\]</path><path>/devices/device\[name=\"openconfig1\"\]/config/interfaces/interface\[name=\"Bx\"\]</path><path>/devices/device\[name=\"openconfig2\"\]/config/interfaces/interface\[name=\"A0x\"\]</path><path>/devices/device\[name=\"openconfig2\"\]/config/interfaces/interface\[name=\"A0y\"\]</path><path>/devices/device\[name=\"openconfig2\"\]/config/interfaces/interface\[name=\"ABx\"\]</path><path>/devices/device\[name=\"openconfig2\"\]/config/interfaces/interface\[name=\"ABy\"\]</path><path>/devices/device\[name=\"openconfig2\"\]/config/interfaces/interface\[name=\"ABz\"\]</path><path>/devices/device\[name=\"openconfig2\"\]/config/interfaces/interface\[name=\"Bx\"\]</path></created>"
 
-new "Check creator attributes"
-expectpart "$(sudo $clixon_controller_xpath -f $dir/running_db -p /config/creators)" 0 "${CREATORSA}" "${CREATORSB}"
+new "Check creator attributes testA"
+ret=$(${clixon_netconf} -qe0 -f $CFG <<EOF
+<rpc xmlns="urn:ietf:params:xml:ns:netconf:base:1.0"
+xmlns:nc="urn:ietf:params:xml:ns:netconf:base:1.0"
+message-id="42">
+  <get-config>
+    <source><running/></source>
+    <filter type='subtree'>
+      <services xmlns="http://clicon.org/controller">
+        <testA xmlns="urn:example:test">
+          <name>foo</name>
+        </testA>
+      </services>
+    </filter>
+  </get-config>
+</rpc>]]>]]>
+EOF
+       )
+#echo "ret:$ret"
+
+match=$(echo $ret | grep --null -Eo "<rpc-error>") || true
+if [ -n "$match" ]; then
+    err "<ok/>" "$ret"
+fi
+
+match=$(echo $ret | grep --null -Eo "$CREATORSA") || true
+if [ -z "$match" ]; then
+    err "$CREATORSA" "$ret"
+fi
+
+new "Check creator attributes testB"
+ret=$(${clixon_netconf} -qe0 -f $CFG <<EOF
+<rpc xmlns="urn:ietf:params:xml:ns:netconf:base:1.0"
+xmlns:nc="urn:ietf:params:xml:ns:netconf:base:1.0"
+message-id="42">
+  <get-config>
+    <source><running/></source>
+    <filter type='subtree'>
+      <services xmlns="http://clicon.org/controller">
+        <testB xmlns="urn:example:test">
+          <name>foo</name>
+        </testB>
+      </services>
+    </filter>
+  </get-config>
+</rpc>]]>]]>
+EOF
+       )
+#echo "ret:$ret"
+
+match=$(echo $ret | grep --null -Eo "<rpc-error>") || true
+if [ -n "$match" ]; then
+    err "<ok/>" "$ret"
+fi
+
+match=$(echo $ret | grep --null -Eo "$CREATORSB") || true
+if [ -z "$match" ]; then
+    err "$CREATORSA" "$ret"
+fi
 
 # Pull and ensure attributes remain
 new "Pull replace"
 expectpart "$(${clixon_cli} -1f $CFG pull)" 0 ""
 
 new "Check creator attributes after pull"
-expectpart "$(sudo $clixon_controller_xpath -f $dir/running_db -p /config/creators)" 0 "${CREATORSA}" "${CREATORSB}"
+ret=$(${clixon_netconf} -qe0 -f $CFG <<EOF
+<rpc xmlns="urn:ietf:params:xml:ns:netconf:base:1.0"
+xmlns:nc="urn:ietf:params:xml:ns:netconf:base:1.0"
+message-id="42">
+  <get-config>
+    <source><running/></source>
+    <filter type='subtree'>
+      <services xmlns="http://clicon.org/controller">
+        <testA xmlns="urn:example:test">
+          <name>foo</name>
+        </testA>
+      </services>
+    </filter>
+  </get-config>
+</rpc>]]>]]>
+EOF
+       )
+#echo "ret:$ret"
+match=$(echo $ret | grep --null -Eo "<rpc-error>") || true
+if [ -n "$match" ]; then
+    err "<ok/>" "$ret"
+fi
 
-new "Show creator attributes"
-expectpart "$($clixon_cli -1 -f $CFG show services creators)" 0 "<name>testA\[name='foo'\]</name>" "<path>/devices/device\[name=\"openconfig1\"\]/config/interfaces/interface\[name=\"A0x\"\]</path>"
+match=$(echo $ret | grep --null -Eo "$CREATORSA") || true
+if [ -z "$match" ]; then
+    err "$CREATORSA" "$ret"
+fi
 
 # Restart backend and ensure attributes remain
 if $BE; then
@@ -439,7 +517,33 @@ if [ $i -eq $imax ]; then
 fi
 
 new "Check creator attributes after restart"
-expectpart "$(sudo $clixon_controller_xpath -f $dir/running_db -p /config/creators)" 0 "${CREATORSA}" "${CREATORSB}"
+ret=$(${clixon_netconf} -qe0 -f $CFG <<EOF
+<rpc xmlns="urn:ietf:params:xml:ns:netconf:base:1.0"
+xmlns:nc="urn:ietf:params:xml:ns:netconf:base:1.0"
+message-id="42">
+  <get-config>
+    <source><running/></source>
+    <filter type='subtree'>
+      <services xmlns="http://clicon.org/controller">
+        <testA xmlns="urn:example:test">
+          <name>foo</name>
+        </testA>
+      </services>
+    </filter>
+  </get-config>
+</rpc>]]>]]>
+EOF
+       )
+#echo "ret:$ret"
+match=$(echo $ret | grep --null -Eo "<rpc-error>") || true
+if [ -n "$match" ]; then
+    err "<ok/>" "$ret"
+fi
+
+match=$(echo $ret | grep --null -Eo "$CREATORSA") || true
+if [ -z "$match" ]; then
+    err "$CREATORSA" "$ret"
+fi
 
 new "edit testA(2)"
 ret=$(${clixon_netconf} -0 -f $CFG <<EOF
@@ -478,7 +582,8 @@ if [ -n "$match" ]; then
     err "<ok/>" "$ret"
 fi
 
-new "commit diff"
+new "commit diff 4"
+# Ax removed, Az added
 ret=$(${clixon_cli} -m configure -1f $CFG commit diff 2> /dev/null) 
 #echo "ret:$ret"
 match=$(echo $ret | grep --null -Eo '\+ <name>Az</name>') || true

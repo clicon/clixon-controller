@@ -1,6 +1,5 @@
 # Controller connect of static yang modules, ie no get-schema
 # Boostrapping from empty config
-# Note that the test restarts devices backends with CLICON_NETCONF_MONITORING=false to disable RFC 6025
 # 1. Non-complete module, check YANG bind failed
 # 2. Non-existent module, check No yangs found
 # 3. Full module
@@ -64,7 +63,6 @@ cat<<EOF > $CFG
   <CLICON_CLI_HELPSTRING_TRUNCATE>true</CLICON_CLI_HELPSTRING_TRUNCATE>
   <CLICON_CLI_HELPSTRING_LINES>1</CLICON_CLI_HELPSTRING_LINES>
   <CLICON_YANG_SCHEMA_MOUNT>true</CLICON_YANG_SCHEMA_MOUNT>
-  <CLICON_NETCONF_CREATOR_ATTR>true</CLICON_NETCONF_CREATOR_ATTR>
 </clixon-config>
 EOF
 
