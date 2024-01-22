@@ -2683,7 +2683,6 @@ controller_edit_config(clixon_handle h,
     int        ret;
 
     clixon_debug(1, "controller edit-config wrapper");
-
     if ((yspec =  clicon_dbspec_yang(h)) == NULL){
         clixon_err(OE_YANG, ENOENT, "No yang spec9");
         goto done;
@@ -2706,8 +2705,8 @@ controller_edit_config(clixon_handle h,
     if ((xconfig = xml_new(NETCONF_INPUT_CONFIG, NULL, CX_ELMNT)) == NULL)
         goto done;
     if (clixon_xml_parse_va(YB_NONE, NULL, &xconfig, NULL,
-                            "<services xmlns=\"%s\" xmlns:nc=\"%s\"/>"
-                            ,CONTROLLER_NAMESPACE,
+                            "<services xmlns=\"%s\" xmlns:nc=\"%s\"/>",
+                            CONTROLLER_NAMESPACE,
                             NETCONF_BASE_NAMESPACE) < 0){
         goto ok;
     }
@@ -2725,7 +2724,7 @@ controller_edit_config(clixon_handle h,
         goto ok;
     if (xml_child_nr_type(xserv, CX_ELMNT) == 0)
         goto ok;
-    clixon_debug_xml(CLIXON_DBG_DEFAULT, xserv, "Controller created objects to %s:", target);
+    clixon_debug_xml(CLIXON_DBG_DEFAULT, xserv, "Objects created in %s-db", target);
     if ((ret = xmldb_put(h, target, OP_NONE, xconfig, NULL, cbret)) < 0){
         if (netconf_operation_failed(cbret, "protocol", clixon_err_reason())< 0)
             goto done;
