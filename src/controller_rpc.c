@@ -618,7 +618,8 @@ controller_actions_diff(clixon_handle           h,
                 continue;
             /* XXX See also service_action_one where tags are also created */
             cprintf(cb, "%s[%s='%s']", xml_name(xn), xml_name(xi), instance);
-            if (cvec_add_string(cvv, cbuf_get(cb), NULL) < 0){
+            if (cvec_find(cvv, cbuf_get(cb)) == NULL &&
+                cvec_add_string(cvv, cbuf_get(cb), NULL) < 0){
                 clixon_err(OE_UNIX, errno, "cvec_add_string");
                 goto done;
             }
@@ -633,41 +634,6 @@ controller_actions_diff(clixon_handle           h,
     return retval;
 }
 
-/*! XML apply function: check if any of the creators of x is in cvv
- *
- * cvv is on the form <service><instance key>
- * 1. cvv can be NULL, then any creator applies
- * 2. Should not be removed if another creator exists, then that creator should just be removed
- * 3. Should set a flag and remove later
- * @see text_modify
- */
-static int
-strip_device(cxobj *x,
-             void  *arg)
-{
-    cvec   *cvv = (cvec*)arg;
-    cg_var *cv = NULL;
-    size_t  len;
-    char   *tag;
-
-    if ((len = xml_creator_len(x)) == 0)
-        return 0;
-    if (cvec_len(cvv) == 0){
-        /* 1. cvv can be NULL, then any creator applies */
-        xml_flag_set(x, XML_FLAG_MARK);
-    }
-    else while ((cv = cvec_each(cvv, cv)) != NULL){
-            tag = cv_name_get(cv);
-            if (xml_creator_find(x, tag) == 0)
-                continue;
-            if (len == 1)
-                xml_flag_set(x, XML_FLAG_MARK);
-            else
-                xml_creator_rm(x, tag);
-        }
-    return 0;
-}
-
 /*! Strip all service data in device config
  *
  * Read a datastore, for each device in the datastore, strip data created by services
@@ -677,8 +643,7 @@ strip_device(cxobj *x,
  * @param[in]  cvv  Vector of services
  * @retval     0    OK
  * @retval    -1    Error
- * @note Somewhat raw algorithm to replace the top-level tree, could do with op=REMOVE
- *       of the sub-parts instead of marking and remove
+ * @note Differentiate between reading created from running while deleting from action-db
  */
 static int
 strip_service_data_from_device_config(clixon_handle h,
@@ -686,48 +651,97 @@ strip_service_data_from_device_config(clixon_handle h,
                                       cvec         *cvv)
 {
     int     retval = -1;
-    cxobj  *xt = NULL;
+    cxobj  *xt0 = NULL;
+    cxobj  *xt1 = NULL;
+    cxobj  *xc0;
+    cxobj  *xc1;
+    cxobj  *xp;
     cxobj  *xd;
     cbuf   *cbret = NULL;
     int     ret;
+    int     i;
     cxobj **vec = NULL;
     size_t  veclen;
-    int     i;
+    cg_var *cv;
+    char   *xpath;
+    int     touch = 0;
 
-    if (xmldb_get0(h, db, YB_NONE, NULL, NULL, 1, WITHDEFAULTS_EXPLICIT, &xt, NULL, NULL) < 0)
+    /* Get services/created read-only from running_db for reading */
+    if (xmldb_get0(h, "running", YB_NONE, NULL, NULL, 1, WITHDEFAULTS_EXPLICIT, &xt0, NULL, NULL) < 0)
         goto done;
-    if (xpath_vec(xt, NULL, "devices/device/config", &vec, &veclen) < 0)
+    /* Get services/created and devices from action_db for deleting */
+    if (xmldb_get0(h, db, YB_NONE, NULL, NULL, 1, WITHDEFAULTS_EXPLICIT, &xt1, NULL, NULL) < 0)
         goto done;
-    for (i=0; i<veclen; i++){
-        xd = vec[i];
-#if 0 // debug
-        fprintf(stderr, "%s before strip xd:\n", __FUNCTION__);
-        xml_creator_print(stderr, xd);
-#endif
-        if (xml_apply(xd, CX_ELMNT, strip_device, cvv) < 0)
-            goto done;
-        if (xml_tree_prune_flags(xd, XML_FLAG_MARK, XML_FLAG_MARK) < 0)
-            goto done;
-        if (xml_apply(xd, CX_ELMNT, (xml_applyfn_t*)xml_flag_reset, (void*)(XML_FLAG_MARK)) < 0)
-            goto done;
-#if 0 // debug
-        fprintf(stderr, "%s after strip xd:\n", __FUNCTION__);
-        xml_creator_print(stderr, xd);
-
-#endif
-    }
-    if (veclen){
-        if ((cbret = cbuf_new()) == NULL){
-            clixon_err(OE_UNIX, errno, "cbuf_new");
-            goto done;
+    /* Go through /services/././created that match cvv service name (NULL means all)
+     * then for each xpath find object and purge
+     * Also remove created/name itself
+     */
+    if (cvec_len(cvv) != 0){ /* specific services */
+        cv = NULL;
+        while ((cv = cvec_each(cvv, cv)) != NULL){
+            if ((xc0 = xpath_first(xt0, NULL, "services/%s/created", cv_name_get(cv))) == NULL)
+                continue;
+            xc1 = xpath_first(xt1, NULL, "services/%s/created", cv_name_get(cv));
+            /* Read created from read-only running */
+            xp = NULL;
+            while ((xp = xml_child_each(xc0, xp, CX_ELMNT)) != NULL) {
+                if (strcmp(xml_name(xp), "path") != 0)
+                    continue;
+                if ((xpath = xml_body(xp)) == NULL)
+                    continue;
+                if ((xd = xpath_first(xt1, NULL, "%s", xpath)) == NULL) 
+                    continue;
+                /* Purge from action-db */
+                if (xml_purge(xd) < 0) // XXX Check multiple??
+                    goto done;
+            }
+            /* Purge from action-db */
+            if (xc1 && xml_purge(xc1) < 0)
+                goto done;
+            touch++;
         }
+    }
+    else{ /* All services */
+        if (xpath_vec(xt0, NULL, "services//created", &vec, &veclen) < 0)
+            goto done;
+        for (i=0; i<veclen; i++){
+            xc0 = vec[i];
+            xp = NULL;
+            while ((xp = xml_child_each(xc0, xp, CX_ELMNT)) != NULL) {
+                if (strcmp(xml_name(xp), "path") != 0)
+                    continue;
+                if ((xpath = xml_body(xp)) == NULL)
+                    continue;
+                if ((xd = xpath_first(xt1, NULL, "%s", xpath)) == NULL) 
+                    continue;
+                if (xml_purge(xd) < 0) // XXX Check muliple??
+                    goto done;
+                touch++;
+            }
+        }
+        if (vec)
+            free(vec);
+        if (xpath_vec(xt1, NULL, "services//created", &vec, &veclen) < 0)
+            goto done;        
+        for (i=0; i<veclen; i++){
+            xc1 = vec[i];
+            if (xc1 && xml_purge(xc1) < 0)
+                goto done;
+            touch++;
+        }
+    }
+    if (touch){
         /* XXX Somewhat raw to replace the top-level tree, could do with op=REMOVE
          * of the sub-parts instead of marking and remove
          */
-        if ((ret = xmldb_put(h, db, OP_REPLACE, xt, NULL, cbret)) < 0)
+        if ((cbret = cbuf_new()) == NULL){ // dummy
+            clixon_err(OE_UNIX, errno, "cbuf_new");
+            goto done;
+        }
+        if ((ret = xmldb_put(h, db, OP_REPLACE, xt1, NULL, cbret)) < 0)
             goto done;
         if (ret == 0){
-            clixon_err(OE_XML, 0, "xmldb_ut failed");
+            clixon_err(OE_XML, 0, "xmldb_put failed");
             goto done;
         }
     }
@@ -737,8 +751,10 @@ strip_service_data_from_device_config(clixon_handle h,
         free(vec);
     if (cbret)
         cbuf_free(cbret);
-    if (xt)
-        xml_free(xt);
+    if (xt0)
+        xml_free(xt0);
+    if (xt1)
+        xml_free(xt1);
     return retval;
 }
 
@@ -903,6 +919,7 @@ controller_commit_actions(clixon_handle           h,
     }
     /* Get candidate and running, compute diff and get notification msg in return,
      * and check if there are any services at all
+     * XXX may trigger if created paths are manually edited
      */
     if (controller_actions_diff(h, ct, td, &services, cvv) < 0)
         goto done;
@@ -2290,7 +2307,7 @@ clixon_strsep2(char   *str,
 
 /*! XML apply function: replace any variables
  *
- * @param[in]  x    XML node  
+ * @param[in]  x    XML node
  * @param[in]  arg  xvars: list of variable substitutions
  * @retval    -1    Error, aborted at first error encounter, return -1 to end user
  * @retval     0    OK, continue
@@ -2493,6 +2510,235 @@ rpc_device_template_apply(clixon_handle h,
     return retval;
 }
 
+/*! Slightly modeified from clixon_datastore_write.c
+ */
+static int
+attr_ns_value(cxobj *x,
+              char  *name,
+              char  *ns,
+              char **valp)
+{
+    int    retval = -1;
+    cxobj *xa;
+    char  *ans = NULL; /* attribute namespace */
+    char  *val = NULL;
+
+    /* prefix=NULL since we do not know the prefix */
+    if ((xa = xml_find_type(x, NULL, name, CX_ATTR)) != NULL){
+        if (xml2ns(xa, xml_prefix(xa), &ans) < 0)
+            goto done;
+        if (ans == NULL){ /* the attribute exists, but no namespace */
+            goto fail;
+        }
+        /* the attribute exists, but not w expected namespace */
+        if (ns == NULL ||
+            strcmp(ans, ns) == 0){
+            if ((val = strdup(xml_value(xa))) == NULL){
+                clixon_err(OE_UNIX, errno, "malloc");
+                goto done;
+            }
+            xml_purge(xa);
+        }
+    }
+    *valp = val;
+    val = NULL;
+    retval = 1;
+ done:
+    if (val)
+        free(val);
+    return retval;
+ fail:
+    retval = 0;
+    goto done;
+}
+
+/*! Callback function type for xml_apply
+ *
+ * @param[in]  x    XML node
+ * @param[in]  arg  General-purpose argument
+ * @retval     2    Locally abort this subtree, continue with others
+ * @retval     1    Abort, dont continue with others, return 1 to end user
+ * @retval     0    OK, continue
+ * @retval    -1    Error, aborted at first error encounter, return -1 to end user
+ */
+static int
+creator_applyfn(cxobj *x,
+                void  *arg)
+{
+    int        retval = -1;
+    cxobj     *xserv = (cxobj*)arg;
+    char      *creator = NULL;
+    cvec      *nsc = 0;
+    char      *xpath = NULL;
+    cxobj     *xi;
+    cxobj     *xc;
+    char      *instance;
+    char      *p;
+    char       q;
+    yang_stmt *yserv;
+    yang_stmt *yi;
+    char      *ns;
+    cvec      *cvk;
+    char      *key;
+    int        ret;
+
+    /* Special clixon-lib attribute for keeping track of creator of objects */
+    if ((ret = attr_ns_value(x, "creator", CLIXON_LIB_NS, &creator)) < 0)
+        goto done;
+    if (ret == 0)
+        goto fail;
+    if (creator != NULL){
+        if (xml2xpath(x, nsc, 0, 0, &xpath) < 0)
+            goto done;
+        /* Find existing entry in xserv, if not found create it */
+        if ((xi = xpath_first(xserv, NULL, "%s", creator)) != NULL){
+            if ((xc = xml_find_type(xi, NULL, "created", CX_ELMNT)) == NULL)
+                goto ok;
+            if ((ret = clixon_xml_parse_va(YB_PARENT, NULL, &xc, NULL, "<path>%s</path>", xpath)) < 0)
+                goto done;
+            if (ret == 0)
+                goto ok;
+        }
+        else {
+            /* split creator into service and name, assuming creator is on the form:
+             * service[name='myname']
+             */
+            if ((p = index(creator, '[')) == NULL)
+                goto ok;
+            *p++ = '\0';
+            if ((p = index(p, '=')) == NULL)
+                goto ok;
+            p++;
+            q = *p++; /* assume quote */
+            instance = p;
+            if ((p = index(p, q)) == NULL)
+                goto ok;
+            *p = '\0';
+            yserv = xml_spec(xserv);
+            if ((yi = yang_find(yserv, Y_LIST, creator)) == NULL)
+                goto ok;
+            if ((cvk = yang_cvec_get(yi)) == NULL)
+                goto ok;
+            if ((key = cvec_i_str(cvk, 0)) == NULL)
+                goto ok;
+            if ((ns = yang_find_mynamespace(yi)) == NULL)
+                goto ok;
+            if ((ret = clixon_xml_parse_va(YB_PARENT, NULL, &xserv, NULL,
+                                           "<%s xmlns=\"%s\"><%s>%s</%s>"
+                                           "<created nc:operation=\"merge\">"
+                                           "<path>%s</path></created></%s>",
+                                           creator,
+                                           ns,
+                                           key,
+                                           instance,
+                                           key,
+                                           xpath,
+                                           creator)) < 0)
+                goto done;
+            if (ret == 0)
+                goto ok;
+        }
+    }
+    ok:
+    retval = 0;
+ done:
+    if (creator)
+        free(creator);
+    if (xpath)
+        free(xpath);
+    return retval;
+ fail:
+    retval = 1;
+    goto done;
+}
+
+/*! Controller wrapper of edit-config
+ *
+ * Find and remove creator attributes and create services/../created structures.
+ * Ignore all semantic errors, trust base function error-handling
+ * @param[in]  h       Clixon handle
+ * @param[in]  xn      Request: <rpc><xn></rpc>
+ * @param[out] cbret   Return xml tree, eg <rpc-reply>..., <rpc-error..
+ * @param[in]  arg     client-entry
+ * @param[in]  regarg  User argument given at rpc_callback_register()
+ * @retval     0       OK
+ * @retval    -1       Error
+ * @see from_client_edit_config
+ */
+static int
+controller_edit_config(clixon_handle h,
+                       cxobj        *xe,
+                       cbuf         *cbret,
+                       void         *arg,
+                       void         *regarg)
+{
+    int        retval = -1;
+    cxobj     *xc;
+    cvec      *nsc = NULL;
+    char      *target;
+    char      *prefix = NULL;
+    yang_stmt *yspec;
+    cxobj     *xconfig = NULL;
+    cxobj     *xserv;
+    int        ret;
+
+    clixon_debug(1, "controller edit-config wrapper");
+
+    if ((yspec =  clicon_dbspec_yang(h)) == NULL){
+        clixon_err(OE_YANG, ENOENT, "No yang spec9");
+        goto done;
+    }
+    if (xml_nsctx_node(xe, &nsc) < 0)
+        goto done;
+    if ((target = netconf_db_find(xe, "target")) == NULL)
+        goto ok;
+    /* Get config element */
+    if ((xc = xpath_first(xe, nsc, "%s%s%s",
+                          prefix?prefix:"",
+                          prefix?":":"",
+                          NETCONF_INPUT_CONFIG)) == NULL){
+        goto ok;
+    }
+    if ((ret = xml_bind_yang(h, xc, YB_MODULE, yspec, NULL)) < 0)
+        goto done;
+    if (ret == 0)
+        goto ok;
+    if ((xconfig = xml_new(NETCONF_INPUT_CONFIG, NULL, CX_ELMNT)) == NULL)
+        goto done;
+    if (clixon_xml_parse_va(YB_NONE, NULL, &xconfig, NULL,
+                            "<services xmlns=\"%s\" xmlns:nc=\"%s\"/>"
+                            ,CONTROLLER_NAMESPACE,
+                            NETCONF_BASE_NAMESPACE) < 0){
+        goto ok;
+    }
+    if ((xserv = xml_find_type(xconfig, NULL, "services", CX_ELMNT)) == NULL)
+        goto ok;
+    if ((ret = xml_bind_yang0(h, xserv, YB_MODULE, yspec, NULL)) < 0)
+        goto done;
+    if (ret == 0)
+        goto ok;
+    if (xml_spec(xserv) == NULL)
+        goto ok;
+    if ((ret = xml_apply(xc, CX_ELMNT, creator_applyfn, xserv)) < 0)
+        goto done;
+    if (ret == 1)
+        goto ok;
+    if (xml_child_nr_type(xserv, CX_ELMNT) == 0)
+        goto ok;
+    clixon_debug_xml(CLIXON_DBG_DEFAULT, xserv, "Controller created objects to %s:", target);
+    if ((ret = xmldb_put(h, target, OP_NONE, xconfig, NULL, cbret)) < 0){
+        if (netconf_operation_failed(cbret, "protocol", clixon_err_reason())< 0)
+            goto done;
+        goto ok;
+    }
+ ok:
+    retval = 0;
+ done:
+    if (xconfig)
+        xml_free(xconfig);
+    return retval;
+}
+
 /*! Register callback for rpc calls 
  */
 int
@@ -2553,6 +2799,13 @@ controller_rpc_init(clixon_handle h)
                               check_services_commit_subscription,
                               NULL,
                               EVENT_RFC5277_NAMESPACE, "create-subscription") < 0)
+        goto done;
+    /* Wrapper of standard RPCs */
+    if (rpc_callback_register(h, controller_edit_config,
+                              NULL,
+                              NETCONF_BASE_NAMESPACE,
+                              "edit-config"
+                              ) < 0)
         goto done;
     retval = 0;
  done:

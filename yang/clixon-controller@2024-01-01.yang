@@ -31,7 +31,7 @@ module clixon-controller {
     revision 2024-01-01 {
         description
             "Added warning field to transaction
-             Added creator attributes
+             Added created-by-service grouping
              Added service-instance parameter to rpc controller-commit
              Released in 0.3.0";
     }
@@ -278,6 +278,17 @@ module clixon-controller {
             enum FORCE {
                 description
                 "Unconditionally trigger services-commit notification for all services.";
+            }
+        }
+    }
+    grouping created-by-service {
+        description
+            "All services should use this grouping for keeping track of created objects.";
+        container created {
+            description "List of created objects used by services.";
+            leaf-list path {
+                description "Path to object";
+                type string;
             }
         }
     }
@@ -544,7 +555,6 @@ module clixon-controller {
         }
     }
     /* List of config false creator attributes */
-    uses cl:clixon-creators;
     notification services-commit {
         description
             "A commit has been made that changes the services declaration and

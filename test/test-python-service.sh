@@ -13,20 +13,11 @@ s="$_" ; . ./lib.sh || if [ "$s" = $0 ]; then exit 0; else return 0; fi
 
 dir=/var/tmp/$0
 modules=$dir/modules
-
-if [ ! -d $dir ]; then
-    mkdir $dir
-else
-    rm -rf $dir/*
-fi
-
-if [ ! -d $modules ]; then
-	mkdir $modules
-fi
-
 fyang=$dir/ssh-users.yang
 CFG=$dir/controller.xml
 CFD=$dir/conf.d
+test -d $dir || mkdir -p $dir
+test -d $modules || mkdir -p $modules
 test -d $CFD || mkdir -p $CFD
 pycode=$modules/ssh-users.py
 
@@ -57,7 +48,6 @@ cat <<EOF > $CFG
   <CLICON_CLI_HELPSTRING_TRUNCATE>true</CLICON_CLI_HELPSTRING_TRUNCATE>
   <CLICON_CLI_HELPSTRING_LINES>1</CLICON_CLI_HELPSTRING_LINES>
   <CLICON_YANG_SCHEMA_MOUNT>true</CLICON_YANG_SCHEMA_MOUNT>
-  <CLICON_NETCONF_CREATOR_ATTR>true</CLICON_NETCONF_CREATOR_ATTR>
   <CONTROLLER_ACTION_COMMAND xmlns="http://clicon.org/controller-config">${BINDIR}/clixon_server.py -f $CFG -F</CONTROLLER_ACTION_COMMAND>
   <CONTROLLER_PYAPI_MODULE_PATH xmlns="http://clicon.org/controller-config">$modules</CONTROLLER_PYAPI_MODULE_PATH>
   <CONTROLLER_PYAPI_MODULE_FILTER xmlns="http://clicon.org/controller-config"></CONTROLLER_PYAPI_MODULE_FILTER>
@@ -102,28 +92,23 @@ module ssh-users {
     augment "/ctrl:services" {
         list ssh-users {
             key service-name;
-
             leaf service-name {
                 type string;
             }
-
             description "SSH users service";
-
             list username {
                 key name;
-
                 leaf name {
                     type string;
                 }
-
                 leaf ssh-key {
                     type string;
                 }
-
                 leaf role {
                      type string;
                 }
             }
+            uses ctrl:created-by-service;
         }
     }
 }
@@ -234,7 +219,7 @@ expectpart "$($clixon_cli -1 -f $CFG processes service restart)" 0 '<ok xmlns="h
 new "Verify service processes are running after restart"
 expectpart "$($clixon_cli -1 -f $CFG processes service status)" 0 ".*running.*" ""
 
-# Configure serice
+# Configure service
 new "Configure ssh-users with user test1"
 expectpart "$($clixon_cli -1 -f $CFG -m configure set service ssh-users test1)" 0 ""
 expectpart "$($clixon_cli -1 -f $CFG -m configure set service ssh-users test1 username test1)" 0 ""
