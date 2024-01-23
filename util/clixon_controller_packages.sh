@@ -33,7 +33,9 @@ install_modules() {
 	mkdir -p ${CLIXON_MODULES}
 	chown clicon:clicon ${CLIXON_MODULES}
     fi
-    find $SOURCE_PATH -name "*.py" -exec cp --parents {} $CLIXON_MODULES \;
+    for d in "$SOURCE_PATH"/packages/ ; do
+        find d -name "*.py" -exec cp --parent {} $CLIXON_MODULES \;
+    done
     echo ""
 }
 
