@@ -342,14 +342,6 @@ device_state_recv_config(clixon_handle h,
             cprintf(cbret, "%s", clixon_err_reason());
             ret = 0;
         }
-        if (ret == 0){
-            /* Manoever to get some errinfo from cberr */
-            if (clixon_xml_parse_string(cbuf_get(cbret), YB_NONE, NULL, &xerr, NULL) != -1){
-                cbuf_reset(cbret);
-                if (netconf_err2cb(h, xerr, cbret) < 0)
-                    goto done;
-            }
-        }
     }
     if (ret == 0){ /* discard */
         clixon_debug(CLIXON_DBG_DEFAULT, "%s", cbuf_get(cbret));

@@ -659,10 +659,10 @@ controller_transaction_wait_trigger(clixon_handle h,
  * @retval      -1        Error
  */
 int
-controller_transactions_statedata(clixon_handle   h,
-                                  cvec           *nsc,
-                                  char           *xpath,
-                                  cxobj          *xstate)
+controller_transaction_statedata(clixon_handle   h,
+                                 cvec           *nsc,
+                                 char           *xpath,
+                                 cxobj          *xstate)
 {
     int            retval = -1;
     cxobj        **vec = NULL;
@@ -672,7 +672,7 @@ controller_transactions_statedata(clixon_handle   h,
     controller_transaction *ct_list = NULL;
     controller_transaction *ct = NULL;
 
-    clixon_debug(CLIXON_DBG_DEFAULT, "%s", __FUNCTION__);
+    clixon_debug(CLIXON_DBG_DEFAULT|CLIXON_DBG_DETAIL, "%s", __FUNCTION__);
     if ((cb = cbuf_new()) == NULL){
         clixon_err(OE_UNIX, errno, "cbuf_new");
         goto done;

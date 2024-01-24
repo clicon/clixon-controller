@@ -99,7 +99,7 @@ int   controller_transaction_failed(clixon_handle h, uint64_t tid, controller_tr
                                     tr_failed_devclose devclose, char *origin, char *reason);
 int   controller_transaction_wait(clixon_handle h, uint64_t tid);
 int   controller_transaction_wait_trigger(clixon_handle h, uint64_t tid, int commit);
-int   controller_transactions_statedata(clixon_handle h, cvec *nsc, char *xpath, cxobj *xstate);
+int   controller_transaction_statedata(clixon_handle h, cvec *nsc, char *xpath, cxobj *xstate);
 
 #ifdef __cplusplus
 }
