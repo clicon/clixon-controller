@@ -49,9 +49,10 @@
 
 /*! Start cli with -- -g
  *
- * Skip expansion of all clispec:s for all open devices at startup
+ * Expand of all clispec:s for all open devices at startup
+ * Gives an initial delay, instead of at first device expand
  */
-static int skip_gentree_all = 0;
+static int gentree_expand_all = 0;
 
 /* Forward */
 static int controller_cligen_gentree_all(cligen_handle ch, char *pattern);
@@ -75,7 +76,7 @@ controller_cli_start(clixon_handle h)
     if (clicon_data_int_set(h, "controller-transaction-notify-socket", s) < 0)
         goto done;
     clixon_debug(CLIXON_DBG_DEFAULT, "%s notification socket:%d", __FUNCTION__, s);
-    if (skip_gentree_all == 0)
+    if (gentree_expand_all == 1)
         if (controller_cligen_gentree_all(cli_cligen(h), "*") < 0)
             goto done;
     retval = 0;
@@ -666,7 +667,7 @@ clixon_plugin_init(clixon_handle h)
     while ((c = getopt(argc, argv, "g")) != -1)
         switch (c) {
         case 'g':
-            skip_gentree_all = 1;
+            gentree_expand_all = 1;
             break;
         }
     /* Register treeref wrap function */
