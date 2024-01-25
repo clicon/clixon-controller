@@ -47,6 +47,12 @@
 #include "controller_lib.h"
 #include "controller_cli_callbacks.h"
 
+/*! Start cli with -- -g
+ *
+ * Skip expansion of all clispec:s for all open devices at startup
+ */
+static int skip_gentree_all = 0;
+
 /* Forward */
 static int controller_cligen_gentree_all(cligen_handle ch, char *pattern);
 
@@ -69,8 +75,9 @@ controller_cli_start(clixon_handle h)
     if (clicon_data_int_set(h, "controller-transaction-notify-socket", s) < 0)
         goto done;
     clixon_debug(CLIXON_DBG_DEFAULT, "%s notification socket:%d", __FUNCTION__, s);
-    if (controller_cligen_gentree_all(cli_cligen(h), "*") < 0)
-        goto done;
+    if (skip_gentree_all == 0)
+        if (controller_cligen_gentree_all(cli_cligen(h), "*") < 0)
+            goto done;
     retval = 0;
  done:
     return retval;
@@ -645,12 +652,28 @@ clixon_plugin_api *
 clixon_plugin_init(clixon_handle h)
 {
     struct timeval tv;
-
+    int            argc; /* command-line options (after --) */
+    char         **argv;
+    int            c;
+    
     gettimeofday(&tv, NULL);
     srandom(tv.tv_usec);
+    /* Get user command-line options (after --) */
+    if (clicon_argv_get(h, &argc, &argv) < 0)
+        goto done;
+    opterr = 0;
+    optind = 1;
+    while ((c = getopt(argc, argv, "g")) != -1)
+        switch (c) {
+        case 'g':
+            skip_gentree_all = 1;
+            break;
+        }
     /* Register treeref wrap function */
     if (clicon_option_bool(h, "CLICON_YANG_SCHEMA_MOUNT")){
         cligen_tree_resolve_wrapper_set(cli_cligen(h), controller_cligen_treeref_wrap, NULL);
     }
     return &api;
+ done:
+    return NULL;
 }
