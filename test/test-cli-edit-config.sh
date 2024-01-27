@@ -65,7 +65,7 @@ function testrun()
     new "Rollback hostnames on openconfig*"
     expectpart "$($clixon_cli -1 -f $CFG -m configure rollback)" 0 ""
 
-    new "Set hostname on openconfig*"
+    new "Set hostname to test on openconfig*"
     expectpart "$($clixon_cli -1 -f $CFG -m configure 'set devices device openconfig* config system config hostname test')" 0 ""
 
     new "Commit on openconfig*"
@@ -77,8 +77,10 @@ function testrun()
     done
 
     for i in $(seq 1 $nr); do
-        new "Commit hostname on openconfig1"
+        new "Edit hostname on openconfig$i"
         expectpart "$($clixon_cli -1 -f $CFG -m configure set devices device openconfig$i config system config hostname openconfig$i)" 0 ""
+
+        new "Commit hostname on openconfig$i"
         expectpart "$($clixon_cli -1 -f $CFG -m configure commit)" 0 ""
     done
 
@@ -173,5 +175,10 @@ sleep_open
 
 new "Testrun after restart"
 testrun # XXX This fails on regression occasionally
+
+if $BE; then
+    new "Kill old backend"
+    sudo clixon_backend -f $CFG -z
+fi
 
 endtest

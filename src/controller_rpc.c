@@ -333,11 +333,19 @@ push_device_one(clixon_handle           h,
             goto done;
         device_handle_outmsg_set(dh, cbmsg);
         s = device_handle_socket_get(dh);
+#ifdef CONTROLLER_PUSH_LOCK
+        if (device_send_lock(h, dh, 1, s) < 0)
+            goto done;
+        device_handle_tid_set(dh, ct->ct_id);
+        if (device_state_set(dh, CS_PUSH_LOCK) < 0)
+            goto done;
+#else
         if (device_send_get_config(h, dh, s) < 0)
             goto done;
         device_handle_tid_set(dh, ct->ct_id);
         if (device_state_set(dh, CS_PUSH_CHECK) < 0)
             goto done;
+#endif
     }
     else{
         device_handle_tid_set(dh, 0);
@@ -2693,7 +2701,7 @@ controller_edit_config(clixon_handle h,
     cxobj     *xserv;
     int        ret;
 
-    clixon_debug(1, "controller edit-config wrapper");
+    clixon_debug(CLIXON_DBG_DEFAULT, "controller edit-config wrapper");
     if ((yspec =  clicon_dbspec_yang(h)) == NULL){
         clixon_err(OE_YANG, ENOENT, "No yang spec9");
         goto done;

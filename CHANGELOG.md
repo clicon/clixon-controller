@@ -6,6 +6,7 @@ Expected: February 2024
 ### New features
 
 * New: [SSH StrictHostKeyChecking optional](https://github.com/clicon/clixon-controller/issues/96)
+* New: [Exclusive candidate configuration](https://github.com/clicon/clixon-controller/issues/37)
 * Replaced creator attributes with a configured solution
 * New: [show creator paths associated to service instance](https://github.com/clicon/clixon-controller/issues/90)
   * See https://clixon-controller-docs.readthedocs.io/en/latest/cli.html#creators

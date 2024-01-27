@@ -79,20 +79,22 @@
  * @see clixon-controller@2023-01-01.yang connection-state
  */
 static const map_str2int csmap[] = {
-    {"CLOSED",       CS_CLOSED},
-    {"CONNECTING",   CS_CONNECTING},
-    {"SCHEMA-LIST",  CS_SCHEMA_LIST},
-    {"SCHEMA-ONE",   CS_SCHEMA_ONE}, /* substate is schema-nr */
-    {"DEVICE-SYNC",  CS_DEVICE_SYNC},
-    {"OPEN",         CS_OPEN},
-    {"PUSH-CHECK",   CS_PUSH_CHECK},
-    {"PUSH-EDIT",    CS_PUSH_EDIT},
-    {"PUSH-VALIDATE",CS_PUSH_VALIDATE},
-    {"PUSH-WAIT",    CS_PUSH_WAIT},
-    {"PUSH-COMMIT",  CS_PUSH_COMMIT},
+    {"CLOSED",           CS_CLOSED},
+    {"CONNECTING",       CS_CONNECTING},
+    {"SCHEMA-LIST",      CS_SCHEMA_LIST},
+    {"SCHEMA-ONE",       CS_SCHEMA_ONE}, /* substate is schema-nr */
+    {"DEVICE-SYNC",      CS_DEVICE_SYNC},
+    {"OPEN",             CS_OPEN},
+    {"PUSH_LOCK",        CS_PUSH_LOCK},
+    {"PUSH-CHECK",       CS_PUSH_CHECK},
+    {"PUSH-EDIT",        CS_PUSH_EDIT},
+    {"PUSH-VALIDATE",    CS_PUSH_VALIDATE},
+    {"PUSH-WAIT",        CS_PUSH_WAIT},
+    {"PUSH-COMMIT",      CS_PUSH_COMMIT},
     {"PUSH-COMMIT-SYNC", CS_PUSH_COMMIT_SYNC},
-    {"PUSH-DISCARD", CS_PUSH_DISCARD},
-    {NULL,           -1}
+    {"PUSH-DISCARD",     CS_PUSH_DISCARD},
+    {"PUSH_UNLOCK",      CS_PUSH_UNLOCK},
+    {NULL,              -1}
 };
 
 /*! Mapping between enum yang_config and yang config
@@ -303,7 +305,7 @@ device_input_cb(int   s,
  ok:
     retval = 0;
  done:
-    clixon_debug(CLIXON_DBG_DETAIL, "%s retval:%d", __FUNCTION__, retval);
+    clixon_debug(CLIXON_DBG_DETAIL, "retval:%d", retval);
     if (cberr)
         cbuf_free(cberr);
     if (xerr)
@@ -624,26 +626,25 @@ device_config_write(clixon_handle h,
                     cbuf         *cbret)
 {
     int    retval = -1;
-    cbuf  *cbdb = NULL;
+    cbuf  *cb = NULL;
     char  *db;
 
     if (devname == NULL || config_type == NULL){
         clixon_err(OE_UNIX, EINVAL, "devname or config_type is NULL");
         goto done;
     }
-    if ((cbdb = cbuf_new()) == NULL){
+    if ((cb = cbuf_new()) == NULL){
         clixon_err(OE_UNIX, errno, "cbuf_new");
         goto done;
     }
-    cprintf(cbdb, "device-%s-%s", devname, config_type);
-    db = cbuf_get(cbdb);
+    cprintf(cb, "device-%s-%s", devname, config_type);
+    db = cbuf_get(cb);
     if (xmldb_db_reset(h, db) < 0)
         goto done;
-    /* Dont write creator-attributes */
     retval = xmldb_put(h, db, OP_REPLACE, xdata, clicon_username_get(h), cbret);
  done:
-    if (cbdb)
-        cbuf_free(cbdb);
+    if (cb)
+        cbuf_free(cb);
     return retval;
 }
 
@@ -666,7 +667,7 @@ device_config_read(clixon_handle h,
                    cbuf        **cberr)
 {
     int    retval = -1;
-    cbuf  *cbdb = NULL;
+    cbuf  *cb = NULL;
     char  *db;
     cvec  *nsc = NULL;
     cxobj *xt = NULL;
@@ -676,12 +677,12 @@ device_config_read(clixon_handle h,
         clixon_err(OE_UNIX, EINVAL, "devname or config_type is NULL");
         goto done;
     }
-    if ((cbdb = cbuf_new()) == NULL){
+    if ((cb = cbuf_new()) == NULL){
         clixon_err(OE_UNIX, errno, "cbuf_new");
         goto done;
     }
-    cprintf(cbdb, "device-%s-%s", devname, config_type);
-    db = cbuf_get(cbdb);
+    cprintf(cb, "device-%s-%s", devname, config_type);
+    db = cbuf_get(cb);
     if (xmldb_get0(h, db, Y_MODULE, nsc, NULL, 1, WITHDEFAULTS_EXPLICIT, &xt, NULL, NULL) < 0)
         goto done;
     if ((xroot = xpath_first(xt, NULL, "devices/device/config")) == NULL){
@@ -700,8 +701,8 @@ device_config_read(clixon_handle h,
  done:
     if (xt)
         xml_free(xt);
-    if (cbdb)
-        cbuf_free(cbdb);
+    if (cb)
+        cbuf_free(cb);
     return retval;
  failed:
     retval = 0;
@@ -906,6 +907,7 @@ device_state_handler(clixon_handle h,
     rpcname = xml_name(xmsg);
     conn_state = device_handle_conn_state_get(dh);
     name = device_handle_name_get(dh);
+    clixon_debug(CLIXON_DBG_DEFAULT|CLIXON_DBG_DETAIL, "rpc:%s dev:%s", rpcname, name);
     yspec0 = clicon_dbspec_yang(h);
     if ((tid = device_handle_tid_get(dh)) != 0)
         ct = controller_transaction_find(h, tid);
@@ -1147,6 +1149,51 @@ device_state_handler(clixon_handle h,
             }
         }
         break;
+#ifdef CONTROLLER_PUSH_LOCK
+    case CS_PUSH_LOCK:
+        if (tid == 0 || ct == NULL){
+            device_close_connection(dh, "Device %s not associated with transaction in state %s",
+                                    name, device_state_int2str(conn_state));
+            break;
+        }
+        if (ct->ct_state != TS_INIT && ct->ct_state != TS_RESOLVED){
+            clixon_debug(CLIXON_DBG_DEFAULT, "%s %s: Unexpected msg %s in state %s",
+                         __FUNCTION__, name, rpcname, transaction_state_int2str(ct->ct_state));
+            break;
+        }
+        /* Retval: 2 OK, 1 Closed, 0 Failed, -1 Error */
+        if ((ret = device_state_recv_ok(h, dh, xmsg, rpcname, conn_state, &cberr)) < 0)
+            goto done;
+        if (ret == 0){      /* 1. The device has failed: received rpc-error/not <ok>  */
+            if (controller_transaction_failed(h, tid, ct, dh, TR_FAILED_DEV_LEAVE, name, cbuf_get(cberr)) < 0)
+                goto done;
+            if (device_state_set(dh, CS_OPEN) < 0)
+                goto done;
+            break;
+        }
+        else if (ret == 1){ /* 1. The device has failed and is closed */
+            if (controller_transaction_failed(h, tid, ct, dh, TR_FAILED_DEV_IGNORE, name, NULL) < 0)
+                goto done;
+            break;
+        }
+        /* 2. The device is OK */
+        if (ct->ct_state == TS_RESOLVED){
+            /* 2.1 But transaction is in error state */
+            assert(ct->ct_result != TR_SUCCESS);
+            /* 2.1.1 Trigger UNLOCK of device */
+            if (device_send_lock(h, dh, 0, s) < 0)
+                goto done;
+            if (device_state_set(dh, CS_PUSH_UNLOCK) < 0)
+                goto done;
+            break;
+        }
+        if (device_send_get_config(h, dh, s) < 0)
+            goto done;
+        device_handle_tid_set(dh, ct->ct_id);
+        if (device_state_set(dh, CS_PUSH_CHECK) < 0)
+            goto done;
+        break;
+#endif
     case CS_PUSH_CHECK:
         if (tid == 0 || ct == NULL){
             device_close_connection(dh, "Device %s not associated with transaction in state %s",
@@ -1172,6 +1219,12 @@ device_state_handler(clixon_handle h,
         else if (ret == 1){ /* unequal */
             if (controller_transaction_failed(h, tid, ct, dh, TR_FAILED_DEV_IGNORE, name, cbuf_get(cberr)) < 0)
                 goto done;
+#ifdef CONTROLLER_PUSH_LOCK
+            if (device_send_lock(h, dh, 0, s) < 0)
+                goto done;
+            if (device_state_set(dh, CS_PUSH_UNLOCK) < 0)
+                goto done;
+#else
             if (device_state_set(dh, CS_OPEN) < 0)
                 goto done;
             /* 2.2.2.1 Leave transaction */
@@ -1181,6 +1234,7 @@ device_state_handler(clixon_handle h,
                 if (controller_transaction_done(h, ct, TR_FAILED) < 0)
                     goto done;
             }
+#endif
             break;
         }
         /* 2. The device is OK */
@@ -1391,10 +1445,17 @@ device_state_handler(clixon_handle h,
         if (device_state_set(dh, CS_PUSH_COMMIT_SYNC) < 0)
             goto done;
 #else
+#ifdef CONTROLLER_PUSH_LOCK
+        if (device_send_lock(h, dh, 0, s) < 0)
+            goto done;
+        if (device_state_set(dh, CS_PUSH_UNLOCK) < 0)
+            goto done;
+#else
         if (device_state_set(dh, CS_OPEN) < 0)
             goto done;
         /* 2.2.2.1 Leave transaction */
         device_handle_tid_set(dh, 0);
+#endif
         if (conn_state == CS_PUSH_COMMIT){
             cxobj *xt = NULL;
             cbuf  *cb = NULL;
@@ -1432,12 +1493,15 @@ device_state_handler(clixon_handle h,
             if (xt)
                 xml_free(xt);
         }
+#ifdef CONTROLLER_PUSH_LOCK
+#else
         if (controller_transaction_nr_devices(h, tid) == 0){
             controller_transaction_state_set(ct, TS_RESOLVED, TR_SUCCESS);
             if (controller_transaction_done(h, ct, -1) < 0)
                 goto done;
         }
-#endif // CONTROLLER_EXTRA_PUSH_SYNC
+#endif
+#endif /* CONTROLLER_EXTRA_PUSH_SYNC*/
         break;
     case CS_PUSH_DISCARD:
         if (tid == 0 || ct == NULL){
@@ -1468,6 +1532,12 @@ device_state_handler(clixon_handle h,
             /* 2.1 But transaction is in error state */
             assert(ct->ct_result != TR_SUCCESS);
         }
+#ifdef CONTROLLER_PUSH_LOCK
+        if (device_send_lock(h, dh, 0, s) < 0)
+            goto done;
+        if (device_state_set(dh, CS_PUSH_UNLOCK) < 0)
+            goto done;
+#else
         /* Pull for commited db in the case the device changes it post-commit */
         if (device_state_set(dh, CS_OPEN) < 0)
             goto done;
@@ -1486,6 +1556,7 @@ device_state_handler(clixon_handle h,
             if (controller_transaction_done(h, ct, -1) < 0)
                 goto done;
         }
+#endif
         break;
 #ifdef CONTROLLER_EXTRA_PUSH_SYNC
     case CS_PUSH_COMMIT_SYNC:
@@ -1512,12 +1583,67 @@ device_state_handler(clixon_handle h,
             /* 2.1 But transaction is in error state */
             assert(ct->ct_result != TR_SUCCESS);
         }
+#ifdef CONTROLLER_PUSH_LOCK
+        if (device_send_lock(h, dh, 0, s) < 0)
+            goto done;
+        if (device_state_set(dh, CS_PUSH_UNLOCK) < 0)
+            goto done;
+#else
         if (device_state_set(dh, CS_OPEN) < 0)
             goto done;
         /* 2.2.2.1 Leave transaction */
         device_handle_tid_set(dh, 0);
         /* 2.2.2.2 If no devices in transaction, mark as OK and close it*/
         if (controller_transaction_nr_devices(h, tid) == 0){
+            if (ct->ct_state != TS_RESOLVED){
+                controller_transaction_state_set(ct, TS_RESOLVED, TR_SUCCESS);
+            }
+            if (controller_transaction_done(h, ct, -1) < 0)
+                goto done;
+        }
+        break;
+#endif
+#endif /* CONTROLLER_EXTRA_PUSH_SYNC */
+#ifdef CONTROLLER_PUSH_LOCK
+    case CS_PUSH_UNLOCK:
+        if (tid == 0 || ct == NULL){
+            device_close_connection(dh, "Device %s not associated with transaction in state %s",
+                                    name, device_state_int2str(conn_state));
+            break;
+        }
+        if (ct->ct_state != TS_INIT && ct->ct_state != TS_RESOLVED){
+            clixon_debug(CLIXON_DBG_DEFAULT, "%s %s: Unexpected msg %s in state %s",
+                         __FUNCTION__, name, rpcname, transaction_state_int2str(ct->ct_state));
+            break;
+        }
+        /* Retval: 2 OK, 1 Closed, 0 Failed, -1 Error */
+        if ((ret = device_state_recv_ok(h, dh, xmsg, rpcname, conn_state, &cberr)) < 0)
+            goto done;
+        if (ret == 0){      /* 1. The device has failed: received rpc-error/not <ok>  */
+            if (controller_transaction_failed(h, tid, ct, dh, TR_FAILED_DEV_CLOSE, name, cbuf_get(cberr)) < 0)
+                goto done;
+            break;
+        }
+        else if (ret == 1){ /* 1. The device has failed and is closed */
+            if (controller_transaction_failed(h, tid, ct, dh, TR_FAILED_DEV_LEAVE, name, NULL) < 0)
+                goto done;
+            break;
+        }
+        /* 2. The device is OK */
+        if (ct->ct_state == TS_RESOLVED){
+            /* 2.1 But transaction is in error state */
+            assert(ct->ct_result != TR_SUCCESS);
+        }
+        /* Pull for commited db in the case the device changes it post-commit */
+        if (device_state_set(dh, CS_OPEN) < 0)
+            goto done;
+        /* 2.2.2.1 Leave transaction */
+        device_handle_tid_set(dh, 0);
+        if (controller_transaction_nr_devices(h, tid) == 0){
+            /* If source datastore is candidate, then commit (from actions)
+             * - if actions=AT_COMMIT, commit is made from actions-db
+             * - otherwise if datastore is candidate, commit is made from candidate
+             */
             if (ct->ct_state != TS_RESOLVED){
                 controller_transaction_state_set(ct, TS_RESOLVED, TR_SUCCESS);
             }
@@ -1542,6 +1668,7 @@ device_state_handler(clixon_handle h,
     }
     retval = 0;
  done:
+    clixon_debug(CLIXON_DBG_DEFAULT|CLIXON_DBG_DETAIL, "retval:%d", retval);
     if (cberr)
         cbuf_free(cberr);
     return retval;
