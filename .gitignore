@@ -1,6 +1,7 @@
 Makefile
 */Makefile
-util/controller_get_config
+util/clixon_controller_xpath
+util/clixon_controller_service
 mk.sh
 *~
 autom4te.cache/
@@ -13,6 +14,7 @@ test/site.sh
 test/py
 
 src/controller.xml
+test/config.sh
 
 # purged from history with git filter-repo
 templates-min.gif
