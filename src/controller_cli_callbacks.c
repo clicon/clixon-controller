@@ -1039,8 +1039,17 @@ cli_show_devices(clixon_handle h,
     /* Get config */
     if ((nsc = xml_nsctx_init("co", CONTROLLER_NAMESPACE)) == NULL)
         goto done;
-    if (clicon_rpc_get(h, "co:devices", nsc, CONTENT_ALL, -1, "report-all", &xn) < 0)
-        goto done;
+    if (detail){
+        if (clicon_rpc_get(h, "co:devices", nsc, CONTENT_ALL, -1, "report-all", &xn) < 0)
+            goto done;
+    }
+    else{
+        /* Avoid including moint-point which triggers a lot of extra traffic */
+        if (clicon_rpc_get(h,
+                           "co:devices/co:device/co:name | co:devices/co:device/co:conn-state | co:devices/co:device/co:conn-state-timestamp | co:devices/co:device/co:logmsg",
+                           nsc, CONTENT_ALL, -1, "explicit", &xn) < 0)
+            goto done;
+    }
     if ((xerr = xpath_first(xn, NULL, "/rpc-error")) != NULL){
         clixon_err_netconf(h, OE_XML, 0, xerr, "Get devices");
         goto done;
