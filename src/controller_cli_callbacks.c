@@ -134,6 +134,7 @@ cli_apipath2xpath(clixon_handle h,
  * @param[out] xdevsp    XML on the form <devices><device><name>x</name>...
  * @retval     0         OK
  * @retval    -1         Error
+ * XXX: see https://github.com/clicon/clixon/issues/485
  */
 int
 rpc_get_yanglib_mount_match(clixon_handle h,
@@ -167,12 +168,16 @@ rpc_get_yanglib_mount_match(clixon_handle h,
     if (single)
         cprintf(cb, "[ctrl:name='%s']", pattern);
     if (yanglib){
-        cprintf(cb, "/ctrl:config\"");
+        cprintf(cb, "/ctrl:config");
+        // XXX: see https://github.com/clicon/clixon/issues/485
+        //        cprintf(cb, "/yanglib:yang-library");
     }
     else
-        cprintf(cb, "/ctrl:name\"");
+        cprintf(cb, "/ctrl:name");
+    cprintf(cb, "\"");
     cprintf(cb, " xmlns:ctrl=\"%s\" xmlns:yanglib=\"urn:ietf:params:xml:ns:yang:ietf-yang-library\">",
                     CONTROLLER_NAMESPACE);
+
     cprintf(cb, "</filter>");
     cprintf(cb, "</get>");
     cprintf(cb, "</rpc>");
