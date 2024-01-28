@@ -183,6 +183,10 @@ cmd="set devices device-profile myprofile user $USER"
 new "$cmd"
 expectpart "$($clixon_cli -1 -m configure -f $CFG $cmd)" 0 "^$"
 
+cmd="set devices device-profile myprofile ssh-stricthostkey true"
+new "$cmd"
+expectpart "$($clixon_cli -1 -m configure -f $CFG $cmd)" 0 "^$"
+
 cmd="set devices device-profile myprofile conn-type NETCONF_SSH"
 new "$cmd"
 expectpart "$($clixon_cli -1 -m configure -f $CFG $cmd)" 0 "^$"

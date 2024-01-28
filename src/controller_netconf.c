@@ -112,12 +112,21 @@ clixon_client_connect_netconf(clixon_handle  h,
 }
 
 /*! Connect using NETCONF over SSH
+ *
+ * @param[in]  h             Clixon  handle
+ * @param[in]  dest          SSH destination
+ * @param[in]  stricthostkey If set ensure strict hostkey checking. Only for ssh connections
+ * @param[out] pid           Sub-process-id
+ * @param[out] sock          Input/output socket
+ * @retval     0             OK
+ * @retval    -1             Error
  */
 int
-clixon_client_connect_ssh(clixon_handle  h,
-                          const char    *dest,
-                          pid_t         *pid,
-                          int           *sock)
+clixon_client_connect_ssh(clixon_handle h,
+                          const char   *dest,
+                          int           stricthostkey,
+                          pid_t        *pid,
+                          int          *sock)
 {
     int         retval = -1;
     int         nr;
@@ -141,7 +150,10 @@ clixon_client_connect_ssh(clixon_handle  h,
     argv[i++] = (char*)dest;
     argv[i++] = "-T"; /* Disable pseudo-terminal allocation. */
     argv[i++] = "-o";
-    argv[i++] = "StrictHostKeyChecking=yes"; // dont ask
+    if (stricthostkey)
+        argv[i++] = "StrictHostKeyChecking=yes";
+    else
+        argv[i++] = "StrictHostKeyChecking=no";
     argv[i++] = "-o";
     argv[i++] = "PasswordAuthentication=no"; // dont query
     argv[i++] = "-o";

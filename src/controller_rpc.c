@@ -57,11 +57,11 @@
 
 /*! Connect to device via Netconf SSH
  *
- * @param[in]  h  Clixon handle
- * @param[in]  dh Device handle, either NULL or in closed state
- * @param[in]  name Device name
- * @param[in]  user Username for ssh login
- * @param[in]  addr Address for ssh to connect to
+ * @param[in]  h             Clixon handle
+ * @param[in]  dh            Device handle, either NULL or in closed state
+ * @param[in]  user          Username for ssh login
+ * @param[in]  addr          Address for ssh to connect to
+ * @param[in]  stricthostkey If set ensure strict hostkey checking. Only for ssh
  * @retval     0    OK
  * @retval    -1    Error
  */
@@ -69,7 +69,8 @@ static int
 connect_netconf_ssh(clixon_handle h,
                     device_handle dh,
                     char         *user,
-                    char         *addr)
+                    char         *addr,
+                    int           stricthostkey)
 {
     int   retval = -1;
     cbuf *cb = NULL;
@@ -90,7 +91,7 @@ connect_netconf_ssh(clixon_handle h,
     if (user)
         cprintf(cb, "%s@", user);
     cprintf(cb, "%s", addr);
-    if (device_handle_connect(dh, CLIXON_CLIENT_SSH, cbuf_get(cb)) < 0)
+    if (device_handle_connect(dh, CLIXON_CLIENT_SSH, cbuf_get(cb), stricthostkey) < 0)
         goto done;
     if (device_state_set(dh, CS_CONNECTING) < 0)
         goto done;
@@ -133,17 +134,19 @@ controller_connect(clixon_handle           h,
     char         *user = NULL;
     char         *enablestr;
     char         *yfstr;
+    char         *str;
     cxobj        *xb;
     cxobj        *xdevprofile = NULL;
     cxobj        *xmod = NULL;
     cxobj        *xyanglib = NULL;
+    int           ssh_stricthostkey = 1;
 
     clixon_debug(CLIXON_DBG_DEFAULT, "%s", __FUNCTION__);
     if ((name = xml_find_body(xn, "name")) == NULL)
         goto ok;
+    dh = device_handle_find(h, name); /* can be NULL */
     if ((enablestr = xml_find_body(xn, "enabled")) == NULL)
         goto ok;
-    dh = device_handle_find(h, name); /* can be NULL */
     if (strcmp(enablestr, "false") == 0){
         if ((dh = device_handle_new(h, name)) == NULL)
             goto done;
@@ -181,6 +184,13 @@ controller_connect(clixon_handle           h,
     }
     if (xb != NULL)
         user = xml_body(xb);
+    if ((xb = xml_find_type(xn, NULL, "ssh-stricthostkey", CX_ELMNT)) == NULL ||
+        xml_flag(xb, XML_FLAG_DEFAULT)){
+        if (xdevprofile)
+            xb = xml_find_type(xdevprofile, NULL, "ssh-stricthostkey", CX_ELMNT);
+    }
+    if (xb && (str = xml_body(xb)) != NULL)
+        ssh_stricthostkey = strcmp(str, "true") == 0;
     /* Now dh is either NULL or in closed state and with correct type
      * First create it if still NULL
      */
@@ -214,7 +224,7 @@ controller_connect(clixon_handle           h,
     }
     /* Point of no return: assume errors handled in device_input_cb */
     device_handle_tid_set(dh, ct->ct_id);
-    if (connect_netconf_ssh(h, dh, user, addr) < 0) /* match */
+    if (connect_netconf_ssh(h, dh, user, addr, ssh_stricthostkey) < 0) /* match */
         goto done;
  ok:
     retval = 1;
@@ -1580,7 +1590,8 @@ rpc_connection_change(clixon_handle h,
         goto ok;
     }
     ct->ct_client_id = ce->ce_id;
-    if (xmldb_get(h, "running", nsc, "devices", &xret) < 0)
+    // XXX: Should work with WITHDEFAULTS_EXPLICIT?
+    if (xmldb_get0(h, "running", YB_MODULE, nsc, "devices", 1, WITHDEFAULTS_REPORT_ALL, &xret, NULL, NULL) < 0)
         goto done;
     if (xpath_vec(xret, nsc, "devices/device", &vec, &veclen) < 0)
         goto done;

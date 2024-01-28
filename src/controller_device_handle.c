@@ -279,6 +279,7 @@ device_handle_each(clixon_handle h,
  * @param[in]  h        Clixon handle
  * @param[in]  socktype Type of socket, internal/external/netconf/ssh
  * @param[in]  dest     Destination for some types
+ * @param[in]  stricthostkey If set ensure strict hostkey checking. Only for ssh connections
  * @retval     dh       Clixon session handler
  * @retval     NULL     Error
  * @see clixon_client_disconnect  Close the socket returned here
@@ -286,7 +287,8 @@ device_handle_each(clixon_handle h,
 int
 device_handle_connect(device_handle      dh,
                       clixon_client_type socktype,
-                      const char        *dest)
+                      const char        *dest,
+                      int                stricthostkey)
 {
     int                          retval = -1;
     struct controller_device_handle *cdh = (struct controller_device_handle *)dh;
@@ -310,7 +312,7 @@ device_handle_connect(device_handle      dh,
         break;
 #ifdef SSH_BIN
     case CLIXON_CLIENT_SSH:
-        if (clixon_client_connect_ssh(h, dest, &cdh->cdh_pid, &cdh->cdh_socket) < 0)
+        if (clixon_client_connect_ssh(h, dest, stricthostkey, &cdh->cdh_pid, &cdh->cdh_socket) < 0)
             goto err;
 #else
         clixon_err(OE_UNIX, 0, "No ssh bin");

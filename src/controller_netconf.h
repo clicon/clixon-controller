@@ -44,7 +44,7 @@ extern "C" {
 #endif
 
 int clixon_client_connect_netconf(clixon_handle h, pid_t *pid, int *sock);
-int clixon_client_connect_ssh(clixon_handle h, const char *dest, pid_t *pid, int *sock);
+int clixon_client_connect_ssh(clixon_handle h, const char *dest, int stricthostkey, pid_t *pid, int *sock);
 
 #ifdef __cplusplus
 }
