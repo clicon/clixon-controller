@@ -222,6 +222,8 @@ device_input_cb(int   s,
     clixon_handle           h;
     unsigned char           buf[BUFSIZ]; /* from stdio.h, typically 8K */
     ssize_t                 buflen = sizeof(buf);
+    char                   *buferr=NULL; /* from stderr.h, typically 8K */
+    ssize_t                 buferrlen = 1024;
     int                     eom = 0;
     int                     eof = 0;
     int                     frame_state; /* only used for chunked framing not eom */
@@ -239,6 +241,7 @@ device_input_cb(int   s,
     uint64_t                tid;
     controller_transaction *ct = NULL;
     int                     ret;
+    int                     sockerr;
 
     clixon_debug(CLIXON_DBG_DETAIL, "%s", __FUNCTION__);
     h = device_handle_handle_get(dh);
@@ -252,8 +255,26 @@ device_input_cb(int   s,
     if ((len = netconf_input_read2(s, buf, buflen, &eof)) < 0)
         goto done;
     if (eof){
+        if ((sockerr = device_handle_sockerr_get(dh)) != -1){
+            if ((buferr = malloc(buferrlen)) == NULL){
+                clixon_err(OE_UNIX, errno, "malloc");
+                goto done;
+            }
+            memset(buferr, 0, buferrlen);
+            if ((len = read(sockerr, buferr, buferrlen-1)) < 0){
+                free(buferr);
+                buferr = NULL;
+            }
+            /* Special case for removing CR at end of stderr string */
+            while (len>0 && (buferr[len-1] == '\r' || buferr[len-1] == '\n')) {
+                buferr[len - 1] = '\0';
+                len--;
+            }
+        }
         if (ct){
-            if (controller_transaction_failed(h, tid, ct, dh, TR_FAILED_DEV_CLOSE, name, "Closed by device") < 0)
+            if (controller_transaction_failed(h, tid, ct, dh, TR_FAILED_DEV_CLOSE, name,
+                                              buferr?buferr:"Closed by device"
+                                              ) < 0)
                 goto done;
         }
         else
@@ -306,6 +327,8 @@ device_input_cb(int   s,
     retval = 0;
  done:
     clixon_debug(CLIXON_DBG_DETAIL, "retval:%d", retval);
+    if (buferr)
+        free(buferr);
     if (cberr)
         cbuf_free(cberr);
     if (xerr)

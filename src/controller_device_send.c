@@ -90,7 +90,6 @@ device_send_lock(clixon_handle h,
     encap = device_handle_framing_type_get(dh);
     if (netconf_output_encap(encap, cb) < 0)
         goto done;
-    s = device_handle_socket_get(dh);
     if (clicon_msg_send1(s, device_handle_name_get(dh), cb) < 0)
         goto done;
     retval = 0;

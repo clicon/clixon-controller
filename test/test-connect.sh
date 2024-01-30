@@ -146,7 +146,7 @@ for ip in $CONTAINERS; do
 
     #    sleep $sleep
 
-    new "connection open"
+    new "connection open 1"
     expectpart "$($clixon_cli -1 -f $CFG connection open)" 0 "^$"
 
     sleep $sleep
@@ -172,7 +172,7 @@ expectpart "$($clixon_cli -1 -m configure -f $CFG $cmd)" 0 "^$"
 new "commit"
 expectpart "$($clixon_cli -1 -m configure -f $CFG commit local)" 0 "^$"
 
-new "connection open 3"
+new "connection open 2"
 expectpart "$($clixon_cli -1 -f $CFG connection open)" 0 "^$"
 
 sleep $sleep
@@ -185,6 +185,9 @@ if [ "$res" != "$nr1" ]; then
     err1 "$nr open devices" "$res"
 fi
 
+new "Check errmsg"
+expectpart "$($clixon_cli -1 -f $CFG show transaction)" 0 "<result>FAILED</result>" "<reason>wrong@" "Permission denied (publickey,password,keyboard-interactive).</reason>" || true
+  
 cmd="set devices device openconfig1 user $USER"
 new "Set right user: $cmd"
 expectpart "$($clixon_cli -1 -m configure -f $CFG $cmd)" 0 "^$"
@@ -249,7 +252,7 @@ done
 new "commit"
 expectpart "$($clixon_cli -1 -m configure -f $CFG commit local)" 0 "^$"
     
-new "connection open"
+new "connection open 3"
 expectpart "$($clixon_cli -1 -f $CFG connection open)" 0 "^$"
 
 sleep $sleep
