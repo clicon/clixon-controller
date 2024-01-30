@@ -831,14 +831,13 @@ device_shared_yspec(clixon_handle h,
                     device_handle dh0,
                     cxobj        *xyanglib0,
                     yang_stmt   **yspec1)
-    
 {
     int           retval = -1;
     yang_stmt    *yspec = NULL;
 #ifdef SHARED_PROFILE_YSPEC
     device_handle dh1;
     cxobj        *xyanglib;
-    
+
     /* New yspec only on first connect */
     dh1 = NULL;
     while ((dh1 = device_handle_each(h, dh1)) != NULL){

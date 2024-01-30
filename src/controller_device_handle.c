@@ -112,7 +112,7 @@ device_handle_check(device_handle dh)
 
 /*! Create new controller device handle given clixon handle and add it to global list
  *
- * A new device handle is created when a connection is made, also passively in 
+ * A new device handle is created when a connection is made, also passively in
  * controller_yang_mount
  * @param[in]  h    Clixon  handle
  * @retval     dh   Controller device handle

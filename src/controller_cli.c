@@ -139,7 +139,7 @@ controller_cli_exit(clixon_handle h)
 
 /*! Check if there is another equivalent xyanglib and if so reuse that yspec
  *
- * Prereq: schema-list (xyanglib) is completely known. 
+ * Prereq: schema-list (xyanglib) is completely known.
  * Look for an existing equivalent schema-list among other devices.
  * If found, re-use that YANG-SPEC.
  * @param[in]  h         Clixon handle
@@ -229,7 +229,7 @@ create_autocli_mount_tree(clixon_handle h,
     yang_stmt *yspec1 = NULL;
     char      *devname;
     int        ret;
-    
+
     clixon_debug(CLIXON_DBG_DEFAULT, "%s", __FUNCTION__);
     devname = xml_find_body(xdev, "name");
     if (controller_mount_yspec_get(h, devname, &yspec1) < 0)
@@ -653,7 +653,7 @@ clixon_plugin_init(clixon_handle h)
     int            argc; /* command-line options (after --) */
     char         **argv;
     int            c;
-    
+
     gettimeofday(&tv, NULL);
     srandom(tv.tv_usec);
     /* Get user command-line options (after --) */

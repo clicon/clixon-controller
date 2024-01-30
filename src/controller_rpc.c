@@ -698,7 +698,7 @@ strip_service_data_from_device_config(clixon_handle h,
                     continue;
                 if ((xpath = xml_body(xp)) == NULL)
                     continue;
-                if ((xd = xpath_first(xt1, NULL, "%s", xpath)) == NULL) 
+                if ((xd = xpath_first(xt1, NULL, "%s", xpath)) == NULL)
                     continue;
                 /* Purge from action-db */
                 if (xml_purge(xd) < 0) // XXX Check multiple??
@@ -721,7 +721,7 @@ strip_service_data_from_device_config(clixon_handle h,
                     continue;
                 if ((xpath = xml_body(xp)) == NULL)
                     continue;
-                if ((xd = xpath_first(xt1, NULL, "%s", xpath)) == NULL) 
+                if ((xd = xpath_first(xt1, NULL, "%s", xpath)) == NULL)
                     continue;
                 if (xml_purge(xd) < 0) // XXX Check muliple??
                     goto done;
@@ -731,7 +731,7 @@ strip_service_data_from_device_config(clixon_handle h,
         if (vec)
             free(vec);
         if (xpath_vec(xt1, NULL, "services//created", &vec, &veclen) < 0)
-            goto done;        
+            goto done;
         for (i=0; i<veclen; i++){
             xc1 = vec[i];
             if (xc1 && xml_purge(xc1) < 0)
@@ -942,9 +942,9 @@ controller_commit_actions(clixon_handle           h,
         goto done;
     if (services &&
         (actions == AT_FORCE || cvec_len(cvv) > 0)){
-        /* IF Services exist AND 
-           either service changes or forced, 
-           THEN notify services 
+        /* IF Services exist AND
+           either service changes or forced,
+           THEN notify services
         */
         if ((notifycb = cbuf_new()) == NULL){
             clixon_err(OE_UNIX, errno, "cbuf_new");
@@ -2384,11 +2384,11 @@ apply_template(cxobj *x,
 
 /*! Action callback, see clixon-controller.yang: devices/template/apply
  *
- * @param[in]  h       Clixon handle 
- * @param[in]  xn      Request: <rpc><xn></rpc> 
- * @param[out] cbret   Return xml tree, eg <rpc-reply>..., <rpc-error.. 
- * @param[in]  arg     Domain specific arg, ec client-entry or FCGX_Request 
- * @param[in]  regarg  User argument given at rpc_callback_register() 
+ * @param[in]  h       Clixon handle
+ * @param[in]  xn      Request: <rpc><xn></rpc>
+ * @param[out] cbret   Return xml tree, eg <rpc-reply>..., <rpc-error..
+ * @param[in]  arg     Domain specific arg, ec client-entry or FCGX_Request
+ * @param[in]  regarg  User argument given at rpc_callback_register()
  * @retval     0       OK
  * @retval    -1       Error
  */
@@ -2433,7 +2433,7 @@ rpc_device_template_apply(clixon_handle h,
         if (netconf_operation_failed(cbret, "application", "No template in rpc")< 0)
             goto done;
         goto ok;
-    }    
+    }
     if ((xtmpl = xpath_first(xret, nsc, "devices/template[name='%s']/config", tmplname)) == NULL){
         if (netconf_operation_failed(cbret, "application", "Template not found")< 0)
             goto done;
@@ -2445,7 +2445,7 @@ rpc_device_template_apply(clixon_handle h,
         goto ok;
     }
     xvars = xml_find_type(xe, NULL, "variables", CX_ELMNT);
-    /* Destructively substitute variables in xtempl 
+    /* Destructively substitute variables in xtempl
      * Maybe work on a copy instead?
      */
     if (xvars && xml_apply(xtmpl, CX_ELMNT, apply_template, xvars) < 0)
@@ -2748,7 +2748,7 @@ controller_edit_config(clixon_handle h,
     return retval;
 }
 
-/*! Register callback for rpc calls 
+/*! Register callback for rpc calls
  */
 int
 controller_rpc_init(clixon_handle h)

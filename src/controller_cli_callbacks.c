@@ -48,7 +48,7 @@
 #include "controller_lib.h"
 #include "controller_cli_callbacks.h"
 
-/*! 
+/*!
  *
  * @retval     0    OK
  * @retval    -1    Error
@@ -789,8 +789,8 @@ cli_rpc_commit_diff(clixon_handle h)
  * Relies on hardcoded "name" and "instance" variables in cvv
  * @param[in] h     Clixon handle
  * @param[in] cvv   Name pattern
- * @param[in] argv  Source:running/candidate, 
-                    actions:NONE/CHANGE/FORCE, 
+ * @param[in] argv  Source:running/candidate,
+                    actions:NONE/CHANGE/FORCE,
                     push:NONE/VALIDATE/COMMIT,
  * @retval    0     OK
  * @retval   -1     Error
@@ -2169,7 +2169,7 @@ cli_controller_show_version(clixon_handle h,
  *
  * @param[in] h
  * @param[in] cvv  templ, devs
- * @param[in] argv null 
+ * @param[in] argv null
  * @retval    0    OK
  * @retval   -1    Error
  */
