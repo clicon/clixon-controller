@@ -40,7 +40,7 @@
 /* Controller transaction id beyond 16-bit to != pid? */
 #define TRANSACTION_CLIENT_ID 0x199999
 
-/*! Clixon controller meta transactions spanning device operation
+/*! Clixon controller distributed transactions spanning device operation
  */
 struct controller_transaction_t{
     qelem_t            ct_qelem;         /* List header */

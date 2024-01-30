@@ -58,24 +58,24 @@
  * @param[in]  h    Clixon handle
  * @param[in]  dh   Clixon client handle
  * @param[in]  lock 0:Unlock, 1:lock
- * @param[in]  s    Socket
  * @retval     0    OK
  * @retval    -1    Error
  */
 int
 device_send_lock(clixon_handle h,
                  device_handle dh,
-                 int           lock,
-                 int           s)
+                 int           lock)
 {
     int   retval = -1;
     cbuf *cb = NULL;
     int   encap;
+    int   s;
 
     if (lock != 0 && lock != 1){
         clixon_err(OE_UNIX, EINVAL, "lock is not 0 or 1");
         goto done;
     }
+    s = device_handle_socket_get(dh);
     if ((cb = cbuf_new()) == NULL){
         clixon_err(OE_PLUGIN, errno, "cbuf_new");
         goto done;
@@ -251,7 +251,7 @@ device_send_get_schema_next(clixon_handle h,
             goto done;
         if (ret == 1)
             continue;
-        /* May be some concurrency here if several devices requests same yang simultaneously 
+        /* May be some concurrency here if several devices requests same yang simultaneously
          * To avoid that one needs to keep track if another request has been sent.
          */
         if ((ret = device_get_schema_sendit(h, dh, s, name, revision)) < 0)

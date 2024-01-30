@@ -875,14 +875,130 @@ device_shared_yspec(clixon_handle h,
     return retval;
 }
 
-/*! Handle controller device state machine
+/*! Helper device_state_handler: check if transaction has ended, if so send [discard;]lock
  *
  * @param[in]  h       Clixon handle
- * @param[in]  dh      Clixon client handle.
- * @param[in]  s       Socket
- * @param[in]  xmsg    XML tree of incoming message
- * @retval     0       OK
+ * @param[in]  dh      Device handle.
+ * @param[in]  ct      Controller transaction
+ * @param[in]  discard 0: Send onlylock; 1: Send discard; lock
+ * @retval     1       Transaction PK, continue
+ * @retval     0       Transaction has failed, break
  * @retval    -1       Error
+ */
+static int
+device_state_check_fail(clixon_handle           h,
+                        device_handle           dh,
+                        controller_transaction *ct,
+                        int                     discard)
+{
+    int retval = -1;
+
+    if (ct->ct_state == TS_RESOLVED) {
+        if (ct->ct_result == TR_SUCCESS){
+            clixon_err(OE_XML, 0, "Transaction unexpected SUCCESS state");
+            goto done;
+        }
+        else if (discard){        /* Trigger DISCARD of the device */
+            if (device_send_discard_changes(h, dh) < 0)
+                goto done;
+            if (device_state_set(dh, CS_PUSH_DISCARD) < 0)
+                goto done;
+        }
+        else {                    /* Trigger UNLOCK of the device */
+            if (device_send_lock(h, dh, 0) < 0)
+                goto done;
+            if (device_state_set(dh, CS_PUSH_UNLOCK) < 0)
+                goto done;
+        }
+        retval = 0;
+    }
+    else
+        retval = 1;
+ done:
+    return retval;
+}
+
+/*! Helper device_state_handler: check if state of remaining devices in transaction
+ *
+ * After device itself is OK check, set to OPEN,
+ * If no other devices are left in the transaction, then as last device resolve transaction:
+ * - To failed if already resolved
+ * - To success if not failures yet
+ * @param[in]  h     Clixon handle
+ * @param[in]  dh    Device handle.
+ * @param[in]  ct    Controller transaction
+ * @retval     0     OK
+ * @retval    -1     Error
+ */
+static int
+device_state_check_ok(clixon_handle           h,
+                      device_handle           dh,
+                      controller_transaction *ct)
+{
+    int      retval = -1;
+    uint64_t tid;
+
+    tid = ct->ct_id;
+    if (ct->ct_state == TS_RESOLVED && ct->ct_result == TR_SUCCESS){
+        clixon_err(OE_XML, 0, "Transaction unexpected SUCCESS state");
+        goto done;
+    }
+    if (device_state_set(dh, CS_OPEN) < 0)
+        goto done;
+    /* 2.2.2.1 Leave transaction */
+    device_handle_tid_set(dh, 0);
+    /* 2.2.2.2 If no devices in transaction, mark as OK and close it*/
+    if (controller_transaction_nr_devices(h, tid) == 0){
+        if (ct->ct_state != TS_RESOLVED)
+            controller_transaction_state_set(ct, TS_RESOLVED, TR_SUCCESS);
+        if (controller_transaction_done(h, ct, -1) < 0)
+            goto done;
+    }
+    retval = 0;
+ done:
+    return retval;
+}
+
+/*! Helper device_state_handler: check sanity of message and transaction parameters
+ *
+ * @param[in]  dh          Device handle.
+ * @param[in]  tid         Transaction id
+ * @param[in]  ct          Controller transaction
+ * @param[in]  name        Device name
+ * @param[in]  conn_state  Device connection state
+ * @param[in]  rpc_name    RPC name of message
+ * @retval     1           OK
+ * @retval     0           Sanity fail
+ */
+static int
+device_state_check_sanity(device_handle           dh,
+                          uint64_t                tid,
+                          controller_transaction *ct,
+                          char                   *name,
+                          conn_state              conn_state,
+                          char                   *rpcname)
+{
+    if (tid == 0 || ct == NULL){
+        device_close_connection(dh, "Device %s not associated with transaction in state %s",
+                                name, device_state_int2str(conn_state));
+        return 0;
+    }
+    if (ct->ct_state != TS_INIT && ct->ct_state != TS_RESOLVED){
+        clixon_debug(CLIXON_DBG_DEFAULT, "%s %s: Unexpected msg %s in state %s",
+                     __FUNCTION__, name, rpcname, transaction_state_int2str(ct->ct_state));
+        return 0;
+    }
+    return 1;
+}
+
+/*! Main state machine for controller transactions+devices
+ *
+ * @param[in]  h     Clixon handle
+ * @param[in]  dh    Device handle.
+ * @param[in]  s     Socket
+ * @param[in]  xmsg  XML tree of incoming message
+ * @retval     0     OK
+ * @retval    -1     Error
  */
 int
 device_state_handler(clixon_handle h,
@@ -902,7 +1018,7 @@ device_state_handler(clixon_handle h,
     controller_transaction *ct = NULL;
     cbuf       *cberr = NULL;
     cbuf       *cbmsg;
-    cxobj     *xyanglib;
+    cxobj      *xyanglib;
 
     rpcname = xml_name(xmsg);
     conn_state = device_handle_conn_state_get(dh);
@@ -912,17 +1028,10 @@ device_state_handler(clixon_handle h,
     if ((tid = device_handle_tid_get(dh)) != 0)
         ct = controller_transaction_find(h, tid);
     switch (conn_state){
+        /* Here starts states of OPEN transaction */
     case CS_CONNECTING:
-        if (tid == 0 || ct == NULL){
-            device_close_connection(dh, "Device %s not associated with transaction in state %s",
-                                    name, device_state_int2str(conn_state));
+        if (device_state_check_sanity(dh, tid, ct, name, conn_state, rpcname) == 0)
             break;
-        }
-        if (ct->ct_state != TS_INIT && ct->ct_state != TS_RESOLVED){
-            clixon_debug(CLIXON_DBG_DEFAULT, "%s %s: Unexpected msg %s in state %s",
-                         __FUNCTION__, name, rpcname, transaction_state_int2str(ct->ct_state));
-            break;
-        }
         /* Receive hello from device, send hello */
         if ((ret = device_state_recv_hello(h, dh, s, xmsg, rpcname, conn_state)) < 0)
             goto done;
@@ -931,10 +1040,10 @@ device_state_handler(clixon_handle h,
                 goto done;
             break;
         }
-        /* 2. The device is OK */
-        if (ct->ct_state == TS_RESOLVED){
-            /* 2.1 But transaction is in error state */
-            assert(ct->ct_result != TR_SUCCESS);
+        /* The device is OK */
+        if (ct->ct_state == TS_RESOLVED && ct->ct_result == TR_SUCCESS){
+            clixon_err(OE_XML, 0, "Transaction unexpected SUCCESS state");
+            goto done;
         }
         /* Reset YANGs */
         if ((xyanglib = device_handle_yang_lib_get(dh)) != NULL){
@@ -994,16 +1103,8 @@ device_state_handler(clixon_handle h,
             goto done;
         break;
     case CS_SCHEMA_LIST:
-        if (tid == 0 || ct == NULL){
-            device_close_connection(dh, "Device %s not associated with transaction in state %s",
-                                    name, device_state_int2str(conn_state));
+        if (device_state_check_sanity(dh, tid, ct, name, conn_state, rpcname) == 0)
             break;
-        }
-        if (ct->ct_state != TS_INIT && ct->ct_state != TS_RESOLVED){
-            clixon_debug(CLIXON_DBG_DEFAULT, "%s %s: Unexpected msg %s in state %s",
-                         __FUNCTION__, name, rpcname, transaction_state_int2str(ct->ct_state));
-            break;
-        }
         /* Receive netconf-state schema list from device */
         if ((ret = device_state_recv_schema_list(dh, xmsg, rpcname, conn_state)) < 0)
             goto done;
@@ -1011,6 +1112,11 @@ device_state_handler(clixon_handle h,
             if (controller_transaction_failed(h, tid, ct, dh, TR_FAILED_DEV_LEAVE, name, device_handle_logmsg_get(dh)) < 0)
                 goto done;
             break;
+        }
+        /* The device is OK */
+        if (ct->ct_state == TS_RESOLVED && ct->ct_result == TR_SUCCESS){
+            clixon_err(OE_XML, 0, "Transaction unexpected SUCCESS state");
+            goto done;
         }
         if ((xyanglib = device_handle_yang_lib_get(dh)) == NULL){
             if (controller_transaction_failed(h, tid, ct, dh, TR_FAILED_DEV_LEAVE, name, "No YANG device lib") < 0)
@@ -1027,11 +1133,6 @@ device_state_handler(clixon_handle h,
                 goto done;
             if (controller_mount_yspec_set(h, name, yspec1) < 0)
                 goto done;
-        }
-        /* 2. The device is OK */
-        if (ct->ct_state == TS_RESOLVED){
-            /* 2.1 But transaction is in error state */
-            assert(ct->ct_result != TR_SUCCESS);
         }
         nr = 0;
         if ((ret = device_send_get_schema_next(h, dh, s, &nr)) < 0)
@@ -1057,16 +1158,8 @@ device_state_handler(clixon_handle h,
             goto done;
         break;
     case CS_SCHEMA_ONE:
-        if (tid == 0 || ct == NULL){
-            device_close_connection(dh, "Device %s not associated with transaction in state %s",
-                                    name, device_state_int2str(conn_state));
+        if (device_state_check_sanity(dh, tid, ct, name, conn_state, rpcname) == 0)
             break;
-        }
-        if (ct->ct_state != TS_INIT && ct->ct_state != TS_RESOLVED){
-            clixon_debug(CLIXON_DBG_DEFAULT, "%s %s: Unexpected msg %s in state %s",
-                         __FUNCTION__, name, rpcname, transaction_state_int2str(ct->ct_state));
-            break;
-        }
         /* Receive get-schema and write to local yang file */
         if ((ret = device_state_recv_get_schema(dh, xmsg, rpcname, conn_state)) < 0)
             goto done;
@@ -1075,10 +1168,10 @@ device_state_handler(clixon_handle h,
                 goto done;
             break;
         }
-        /* 2. The device is OK */
-        if (ct->ct_state == TS_RESOLVED){
-            /* 2.1 But transaction is in error state */
-            assert(ct->ct_result != TR_SUCCESS);
+        /* The device is OK */
+        if (ct->ct_state == TS_RESOLVED && ct->ct_result == TR_SUCCESS){
+            clixon_err(OE_XML, 0, "Transaction unexpected SUCCESS state");
+            goto done;
         }
         /* Check if all schemas are received */
         nr = device_handle_nr_schemas_get(dh);
@@ -1113,16 +1206,8 @@ device_state_handler(clixon_handle h,
                      device_state_int2str(conn_state), nr);
         break;
     case CS_DEVICE_SYNC:
-        if (tid == 0 || ct == NULL){
-            device_close_connection(dh, "Device %s not associated with transaction in state %s",
-                                    name, device_state_int2str(conn_state));
+        if (device_state_check_sanity(dh, tid, ct, name, conn_state, rpcname) == 0)
             break;
-        }
-        if (ct->ct_state != TS_INIT && ct->ct_state != TS_RESOLVED){
-            clixon_debug(CLIXON_DBG_DEFAULT, "%s %s: Unexpected msg %s in state %s",
-                         __FUNCTION__, name, rpcname, transaction_state_int2str(ct->ct_state));
-            break;
-        }
         /* Receive config data from device and add config to mount-point */
         if ((ret = device_state_recv_config(h, dh, xmsg, yspec0, rpcname, conn_state, 0, 0)) < 0)
             goto done;
@@ -1131,36 +1216,13 @@ device_state_handler(clixon_handle h,
                 goto done;
             break;
         }
-        /* 2. The device is OK */
-        if (ct->ct_state == TS_RESOLVED){
-            /* 2.1 But transaction is in error state */
-            assert(ct->ct_result != TR_SUCCESS);
-        }
-        if (device_state_set(dh, CS_OPEN) < 0)
+        /* The device is OK */
+        if (device_state_check_ok(h, dh, ct) < 0)
             goto done;
-        /* 2.2.2.1 Leave transaction */
-        device_handle_tid_set(dh, 0);
-        /* 2.2.2.2 If no devices in transaction, mark as OK and close it*/
-        if (controller_transaction_nr_devices(h, tid) == 0){
-            if (ct->ct_state != TS_RESOLVED){
-                controller_transaction_state_set(ct, TS_RESOLVED, TR_SUCCESS);
-                if (controller_transaction_done(h, ct, TR_SUCCESS) < 0)
-                    goto done;
-            }
-        }
         break;
-#ifdef CONTROLLER_PUSH_LOCK
     case CS_PUSH_LOCK:
-        if (tid == 0 || ct == NULL){
-            device_close_connection(dh, "Device %s not associated with transaction in state %s",
-                                    name, device_state_int2str(conn_state));
+        if (device_state_check_sanity(dh, tid, ct, name, conn_state, rpcname) == 0)
             break;
-        }
-        if (ct->ct_state != TS_INIT && ct->ct_state != TS_RESOLVED){
-            clixon_debug(CLIXON_DBG_DEFAULT, "%s %s: Unexpected msg %s in state %s",
-                         __FUNCTION__, name, rpcname, transaction_state_int2str(ct->ct_state));
-            break;
-        }
         /* Retval: 2 OK, 1 Closed, 0 Failed, -1 Error */
         if ((ret = device_state_recv_ok(h, dh, xmsg, rpcname, conn_state, &cberr)) < 0)
             goto done;
@@ -1171,40 +1233,25 @@ device_state_handler(clixon_handle h,
                 goto done;
             break;
         }
-        else if (ret == 1){ /* 1. The device has failed and is closed */
+        else if (ret == 1){ /*
+                               1. The device has failed and is closed */
             if (controller_transaction_failed(h, tid, ct, dh, TR_FAILED_DEV_IGNORE, name, NULL) < 0)
                 goto done;
             break;
         }
-        /* 2. The device is OK */
-        if (ct->ct_state == TS_RESOLVED){
-            /* 2.1 But transaction is in error state */
-            assert(ct->ct_result != TR_SUCCESS);
-            /* 2.1.1 Trigger UNLOCK of device */
-            if (device_send_lock(h, dh, 0, s) < 0)
-                goto done;
-            if (device_state_set(dh, CS_PUSH_UNLOCK) < 0)
-                goto done;
-            break;
-        }
+        /* The device is OK */
+        if ((ret = device_state_check_fail(h, dh, ct, 0)) < 0)
+            goto done;
         if (device_send_get_config(h, dh, s) < 0)
             goto done;
         device_handle_tid_set(dh, ct->ct_id);
         if (device_state_set(dh, CS_PUSH_CHECK) < 0)
             goto done;
         break;
-#endif
+        /* Here starts states of PUSH transaction */
     case CS_PUSH_CHECK:
-        if (tid == 0 || ct == NULL){
-            device_close_connection(dh, "Device %s not associated with transaction in state %s",
-                                    name, device_state_int2str(conn_state));
+        if (device_state_check_sanity(dh, tid, ct, name, conn_state, rpcname) == 0)
             break;
-        }
-        if (ct->ct_state != TS_INIT && ct->ct_state != TS_RESOLVED){
-            clixon_debug(CLIXON_DBG_DEFAULT, "%s %s: Unexpected msg %s in state %s",
-                         __FUNCTION__, name, rpcname, transaction_state_int2str(ct->ct_state));
-            break;
-        }
         /* Receive config data, force transient, ie do not commit */
         if ((ret = device_state_recv_config(h, dh, xmsg, yspec0, rpcname, conn_state, 1, 0)) < 0)
             goto done;
@@ -1219,29 +1266,17 @@ device_state_handler(clixon_handle h,
         else if (ret == 1){ /* unequal */
             if (controller_transaction_failed(h, tid, ct, dh, TR_FAILED_DEV_IGNORE, name, cbuf_get(cberr)) < 0)
                 goto done;
-#ifdef CONTROLLER_PUSH_LOCK
-            if (device_send_lock(h, dh, 0, s) < 0)
+            if (device_send_lock(h, dh, 0) < 0)
                 goto done;
             if (device_state_set(dh, CS_PUSH_UNLOCK) < 0)
                 goto done;
-#else
-            if (device_state_set(dh, CS_OPEN) < 0)
-                goto done;
-            /* 2.2.2.1 Leave transaction */
-            device_handle_tid_set(dh, 0);
-            /* 2.2.2.2 If no devices in transaction, mark as OK and close it*/
-            if (controller_transaction_nr_devices(h, tid) == 0){
-                if (controller_transaction_done(h, ct, TR_FAILED) < 0)
-                    goto done;
-            }
-#endif
             break;
         }
-        /* 2. The device is OK */
-        if (ct->ct_state == TS_RESOLVED){
-            /* 2.1 But transaction is in error state */
-            assert(ct->ct_result != TR_SUCCESS);
-        }
+        /* The device is OK */
+        if ((ret = device_state_check_fail(h, dh, ct, 1)) < 0)
+            goto done;
+        if (ret == 0)
+            break;
         /* 2.2 The transaction is OK
            Proceed to next step: get saved edit-msg and send it */
         if ((cbmsg = device_handle_outmsg_get(dh)) == NULL){
@@ -1258,16 +1293,8 @@ device_state_handler(clixon_handle h,
             goto done;
         break;
     case CS_PUSH_EDIT:
-        if (tid == 0 || ct == NULL){
-            device_close_connection(dh, "Device %s not associated with transaction in state %s",
-                                    name, device_state_int2str(conn_state));
+        if (device_state_check_sanity(dh, tid, ct, name, conn_state, rpcname) == 0)
             break;
-        }
-        if (ct->ct_state != TS_INIT && ct->ct_state != TS_RESOLVED){
-            clixon_debug(CLIXON_DBG_DEFAULT, "%s %s: Unexpected msg %s in state %s",
-                         __FUNCTION__, name, rpcname, transaction_state_int2str(ct->ct_state));
-            break;
-        }
         /* Retval: 2 OK, 1 Closed, 0 Failed, -1 Error */
         if ((ret = device_state_recv_ok(h, dh, xmsg, rpcname, conn_state, &cberr)) < 0)
             goto done;
@@ -1287,17 +1314,11 @@ device_state_handler(clixon_handle h,
                 goto done;
             break;
         }
-        /* 2. The device is OK */
-        if (ct->ct_state == TS_RESOLVED){
-            /* 2.1 But transaction is in error state */
-            assert(ct->ct_result != TR_SUCCESS);
-            /* 2.1.1 Trigger DISCARD of the device */
-            if (device_send_discard_changes(h, dh) < 0)
-                goto done;
-            if (device_state_set(dh, CS_PUSH_DISCARD) < 0)
-                goto done;
+        /* The device is OK */
+        if ((ret = device_state_check_fail(h, dh, ct, 1)) < 0)
+            goto done;
+        if (ret == 0)
             break;
-        }
         /* 2.2 The transaction is OK
            Proceed to next step */
         if ((ret = device_send_validate(h, dh)) < 0)
@@ -1306,16 +1327,8 @@ device_state_handler(clixon_handle h,
             goto done;
        break;
     case CS_PUSH_VALIDATE:
-        if (tid == 0 || ct == NULL){
-            device_close_connection(dh, "Device %s not associated with transaction in state %s",
-                                    name, device_state_int2str(conn_state));
+        if (device_state_check_sanity(dh, tid, ct, name, conn_state, rpcname) == 0)
             break;
-        }
-        if (ct->ct_state != TS_INIT && ct->ct_state != TS_RESOLVED){
-            clixon_debug(CLIXON_DBG_DEFAULT, "%s %s: Unexpected msg %s in state %s",
-                         __FUNCTION__, name, rpcname, transaction_state_int2str(ct->ct_state));
-            break;
-        }
         /* Retval: 2 OK, 1 Closed, 0 Failed, -1 Error */
         if ((ret = device_state_recv_ok(h, dh, xmsg, rpcname, conn_state, &cberr)) < 0)
             goto done;
@@ -1342,19 +1355,14 @@ device_state_handler(clixon_handle h,
                 goto done;
             break;
         }
-        /* 2. The device is OK */
+        /* The device is OK */
+        if ((ret = device_state_check_fail(h, dh, ct, 1)) < 0)
+            goto done;
+        if (ret == 0)
+            break;
         if (device_state_set(dh, CS_PUSH_WAIT) < 0)
             goto done;
-        if (ct->ct_state == TS_RESOLVED){
-            /* 2.1 But transaction is in error state */
-            assert(ct->ct_result != TR_SUCCESS);
-            /* 2.1.1 Trigger DISCARD of the device */
-            if (device_send_discard_changes(h, dh) < 0)
-                goto done;
-            if (device_state_set(dh, CS_PUSH_DISCARD) < 0)
-                goto done;
-            break;
-        }
+
         /* 2.2 The transaction is OK */
         /* 2.2.1 Check if all devices are in WAIT (none are in EDIT/VALIDATE) */
         if ((ret = controller_transaction_wait(h, tid)) < 0)
@@ -1405,16 +1413,8 @@ device_state_handler(clixon_handle h,
         }
         break;
     case CS_PUSH_COMMIT:
-        if (tid == 0 || ct == NULL){
-            device_close_connection(dh, "Device %s not associated with transaction in state %s",
-                name, device_state_int2str(conn_state));
+        if (device_state_check_sanity(dh, tid, ct, name, conn_state, rpcname) == 0)
             break;
-        }
-        if (ct->ct_state != TS_INIT && ct->ct_state != TS_RESOLVED){
-            clixon_debug(CLIXON_DBG_DEFAULT, "%s %s: Unexpected msg %s in state %s",
-                         __FUNCTION__, name, rpcname, transaction_state_int2str(ct->ct_state));
-            break;
-        }
         /* Retval: 2 OK, 1 Closed, 0 Failed, -1 Error */
         if ((ret = device_state_recv_ok(h, dh, xmsg, rpcname, conn_state, &cberr)) < 0)
             goto done;
@@ -1428,16 +1428,11 @@ device_state_handler(clixon_handle h,
                 goto done;
             break;
         }
-        /* 2. The device is OK */
-        if (ct->ct_state == TS_RESOLVED){
-            /* 2.1 But transaction is in error state */
-            assert(ct->ct_result != TR_SUCCESS);
-            if (device_send_discard_changes(h, dh) < 0)
-                goto done;
-            if (device_state_set(dh, CS_PUSH_DISCARD) < 0)
-                goto done;
+        /* The device is OK */
+        if ((ret = device_state_check_fail(h, dh, ct, 1)) < 0)
+            goto done;
+        if (ret == 0)
             break;
-        }
 #ifdef CONTROLLER_EXTRA_PUSH_SYNC
         /* Pull for commited db in the case the device changes it post-commit */
         if (device_send_get_config(h, dh, s) < 0)
@@ -1445,17 +1440,10 @@ device_state_handler(clixon_handle h,
         if (device_state_set(dh, CS_PUSH_COMMIT_SYNC) < 0)
             goto done;
 #else
-#ifdef CONTROLLER_PUSH_LOCK
-        if (device_send_lock(h, dh, 0, s) < 0)
+        if (device_send_lock(h, dh, 0) < 0)
             goto done;
         if (device_state_set(dh, CS_PUSH_UNLOCK) < 0)
             goto done;
-#else
-        if (device_state_set(dh, CS_OPEN) < 0)
-            goto done;
-        /* 2.2.2.1 Leave transaction */
-        device_handle_tid_set(dh, 0);
-#endif
         if (conn_state == CS_PUSH_COMMIT){
             cxobj *xt = NULL;
             cbuf  *cb = NULL;
@@ -1493,27 +1481,11 @@ device_state_handler(clixon_handle h,
             if (xt)
                 xml_free(xt);
         }
-#ifdef CONTROLLER_PUSH_LOCK
-#else
-        if (controller_transaction_nr_devices(h, tid) == 0){
-            controller_transaction_state_set(ct, TS_RESOLVED, TR_SUCCESS);
-            if (controller_transaction_done(h, ct, -1) < 0)
-                goto done;
-        }
-#endif
 #endif /* CONTROLLER_EXTRA_PUSH_SYNC*/
         break;
     case CS_PUSH_DISCARD:
-        if (tid == 0 || ct == NULL){
-            device_close_connection(dh, "Device %s not associated with transaction in state %s",
-                name, device_state_int2str(conn_state));
+        if (device_state_check_sanity(dh, tid, ct, name, conn_state, rpcname) == 0)
             break;
-        }
-        if (ct->ct_state != TS_INIT && ct->ct_state != TS_RESOLVED){
-            clixon_debug(CLIXON_DBG_DEFAULT, "%s %s: Unexpected msg %s in state %s",
-                         __FUNCTION__, name, rpcname, transaction_state_int2str(ct->ct_state));
-            break;
-        }
         /* Retval: 2 OK, 1 Closed, 0 Failed, -1 Error */
         if ((ret = device_state_recv_ok(h, dh, xmsg, rpcname, conn_state, &cberr)) < 0)
             goto done;
@@ -1527,49 +1499,28 @@ device_state_handler(clixon_handle h,
                 goto done;
             break;
         }
-        /* 2. The device is OK */
-        if (ct->ct_state == TS_RESOLVED){
-            /* 2.1 But transaction is in error state */
-            assert(ct->ct_result != TR_SUCCESS);
+        /* The device is OK */
+        if (ct->ct_state == TS_RESOLVED) {
+            if (ct->ct_result == TR_SUCCESS){
+                clixon_err(OE_XML, 0, "Transaction unexpected SUCCESS state");
+                goto done;
+            }
+            else ;  /* XXX What to do if transaction failed on discard? */
         }
-#ifdef CONTROLLER_PUSH_LOCK
-        if (device_send_lock(h, dh, 0, s) < 0)
+        if (ct->ct_state == TS_RESOLVED && ct->ct_result == TR_SUCCESS){
+            clixon_err(OE_XML, 0, "Transaction unexpected SUCCESS state");
+            goto done;
+        }
+        if (ct->ct_state == TS_RESOLVED) ;/* XXX What to do if discard fails?? */
+        if (device_send_lock(h, dh, 0) < 0)
             goto done;
         if (device_state_set(dh, CS_PUSH_UNLOCK) < 0)
             goto done;
-#else
-        /* Pull for commited db in the case the device changes it post-commit */
-        if (device_state_set(dh, CS_OPEN) < 0)
-            goto done;
-        /* 2.2.2.1 Leave transaction */
-        device_handle_tid_set(dh, 0);
-
-        /* 2.2.2.2 If no devices in transaction, mark as OK and close it*/
-        if (controller_transaction_nr_devices(h, tid) == 0){
-            /* If source datastore is candidate, then commit (from actions)
-             * - if actions=AT_COMMIT, commit is made from actions-db
-             * - otherwise if datastore is candidate, commit is made from candidate
-             */
-            if (ct->ct_state != TS_RESOLVED){
-                controller_transaction_state_set(ct, TS_RESOLVED, TR_SUCCESS);
-            }
-            if (controller_transaction_done(h, ct, -1) < 0)
-                goto done;
-        }
-#endif
         break;
 #ifdef CONTROLLER_EXTRA_PUSH_SYNC
     case CS_PUSH_COMMIT_SYNC:
-        if (tid == 0 || ct == NULL){
-            device_close_connection(dh, "Device %s not associated with transaction in state %s",
-                                    name, device_state_int2str(conn_state));
+        if (device_state_check_sanity(dh, tid, ct, name, conn_state, rpcname) == 0)
             break;
-        }
-        if (ct->ct_state != TS_INIT && ct->ct_state != TS_RESOLVED){
-            clixon_debug(CLIXON_DBG_DEFAULT, "%s %s: Unexpected msg %s in state %s",
-                         __FUNCTION__, name, rpcname, transaction_state_int2str(ct->ct_state));
-            break;
-        }
         /* Receive config data from device and add config to mount-point */
         if ((ret = device_state_recv_config(h, dh, xmsg, yspec0, rpcname, conn_state, 0, 1)) < 0)
             goto done;
@@ -1578,44 +1529,22 @@ device_state_handler(clixon_handle h,
                 goto done;
             break;
         }
-        /* 2. The device is OK */
-        if (ct->ct_state == TS_RESOLVED){
-            /* 2.1 But transaction is in error state */
-            assert(ct->ct_result != TR_SUCCESS);
+        /* The device is OK */
+        if (ct->ct_state == TS_RESOLVED) {
+            if (ct->ct_result == TR_SUCCESS){
+                clixon_err(OE_XML, 0, "Transaction unexpected SUCCESS state");
+                goto done;
+            }
+            else ;  /* XXX What to do if transaction failed on sync? */
         }
-#ifdef CONTROLLER_PUSH_LOCK
-        if (device_send_lock(h, dh, 0, s) < 0)
+        if (device_send_lock(h, dh, 0) < 0)
             goto done;
         if (device_state_set(dh, CS_PUSH_UNLOCK) < 0)
             goto done;
-#else
-        if (device_state_set(dh, CS_OPEN) < 0)
-            goto done;
-        /* 2.2.2.1 Leave transaction */
-        device_handle_tid_set(dh, 0);
-        /* 2.2.2.2 If no devices in transaction, mark as OK and close it*/
-        if (controller_transaction_nr_devices(h, tid) == 0){
-            if (ct->ct_state != TS_RESOLVED){
-                controller_transaction_state_set(ct, TS_RESOLVED, TR_SUCCESS);
-            }
-            if (controller_transaction_done(h, ct, -1) < 0)
-                goto done;
-        }
-        break;
-#endif
 #endif /* CONTROLLER_EXTRA_PUSH_SYNC */
-#ifdef CONTROLLER_PUSH_LOCK
     case CS_PUSH_UNLOCK:
-        if (tid == 0 || ct == NULL){
-            device_close_connection(dh, "Device %s not associated with transaction in state %s",
-                                    name, device_state_int2str(conn_state));
+        if (device_state_check_sanity(dh, tid, ct, name, conn_state, rpcname) == 0)
             break;
-        }
-        if (ct->ct_state != TS_INIT && ct->ct_state != TS_RESOLVED){
-            clixon_debug(CLIXON_DBG_DEFAULT, "%s %s: Unexpected msg %s in state %s",
-                         __FUNCTION__, name, rpcname, transaction_state_int2str(ct->ct_state));
-            break;
-        }
         /* Retval: 2 OK, 1 Closed, 0 Failed, -1 Error */
         if ((ret = device_state_recv_ok(h, dh, xmsg, rpcname, conn_state, &cberr)) < 0)
             goto done;
@@ -1629,29 +1558,10 @@ device_state_handler(clixon_handle h,
                 goto done;
             break;
         }
-        /* 2. The device is OK */
-        if (ct->ct_state == TS_RESOLVED){
-            /* 2.1 But transaction is in error state */
-            assert(ct->ct_result != TR_SUCCESS);
-        }
-        /* Pull for commited db in the case the device changes it post-commit */
-        if (device_state_set(dh, CS_OPEN) < 0)
+        /* The device is OK */
+        if (device_state_check_ok(h, dh, ct) < 0)
             goto done;
-        /* 2.2.2.1 Leave transaction */
-        device_handle_tid_set(dh, 0);
-        if (controller_transaction_nr_devices(h, tid) == 0){
-            /* If source datastore is candidate, then commit (from actions)
-             * - if actions=AT_COMMIT, commit is made from actions-db
-             * - otherwise if datastore is candidate, commit is made from candidate
-             */
-            if (ct->ct_state != TS_RESOLVED){
-                controller_transaction_state_set(ct, TS_RESOLVED, TR_SUCCESS);
-            }
-            if (controller_transaction_done(h, ct, -1) < 0)
-                goto done;
-        }
         break;
-#endif
     case CS_PUSH_WAIT:
     case CS_CLOSED:
     case CS_OPEN:
@@ -1701,7 +1611,7 @@ devices_statedata(clixon_handle   h,
     cxobj         *x;
     char          *xb;
     char           timestr[28];
-    
+
     if ((cb = cbuf_new()) == NULL){
         clixon_err(OE_UNIX, errno, "cbuf_new");
         goto done;

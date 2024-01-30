@@ -274,7 +274,6 @@ push_device_one(clixon_handle           h,
     cxobj    **chvec1 = NULL;
     int        chlen;
     yang_stmt *yspec;
-    int        s;
     cbuf      *cbmsg = NULL;
     int        ret;
     cvec      *nsc = NULL;
@@ -332,20 +331,12 @@ push_device_one(clixon_handle           h,
                                            &cbmsg) < 0)
             goto done;
         device_handle_outmsg_set(dh, cbmsg);
-        s = device_handle_socket_get(dh);
-#ifdef CONTROLLER_PUSH_LOCK
-        if (device_send_lock(h, dh, 1, s) < 0)
+        if (device_send_lock(h, dh, 1) < 0)
             goto done;
         device_handle_tid_set(dh, ct->ct_id);
         if (device_state_set(dh, CS_PUSH_LOCK) < 0)
             goto done;
-#else
-        if (device_send_get_config(h, dh, s) < 0)
-            goto done;
-        device_handle_tid_set(dh, ct->ct_id);
-        if (device_state_set(dh, CS_PUSH_CHECK) < 0)
-            goto done;
-#endif
+
     }
     else{
         device_handle_tid_set(dh, 0);

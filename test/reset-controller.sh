@@ -164,9 +164,9 @@ EOF
     if [ "$res" != "$nr" ]; then
         echo "retry after sleep"
         sleep $sleep
+        continue
     fi
     break
-
 done # verify open
 if [ $j -eq $jmax ]; then
     err "$nr devices open" "$res devices open"

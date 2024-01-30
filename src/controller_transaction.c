@@ -587,9 +587,7 @@ controller_transaction_wait(clixon_handle h,
         if (device_handle_tid_get(dh) != tid)
             continue;
         if (
-#ifdef CONTROLLER_PUSH_LOCK
             device_handle_conn_state_get(dh) == CS_PUSH_LOCK ||
-#endif
             device_handle_conn_state_get(dh) == CS_PUSH_CHECK ||
             device_handle_conn_state_get(dh) == CS_PUSH_EDIT ||
             device_handle_conn_state_get(dh) == CS_PUSH_VALIDATE)

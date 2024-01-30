@@ -144,11 +144,11 @@ for ip in $CONTAINERS; do
     new "commit"
     expectpart "$($clixon_cli -1 -m configure -f $CFG commit local)" 0 "^$"
 
-#    sleep $sleep
+    #    sleep $sleep
 
     new "connection open"
     expectpart "$($clixon_cli -1 -f $CFG connection open)" 0 "^$"
-    
+
     sleep $sleep
     
     new "Verify controller $NAME"
@@ -163,6 +163,36 @@ done
 
 new "connection close"
 expectpart "$($clixon_cli -1 -f $CFG connection close)" 0 "^$"
+
+# see https://github.com/clicon/clixon-controller/issues/98
+cmd="set devices device openconfig1 user wrong"
+new "Set wrong user: $cmd"
+expectpart "$($clixon_cli -1 -m configure -f $CFG $cmd)" 0 "^$"
+
+new "commit"
+expectpart "$($clixon_cli -1 -m configure -f $CFG commit local)" 0 "^$"
+
+new "connection open 3"
+expectpart "$($clixon_cli -1 -f $CFG connection open)" 0 "^$"
+
+sleep $sleep
+
+new "Verify controller $NAME"
+res=$(${clixon_cli} -1f $CFG show devices | grep OPEN | wc -l)
+
+nr1=$((nr-1))
+if [ "$res" != "$nr1" ]; then
+    err1 "$nr open devices" "$res"
+fi
+
+cmd="set devices device openconfig1 user $USER"
+new "Set right user: $cmd"
+expectpart "$($clixon_cli -1 -m configure -f $CFG $cmd)" 0 "^$"
+
+new "commit"
+expectpart "$($clixon_cli -1 -m configure -f $CFG commit local)" 0 "^$"
+
+# device profile
 
 new "Delete devices config"
 expectpart "$($clixon_cli -1 -m configure -f $CFG delete devices)" 0 "^$"

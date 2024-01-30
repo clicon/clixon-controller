@@ -76,10 +76,6 @@
  */
 #define SHARED_PROFILE_YSPEC
 
-/*! Exclusive access to candidate using lock/unlock
- */
-#define CONTROLLER_PUSH_LOCK
-
 #define ACTION_PROCESS "Action process"
 
 #endif /* _CONTROLLER_H */
