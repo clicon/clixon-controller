@@ -1410,8 +1410,6 @@ rpc_controller_commit(clixon_handle h,
     retval = 0;
  done:
     if (td){
-        xmldb_get0_free(h, &td->td_target);
-        xmldb_get0_free(h, &td->td_src);
         transaction_free(td);
     }
     if (sourcedb)
