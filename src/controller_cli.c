@@ -47,8 +47,15 @@
 #include "controller_lib.h"
 #include "controller_cli_callbacks.h"
 
+/*! Start cli with -- -g
+ *
+ * Expand of all clispec:s for all open devices at startup
+ * Gives an initial delay, instead of at first device expand
+ */
+static int gentree_expand_all = 0;
+
 /* Forward */
-static int controller_cligen_gentree_all(cligen_handle ch, char *pattern);
+static int controller_cligen_gentree_all(cligen_handle ch);
 
 /*! Called when application is "started", (almost) all initialization is complete
  *
@@ -69,8 +76,9 @@ controller_cli_start(clixon_handle h)
     if (clicon_data_int_set(h, "controller-transaction-notify-socket", s) < 0)
         goto done;
     clixon_debug(CLIXON_DBG_DEFAULT, "%s notification socket:%d", __FUNCTION__, s);
-    if (controller_cligen_gentree_all(cli_cligen(h), "*") < 0)
-        goto done;
+    if (gentree_expand_all == 1)
+        if (controller_cligen_gentree_all(cli_cligen(h)) < 0)
+            goto done;
     retval = 0;
  done:
     return retval;
@@ -131,7 +139,7 @@ controller_cli_exit(clixon_handle h)
 
 /*! Check if there is another equivalent xyanglib and if so reuse that yspec
  *
- * Prereq: schema-list (xyanglib) is completely known. 
+ * Prereq: schema-list (xyanglib) is completely known.
  * Look for an existing equivalent schema-list among other devices.
  * If found, re-use that YANG-SPEC.
  * @param[in]  h         Clixon handle
@@ -221,7 +229,7 @@ create_autocli_mount_tree(clixon_handle h,
     yang_stmt *yspec1 = NULL;
     char      *devname;
     int        ret;
-    
+
     clixon_debug(CLIXON_DBG_DEFAULT, "%s", __FUNCTION__);
     devname = xml_find_body(xdev, "name");
     if (controller_mount_yspec_get(h, devname, &yspec1) < 0)
@@ -294,63 +302,62 @@ pt_eq1(parse_tree *pt1,
  * @retval    -1       Error
  */
 static int
-controller_cligen_gentree_all(cligen_handle ch,
-                              char         *pattern)
+controller_cligen_gentree_all(cligen_handle ch)
 {
     int           retval = -1;
     clixon_handle h;
-    cxobj        *xdevs = NULL;
+    cxobj        *xdevs0 = NULL;
+    cxobj        *xdev0;
+    cxobj        *xdevs1 = NULL;
+    cxobj        *xdev1;
     cbuf         *cb = NULL;
-    cxobj        *xdev;
     yang_stmt    *yspec1 = NULL;
     char         *devname;
     char         *newtree;
-    cxobj        *xdevs1 = NULL;
-    cxobj        *xdev1;
     cxobj        *xyanglib;
+    char         *pattern = "*";
 
     h = cligen_userhandle(ch);
-    if (rpc_get_yanglib_mount_match(h, pattern, 0, 1, &xdevs) < 0)
+    if (rpc_get_yanglib_mount_match(h, pattern, 0, 0, &xdevs0) < 0)
         goto done;
     if ((cb = cbuf_new()) == NULL){
         clixon_err(OE_UNIX, errno, "cbuf_new");
         goto done;
     }
-    xdev = NULL;
-    while ((xdev = xml_child_each(xdevs, xdev, CX_ELMNT)) != NULL) {
-        if ((devname = xml_find_body(xdev, "name")) == NULL)
+    xdev0 = NULL;
+    while ((xdev0 = xml_child_each(xdevs0, xdev0, CX_ELMNT)) != NULL) {
+        if ((devname = xml_find_body(xdev0, "name")) == NULL)
             continue;
         if (pattern != NULL && fnmatch(pattern, devname, 0) != 0)
-            continue;
-        if ((xyanglib = xpath_first(xdev, 0, "config/yang-library")) == NULL)
             continue;
         cbuf_reset(cb);
         cprintf(cb, "mountpoint-%s", devname);
         newtree = cbuf_get(cb);
         if (cligen_ph_find(ch, newtree) == NULL){
-            /* No such cligen specs, query full modules and generate clispec */
-            if (rpc_get_yanglib_mount_match(h, devname, 1, 1, &xdevs1) < 0)
+            /* No such cligen specs, query full modules once
+             */
+            if (xdevs1 == NULL)
+                if (rpc_get_yanglib_mount_match(h, "*", 0, 1, &xdevs1) < 0)
+                    goto done;
+            if (xdevs1 == NULL)
+                continue;
+            if ((xdev1 = xpath_first(xdevs1, 0, "device[name='%s']", devname)) == NULL)
+                continue;
+            if ((xyanglib = xpath_first(xdev1, 0, "config/yang-library")) == NULL)
+                continue;
+            if (create_autocli_mount_tree(h, xdev1, xdevs1, xyanglib, newtree, &yspec1) < 0)
                 goto done;
-            if (xdevs1 != NULL){
-                xdev1 = xml_find_type(xdevs1, NULL, "device", CX_ELMNT);
-                if (create_autocli_mount_tree(h, xdev1, xdevs, xyanglib, newtree, &yspec1) < 0)
-                    goto done;
-                if (xdevs1){
-                    xml_free(xdevs1);
-                    xdevs1 = NULL;
-                }
-                if (yspec1 == NULL){
-                    clixon_err(OE_YANG, 0, "No yang spec");
-                    goto done;
-                }
-                /* Generate auto-cligen tree from the specs */
-                if (yang2cli_yspec(h, yspec1, newtree) < 0)
-                    goto done;
-                /* Sanity */
-                if (cligen_ph_find(ch, newtree) == NULL){
-                    clixon_err(OE_YANG, 0, "autocli should have been generated but is not?");
-                    goto done;
-                }
+            if (yspec1 == NULL){
+                clixon_err(OE_YANG, 0, "No yang spec");
+                goto done;
+            }
+            /* Generate auto-cligen tree from the specs */
+            if (yang2cli_yspec(h, yspec1, newtree) < 0)
+                goto done;
+            /* Sanity */
+            if (cligen_ph_find(ch, newtree) == NULL){
+                clixon_err(OE_YANG, 0, "autocli should have been generated but is not?");
+                goto done;
             }
         }
     }
@@ -358,8 +365,8 @@ controller_cligen_gentree_all(cligen_handle ch,
  done:
     if (cb)
         cbuf_free(cb);
-    if (xdevs)
-        xml_free(xdevs);
+    if (xdevs0)
+        xml_free(xdevs0);
     if (xdevs1)
         xml_free(xdevs1);
     return retval;
@@ -396,8 +403,8 @@ controller_cligen_treeref_wrap(cligen_handle ch,
     yang_stmt    *yspec1 = NULL;
     clixon_handle h;
     cvec         *cvv_edit;
-    cxobj        *xdevs = NULL;
-    cxobj        *xdev;
+    cxobj        *xdevs0 = NULL;
+    cxobj        *xdev0;
     cxobj        *xdevs1 = NULL;
     cxobj        *xdev1;
     pt_head      *ph;
@@ -432,7 +439,7 @@ controller_cligen_treeref_wrap(cligen_handle ch,
      * create_autocli_mount_tree() should probably be rewritten
      */
     clixon_debug(1, "");
-    if (rpc_get_yanglib_mount_match(h, "*", 0, 1, &xdevs) < 0)
+    if (rpc_get_yanglib_mount_match(h, "*", 0, 0, &xdevs0) < 0)
         goto done;
     if ((cb = cbuf_new()) == NULL){
         clixon_err(OE_UNIX, errno, "cbuf_new");
@@ -441,13 +448,11 @@ controller_cligen_treeref_wrap(cligen_handle ch,
     /* Loop through all matching devices, check if clispec exists, if not generate
      * But only for first match
      */
-    xdev = NULL;
-    while ((xdev = xml_child_each(xdevs, xdev, CX_ELMNT)) != NULL) {
-        if ((devname = xml_find_body(xdev, "name")) == NULL)
+    xdev0 = NULL;
+    while ((xdev0 = xml_child_each(xdevs0, xdev0, CX_ELMNT)) != NULL) {
+        if ((devname = xml_find_body(xdev0, "name")) == NULL)
             continue;
         if (pattern != NULL && fnmatch(pattern, devname, 0) != 0)
-            continue;
-        if ((xyanglib = xpath_first(xdev, 0, "config/yang-library")) == NULL)
             continue;
         cbuf_reset(cb);
         cprintf(cb, "mountpoint-%s", devname);
@@ -458,29 +463,29 @@ controller_cligen_treeref_wrap(cligen_handle ch,
             goto done;
         }
         if ((ph = cligen_ph_find(ch, newtree)) == NULL){
-            /* No such cligen specs, query full modules and generate clispec */
-            if (rpc_get_yanglib_mount_match(h, devname, 1, 1, &xdevs1) < 0)
+            if (xdevs1 == NULL)
+                /* No such cligen specs, query full modules and generate clispec */
+                if (rpc_get_yanglib_mount_match(h, "*", 0, 1, &xdevs1) < 0)
+                    goto done;
+            if (xdevs1 == NULL)
+                continue;
+            if ((xdev1 = xpath_first(xdevs1, 0, "device[name='%s']", devname)) == NULL)
+                continue;
+            if ((xyanglib = xpath_first(xdev1, 0, "config/yang-library")) == NULL)
+                continue;
+            if (create_autocli_mount_tree(h, xdev1, xdevs1, xyanglib, newtree, &yspec1) < 0)
                 goto done;
-            if (xdevs1 != NULL){
-                xdev1 = xml_find_type(xdevs1, NULL, "device", CX_ELMNT);
-                if (create_autocli_mount_tree(h, xdev1, xdevs, xyanglib, newtree, &yspec1) < 0)
-                    goto done;
-                if (xdevs1){
-                    xml_free(xdevs1);
-                    xdevs1 = NULL;
-                }
-                if (yspec1 == NULL){
-                    clixon_err(OE_YANG, 0, "No yang spec");
-                    goto done;
-                }
-                /* Generate auto-cligen tree from the specs */
-                if (yang2cli_yspec(h, yspec1, newtree) < 0)
-                    goto done;
-                /* Sanity */
-                if ((ph = cligen_ph_find(ch, newtree)) == NULL){
-                    clixon_err(OE_YANG, 0, "autocli should have been generated but is not?");
-                    goto done;
-                }
+            if (yspec1 == NULL){
+                clixon_err(OE_YANG, 0, "No yang spec");
+                goto done;
+            }
+            /* Generate auto-cligen tree from the specs */
+            if (yang2cli_yspec(h, yspec1, newtree) < 0)
+                goto done;
+            /* Sanity (ph needed further down) */
+            if ((ph = cligen_ph_find(ch, newtree)) == NULL){
+                clixon_err(OE_YANG, 0, "autocli should have been generated but is not?");
+                goto done;
             }
         }
         /* Check if multiple trees are equal */
@@ -517,8 +522,8 @@ controller_cligen_treeref_wrap(cligen_handle ch,
  done:
     if (firsttree)
         free(firsttree);
-    if (xdevs)
-        xml_free(xdevs);
+    if (xdevs0)
+        xml_free(xdevs0);
     if (xdevs1)
         xml_free(xdevs1);
     if (cb)
@@ -645,12 +650,28 @@ clixon_plugin_api *
 clixon_plugin_init(clixon_handle h)
 {
     struct timeval tv;
+    int            argc; /* command-line options (after --) */
+    char         **argv;
+    int            c;
 
     gettimeofday(&tv, NULL);
     srandom(tv.tv_usec);
+    /* Get user command-line options (after --) */
+    if (clicon_argv_get(h, &argc, &argv) < 0)
+        goto done;
+    opterr = 0;
+    optind = 1;
+    while ((c = getopt(argc, argv, "g")) != -1)
+        switch (c) {
+        case 'g':
+            gentree_expand_all = 1;
+            break;
+        }
     /* Register treeref wrap function */
     if (clicon_option_bool(h, "CLICON_YANG_SCHEMA_MOUNT")){
         cligen_tree_resolve_wrapper_set(cli_cligen(h), controller_cligen_treeref_wrap, NULL);
     }
     return &api;
+ done:
+    return NULL;
 }

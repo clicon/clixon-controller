@@ -40,7 +40,7 @@
 /* Controller transaction id beyond 16-bit to != pid? */
 #define TRANSACTION_CLIENT_ID 0x199999
 
-/*! Clixon controller meta transactions spanning device operation
+/*! Clixon controller distributed transactions spanning device operation
  */
 struct controller_transaction_t{
     qelem_t            ct_qelem;         /* List header */
@@ -66,16 +66,12 @@ typedef struct controller_transaction_t controller_transaction;
 
 /*! Transaction failed device close parameter
  *
- * If device handle is set, one can either:
- * - Ignore the device just fail transaction. Typically if device is already closed or handled
- *   elsewhere
- * - Device leaves the transaction
- * - Close the device and leave the transaction
+ * If device handle is set, one can ignore, leave or close
  */
 enum tr_failed_devclose_t {
-    TR_FAILED_DEV_IGNORE,
-    TR_FAILED_DEV_LEAVE,
-    TR_FAILED_DEV_CLOSE
+    TR_FAILED_DEV_IGNORE,  /* Ignore device just fail transaction, if device already closed */
+    TR_FAILED_DEV_LEAVE,   /* Device leaves the transaction */
+    TR_FAILED_DEV_CLOSE    /* Close the device and leave the transaction */
 };
 typedef enum tr_failed_devclose_t tr_failed_devclose;
 
@@ -99,7 +95,7 @@ int   controller_transaction_failed(clixon_handle h, uint64_t tid, controller_tr
                                     tr_failed_devclose devclose, char *origin, char *reason);
 int   controller_transaction_wait(clixon_handle h, uint64_t tid);
 int   controller_transaction_wait_trigger(clixon_handle h, uint64_t tid, int commit);
-int   controller_transactions_statedata(clixon_handle h, cvec *nsc, char *xpath, cxobj *xstate);
+int   controller_transaction_statedata(clixon_handle h, cvec *nsc, char *xpath, cxobj *xstate);
 
 #ifdef __cplusplus
 }

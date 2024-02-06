@@ -57,11 +57,11 @@
 
 /*! Connect to device via Netconf SSH
  *
- * @param[in]  h  Clixon handle
- * @param[in]  dh Device handle, either NULL or in closed state
- * @param[in]  name Device name
- * @param[in]  user Username for ssh login
- * @param[in]  addr Address for ssh to connect to
+ * @param[in]  h             Clixon handle
+ * @param[in]  dh            Device handle, either NULL or in closed state
+ * @param[in]  user          Username for ssh login
+ * @param[in]  addr          Address for ssh to connect to
+ * @param[in]  stricthostkey If set ensure strict hostkey checking. Only for ssh
  * @retval     0    OK
  * @retval    -1    Error
  */
@@ -69,7 +69,8 @@ static int
 connect_netconf_ssh(clixon_handle h,
                     device_handle dh,
                     char         *user,
-                    char         *addr)
+                    char         *addr,
+                    int           stricthostkey)
 {
     int   retval = -1;
     cbuf *cb = NULL;
@@ -90,7 +91,7 @@ connect_netconf_ssh(clixon_handle h,
     if (user)
         cprintf(cb, "%s@", user);
     cprintf(cb, "%s", addr);
-    if (device_handle_connect(dh, CLIXON_CLIENT_SSH, cbuf_get(cb)) < 0)
+    if (device_handle_connect(dh, CLIXON_CLIENT_SSH, cbuf_get(cb), stricthostkey) < 0)
         goto done;
     if (device_state_set(dh, CS_CONNECTING) < 0)
         goto done;
@@ -133,17 +134,19 @@ controller_connect(clixon_handle           h,
     char         *user = NULL;
     char         *enablestr;
     char         *yfstr;
+    char         *str;
     cxobj        *xb;
     cxobj        *xdevprofile = NULL;
     cxobj        *xmod = NULL;
     cxobj        *xyanglib = NULL;
+    int           ssh_stricthostkey = 1;
 
     clixon_debug(CLIXON_DBG_DEFAULT, "%s", __FUNCTION__);
     if ((name = xml_find_body(xn, "name")) == NULL)
         goto ok;
+    dh = device_handle_find(h, name); /* can be NULL */
     if ((enablestr = xml_find_body(xn, "enabled")) == NULL)
         goto ok;
-    dh = device_handle_find(h, name); /* can be NULL */
     if (strcmp(enablestr, "false") == 0){
         if ((dh = device_handle_new(h, name)) == NULL)
             goto done;
@@ -181,6 +184,13 @@ controller_connect(clixon_handle           h,
     }
     if (xb != NULL)
         user = xml_body(xb);
+    if ((xb = xml_find_type(xn, NULL, "ssh-stricthostkey", CX_ELMNT)) == NULL ||
+        xml_flag(xb, XML_FLAG_DEFAULT)){
+        if (xdevprofile)
+            xb = xml_find_type(xdevprofile, NULL, "ssh-stricthostkey", CX_ELMNT);
+    }
+    if (xb && (str = xml_body(xb)) != NULL)
+        ssh_stricthostkey = strcmp(str, "true") == 0;
     /* Now dh is either NULL or in closed state and with correct type
      * First create it if still NULL
      */
@@ -214,7 +224,7 @@ controller_connect(clixon_handle           h,
     }
     /* Point of no return: assume errors handled in device_input_cb */
     device_handle_tid_set(dh, ct->ct_id);
-    if (connect_netconf_ssh(h, dh, user, addr) < 0) /* match */
+    if (connect_netconf_ssh(h, dh, user, addr, ssh_stricthostkey) < 0) /* match */
         goto done;
  ok:
     retval = 1;
@@ -264,7 +274,6 @@ push_device_one(clixon_handle           h,
     cxobj    **chvec1 = NULL;
     int        chlen;
     yang_stmt *yspec;
-    int        s;
     cbuf      *cbmsg = NULL;
     int        ret;
     cvec      *nsc = NULL;
@@ -322,12 +331,12 @@ push_device_one(clixon_handle           h,
                                            &cbmsg) < 0)
             goto done;
         device_handle_outmsg_set(dh, cbmsg);
-        s = device_handle_socket_get(dh);
-        if (device_send_get_config(h, dh, s) < 0)
+        if (device_send_lock(h, dh, 1) < 0)
             goto done;
         device_handle_tid_set(dh, ct->ct_id);
-        if (device_state_set(dh, CS_PUSH_CHECK) < 0)
+        if (device_state_set(dh, CS_PUSH_LOCK) < 0)
             goto done;
+
     }
     else{
         device_handle_tid_set(dh, 0);
@@ -689,7 +698,7 @@ strip_service_data_from_device_config(clixon_handle h,
                     continue;
                 if ((xpath = xml_body(xp)) == NULL)
                     continue;
-                if ((xd = xpath_first(xt1, NULL, "%s", xpath)) == NULL) 
+                if ((xd = xpath_first(xt1, NULL, "%s", xpath)) == NULL)
                     continue;
                 /* Purge from action-db */
                 if (xml_purge(xd) < 0) // XXX Check multiple??
@@ -712,7 +721,7 @@ strip_service_data_from_device_config(clixon_handle h,
                     continue;
                 if ((xpath = xml_body(xp)) == NULL)
                     continue;
-                if ((xd = xpath_first(xt1, NULL, "%s", xpath)) == NULL) 
+                if ((xd = xpath_first(xt1, NULL, "%s", xpath)) == NULL)
                     continue;
                 if (xml_purge(xd) < 0) // XXX Check muliple??
                     goto done;
@@ -722,7 +731,7 @@ strip_service_data_from_device_config(clixon_handle h,
         if (vec)
             free(vec);
         if (xpath_vec(xt1, NULL, "services//created", &vec, &veclen) < 0)
-            goto done;        
+            goto done;
         for (i=0; i<veclen; i++){
             xc1 = vec[i];
             if (xc1 && xml_purge(xc1) < 0)
@@ -933,9 +942,9 @@ controller_commit_actions(clixon_handle           h,
         goto done;
     if (services &&
         (actions == AT_FORCE || cvec_len(cvv) > 0)){
-        /* IF Services exist AND 
-           either service changes or forced, 
-           THEN notify services 
+        /* IF Services exist AND
+           either service changes or forced,
+           THEN notify services
         */
         if ((notifycb = cbuf_new()) == NULL){
             clixon_err(OE_UNIX, errno, "cbuf_new");
@@ -1401,8 +1410,6 @@ rpc_controller_commit(clixon_handle h,
     retval = 0;
  done:
     if (td){
-        xmldb_get0_free(h, &td->td_target);
-        xmldb_get0_free(h, &td->td_src);
         transaction_free(td);
     }
     if (sourcedb)
@@ -1580,7 +1587,8 @@ rpc_connection_change(clixon_handle h,
         goto ok;
     }
     ct->ct_client_id = ce->ce_id;
-    if (xmldb_get(h, "running", nsc, "devices", &xret) < 0)
+    // XXX: Should work with WITHDEFAULTS_EXPLICIT?
+    if (xmldb_get0(h, "running", YB_MODULE, nsc, "devices", 1, WITHDEFAULTS_REPORT_ALL, &xret, NULL, NULL) < 0)
         goto done;
     if (xpath_vec(xret, nsc, "devices/device", &vec, &veclen) < 0)
         goto done;
@@ -2374,11 +2382,11 @@ apply_template(cxobj *x,
 
 /*! Action callback, see clixon-controller.yang: devices/template/apply
  *
- * @param[in]  h       Clixon handle 
- * @param[in]  xn      Request: <rpc><xn></rpc> 
- * @param[out] cbret   Return xml tree, eg <rpc-reply>..., <rpc-error.. 
- * @param[in]  arg     Domain specific arg, ec client-entry or FCGX_Request 
- * @param[in]  regarg  User argument given at rpc_callback_register() 
+ * @param[in]  h       Clixon handle
+ * @param[in]  xn      Request: <rpc><xn></rpc>
+ * @param[out] cbret   Return xml tree, eg <rpc-reply>..., <rpc-error..
+ * @param[in]  arg     Domain specific arg, ec client-entry or FCGX_Request
+ * @param[in]  regarg  User argument given at rpc_callback_register()
  * @retval     0       OK
  * @retval    -1       Error
  */
@@ -2423,7 +2431,7 @@ rpc_device_template_apply(clixon_handle h,
         if (netconf_operation_failed(cbret, "application", "No template in rpc")< 0)
             goto done;
         goto ok;
-    }    
+    }
     if ((xtmpl = xpath_first(xret, nsc, "devices/template[name='%s']/config", tmplname)) == NULL){
         if (netconf_operation_failed(cbret, "application", "Template not found")< 0)
             goto done;
@@ -2435,7 +2443,7 @@ rpc_device_template_apply(clixon_handle h,
         goto ok;
     }
     xvars = xml_find_type(xe, NULL, "variables", CX_ELMNT);
-    /* Destructively substitute variables in xtempl 
+    /* Destructively substitute variables in xtempl
      * Maybe work on a copy instead?
      */
     if (xvars && xml_apply(xtmpl, CX_ELMNT, apply_template, xvars) < 0)
@@ -2682,8 +2690,7 @@ controller_edit_config(clixon_handle h,
     cxobj     *xserv;
     int        ret;
 
-    clixon_debug(1, "controller edit-config wrapper");
-
+    clixon_debug(CLIXON_DBG_DEFAULT, "controller edit-config wrapper");
     if ((yspec =  clicon_dbspec_yang(h)) == NULL){
         clixon_err(OE_YANG, ENOENT, "No yang spec9");
         goto done;
@@ -2706,8 +2713,8 @@ controller_edit_config(clixon_handle h,
     if ((xconfig = xml_new(NETCONF_INPUT_CONFIG, NULL, CX_ELMNT)) == NULL)
         goto done;
     if (clixon_xml_parse_va(YB_NONE, NULL, &xconfig, NULL,
-                            "<services xmlns=\"%s\" xmlns:nc=\"%s\"/>"
-                            ,CONTROLLER_NAMESPACE,
+                            "<services xmlns=\"%s\" xmlns:nc=\"%s\"/>",
+                            CONTROLLER_NAMESPACE,
                             NETCONF_BASE_NAMESPACE) < 0){
         goto ok;
     }
@@ -2725,7 +2732,7 @@ controller_edit_config(clixon_handle h,
         goto ok;
     if (xml_child_nr_type(xserv, CX_ELMNT) == 0)
         goto ok;
-    clixon_debug_xml(CLIXON_DBG_DEFAULT, xserv, "Controller created objects to %s:", target);
+    clixon_debug_xml(CLIXON_DBG_DEFAULT, xserv, "Objects created in %s-db", target);
     if ((ret = xmldb_put(h, target, OP_NONE, xconfig, NULL, cbret)) < 0){
         if (netconf_operation_failed(cbret, "protocol", clixon_err_reason())< 0)
             goto done;
@@ -2739,7 +2746,7 @@ controller_edit_config(clixon_handle h,
     return retval;
 }
 
-/*! Register callback for rpc calls 
+/*! Register callback for rpc calls
  */
 int
 controller_rpc_init(clixon_handle h)

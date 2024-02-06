@@ -74,7 +74,7 @@ controller_statedata(clixon_handle   h,
 
     if (devices_statedata(h, nsc, xpath, xstate) < 0)
         goto done;
-    if (controller_transactions_statedata(h, nsc, xpath, xstate) < 0)
+    if (controller_transaction_statedata(h, nsc, xpath, xstate) < 0)
         goto done;
     retval = 0;
  done:

@@ -33,6 +33,7 @@ module clixon-controller {
             "Added warning field to transaction
              Added created-by-service grouping
              Added service-instance parameter to rpc controller-commit
+             Added ssh-stricthostkey
              Released in 0.3.0";
     }
     revision 2023-11-01 {
@@ -305,6 +306,14 @@ module clixon-controller {
             type connection-type;
             default NETCONF_SSH;
         }
+        leaf ssh-stricthostkey {
+            when "../conn-type='NETCONF_SSH'";
+            description
+                "If 0, do not, if 1, ensure strict hostkey checking
+                 Only for ssh connections";
+            type boolean;
+            default true;
+        }
         leaf yang-config{
             description "How to bind device configuration to YANG.";
             type yang-config;
@@ -476,6 +485,11 @@ module clixon-controller {
                 type connection-state;
                 default CLOSED;
             }
+            leaf conn-state-timestamp {
+                description "Timestamp when entering current state";
+                config false;
+                type yang:date-and-time;
+            }
             container capabilities {
                 description
                     "May be duplicate if netconf-monitoring is implemented?";
@@ -485,11 +499,6 @@ module clixon-controller {
                     description
                         "List of NETCONF capabilities supported by the server.";
                 }
-            }
-            leaf conn-state-timestamp {
-                description "Timestamp when entering current state";
-                config false;
-                type yang:date-and-time;
             }
             leaf sync-timestamp {
                 description "Timestamp of last device synchronization";

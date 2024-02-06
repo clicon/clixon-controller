@@ -103,7 +103,7 @@ clixon_client_connect_netconf(clixon_handle  h,
         clixon_err(OE_NETCONF, 0, "argv mismatch, internal error");
         goto done;
     }
-    if (clixon_proc_socket(h, argv, SOCK_DGRAM, pid, sock) < 0){
+    if (clixon_proc_socket(h, argv, SOCK_DGRAM, pid, sock, NULL) < 0){
         goto done;
     }
     retval = 0;
@@ -112,12 +112,23 @@ clixon_client_connect_netconf(clixon_handle  h,
 }
 
 /*! Connect using NETCONF over SSH
+ *
+ * @param[in]  h             Clixon  handle
+ * @param[in]  dest          SSH destination
+ * @param[in]  stricthostkey If set ensure strict hostkey checking. Only for ssh connections
+ * @param[out] pid           Sub-process-id
+ * @param[out] sock          Stdin/stdout socket
+ * @param[out] sockerr       Stderr socket
+ * @retval     0             OK
+ * @retval    -1             Error
  */
 int
-clixon_client_connect_ssh(clixon_handle  h,
-                          const char    *dest,
-                          pid_t         *pid,
-                          int           *sock)
+clixon_client_connect_ssh(clixon_handle h,
+                          const char   *dest,
+                          int           stricthostkey,
+                          pid_t        *pid,
+                          int          *sock,
+                          int          *sockerr)
 {
     int         retval = -1;
     int         nr;
@@ -141,7 +152,10 @@ clixon_client_connect_ssh(clixon_handle  h,
     argv[i++] = (char*)dest;
     argv[i++] = "-T"; /* Disable pseudo-terminal allocation. */
     argv[i++] = "-o";
-    argv[i++] = "StrictHostKeyChecking=yes"; // dont ask
+    if (stricthostkey)
+        argv[i++] = "StrictHostKeyChecking=yes";
+    else
+        argv[i++] = "StrictHostKeyChecking=no";
     argv[i++] = "-o";
     argv[i++] = "PasswordAuthentication=no"; // dont query
     argv[i++] = "-o";
@@ -155,7 +169,7 @@ clixon_client_connect_ssh(clixon_handle  h,
     }
     for (i=0;i<nr;i++)
         clixon_debug(1, "%s: argv[%d]:%s", __FUNCTION__, i, argv[i]);
-    if (clixon_proc_socket(h, argv, SOCK_STREAM, pid, sock) < 0){
+    if (clixon_proc_socket(h, argv, SOCK_STREAM, pid, sock, sockerr) < 0){
         goto done;
     }
     retval = 0;

@@ -48,7 +48,7 @@
 #include "controller_lib.h"
 #include "controller_cli_callbacks.h"
 
-/*! 
+/*!
  *
  * @retval     0    OK
  * @retval    -1    Error
@@ -134,6 +134,7 @@ cli_apipath2xpath(clixon_handle h,
  * @param[out] xdevsp    XML on the form <devices><device><name>x</name>...
  * @retval     0         OK
  * @retval    -1         Error
+ * XXX: see https://github.com/clicon/clixon/issues/485
  */
 int
 rpc_get_yanglib_mount_match(clixon_handle h,
@@ -167,12 +168,16 @@ rpc_get_yanglib_mount_match(clixon_handle h,
     if (single)
         cprintf(cb, "[ctrl:name='%s']", pattern);
     if (yanglib){
-        cprintf(cb, "/ctrl:config\"");
+        cprintf(cb, "/ctrl:config");
+        // XXX: see https://github.com/clicon/clixon/issues/485
+        //        cprintf(cb, "/yanglib:yang-library");
     }
     else
-        cprintf(cb, "/ctrl:name\"");
+        cprintf(cb, "/ctrl:name");
+    cprintf(cb, "\"");
     cprintf(cb, " xmlns:ctrl=\"%s\" xmlns:yanglib=\"urn:ietf:params:xml:ns:yang:ietf-yang-library\">",
                     CONTROLLER_NAMESPACE);
+
     cprintf(cb, "</filter>");
     cprintf(cb, "</get>");
     cprintf(cb, "</rpc>");
@@ -784,8 +789,8 @@ cli_rpc_commit_diff(clixon_handle h)
  * Relies on hardcoded "name" and "instance" variables in cvv
  * @param[in] h     Clixon handle
  * @param[in] cvv   Name pattern
- * @param[in] argv  Source:running/candidate, 
-                    actions:NONE/CHANGE/FORCE, 
+ * @param[in] argv  Source:running/candidate,
+                    actions:NONE/CHANGE/FORCE,
                     push:NONE/VALIDATE/COMMIT,
  * @retval    0     OK
  * @retval   -1     Error
@@ -1034,8 +1039,17 @@ cli_show_devices(clixon_handle h,
     /* Get config */
     if ((nsc = xml_nsctx_init("co", CONTROLLER_NAMESPACE)) == NULL)
         goto done;
-    if (clicon_rpc_get(h, "co:devices", nsc, CONTENT_ALL, -1, "report-all", &xn) < 0)
-        goto done;
+    if (detail){
+        if (clicon_rpc_get(h, "co:devices", nsc, CONTENT_ALL, -1, "report-all", &xn) < 0)
+            goto done;
+    }
+    else{
+        /* Avoid including moint-point which triggers a lot of extra traffic */
+        if (clicon_rpc_get(h,
+                           "co:devices/co:device/co:name | co:devices/co:device/co:conn-state | co:devices/co:device/co:conn-state-timestamp | co:devices/co:device/co:logmsg",
+                           nsc, CONTENT_ALL, -1, "explicit", &xn) < 0)
+            goto done;
+    }
     if ((xerr = xpath_first(xn, NULL, "/rpc-error")) != NULL){
         clixon_err_netconf(h, OE_XML, 0, xerr, "Get devices");
         goto done;
@@ -2155,7 +2169,7 @@ cli_controller_show_version(clixon_handle h,
  *
  * @param[in] h
  * @param[in] cvv  templ, devs
- * @param[in] argv null 
+ * @param[in] argv null
  * @retval    0    OK
  * @retval   -1    Error
  */

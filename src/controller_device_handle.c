@@ -78,6 +78,7 @@ struct controller_device_handle{
     clixon_handle      cdh_h;          /* Clixon handle */
     clixon_client_type cdh_type;       /* Clixon socket type */
     int                cdh_socket;     /* Input/output socket, -1 is closed */
+    int                cdh_sockerr;    /* Stderr socket, -1 is closed */
     uint64_t           cdh_msg_id;     /* Client message-id to device */
     int                cdh_pid;        /* Sub-process-id Only applies for NETCONF/SSH */
     uint64_t           cdh_tid;        /* if >0, dev is part of transaction, 0 means unassigned */
@@ -112,7 +113,7 @@ device_handle_check(device_handle dh)
 
 /*! Create new controller device handle given clixon handle and add it to global list
  *
- * A new device handle is created when a connection is made, also passively in 
+ * A new device handle is created when a connection is made, also passively in
  * controller_yang_mount
  * @param[in]  h    Clixon  handle
  * @retval     dh   Controller device handle
@@ -135,6 +136,7 @@ device_handle_new(clixon_handle h,
     cdh->cdh_magic = CLIXON_CLIENT_MAGIC;
     cdh->cdh_h = h;
     cdh->cdh_socket = -1;
+    cdh->cdh_sockerr = -1;
     cdh->cdh_conn_state = CS_CLOSED;
     if ((cdh->cdh_name = strdup(name)) == NULL){
         clixon_err(OE_UNIX, errno, "strdup");
@@ -279,6 +281,7 @@ device_handle_each(clixon_handle h,
  * @param[in]  h        Clixon handle
  * @param[in]  socktype Type of socket, internal/external/netconf/ssh
  * @param[in]  dest     Destination for some types
+ * @param[in]  stricthostkey If set ensure strict hostkey checking. Only for ssh connections
  * @retval     dh       Clixon session handler
  * @retval     NULL     Error
  * @see clixon_client_disconnect  Close the socket returned here
@@ -286,11 +289,12 @@ device_handle_each(clixon_handle h,
 int
 device_handle_connect(device_handle      dh,
                       clixon_client_type socktype,
-                      const char        *dest)
+                      const char        *dest,
+                      int                stricthostkey)
 {
-    int                          retval = -1;
+    int                              retval = -1;
     struct controller_device_handle *cdh = (struct controller_device_handle *)dh;
-    clixon_handle                h;
+    clixon_handle                    h;
 
     clixon_debug(1, "%s", __FUNCTION__);
     if (cdh == NULL){
@@ -310,7 +314,7 @@ device_handle_connect(device_handle      dh,
         break;
 #ifdef SSH_BIN
     case CLIXON_CLIENT_SSH:
-        if (clixon_client_connect_ssh(h, dest, &cdh->cdh_pid, &cdh->cdh_socket) < 0)
+        if (clixon_client_connect_ssh(h, dest, stricthostkey, &cdh->cdh_pid, &cdh->cdh_socket, &cdh->cdh_sockerr) < 0)
             goto err;
 #else
         clixon_err(OE_UNIX, 0, "No ssh bin");
@@ -355,8 +359,11 @@ device_handle_disconnect(device_handle dh)
     case CLIXON_CLIENT_SSH:
     case CLIXON_CLIENT_NETCONF:
         assert(cdh->cdh_pid && cdh->cdh_socket != -1);
-        if (clixon_proc_socket_close(cdh->cdh_pid,
-                                     cdh->cdh_socket) < 0)
+        if (cdh->cdh_sockerr != -1){
+            close(cdh->cdh_sockerr);
+            cdh->cdh_sockerr = -1;
+        }
+        if (clixon_proc_socket_close(cdh->cdh_pid, cdh->cdh_socket) < 0)
             goto done;
         cdh->cdh_pid = 0;
         cdh->cdh_socket = -1;
@@ -393,6 +400,20 @@ device_handle_socket_get(device_handle dh)
     struct controller_device_handle *cdh = devhandle(dh);
 
     return cdh->cdh_socket;
+}
+
+/*! Get err socket
+ *
+ * @param[in]  dh     Device handle
+ * @retval     s      Open error socket
+ * @retval    -1      No/closed socket
+ */
+int
+device_handle_sockerr_get(device_handle dh)
+{
+    struct controller_device_handle *cdh = devhandle(dh);
+
+    return cdh->cdh_sockerr;
 }
 
 /*! Get msg-id and increment

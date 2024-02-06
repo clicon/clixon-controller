@@ -5,6 +5,8 @@ Expected: February 2024
 
 ### New features
 
+* New: [SSH StrictHostKeyChecking optional](https://github.com/clicon/clixon-controller/issues/96)
+* New: [Exclusive candidate configuration](https://github.com/clicon/clixon-controller/issues/37)
 * Replaced creator attributes with a configured solution
 * New: [show creator paths associated to service instance](https://github.com/clicon/clixon-controller/issues/90)
   * See https://clixon-controller-docs.readthedocs.io/en/latest/cli.html#creators
@@ -27,9 +29,14 @@ Expected: February 2024
   * `apply [template|services]`
 * New `clixon-controller@2024-01-01.yang` revision
   * Added warning field to transaction
+  * Added created-by-service grouping
+  * Added service-instance parameter to rpc controller-commit
+  * Added ssh-stricthostkey
 
 ### Corrected Bugs
 
+* Fixed: [Lock-denied if device connection fails](https://github.com/clicon/clixon-controller/issues/98)
+* Fixed: [Device connection errors could be more informative](https://github.com/clicon/clixon-controller/issues/7)
 * Fixed: [apply services does not allow dry-run](https://github.com/clicon/clixon-controller/issues/94)
 * Fixed: [old device config wrongly pushed back](https://github.com/clicon/clixon-controller/issues/93)
 * Fixed: [services reapply does not allow specific service instance](https://github.com/clicon/clixon-controller/issues/80)

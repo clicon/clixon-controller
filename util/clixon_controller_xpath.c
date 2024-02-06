@@ -160,7 +160,6 @@ main(int    argc,
         goto done;
     if (clicon_conf_xml_set(h, xcfg) < 0)
         goto done;
-    
     optind = 1;
     opterr = 0;
     while ((c = getopt(argc, argv, XPATH_OPTS)) != -1)
@@ -230,7 +229,7 @@ main(int    argc,
             usage(argv[0]);
             break;
         }
-    /* 
+    /*
      * Logs, error and debug to stderr or syslog, set debug level
      */
     clixon_log_init(h, "xpath", dbg?LOG_DEBUG:LOG_INFO, logdst);

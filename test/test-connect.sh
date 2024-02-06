@@ -144,11 +144,11 @@ for ip in $CONTAINERS; do
     new "commit"
     expectpart "$($clixon_cli -1 -m configure -f $CFG commit local)" 0 "^$"
 
-#    sleep $sleep
+    #    sleep $sleep
 
-    new "connection open"
+    new "connection open 1"
     expectpart "$($clixon_cli -1 -f $CFG connection open)" 0 "^$"
-    
+
     sleep $sleep
     
     new "Verify controller $NAME"
@@ -163,6 +163,39 @@ done
 
 new "connection close"
 expectpart "$($clixon_cli -1 -f $CFG connection close)" 0 "^$"
+
+# see https://github.com/clicon/clixon-controller/issues/98
+cmd="set devices device openconfig1 user wrong"
+new "Set wrong user: $cmd"
+expectpart "$($clixon_cli -1 -m configure -f $CFG $cmd)" 0 "^$"
+
+new "commit"
+expectpart "$($clixon_cli -1 -m configure -f $CFG commit local)" 0 "^$"
+
+new "connection open 2"
+expectpart "$($clixon_cli -1 -f $CFG connection open)" 0 "^$"
+
+sleep $sleep
+
+new "Verify controller $NAME"
+res=$(${clixon_cli} -1f $CFG show devices | grep OPEN | wc -l)
+
+nr1=$((nr-1))
+if [ "$res" != "$nr1" ]; then
+    err1 "$nr open devices" "$res"
+fi
+
+new "Check errmsg"
+expectpart "$($clixon_cli -1 -f $CFG show transaction)" 0 "<result>FAILED</result>" "<reason>wrong@" "Permission denied (publickey,password,keyboard-interactive).</reason>" || true
+  
+cmd="set devices device openconfig1 user $USER"
+new "Set right user: $cmd"
+expectpart "$($clixon_cli -1 -m configure -f $CFG $cmd)" 0 "^$"
+
+new "commit"
+expectpart "$($clixon_cli -1 -m configure -f $CFG commit local)" 0 "^$"
+
+# device profile
 
 new "Delete devices config"
 expectpart "$($clixon_cli -1 -m configure -f $CFG delete devices)" 0 "^$"
@@ -180,6 +213,10 @@ fi
 
 # Create device-profile myprofile
 cmd="set devices device-profile myprofile user $USER"
+new "$cmd"
+expectpart "$($clixon_cli -1 -m configure -f $CFG $cmd)" 0 "^$"
+
+cmd="set devices device-profile myprofile ssh-stricthostkey true"
 new "$cmd"
 expectpart "$($clixon_cli -1 -m configure -f $CFG $cmd)" 0 "^$"
 
@@ -215,7 +252,7 @@ done
 new "commit"
 expectpart "$($clixon_cli -1 -m configure -f $CFG commit local)" 0 "^$"
     
-new "connection open"
+new "connection open 3"
 expectpart "$($clixon_cli -1 -f $CFG connection open)" 0 "^$"
 
 sleep $sleep

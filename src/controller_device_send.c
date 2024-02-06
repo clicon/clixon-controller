@@ -53,6 +53,52 @@
 #include "controller_device_handle.h"
 #include "controller_device_send.h"
 
+/*! Send a <lock>/<unlock> target candidate
+ *
+ * @param[in]  h    Clixon handle
+ * @param[in]  dh   Clixon client handle
+ * @param[in]  lock 0:Unlock, 1:lock
+ * @retval     0    OK
+ * @retval    -1    Error
+ */
+int
+device_send_lock(clixon_handle h,
+                 device_handle dh,
+                 int           lock)
+{
+    int   retval = -1;
+    cbuf *cb = NULL;
+    int   encap;
+    int   s;
+
+    if (lock != 0 && lock != 1){
+        clixon_err(OE_UNIX, EINVAL, "lock is not 0 or 1");
+        goto done;
+    }
+    s = device_handle_socket_get(dh);
+    if ((cb = cbuf_new()) == NULL){
+        clixon_err(OE_PLUGIN, errno, "cbuf_new");
+        goto done;
+    }
+    cprintf(cb, "<rpc xmlns=\"%s\" message-id=\"%" PRIu64 "\">",
+            NETCONF_BASE_NAMESPACE,
+            device_handle_msg_id_getinc(dh));
+    cprintf(cb, "<%s>", lock==0?"unlock":"lock");
+    cprintf(cb, "<target><candidate/></target>");
+    cprintf(cb, "</%s>", lock==0?"unlock":"lock");
+    cprintf(cb, "</rpc>");
+    encap = device_handle_framing_type_get(dh);
+    if (netconf_output_encap(encap, cb) < 0)
+        goto done;
+    if (clicon_msg_send1(s, device_handle_name_get(dh), cb) < 0)
+        goto done;
+    retval = 0;
+ done:
+    if (cb)
+        cbuf_free(cb);
+    return retval;
+}
+
 /*! Send a <get> request to a device
  *
  * @param[in]  h   Clixon handle
@@ -204,7 +250,7 @@ device_send_get_schema_next(clixon_handle h,
             goto done;
         if (ret == 1)
             continue;
-        /* May be some concurrency here if several devices requests same yang simultaneously 
+        /* May be some concurrency here if several devices requests same yang simultaneously
          * To avoid that one needs to keep track if another request has been sent.
          */
         if ((ret = device_get_schema_sendit(h, dh, s, name, revision)) < 0)

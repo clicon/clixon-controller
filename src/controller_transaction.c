@@ -586,16 +586,15 @@ controller_transaction_wait(clixon_handle h,
     while ((dh = device_handle_each(h, dh)) != NULL){
         if (device_handle_tid_get(dh) != tid)
             continue;
-        if (device_handle_conn_state_get(dh) == CS_PUSH_CHECK ||
+        if (
+            device_handle_conn_state_get(dh) == CS_PUSH_LOCK ||
+            device_handle_conn_state_get(dh) == CS_PUSH_CHECK ||
             device_handle_conn_state_get(dh) == CS_PUSH_EDIT ||
             device_handle_conn_state_get(dh) == CS_PUSH_VALIDATE)
             notready++;
-        if (device_handle_conn_state_get(dh) == CS_PUSH_WAIT)
+        else if (device_handle_conn_state_get(dh) == CS_PUSH_WAIT)
             wait++;
-        if (device_handle_conn_state_get(dh) != CS_PUSH_CHECK &&
-            device_handle_conn_state_get(dh) != CS_PUSH_EDIT &&
-            device_handle_conn_state_get(dh) != CS_PUSH_VALIDATE &&
-            device_handle_conn_state_get(dh) != CS_PUSH_WAIT)
+        else
             other++;
     }
     if ((notready||wait) && other){
@@ -659,10 +658,10 @@ controller_transaction_wait_trigger(clixon_handle h,
  * @retval      -1        Error
  */
 int
-controller_transactions_statedata(clixon_handle   h,
-                                  cvec           *nsc,
-                                  char           *xpath,
-                                  cxobj          *xstate)
+controller_transaction_statedata(clixon_handle   h,
+                                 cvec           *nsc,
+                                 char           *xpath,
+                                 cxobj          *xstate)
 {
     int            retval = -1;
     cxobj        **vec = NULL;
@@ -672,7 +671,7 @@ controller_transactions_statedata(clixon_handle   h,
     controller_transaction *ct_list = NULL;
     controller_transaction *ct = NULL;
 
-    clixon_debug(CLIXON_DBG_DEFAULT, "%s", __FUNCTION__);
+    clixon_debug(CLIXON_DBG_DEFAULT|CLIXON_DBG_DETAIL, "%s", __FUNCTION__);
     if ((cb = cbuf_new()) == NULL){
         clixon_err(OE_UNIX, errno, "cbuf_new");
         goto done;
