@@ -34,7 +34,7 @@ install_modules() {
 	chown clicon:clicon ${CLIXON_MODULES}
     fi
     cd $SOURCE_PATH/
-    find ./. -name "*.py" -exec cp --parent {} $CLIXON_MODULES \;
+    find ./. -name "*.py" ! -name "test_*" -exec cp --parent  {} $CLIXON_MODULES \;
     echo ""
 }
 
