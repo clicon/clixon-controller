@@ -940,6 +940,7 @@ controller_commit_actions(clixon_handle           h,
     /* 1) copy candidate to actions and remove all device config tagged with services */
     if (xmldb_copy(h, "candidate", "actions") < 0)
         goto done;
+    xmldb_volatile_set(h, "actions", 1);
     if (services &&
         (actions == AT_FORCE || cvec_len(cvv) > 0)){
         /* IF Services exist AND

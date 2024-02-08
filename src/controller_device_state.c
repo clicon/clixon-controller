@@ -811,6 +811,7 @@ device_config_compare(clixon_handle           h,
             goto done;
         goto closed;
     }
+    /* 0: Equal, 1: not equal */
     if ((eq = xml_tree_equal(x0, x1)) != 0 && cberr0){
         if ((*cberr0 = cbuf_new()) == NULL){
             clixon_err(OE_UNIX, errno, "cbuf_new");
@@ -1403,6 +1404,9 @@ device_state_handler(clixon_handle h,
                 /* What to copy to candidate and commit to running? */
                 if (xmldb_copy(h, "actions", "candidate") < 0)
                     goto done;
+                /* Second validate, first in rpc_controller_commit, but candidate may have changed:
+                 * services may have edited actions-db
+                 */
                 if ((ret = candidate_commit(h, NULL, "candidate", 0, 0, cberr)) < 0){
                     /* Handle that candidate_commit can return < 0 if transaction ongoing */
                     cprintf(cberr, "%s: Commit error", name);

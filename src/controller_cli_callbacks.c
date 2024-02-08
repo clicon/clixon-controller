@@ -1005,19 +1005,24 @@ cli_show_devices(clixon_handle h,
                  cvec         *cvv,
                  cvec         *argv)
 {
-    int                retval = -1;
-    cvec              *nsc = NULL;
-    cxobj             *xc;
-    cxobj             *xerr;
-    cbuf              *cb = NULL;
-    cxobj             *xn = NULL; /* XML of senders */
-    char              *name;
-    char              *state;
-    char              *timestamp;
-    char              *logmsg;
-    char              *pattern = NULL;
-    cg_var            *cv;
-    int                detail = 0;
+    int     retval = -1;
+    cvec   *nsc = NULL;
+    cxobj  *xc;
+    cxobj  *xerr;
+    cbuf   *cb = NULL;
+    cxobj  *xn = NULL; /* XML of senders */
+    char   *name;
+    char   *state;
+    char   *timestamp;
+    char   *logmsg;
+    char   *pattern = NULL;
+    cg_var *cv;
+    int     detail = 0;
+    int     width;
+    int     logw;
+    int     i;
+    char   *logstr = NULL;
+    char   *p;
 
     if (argv != NULL && cvec_len(argv) != 1){
         clixon_err(OE_PLUGIN, EINVAL, "optional argument: <detail>");
@@ -1072,13 +1077,18 @@ cli_show_devices(clixon_handle h,
             }
         }
         else {
-            cligen_output(stdout, "%-23s %-10s %-22s %-30s\n", "Name", "State", "Time", "Logmsg");
-            cligen_output(stdout, "=======================================================================================\n");
+            width = cligen_terminal_width(cli_cligen(h));
+            logw = width - 58;
+            cligen_output(stdout, "%-23s %-10s %-22s %-*s\n", "Name", "State", "Time", width-58, "Logmsg");
+            for (i=0; i<width; i++)
+                cligen_output(stdout, "=");
+            cligen_output(stdout, "\n");
             xc = NULL;
             while ((xc = xml_child_each(xn, xc, CX_ELMNT)) != NULL) {
-                char *p;
-                char logstr[30];
-
+                if ((logstr = calloc(logw+1, sizeof(char))) == NULL){
+                    clixon_err(OE_UNIX, errno, "calloc");
+                    goto done;
+                }
                 if (strcmp(xml_name(xc), "device") != 0)
                     continue;
                 name = xml_find_body(xc, "name");
@@ -1094,8 +1104,8 @@ cli_show_devices(clixon_handle h,
                 }
                 cligen_output(stdout, "%-23s", timestamp?timestamp:"");
                 if ((logmsg = xml_find_body(xc, "logmsg")) != NULL){
-                    strncpy(logstr, logmsg, 30);
-                    logstr[29] = '\0';
+                    strncpy(logstr, logmsg, logw);
+                    logstr[logw] = '\0';
                     cligen_output(stdout, "%s",  logstr);
                 }
                 cligen_output(stdout, "\n");
@@ -1104,6 +1114,8 @@ cli_show_devices(clixon_handle h,
     }
     retval = 0;
  done:
+    if (logstr)
+        free(logstr);
     if (nsc)
         cvec_free(nsc);
     if (xn)
