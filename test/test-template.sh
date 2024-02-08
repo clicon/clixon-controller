@@ -27,7 +27,7 @@ wait_backend
 new "reset controller"
 (. ./reset-controller.sh)
 
-new "Create template w XML"
+new "Create template w NETCONF"
 ret=$(${clixon_netconf} -0 -f $CFG <<'EOF'
 <?xml version="1.0" encoding="UTF-8"?>
 <hello xmlns="urn:ietf:params:xml:ns:netconf:base:1.0">
@@ -125,7 +125,7 @@ expectpart "$($clixon_cli -1 -f $CFG -m configure delete devices template interf
 new "commit"
 expectpart "$($clixon_cli -1 -f $CFG -m configure commit)" 0 "^$"
 
-new "load template"
+new "CLI load template"
 # quote EOFfor $NAME
 ret=$(${clixon_cli} -1f $CFG -m configure load merge xml <<'EOF'
       <config>
@@ -164,6 +164,52 @@ expectpart "$($clixon_cli -1 -f $CFG -m configure apply template interfaces open
 
 new "Verify compare 2"
 expectpart "$($clixon_cli -1 -f $CFG -m configure show compare)" 0 "^+\ *interface z {" "^+\ *type ianaift:v35;" "^+\ *description \"Config of interface z,z and ianaift:v35 type\";" --not-- "^\-" 
+
+new "commit push"
+expectpart "$($clixon_cli -1f $CFG -m configure commit push 2>&1)" 0 "^OK$"
+
+# 1) commit add new version and diff
+new "CLI load template (no description)"
+# quote EOFfor $NAME
+ret=$(${clixon_cli} -1f $CFG -m configure load merge xml <<'EOF'
+      <config>
+         <devices xmlns="http://clicon.org/controller">
+            <template nc:operation="replace">
+               <name>interfaces</name>
+               <config>
+                  <interfaces xmlns="http://openconfig.net/yang/interfaces">
+                     <interface>
+                        <name>${NAME}</name>
+                        <config>
+                           <name>${NAME}</name>
+                           <type xmlns:ianaift="urn:ietf:params:xml:ns:yang:iana-if-type">${TYPE}</type>
+                           <description>Changed description</description>
+                        </config>
+                     </interface>
+                  </interfaces>
+               </config>
+            </template>
+         </devices>
+      </config>
+EOF
+)
+#echo "ret:$ret"
+
+if [ -n "$ret" ]; then
+    err1 "$ret"
+    exit 1
+fi
+
+new "Check description diff xml"
+expectpart "$($clixon_cli -1f $CFG show compare xml 2>&1)" 0 "^-\ *<description>Config of interface " "^+\ *<description>Changed description</description>"
+
+new "Check description diff text"
+expectpart "$($clixon_cli -1f $CFG show compare text 2>&1)" 0 "^-\ *description \"Config of interface" "^+\ *description \"Changed description\""
+
+new "commit push"
+expectpart "$($clixon_cli -1f $CFG -m configure commit push 2>&1)" 0 "^OK$"
+
+# 2) add operation="merge" / "replace" within 
 
 if $BE; then
     new "Kill old backend"

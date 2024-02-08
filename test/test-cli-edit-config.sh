@@ -45,7 +45,7 @@ function testrun()
     expectpart "$($clixon_cli -1 -f $CFG -m configure set devices device openconfig1 config system config hostname test1)" 0 ""
 
     new "Verify show compare on openconfig1"
-    expectpart "$($clixon_cli -1 -f $CFG -m configure show compare)" 0 "^-\ *hostname openconfig1;" "^+\ *hostname test1;"
+    expectpart "$($clixon_cli -1 -f $CFG -m configure show compare)" 0 "^-\ *hostname \"openconfig1\";" "^+\ *hostname \"test1\";"
 
     new "Verify commit diff on openconfig1"
     expectpart "$($clixon_cli -1 -f $CFG -m configure commit diff)" 0 "^\-\ *<hostname>openconfig1</hostname>" "^+\ *<hostname>test1</hostname>"
@@ -57,7 +57,7 @@ function testrun()
     expectpart "$($clixon_cli -1 -f $CFG -m configure 'set devices device openconfig* config system config hostname test')" 0 ""
 
     new "Verify show compare on openconfig*"
-    expectpart "$($clixon_cli -1 -f $CFG -m configure show compare)" 0 "^\-\ *hostname openconfig1;" "^+\ *hostname test;" "^\-\ *hostname openconfig2;"
+    expectpart "$($clixon_cli -1 -f $CFG -m configure show compare)" 0 "^\-\ *hostname \"openconfig1\";" "^+\ *hostname \"test\";" "^\-\ *hostname \"openconfig2\";"
 
     new "Verify commit diff on openconfig*"
     expectpart "$($clixon_cli -1 -f $CFG -m configure commit diff)" 0 "^\-\ *<hostname>openconfig1</hostname>" "^+\ *<hostname>test</hostname>" "^\-\ *<hostname>openconfig2</hostname>"
