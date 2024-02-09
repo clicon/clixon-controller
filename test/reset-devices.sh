@@ -56,7 +56,7 @@ for ip in $CONTAINERS; do
 </rpc>]]>]]>
 <rpc xmlns="urn:ietf:params:xml:ns:netconf:base:1.0" message-id="42">
   <commit/>
-</rpc>]]>]]>    
+</rpc>]]>]]>
 EOF
 )
     match=$(echo $ret | grep --null -Eo "<rpc-error>") || true
