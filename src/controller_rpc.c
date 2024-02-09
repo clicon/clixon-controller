@@ -819,6 +819,13 @@ commit_push_after_actions(clixon_handle           h,
     cbuf         *cberr = NULL;
     int           ret;
 
+    /* Dump volatile actions db to disk */
+    if (ct->ct_actions_type != AT_NONE && strcmp(ct->ct_sourcedb, "actions") == 0) {
+        if (xmldb_populate(h, "actions") < 0)
+            goto done;
+        if (xmldb_write_cache2file(h, "actions") < 0)
+            goto done;
+    }
     if (ct->ct_push_type == PT_NONE){
         if (controller_transaction_done(h, ct, TR_SUCCESS) < 0)
             goto done;
