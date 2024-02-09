@@ -2,10 +2,10 @@
 # Test clixon-lib ignore-compare extension
 # Mark a field : interface/config/mtu as "ignore"
 # Test different cases as follows:
-# 1. field on device only
-# 2. field on both device and controller
-# 3. Remove field on controller
-# 4. Add field on device
+# 0. Field not present on neither device nor controller
+# 1. Add mtu=888 to controller - ensure field not present on device
+# 2. Add mtu=999 to device - ensure field is unchanged on device
+# 3. Remove mtu on controller - ensure mtu is unchanged on device
 
 # Commit a change to _devices_ add mtu (mtu is ignored by extension)
 
@@ -119,7 +119,7 @@ function device_mtu_set()
     ip=$1
     mtu=$2
 
-    new "edit mtu on $ip"
+    new "Edit mtu on $ip"
     ret=$(ssh -l $USER $ip -o StrictHostKeyChecking=no -o PasswordAuthentication=no -s netconf <<EOF
 <?xml version="1.0" encoding="UTF-8"?>
 <hello xmlns="urn:ietf:params:xml:ns:netconf:base:1.0">
@@ -170,7 +170,7 @@ function device_mtu_get()
 
     REQ='<interfaces xmlns="http://openconfig.net/yang/interfaces/interface/mtu"/>'
     
-    new "get mtu on $ip"
+    new "Get mtu on $ip"
     ret=$(ssh -l $USER $ip -o StrictHostKeyChecking=no -o PasswordAuthentication=no -s netconf <<EOF
 <?xml version="1.0" encoding="UTF-8"?>
 <hello xmlns="urn:ietf:params:xml:ns:netconf:base:1.0">
@@ -243,14 +243,55 @@ for ip in $CONTAINERS; do # Just to get first element
     break
 done
 
-new "1. field on device only"
+new "1. Add mtu=888 to controller"
+
+new "Edit mtu field on controller"
+expectpart "$($clixon_cli -1f $CFG -m configure set devices device $NAME config interfaces interface y config mtu 888)" 0 "^$"
+
+device_mtu_get $ip ""
+
+new "Commit diff"
+expectpart "$($clixon_cli -1f $CFG -m configure commit diff)" 0 --not-- "^-\ *" "^+\ *"
+
+new "Commit local"
+expectpart "$($clixon_cli -1f $CFG -m configure commit local)" 0 "^$"
+
+new "check sync OK"
+expectpart "$($clixon_cli -1f $CFG show devices $NAME check 2>&1)" 0 "OK" --not-- "out-of-sync"
+
+new "Commit push"
+expectpart "$($clixon_cli -1f $CFG -m configure commit push)" 0 "^$"
+
+new "check sync OK"
+expectpart "$($clixon_cli -1f $CFG show devices $NAME check 2>&1)" 0 "OK" --not-- "out-of-sync"
+
+device_mtu_get $ip ""
+
+new "2. Add mtu=999 to device"
 
 device_mtu_set $ip 999
 
 device_mtu_get $ip 999
 
+new "Edit mtu field on controller"
+expectpart "$($clixon_cli -1f $CFG -m configure set devices device $NAME config interfaces interface y config mtu 777)" 0 "^$"
+
+new "Commit diff"
+expectpart "$($clixon_cli -1f $CFG -m configure commit diff)" 0 --not-- "^-\ *" "^+\ *"
+
+new "Commit local"
+expectpart "$($clixon_cli -1f $CFG -m configure commit local)" 0 "^$"
+
 new "check sync OK"
 expectpart "$($clixon_cli -1f $CFG show devices $NAME check 2>&1)" 0 "OK" --not-- "out-of-sync"
+
+new "Commit push"
+expectpart "$($clixon_cli -1f $CFG -m configure commit push)" 0 "^$"
+
+new "check sync OK"
+expectpart "$($clixon_cli -1f $CFG show devices $NAME check 2>&1)" 0 "OK" --not-- "out-of-sync"
+
+device_mtu_get $ip 999
 
 new "Edit description field"
 expectpart "$($clixon_cli -1f $CFG -m configure set devices device $NAME config interfaces interface y config description \"New description\")" 0 "^$"
@@ -263,52 +304,38 @@ expectpart "$($clixon_cli -1f $CFG -m configure commit push)" 0 "^$"
 
 device_mtu_get $ip 999
 
-new "2. field on both device and controller"
-new "Edit mtu field on controller"
-expectpart "$($clixon_cli -1f $CFG -m configure set devices device $NAME config interfaces interface y config mtu 888)" 0 "^$"
+new "Check controller is still 777"
+expectpart "$($clixon_cli -1f $CFG show config devices device openconfig1 config interfaces interface y config mtu)" 0 "<mtu>777</mtu>"
 
-new "check sync OK"
-expectpart "$($clixon_cli -1f $CFG show devices $NAME check 2>&1)" 0 "OK" --not-- "out-of-sync"
+new "Pull"
+expectpart "$($clixon_cli -1f $CFG pull)" 0 "^$"
 
-new "Commit diff"
-expectpart "$($clixon_cli -1f $CFG -m configure commit diff)" 0 --not-- "^-\ *" "^+\ *"
+new "Check controller is 999"
+expectpart "$($clixon_cli -1f $CFG show config devices device openconfig1 config interfaces interface y config mtu)" 0 "<mtu>999</mtu>"
 
-new "Commit push"
-expectpart "$($clixon_cli -1f $CFG -m configure commit push)" 0 "^$"
-
-device_mtu_get $ip 888
-
-new "3. Remove field on controller"
-new "Delete mtu field on controller"
-expectpart "$($clixon_cli -1f $CFG -m configure delete devices device $NAME config interfaces interface y config mtu 888)" 0 "^$"
-
-new "check sync OK"
-expectpart "$($clixon_cli -1f $CFG show devices $NAME check 2>&1)" 0 "OK" --not-- "out-of-sync"
-
-new "Commit diff"
-expectpart "$($clixon_cli -1f $CFG -m configure commit diff)" 0 --not-- "^-\ *" "^+\ *"
-
-new "Commit push"
-expectpart "$($clixon_cli -1f $CFG -m configure commit push)" 0 "^$"
-
-device_mtu_get $ip ""
-
-new "4. Add field on device"
-
-device_mtu_set $ip 999
 device_mtu_get $ip 999
 
-new "Edit description field"
-expectpart "$($clixon_cli -1f $CFG -m configure set devices device $NAME config interfaces interface y config description \"Again description\")" 0 "^$"
+new "3. Remove mtu on controller"
+new "Delete mtu field on controller"
+expectpart "$($clixon_cli -1f $CFG -m configure delete devices device $NAME config interfaces interface y config mtu 999)" 0 "^$"
+
+new "Commit diff"
+expectpart "$($clixon_cli -1f $CFG -m configure commit diff)" 0 --not-- "^-\ *" "^+\ *"
+
+new "Commit local"
+expectpart "$($clixon_cli -1f $CFG -m configure commit local)" 0 "^$"
+
+new "Check controller is gone"
+expectpart "$($clixon_cli -1f $CFG show config devices device openconfig1 config interfaces interface y config mtu)" 0 --not-- "<mtu>"
 
 new "check sync OK"
 expectpart "$($clixon_cli -1f $CFG show devices $NAME check 2>&1)" 0 "OK" --not-- "out-of-sync"
 
-new "Commit diff"
-expectpart "$($clixon_cli -1f $CFG -m configure commit diff)" 0 "^-\ *<description>New description</description>" "^+\ *<description>Again description</description>" --not-- 
-
 new "Commit push"
 expectpart "$($clixon_cli -1f $CFG -m configure commit push)" 0 "^$"
+
+new "check sync OK"
+expectpart "$($clixon_cli -1f $CFG show devices $NAME check 2>&1)" 0 "OK" --not-- "out-of-sync"
 
 device_mtu_get $ip 999
 
