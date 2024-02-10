@@ -169,7 +169,7 @@ new "commit push"
 expectpart "$($clixon_cli -1f $CFG -m configure commit push 2>&1)" 0 "^OK$"
 
 # 1) commit add new version and diff
-new "CLI load template (no description)"
+new "CLI load template (changed description)"
 # quote EOFfor $NAME
 ret=$(${clixon_cli} -1f $CFG -m configure load merge xml <<'EOF'
       <config>
@@ -206,10 +206,72 @@ expectpart "$($clixon_cli -1f $CFG show compare xml 2>&1)" 0 "^-\ *<description>
 new "Check description diff text"
 expectpart "$($clixon_cli -1f $CFG show compare text 2>&1)" 0 "^-\ *description \"Config of interface" "^+\ *description \"Changed description\""
 
+new "commit local"
+expectpart "$($clixon_cli -1f $CFG -m configure commit  2>&1)" 0 "^OK$"
+
+new "Apply template CLI"
+expectpart "$($clixon_cli -1 -f $CFG -m configure apply template interfaces openconfig* variables NAME z TYPE ianaift:v35)" 0 "^$"
+
 new "commit push"
 expectpart "$($clixon_cli -1f $CFG -m configure commit push 2>&1)" 0 "^OK$"
 
 # 2) add operation="merge" / "replace" within 
+new "CLI load template (removed description)"
+# quote EOFfor $NAME
+ret=$(${clixon_cli} -1f $CFG -m configure load merge xml <<'EOF'
+      <config>
+         <devices xmlns="http://clicon.org/controller">
+            <template nc:operation="replace">
+               <name>interfaces</name>
+               <config>
+                  <interfaces xmlns="http://openconfig.net/yang/interfaces">
+                     <interface nc:operation="replace">
+                        <name>${NAME}</name>
+                        <config>
+                           <name>${NAME}</name>
+                           <type xmlns:ianaift="urn:ietf:params:xml:ns:yang:iana-if-type">${TYPE}</type>
+                           <!-- removed description -->
+                        </config>
+                     </interface>
+                  </interfaces>
+               </config>
+            </template>
+         </devices>
+      </config>
+EOF
+)
+#echo "ret:$ret"
+
+if [ -n "$ret" ]; then
+    err1 "$ret"
+    exit 1
+fi
+
+# candidate har template/nc:opertaion
+# running har template/description
+
+new "commit local"
+expectpart "$($clixon_cli -1f $CFG -m configure commit local 2>&1)" 0 "^$"
+
+# båda har template/nc:opertaion
+# båda har template/description
+
+new "Apply template CLI 2"
+expectpart "$($clixon_cli -1 -f $CFG -m configure apply template interfaces openconfig* variables NAME z TYPE ianaift:v35)" 0 "^$"
+
+# candidate har ingen device=z/description
+# candidate har device=z/description Changed
+
+new "Verify compare 3"
+expectpart "$($clixon_cli -1 -f $CFG -m configure show compare xml)" 0 "^-\ *<description>Changed description</description>" --not-- "^+\ *"
+
+new "commit push"
+expectpart "$($clixon_cli -1f $CFG -m configure commit push 2>&1)" 0 "^OK$"
+
+expectpart "$($clixon_cli -1 -f $CFG show configuration devices device openconfig1 config interfaces interface)" 0 --not-- "<mtu>"
+
+new "check sync OK"
+expectpart "$($clixon_cli -1f $CFG show devices $NAME check 2>&1)" 0 "OK" --not-- "out-of-sync"
 
 if $BE; then
     new "Kill old backend"
