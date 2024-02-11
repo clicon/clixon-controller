@@ -2413,6 +2413,9 @@ rpc_device_template_apply(clixon_handle h,
     char         *tmplname;
     cxobj        *xtmpl;
     cxobj        *xvars;
+    cxobj        *xvars0;
+    cxobj        *xv;
+    char         *varname;
     cxobj        *xd;
     char         *devname;
     char         *pattern;
@@ -2451,6 +2454,26 @@ rpc_device_template_apply(clixon_handle h,
         goto ok;
     }
     xvars = xml_find_type(xe, NULL, "variables", CX_ELMNT);
+    xvars0 = xpath_first(xret, nsc, "devices/template[name='%s']/variables", tmplname);
+    /* Match actual parameters in xvars with formal paremeters in xvars0 */
+    xv = NULL;
+    while ((xv = xml_child_each(xvars, xv, CX_ELMNT)) != NULL) {
+        varname = xml_find_body(xv, "name");
+        if (xpath_first(xvars0, nsc, "variable[name='%s']", varname) == NULL){
+            if (netconf_unknown_element(cbret, "application", varname, "No such template variable")< 0)
+                goto done;
+            goto ok;
+        }
+    }
+    xv = NULL;
+    while ((xv = xml_child_each(xvars0, xv, CX_ELMNT)) != NULL) {
+        varname = xml_find_body(xv, "name");
+        if (xpath_first(xvars, nsc, "variable[name='%s']", varname) == NULL){
+            if (netconf_missing_element(cbret, "application", varname, "Template variable")< 0)
+                goto done;
+            goto ok;
+        }
+    }
     /* Destructively substitute variables in xtempl
      * Maybe work on a copy instead?
      */

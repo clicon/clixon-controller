@@ -32,6 +32,7 @@ module clixon-controller {
         description
             "Added warning field to transaction
              Added created-by-service grouping
+             Added variables to templates
              Added service-instance parameter to rpc controller-commit
              Added ssh-stricthostkey
              Released in 0.3.0";
@@ -430,8 +431,24 @@ module clixon-controller {
             description
                 "Device templates provide a simple meschanism to apply a pre-set configuration
                  part with a simple mechanism using variable substitution.
-                 A template is like a macro with shell-like ${var} variables.
-                 Actual values of variables, ie name/value pairs, are assigned at apply time";
+                 A template is like a macro with shell-like ${var} variables.";
+           container variables {
+               description "Formal variable declarations";
+               list variable{
+                   description
+                       "Formal variable template declaration.
+                        Should match all instance of ${VAR} in the anydata config part.
+                        Actual parameters are bound at apply time.
+                        All variables are of type strings";
+                   key name;
+                   leaf name{
+                       type string;
+                   }
+                   leaf description{
+                       type string;
+                   }
+               }
+            }
             anydata config{
                 description
                     "This parameter contains template data with variable substitutions on the

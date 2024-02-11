@@ -2,6 +2,6 @@ CLICON_MODE="template_vars";
 CLICON_PROMPT="%U@%H[%W]# ";
 CLICON_PLUGIN="controller_cli";
 
-<var:string>("Formal variable") <val:string>("Substituted Value"), cli_apply_device_template();{
+<var:string expand_dbvar("candidate","/clixon-controller:devices/template=%s/variables/variable/name")>("Formal variable") <val:string>("Substituted Value"), cli_apply_device_template();{
    @template_vars;
    }

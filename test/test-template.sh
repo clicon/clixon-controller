@@ -23,7 +23,7 @@ fi
 new "Wait backend"
 wait_backend
 
-# Reset controller 
+# Reset controller
 new "reset controller"
 (. ./reset-controller.sh)
 
@@ -35,8 +35,8 @@ ret=$(${clixon_netconf} -0 -f $CFG <<'EOF'
       <capability>urn:ietf:params:netconf:base:1.0</capability>
    </capabilities>
 </hello>]]>]]>
-<rpc xmlns="urn:ietf:params:xml:ns:netconf:base:1.0" 
-     xmlns:nc="urn:ietf:params:xml:ns:netconf:base:1.0" 
+<rpc xmlns="urn:ietf:params:xml:ns:netconf:base:1.0"
+     xmlns:nc="urn:ietf:params:xml:ns:netconf:base:1.0"
      message-id="42">
    <edit-config>
       <target><candidate/></target>
@@ -45,6 +45,10 @@ ret=$(${clixon_netconf} -0 -f $CFG <<'EOF'
          <devices xmlns="http://clicon.org/controller">
             <template nc:operation="replace">
                <name>interfaces</name>
+               <variables>
+                 <variable><name>NAME</name></variable>
+                 <variable><name>TYPE</name></variable>
+               </variables>
                <config>
                   <interfaces xmlns="http://openconfig.net/yang/interfaces">
                      <interface>
@@ -71,7 +75,7 @@ if [ -n "$match" ]; then
     exit 1
 fi
 
-new "commit template local"
+new "commit template local 1"
 expectpart "$($clixon_cli -1f $CFG -m configure commit local 2>&1)" 0 "^$"
 
 new "Apply template NETCONF"
@@ -82,8 +86,8 @@ ret=$(${clixon_netconf} -0 -f $CFG <<EOF
       <capability>urn:ietf:params:netconf:base:1.0</capability>
    </capabilities>
 </hello>]]>]]>
-<rpc xmlns="urn:ietf:params:xml:ns:netconf:base:1.0" 
-     xmlns:nc="urn:ietf:params:xml:ns:netconf:base:1.0" 
+<rpc xmlns="urn:ietf:params:xml:ns:netconf:base:1.0"
+     xmlns:nc="urn:ietf:params:xml:ns:netconf:base:1.0"
      message-id="42">
    <device-template-apply xmlns="http://clicon.org/controller">
       <devname>openconfig*</devname>
@@ -108,12 +112,12 @@ new "Check no errors of apply"
 match=$(echo $ret | grep --null -Eo "<rpc-error>") || true
 if [ -n "$match" ]; then
     echo "netconf rpc-error detected"
-    echo "$ret"
+    err1 "$ret"
     exit 1
 fi
 
 new "Verify compare 1"
-expectpart "$($clixon_cli -1 -f $CFG -m configure show compare)" 0 "^+\ *interface z {" "^+\ *type ianaift:v35;" "^+\ *description \"Config of interface z,z and ianaift:v35 type\";" --not-- "^\-" 
+expectpart "$($clixon_cli -1 -f $CFG -m configure show compare)" 0 "^+\ *interface z {" "^+\ *type ianaift:v35;" "^+\ *description \"Config of interface z,z and ianaift:v35 type\";" --not-- "^\-"
 
 new "rollback"
 expectpart "$($clixon_cli -1 -f $CFG -m configure rollback)" 0 "^$"
@@ -132,6 +136,10 @@ ret=$(${clixon_cli} -1f $CFG -m configure load merge xml <<'EOF'
          <devices xmlns="http://clicon.org/controller">
             <template nc:operation="replace">
                <name>interfaces</name>
+               <variables>
+                 <variable><name>NAME</name></variable>
+                 <variable><name>TYPE</name></variable>
+               </variables>
                <config>
                   <interfaces xmlns="http://openconfig.net/yang/interfaces">
                      <interface>
@@ -156,14 +164,14 @@ if [ -n "$ret" ]; then
     exit 1
 fi
 
-new "commit template local"
+new "commit template local 2"
 expectpart "$($clixon_cli -1f $CFG -m configure commit local 2>&1)" 0 "^$"
 
-new "Apply template CLI"
+new "Apply template CLI 1"
 expectpart "$($clixon_cli -1 -f $CFG -m configure apply template interfaces openconfig* variables NAME z TYPE ianaift:v35)" 0 "^$"
 
 new "Verify compare 2"
-expectpart "$($clixon_cli -1 -f $CFG -m configure show compare)" 0 "^+\ *interface z {" "^+\ *type ianaift:v35;" "^+\ *description \"Config of interface z,z and ianaift:v35 type\";" --not-- "^\-" 
+expectpart "$($clixon_cli -1 -f $CFG -m configure show compare)" 0 "^+\ *interface z {" "^+\ *type ianaift:v35;" "^+\ *description \"Config of interface z,z and ianaift:v35 type\";" --not-- "^\-"
 
 new "commit push"
 expectpart "$($clixon_cli -1f $CFG -m configure commit push 2>&1)" 0 "^OK$"
@@ -176,6 +184,10 @@ ret=$(${clixon_cli} -1f $CFG -m configure load merge xml <<'EOF'
          <devices xmlns="http://clicon.org/controller">
             <template nc:operation="replace">
                <name>interfaces</name>
+               <variables>
+                 <variable><name>NAME</name></variable>
+                 <variable><name>TYPE</name></variable>
+               </variables>
                <config>
                   <interfaces xmlns="http://openconfig.net/yang/interfaces">
                      <interface>
@@ -209,13 +221,13 @@ expectpart "$($clixon_cli -1f $CFG show compare text 2>&1)" 0 "^-\ *description 
 new "commit local"
 expectpart "$($clixon_cli -1f $CFG -m configure commit  2>&1)" 0 "^OK$"
 
-new "Apply template CLI"
+new "Apply template CLI 2"
 expectpart "$($clixon_cli -1 -f $CFG -m configure apply template interfaces openconfig* variables NAME z TYPE ianaift:v35)" 0 "^$"
 
 new "commit push"
 expectpart "$($clixon_cli -1f $CFG -m configure commit push 2>&1)" 0 "^OK$"
 
-# 2) add operation="merge" / "replace" within 
+# 2) add operation="merge" / "replace" within
 new "CLI load template (removed description)"
 # quote EOFfor $NAME
 ret=$(${clixon_cli} -1f $CFG -m configure load merge xml <<'EOF'
@@ -223,6 +235,10 @@ ret=$(${clixon_cli} -1f $CFG -m configure load merge xml <<'EOF'
          <devices xmlns="http://clicon.org/controller">
             <template nc:operation="replace">
                <name>interfaces</name>
+               <variables>
+                 <variable><name>NAME</name></variable>
+                 <variable><name>TYPE</name></variable>
+               </variables>
                <config>
                   <interfaces xmlns="http://openconfig.net/yang/interfaces">
                      <interface nc:operation="replace">
@@ -247,20 +263,11 @@ if [ -n "$ret" ]; then
     exit 1
 fi
 
-# candidate har template/nc:opertaion
-# running har template/description
-
 new "commit local"
 expectpart "$($clixon_cli -1f $CFG -m configure commit local 2>&1)" 0 "^$"
 
-# båda har template/nc:opertaion
-# båda har template/description
-
-new "Apply template CLI 2"
+new "Apply template CLI 3"
 expectpart "$($clixon_cli -1 -f $CFG -m configure apply template interfaces openconfig* variables NAME z TYPE ianaift:v35)" 0 "^$"
-
-# candidate har ingen device=z/description
-# candidate har device=z/description Changed
 
 new "Verify compare 3"
 expectpart "$($clixon_cli -1 -f $CFG -m configure show compare xml)" 0 "^-\ *<description>Changed description</description>" --not-- "^+\ *"
@@ -268,10 +275,62 @@ expectpart "$($clixon_cli -1 -f $CFG -m configure show compare xml)" 0 "^-\ *<de
 new "commit push"
 expectpart "$($clixon_cli -1f $CFG -m configure commit push 2>&1)" 0 "^OK$"
 
-expectpart "$($clixon_cli -1 -f $CFG show configuration devices device openconfig1 config interfaces interface)" 0 --not-- "<mtu>"
+new "Check description removed"
+expectpart "$($clixon_cli -1 -f $CFG show configuration devices device openconfig1 config interfaces interface)" 0 --not-- "<description"
 
 new "check sync OK"
 expectpart "$($clixon_cli -1f $CFG show devices $NAME check 2>&1)" 0 "OK" --not-- "out-of-sync"
+
+# Negative tests CLI
+new "Apply template CLI, missing NAME"
+expectpart "$($clixon_cli -1 -f $CFG -m configure apply template interfaces openconfig* variables TYPE ianaift:v35 2>&1)" 255 "missing-element Template variable <bad-element>NAME</bad-element>"
+
+new "Apply template CLI, extra var"
+expectpart "$($clixon_cli -1 -f $CFG -m configure apply template interfaces openconfig* variables NAME z TYPE ianaift:v35 EXTRA foo 2>&1)" 255 "Unknown command"
+
+new "Apply template CLI, duplicate var"
+expectpart "$($clixon_cli -1 -f $CFG -m configure apply template interfaces openconfig* variables NAME z TYPE ianaift:v35 NAME x 2>&1)" 255 "data-not-unique"
+
+# Negative tests NETCONF
+new "Apply template NETCONF extra-var"
+ret=$(${clixon_netconf} -0 -f $CFG <<EOF
+<?xml version="1.0" encoding="UTF-8"?>
+<hello xmlns="urn:ietf:params:xml:ns:netconf:base:1.0">
+   <capabilities>
+      <capability>urn:ietf:params:netconf:base:1.0</capability>
+   </capabilities>
+</hello>]]>]]>
+<rpc xmlns="urn:ietf:params:xml:ns:netconf:base:1.0"
+     xmlns:nc="urn:ietf:params:xml:ns:netconf:base:1.0"
+     message-id="42">
+   <device-template-apply xmlns="http://clicon.org/controller">
+      <devname>openconfig*</devname>
+      <template>interfaces</template>
+      <variables>
+         <variable>
+            <name>NAME</name>
+            <value>z</value>
+         </variable>
+         <variable>
+            <name>TYPE</name>
+            <value>ianaift:v35</value>
+         </variable>
+         <variable>
+            <name>EXTRA</name>
+            <value>dont exist</value>
+         </variable>
+      </variables>
+   </device-template-apply>
+</rpc>]]>]]>
+EOF
+)
+#echo "ret:$ret"
+
+new "Check no errors of apply"
+match=$(echo $ret | grep --null -Eo "<rpc-error>") || true
+if [ -z "$match" ]; then
+    err "netconf rpc-error expected" "$ret"
+fi
 
 if $BE; then
     new "Kill old backend"

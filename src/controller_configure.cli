@@ -65,8 +65,9 @@ load("Load configuration from file to candidate") <operation:string choice:repla
 apply("Apply template on devices") {
     template("Apply a template on devices")
              <templ:string expand_dbvar("candidate","/clixon-controller:devices/template/name")>("template to apply")
-             [<devs:string>("device pattern")|
-              <devs:string expand_dbvar("running","/clixon-controller:devices/device/name")>("device pattern")], cli_apply_device_template();{
+             (<devs:string>("device pattern")|
+              <devs:string expand_dbvar("running","/clixon-controller:devices/device/name")>("device pattern"))
+              {
               variables @template_vars;
               }
      services("(Re)Apply services"), cli_rpc_controller_commit("candidate", "FORCE", "COMMIT"); {
@@ -76,4 +77,3 @@ apply("Apply template on devices") {
           }
     }
 }
-
