@@ -176,10 +176,10 @@ function show-top()
     mode=$2
 
     new "top: $cmd xml"
-    expectpart "$($clixon_cli -1 -m $mode -f $CFG $cmd xml)" 0 "<devices xmlns=\"http://clicon.org/controller\"><device><name>${IMG}1</name><description>Clixon example container</description><enabled>true</enabled><user>$USER</user><conn-type>NETCONF_SSH</conn-type>" "<yang-config>VALIDATE</yang-config>" "<config><interfaces xmlns=\"http://openconfig.net/yang/interfaces\"><interface><name>x</name><config><name>x</name><type xmlns:ianaift=\"urn:ietf:params:xml:ns:yang:iana-if-type\">ianaift:ethernetCsmacd</type></config></interface><interface><name>y</name>" "</config></device><device><name>${IMG}2</name>"
+    expectpart "$($clixon_cli -1 -m $mode -f $CFG $cmd xml)" 0 "<devices xmlns=\"http://clicon.org/controller\"><device><name>${IMG}1</name><enabled>true</enabled><description>Clixon example container</description><user>$USER</user><conn-type>NETCONF_SSH</conn-type>" "<yang-config>VALIDATE</yang-config>" "<config><interfaces xmlns=\"http://openconfig.net/yang/interfaces\"><interface><name>x</name><config><name>x</name><type xmlns:ianaift=\"urn:ietf:params:xml:ns:yang:iana-if-type\">ianaift:ethernetCsmacd</type></config></interface><interface><name>y</name>" "</config></device><device><name>${IMG}2</name>"
 
     new "top: $cmd json"
-    expectpart "$($clixon_cli -1 -m $mode -f $CFG $cmd json)" 0 "{\"clixon-controller:devices\":{\"device\":\[{\"name\":\"${IMG}1\",\"description\":\"Clixon example container\",\"enabled\":true,\"user\":\"$USER\",\"conn-type\":\"NETCONF_SSH\"" '"yang-config":"VALIDATE"' '"config":{"openconfig-interfaces:interfaces":{"interface":\[{"name":"x","config":{"name":"x","type":"iana-if-type:ethernetCsmacd"}},{"name":"y","config":{"name":"y","type":"iana-if-type:atm"}}\]}'
+    expectpart "$($clixon_cli -1 -m $mode -f $CFG $cmd json)" 0 "{\"clixon-controller:devices\":{\"device\":\[{\"name\":\"${IMG}1\",\"enabled\":true,\"description\":\"Clixon example container\",\"user\":\"$USER\",\"conn-type\":\"NETCONF_SSH\"" '"yang-config":"VALIDATE"' '"config":{"openconfig-interfaces:interfaces":{"interface":\[{"name":"x","config":{"name":"x","type":"iana-if-type:ethernetCsmacd"}},{"name":"y","config":{"name":"y","type":"iana-if-type:atm"}}\]}'
 
     new "top: $cmd text"
     expectpart "$($clixon_cli -1 -m $mode -f $CFG $cmd text)" 0 "clixon-controller:devices {" "device ${IMG}1 {" "enabled true;" "conn-type NETCONF_SSH;" "yang-config VALIDATE;" "config {" "openconfig-interfaces:interfaces {" "interface x {" "name x;" "type ianaift:ethernetCsmacd;"
@@ -253,7 +253,7 @@ new "show state xml"
 expectpart "$($clixon_cli -1 -f $CFG show state)" 0  "<capabilities><capability>urn:ietf:params:netconf:base:1.0</capability>" "<sync-timestamp>" "<yang-library xmlns=\"urn:ietf:params:xml:ns:yang:ietf-yang-library\"><module-set><name>mount</name><module>" "<name>clixon-lib</name>"
 
 new "show config xml device *"
-expectpart "$($clixon_cli -1 -f $CFG show config xml devices device ${IMG}*)" 0 "${IMG}1:" "${IMG}2:" "<device><name>${IMG}1</name><description>Clixon example container</description><enabled>true</enabled><user>${USER}</user><conn-type>NETCONF_SSH</conn-type><yang-config>VALIDATE</yang-config>" "</config></device>" "<device><name>${IMG}2</name><description>Clixon example container</description><enabled>true</enabled><user>${USER}</user><conn-type>NETCONF_SSH</conn-type>" "<interfaces xmlns=\"http://openconfig.net/yang/interfaces\"><interface><name>x</name><config><name>x</name><type xmlns:ianaift=\"urn:ietf:params:xml:ns:yang:iana-if-type\">ianaift:ethernetCsmacd</type></config></interface>"
+expectpart "$($clixon_cli -1 -f $CFG show config xml devices device ${IMG}*)" 0 "${IMG}1:" "${IMG}2:" "<device><name>${IMG}1</name><enabled>true</enabled><description>Clixon example container</description><user>${USER}</user><conn-type>NETCONF_SSH</conn-type><yang-config>VALIDATE</yang-config>" "</config></device>" "<device><name>${IMG}2</name><enabled>true</enabled><description>Clixon example container</description><user>${USER}</user><conn-type>NETCONF_SSH</conn-type>" "<interfaces xmlns=\"http://openconfig.net/yang/interfaces\"><interface><name>x</name><config><name>x</name><type xmlns:ianaift=\"urn:ietf:params:xml:ns:yang:iana-if-type\">ianaift:ethernetCsmacd</type></config></interface>"
 
 new "Configure edit modes"
 mode=configure
@@ -267,7 +267,7 @@ edit devices device ${IMG}1
 show xml
 EOF
 new "edit device; show xml"
-expectpart "$(cat $fin | $clixon_cli -f $CFG -m $mode 2>&1)" 0 "<name>${IMG}1</name><description>Clixon example container</description><enabled>true</enabled><user>${USER}</user><conn-type>NETCONF_SSH</conn-type><yang-config>VALIDATE</yang-config>" "<config><interfaces xmlns=\"http://openconfig.net/yang/interfaces\"><interface><name>x</name><config><name>x</name><type xmlns:ianaift=\"urn:ietf:params:xml:ns:yang:iana-if-type\">ianaift:ethernetCsmacd</type></config></interface>"
+expectpart "$(cat $fin | $clixon_cli -f $CFG -m $mode 2>&1)" 0 "<name>${IMG}1</name><enabled>true</enabled><description>Clixon example container</description><user>${USER}</user><conn-type>NETCONF_SSH</conn-type><yang-config>VALIDATE</yang-config>" "<config><interfaces xmlns=\"http://openconfig.net/yang/interfaces\"><interface><name>x</name><config><name>x</name><type xmlns:ianaift=\"urn:ietf:params:xml:ns:yang:iana-if-type\">ianaift:ethernetCsmacd</type></config></interface>"
 
 cat <<EOF > $fin
 edit devices device ${IMG}1 config
