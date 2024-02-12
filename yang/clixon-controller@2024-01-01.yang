@@ -295,6 +295,11 @@ module clixon-controller {
     }
     grouping device-common {
         description "Common fields for devices and device-profiles";
+        leaf description{
+            description
+                "Description of device";
+            type string;
+        }
         leaf user{
             description
                 "Which use to connect as to the device, if applicable";
@@ -438,11 +443,6 @@ module clixon-controller {
         list device{
             key name;
             leaf name{
-                type string;
-            }
-            leaf description{
-                description
-                    "Description of device";
                 type string;
             }
             leaf enabled {
