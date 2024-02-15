@@ -76,3 +76,5 @@ apply("Apply template on devices") {
           }
     }
 }
+lock("Lock candidate datastore"), cli_lock("candidate");
+unlock("Unlock candidate datastore"), cli_unlock("candidate");
