@@ -57,6 +57,8 @@ int check_device_db(clixon_handle h, cvec *cvv, cvec *argv);
 int cli_auto_set_devs(clixon_handle h, cvec *cvv, cvec *argv);
 int cli_auto_merge_devs(clixon_handle h, cvec *cvv, cvec *argv);
 int cli_auto_del_devs(clixon_handle h, cvec *cvv, cvec *argv);
+int cli_auto_load_devs(clixon_handle h, cvec *cvv0, cvec *argv);
+int cli_controller_show_version(clixon_handle h, cvec *vars, cvec *argv);
 
 #ifdef __cplusplus
 }

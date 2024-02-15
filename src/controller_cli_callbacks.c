@@ -2171,11 +2171,8 @@ cli_controller_show_version(clixon_handle h,
                             cvec         *vars,
                             cvec         *argv)
 {
-    cligen_output(stdout, "Controller: \t%s\n", CONTROLLER_VERSION);
     cligen_output(stdout, "Clixon: \t%s\n", CLIXON_VERSION_STRING);
-    cligen_output(stdout, "CLIgen: \t%s\n", CLIGEN_VERSION);
-    cligen_output(stdout, "Build: \t%s\n", CLIXON_BUILDSTR);
-    return 0;
+    return controller_version(h, stdout);
 }
 
 /*! Apply template on devices

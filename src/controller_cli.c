@@ -633,6 +633,7 @@ static clixon_plugin_api api = {
     controller_cli_start,
     controller_cli_exit,
     .ca_yang_mount = controller_cli_yang_mount,
+    .ca_version    = controller_version,
 #ifdef CONTROLLER_JUNOS_ADD_COMMAND_FORWARDING
     .ca_yang_patch = controller_yang_patch_junos,
 #endif

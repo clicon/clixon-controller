@@ -5,6 +5,7 @@ Expected: February 2024
 
 ### New features
 
+* New: [show version(s)](https://github.com/clicon/clixon-controller/issues/105)
 * New: Added template (formal) variables which includes cli autocompletion and sanity checks
   * See [CLI should allow autocomplete of template variables](https://github.com/clicon/clixon-controller/issues/100)
 * New: [SSH StrictHostKeyChecking optional](https://github.com/clicon/clixon-controller/issues/96)

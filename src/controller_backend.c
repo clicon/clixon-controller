@@ -539,6 +539,7 @@ static clixon_plugin_api api = {
     .ca_statedata    = controller_statedata,
     .ca_trans_commit = controller_commit,
     .ca_yang_mount   = controller_yang_mount,
+    .ca_version      = controller_version,
 #ifdef CONTROLLER_JUNOS_ADD_COMMAND_FORWARDING
     .ca_yang_patch   = controller_yang_patch_junos,
 #endif
