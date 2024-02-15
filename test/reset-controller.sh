@@ -4,8 +4,6 @@
 
 set -u
 
-echo "reset-controller"
-
 # Set if delete old config
 : ${delete:=true}
 
@@ -29,7 +27,7 @@ function init_device_config()
     NAME=$1
     ip=$2
 
-    echo "Init device $NAME edit-config"
+    new "reset-contoller: Init device $NAME edit-config"
     ret=$(${clixon_netconf} -qe0 -f $CFG <<EOF
 <rpc xmlns="urn:ietf:params:xml:ns:netconf:base:1.0"
   xmlns:nc="urn:ietf:params:xml:ns:netconf:base:1.0"
@@ -61,7 +59,7 @@ EOF
 }
 
 if $delete ; then
-    echo "Delete device config"
+    new "reset-contoller: Delete device config"
     ret=$(${clixon_netconf} -qe0 -f $CFG <<EOF
 <rpc xmlns="urn:ietf:params:xml:ns:netconf:base:1.0"
   xmlns:nc="urn:ietf:params:xml:ns:netconf:base:1.0"
@@ -82,8 +80,7 @@ EOF
 
     match=$(echo "$ret" | grep --null -Eo "<rpc-error>") || true
     if [ -n "$match" ]; then
-	echo "netconf rpc-error detected"
-	exit 1
+	err1 "netconf rpc-error detected"
     fi
 fi # delete
 
@@ -102,15 +99,14 @@ for ip in $CONTAINERS; do
 	fi
 	match=$(echo "$ret" | grep --null -Eo "<error-tag>lock-denied</error-tag") || true
 	if [ -z "$match" ]; then
-	    echo "netconf rpc-error detected"
-	    exit 1
+	    err1 "netconf rpc-error detected"
 	fi
-	echo "retry after sleep"
+	new "reset-contoller: retry after sleep"
 	sleep $sleep
     done
 done
 
-echo "Controller commit"
+new "reset-contoller: Controller commit"
 ret=$(${clixon_netconf} -q0 -f $CFG <<EOF
 <rpc xmlns="urn:ietf:params:xml:ns:netconf:base:1.0" message-id="43">
   <commit/>
@@ -121,11 +117,10 @@ EOF
 
 match=$(echo "$ret" | grep --null -Eo "<rpc-error>") || true
 if [ -n "$match" ]; then
-    echo "netconf rpc-error detected"
-    exit 1
+    err1 "netconf rpc-error detected"
 fi
 
-echo "Send rpc connection-change OPEN"
+new "reset-contoller: Send rpc connection-change OPEN"
 ret=$(${clixon_netconf} -q0 -f $CFG <<EOF
 <rpc xmlns="urn:ietf:params:xml:ns:netconf:base:1.0" message-id="43">
    <connection-change xmlns="http://clicon.org/controller">
@@ -138,14 +133,13 @@ EOF
 
 match=$(echo "$ret" | grep --null -Eo "<rpc-error>") || true
 if [ -n "$match" ]; then
-    echo "netconf open rpc-error detected"
-    exit 1
+    err1 "netconf open rpc-error detected"
 fi
 
 sleep $sleep
 jmax=5
 for j in $(seq 1 $jmax); do
-    new "Verify open devices 1"
+    new "reset-contoller: Verify open devices 1"
     ret=$(${clixon_netconf} -q0 -f $CFG <<EOF
 <rpc xmlns="urn:ietf:params:xml:ns:netconf:base:1.0" xmlns:nc="urn:ietf:params:xml:ns:netconf:base:1.0" message-id="43">
    <get cl:content="all" xmlns:cl="http://clicon.org/lib">
@@ -162,7 +156,7 @@ EOF
 
     res=$(echo "$ret" | sed 's/OPEN/OPEN\n/g' | grep "$IMG" | grep -c "OPEN") || true
     if [ "$res" != "$nr" ]; then
-        echo "retry after sleep"
+        new "reset-contoller: retry after sleep"
         sleep $sleep
         continue
     fi
@@ -172,7 +166,7 @@ if [ $j -eq $jmax ]; then
     err "$nr devices open" "$res devices open"
 fi
 
-new "Netconf pull"
+new "reset-contoller: Netconf pull"
 ret=$(${clixon_netconf} -q0 -f $CFG <<EOF
 <rpc xmlns="urn:ietf:params:xml:ns:netconf:base:1.0" message-id="43">
 	<config-pull xmlns="http://clicon.org/controller">
@@ -184,11 +178,10 @@ EOF
 #echo "ret:$ret"
 match=$(echo "$ret" | grep --null -Eo "<rpc-error>") || true
 if [ -n "$match" ]; then
-    echo "Error: $ret"
-    exit -1;
+    err1 "Error: $ret"
 fi
 
-echo "Verify open devices 2"
+new "reset-contoller: Verify open devices 2"
 ret=$(${clixon_netconf} -q0 -f $CFG <<EOF
 <rpc xmlns="urn:ietf:params:xml:ns:netconf:base:1.0" xmlns:nc="urn:ietf:params:xml:ns:netconf:base:1.0" message-id="43">
    <get cl:content="all" xmlns:cl="http://clicon.org/lib">
@@ -200,27 +193,24 @@ EOF
 #echo "$ret"
 match=$(echo "$ret" | grep --null -Eo "<rpc-error>") || true
 if [ -n "$match" ]; then
-    echo "Error: $res"
-    exit -1;
+    err1 "Error: $res"
 fi
 
 res=$(echo "$ret" | sed 's/OPEN/OPEN\n/g' | grep "$IMG" | grep -c "OPEN") || true
 if [ "$res" != "$nr" ]; then
-    echo "Error: $res"
-    exit -1;
+    err1 "Error: $res"
 fi
 # Early exit point, do not check pulled config
 if ! $check ; then
-    echo "reset-controller early exit: do not check result"
+    new "reset-controller early exit: do not check result"
     echo OK
     exit 0
 fi
 
 i=1
 # Only works for openconfig, others should set check=false
-echo "check config"
 for ip in $CONTAINERS; do
-    echo "Check config on device$i"
+    new "reset-contoller: Check config on device$i"
     NAME=$IMG$i
     ret=$(${clixon_netconf} -qe0 -f $CFG <<EOF
 <rpc xmlns="urn:ietf:params:xml:ns:netconf:base:1.0"
@@ -246,16 +236,11 @@ EOF
        )
     match=$(echo "$ret" | grep --null -Eo "<rpc-error>") || true
     if [ -n "$match" ]; then
-	echo "netconf rpc-error detected"
-	exit 1
+	err1 "netconf rpc-error detected"
     fi
     match=$(echo "$ret" | grep --null -Eo "$CONFIG") || true
     if [ -z "$match" ]; then
-	echo "Config of device $i not matching:"
-	echo "$ret"
-        echo "Expected:"
-        echo "$CONFIG"
-	exit 1
+	err  "$CONFIG" "$ret"
     fi
 
     i=$((i+1))

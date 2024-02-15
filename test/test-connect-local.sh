@@ -162,7 +162,7 @@ for ip in $CONTAINERS; do
     expectpart "$($clixon_cli -1 -m configure -f $CFG $cmd)" 0 "^$"
 done
 
-new "commit local"
+new "commit local 1"
 expectpart "$($clixon_cli -1 -m configure -f $CFG commit local)" 0 "^$"
 
 new "connection open"
@@ -193,7 +193,7 @@ cmd="set devices device-profile myprofile module-set module openconfig-xxx names
 new "$cmd"
 expectpart "$($clixon_cli -1 -m configure -f $CFG $cmd)" 0 "^$"
 
-new "commit local"
+new "commit local 2"
 expectpart "$($clixon_cli -1 -m configure -f $CFG commit local)" 0 "^$"
     
 new "connection open"
@@ -223,7 +223,7 @@ cmd="set devices device-profile myprofile module-set module openconfig-system na
 new "$cmd"
 expectpart "$($clixon_cli -1 -m configure -f $CFG $cmd)" 0 "^$"
 
-new "commit local"
+new "commit local 3"
 expectpart "$($clixon_cli -1 -m configure -f $CFG commit local)" 0 "^$"
 
 new "connection open"

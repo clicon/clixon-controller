@@ -48,7 +48,7 @@ show("Show a particular state of the system"){
                  detail("Show detailed state"), cli_show_devices("detail");
                  }
     options("Show clixon options"), cli_show_options();
-    services, cli_show_services_process();{
+    services("Show service process status"), cli_show_services_process();{
        detail("Show detailed process status"), cli_process_control("Action process", "status");
     }
     sessions("Show client sessions"), cli_show_sessions();{
