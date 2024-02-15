@@ -332,6 +332,47 @@ if [ -z "$match" ]; then
     err "netconf rpc-error expected" "$ret"
 fi
 
+# Add template without variables
+new "CLI load template without variables"
+# quote EOFfor $NAME
+ret=$(${clixon_cli} -1f $CFG -m configure load merge xml <<'EOF'
+      <config>
+         <devices xmlns="http://clicon.org/controller">
+            <template nc:operation="replace">
+               <name>interfaces</name>
+               <config>
+                  <interfaces xmlns="http://openconfig.net/yang/interfaces">
+                     <interface>
+                        <name>myz</name>
+                        <config>
+                           <name>myz</name>
+                           <type xmlns:ianaift="urn:ietf:params:xml:ns:yang:iana-if-type">ianaift:v35</type>
+                           <description>Changed description</description>
+                        </config>
+                     </interface>
+                  </interfaces>
+               </config>
+            </template>
+         </devices>
+      </config>
+EOF
+)
+#echo "ret:$ret"
+
+if [ -n "$ret" ]; then
+    err1 "$ret"
+    exit 1
+fi
+
+new "commit local"
+expectpart "$($clixon_cli -1f $CFG -m configure commit local 2>&1)" 0 "^$"
+
+new "Apply template CLI without vars"
+expectpart "$($clixon_cli -1 -f $CFG -m configure apply template interfaces openconfig*)" 0 "^$"
+
+new "Verify compare 4"
+expectpart "$($clixon_cli -1 -f $CFG -m configure show compare xml)" 0 "^+\ *<name>myz</name>" --not-- "^-\ *"
+
 if $BE; then
     new "Kill old backend"
     stop_backend -f $CFG
