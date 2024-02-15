@@ -164,7 +164,7 @@ new "Configure hostname on openconfig1"
 expectpart "$($clixon_cli -1 -f $CFG -m configure set devices device openconfig1 config system config hostname c-change)" 0 ""
 
 new "Commit 1"
-expectpart "$($clixon_cli -1 -f $CFG -m configure commit 2>&1)" 0 "lock is already held in state PUSH_LOCK of device openconfig1" --not-- "OK"
+expectpart "$($clixon_cli -1 -f $CFG -m configure commit 2>&1)" 0 "Device openconfig1 in state PUSH_LOCK:protocol lock-denied Operation failed, lock is already held" --not-- "OK"
 
 kill ${PIDS[0]}                   # kill the while loop above to close STDIN on 1st
 wait

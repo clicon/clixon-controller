@@ -1019,7 +1019,7 @@ device_state_check_sanity(device_handle           dh,
  * @param[in]  h     Clixon handle
  * @param[in]  dh    Device handle.
  * @param[in]  s     Socket
- * @param[in]  xmsg  XML tree of incoming message
+ * @param[in]  xmsg  XML tree of incoming message, on the form: <rpc-reply>...
  * @retval     0     OK
  * @retval    -1     Error
  */

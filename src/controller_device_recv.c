@@ -269,9 +269,13 @@ device_state_recv_config(clixon_handle h,
             goto done;
         }
         cprintf(cberr, "YANG bind failed at mountpoint");
-        // XXX not prefix/namespace independent
-        if (xerr && (x=xpath_first(xerr, NULL, "//error-message"))!=NULL)
-            cprintf(cberr, ": %s", xml_body(x));
+        // xpath not prefix/namespace independent
+        if (xerr && (x = xpath_first(xerr, NULL, "rpc-error/error-message")) != NULL){
+            if (netconf_err2cb(h,
+                               xml_find_type(xerr, NULL, "rpc-error", CX_ELMNT),
+                               cberr) < 0)
+                goto done;
+        }
         if (device_close_connection(dh, "%s", cbuf_get(cberr)) < 0)
             goto done;
         goto closed;
@@ -592,10 +596,11 @@ device_state_recv_ok(clixon_handle h,
                         clixon_err(OE_UNIX, errno, "cbuf_new");
                         goto done;
                     }
-                    cprintf(cb, "Device %s: %s in state %s",
+                    cprintf(cb, "Device %s in state %s:",
                             device_handle_name_get(dh),
-                            x?xml_body(x):"reply",
                             device_state_int2str(conn_state));
+                    if (netconf_err2cb(h, xerr, cb) < 0)
+                        goto done;
                     if ((ct->ct_warning = strdup(cbuf_get(cb))) == NULL){
                         clixon_err(OE_UNIX, EINVAL, "strdup");
                         goto done;
@@ -605,15 +610,15 @@ device_state_recv_ok(clixon_handle h,
                 }
             }
             else { /* assume error */
-                x = xml_find_type(xerr, NULL, "error-message", CX_ELMNT);
                 if ((cb = cbuf_new()) == NULL){
                     clixon_err(OE_UNIX, errno, "cbuf_new");
                     goto done;
                 }
-                cprintf(cb, "Error %s in state %s of device %s",
-                        x?xml_body(x):"reply",
-                        device_state_int2str(conn_state),
-                        device_handle_name_get(dh));
+                cprintf(cb, "Device %s in state %s:",
+                        device_handle_name_get(dh),
+                        device_state_int2str(conn_state));
+                if (netconf_err2cb(h, xerr, cb) < 0)
+                    goto done;
                 if (cberr){
                     *cberr = cb;
                     cb = NULL;
