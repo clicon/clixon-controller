@@ -784,6 +784,40 @@ cli_rpc_commit_diff(clixon_handle h)
     return retval;
 }
 
+/*! Get first list key of controller service
+ */
+static int
+get_service_key(yang_stmt *yspec,
+                char      *service,
+                char     **keyname)
+{
+    int        retval = -1;
+    yang_stmt *yres = NULL;
+    cvec      *cvk = NULL;
+    cbuf      *cb = NULL;
+    cg_var    *cvi;
+
+    if ((cb = cbuf_new()) == NULL){
+        clixon_err(OE_PLUGIN, errno, "cbuf_new");
+        goto done;
+    }
+    cprintf(cb, "/ctrl:services/%s", service);
+    if (yang_abs_schema_nodeid(yspec, cbuf_get(cb), &yres) < 0)
+        goto done;
+    if (yres){
+        if (yres &&
+            (cvk = yang_cvec_get(yres)) != NULL &&
+            (cvi = cvec_i(cvk, 0)) != NULL){
+            *keyname = cv_string_get(cvi);
+        }
+    }
+    retval = 0;
+ done:
+    if (cb)
+        cbuf_free(cb);
+    return retval;
+}
+
 /*! Make a controller commit rpc with its many variants
  *
  * Relies on hardcoded "name" and "instance" variables in cvv
@@ -819,9 +853,16 @@ cli_rpc_controller_commit(clixon_handle h,
     char              *source;
     transaction_result result;
     char              *service = NULL;
+    char              *instance = NULL;
+    yang_stmt         *yspec;
+    char              *keyname;
 
     if (argv == NULL || cvec_len(argv) != 3){
         clixon_err(OE_PLUGIN, EINVAL, "requires arguments: <datastore> <actions-type> <push-type>");
+        goto done;
+    }
+    if ((yspec = clicon_dbspec_yang(h)) == NULL){
+        clixon_err(OE_FATAL, 0, "No DB_SPEC");
         goto done;
     }
     if ((cv = cvec_i(argv, argc++)) == NULL){
@@ -849,9 +890,10 @@ cli_rpc_controller_commit(clixon_handle h,
     }
     if ((cv = cvec_find(cvv, "name")) != NULL)
         name = cv_string_get(cv);
-    if ((cv = cvec_find(cvv, "instance")) != NULL){
+    if ((cv = cvec_find(cvv, "service")) != NULL)
         service = cv_string_get(cv);
-    }
+    if ((cv = cvec_find(cvv, "instance")) != NULL)
+        instance = cv_string_get(cv);
     if ((cb = cbuf_new()) == NULL){
         clixon_err(OE_PLUGIN, errno, "cbuf_new");
         goto done;
@@ -864,11 +906,19 @@ cli_rpc_controller_commit(clixon_handle h,
     cprintf(cb, "<device>%s</device>", name);
     cprintf(cb, "<push>%s</push>", push_type);
     cprintf(cb, "<actions>%s</actions>", actions_type);
-    if (service && actions_type_str2int(actions_type) == AT_FORCE){
-        cprintf(cb, "<service-instance>");
-        if (xml_chardata_cbuf_append(cb, service) < 0)
+    if (service && instance && actions_type_str2int(actions_type) == AT_FORCE){
+        if (get_service_key(yspec, service, &keyname) < 0)
             goto done;
-        cprintf(cb, "</service-instance>");
+        if (keyname){
+            cprintf(cb, "<service-instance>");
+            if (xml_chardata_cbuf_append(cb, service) < 0)
+                goto done;
+            cprintf(cb, "[%s='", keyname);
+            if (xml_chardata_cbuf_append(cb, instance) < 0)
+                goto done;
+            cprintf(cb, "']");
+            cprintf(cb, "</service-instance>");
+        }
     }
     cprintf(cb, "<source>ds:%s</source>", source); /* Note add datastore prefix */
     cprintf(cb, "</controller-commit>");

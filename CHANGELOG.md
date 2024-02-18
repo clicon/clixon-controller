@@ -28,6 +28,9 @@ Expected: February 2024
 
 ### API changes on existing protocol/config features
 
+* CLI apply service syntax changed:
+  * From: `apply services <path>` to: `apply services <service> <instance>`
+  * Example: `apply services testA[name='foo']` to: `apply services testA foo`
 * In configure mode, reordered apply template/services to:
   * `apply [template|services]`
 * New `clixon-controller@2024-01-01.yang` revision

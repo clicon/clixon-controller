@@ -88,7 +88,6 @@ module ssh-users {
     revision 2023-05-22{
         description "Initial prototype";
     }
-
     augment "/ctrl:services" {
         list ssh-users {
             key service-name;
@@ -108,7 +107,15 @@ module ssh-users {
                      type string;
                 }
             }
-            uses ctrl:created-by-service;
+        /* inline due to https://github.com/clicon/clixon/issues/494 */
+        container created {
+            description "List of created objects used by services.";
+            leaf-list path {
+                description "Path to object";
+                type string;
+            }
+        }
+//        uses ctrl:created-by-service;
         }
     }
 }
@@ -183,8 +190,6 @@ function sleep_open()
 if $BE; then
     new "Kill old backend"
     stop_backend -f $CFG
-
-    sleep 1
 
     new "Start new backend -s init -f $CFG"
     start_backend -s init -f $CFG
