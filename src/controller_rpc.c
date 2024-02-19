@@ -2254,137 +2254,39 @@ check_services_commit_subscription(clixon_handle h,
     return retval;
 }
 
-/*! Split string using start and stop delimiter strings usable for variable substitution
+/*! Transform XML of variables to cligen variable vector
  *
- * Example: "foo ${NAME} bar"
- * where delim1="${" and delim2="}"
- * returns vec: "foo ", "NAME", "bar"
- * Both delim1 and delim2 must match
- * @param[in]  str
- * @param[in]  delim1  prefix delimiter string
- * @param[in]  delim2  postfix delimiter string
- * @param[out] cvp     Created cligen variable vector, deallocate w cvec_free
- * @retval     0       OK
- * @retval    -1       Error
- * Consider moving to clixon_string.c
+ * @param[in]  xvars  XML tree on the form: variables/variable/name,value
+ * @param[out] cvv0   Cvec, free with cvec_free
+ * @retval     0      OK
+ * @retval    -1      Error
  */
 static int
-clixon_strsep2(char   *str,
-               char   *delim1,
-               char   *delim2,
-               char ***vcp,
-               int    *nvec)
-{
-    int   retval = -1;
-    size_t sz;
-    char **vec = NULL;
-    char  *s1;
-    char  *s2;
-    int    nr = 0;
-    char  *ptr;
-    int    i;
-
-    s1 = str;
-    while ((s1 = strstr(s1, delim1)) != NULL){
-        if ((s2 = strstr(s1+strlen(delim1), delim2)) != NULL)
-            nr += 2;
-        s1 = s2 + strlen(delim2);
-    }
-    /* alloc vector and append copy of string */
-    sz = (nr+1)* sizeof(char*) + strlen(str)+1;
-    if ((vec = (char**)malloc(sz)) == NULL){
-        clixon_err(OE_UNIX, errno, "malloc");
-        goto done;
-    }
-    memset(vec, 0, sz);
-    ptr = (char*)vec + (nr+1)* sizeof(char*); /* this is where ptr starts */
-    strcpy(ptr, str);
-    i = 0;
-    s1 = ptr;
-    vec[i++] = ptr;
-    while ((s1 = strstr(s1, delim1)) != NULL){
-        if ((s2 = strstr(s1+strlen(delim1), delim2)) != NULL){
-            *s1 = '\0';
-            *s2 = '\0';
-            vec[i++] = s1 + strlen(delim1);
-            vec[i++] = s2 + strlen(delim2);
-        }
-        s1 = s2 + strlen(delim2);
-    }
-    *vcp = vec;
-    ptr = NULL;
-    *nvec = i;
-    retval = 0;
- done:
-    if (ptr)
-        free(ptr);
-    return retval;
-}
-
-/*! XML apply function: replace any variables
- *
- * @param[in]  x    XML node
- * @param[in]  arg  xvars: list of variable substitutions
- * @retval    -1    Error, aborted at first error encounter, return -1 to end user
- * @retval     0    OK, continue
- * @retval     1    Abort, dont continue with others, return 1 to end user
- * @retval     2    Locally abort this subtree, continue with others
- */
-static int
-apply_template(cxobj *x,
-               void  *arg)
+xvars2cvv(cxobj  *xvars,
+          cvec  **cvv0)
 {
     int    retval = -1;
-    cxobj *xvars = (cxobj *)arg;
     cxobj *xv;
-    cxobj *xb;
-    char  *b;
-    char  *var;
-    char  *varname;
-    char  *varval;
-    cbuf  *cb = NULL;
-    int    i;
-    char **vec = NULL;
-    int    nvec = 0;
+    char  *name;
+    char  *value;
+    cvec  *cvv = NULL;
 
+    if ((cvv = cvec_new(0)) == NULL){
+        clixon_err(OE_UNIX, errno, "cvec_new");
+        goto done;
+    }
     xv = NULL;
-    if ((xb = xml_body_get(x)) != NULL &&
-        (b = xml_value(xb)) != NULL){
-        if (clixon_strsep2(b, "${", "}", &vec, &nvec) < 0)
+    while ((xv = xml_child_each(xvars, xv, CX_ELMNT)) != NULL) {
+        name = xml_find_body(xv, "name");
+        value = xml_find_body(xv, "value");
+        if (cvec_add_string(cvv, name, value) < 0){
+            clixon_err(OE_UNIX, errno, "cvec_add_string");
             goto done;
-        assert(nvec%2 == 1); /* Must be odd */
-        if (nvec > 1){
-            if ((cb = cbuf_new()) == NULL){
-                clixon_err(OE_UNIX, errno, "cbuf_new");
-                goto done;
-            }
-            i = 0;
-            while (i < nvec){
-                cprintf(cb, "%s", vec[i++]);
-                if (i == nvec)
-                    break;
-                var = vec[i++];
-                assert(i < nvec); /* Must be odd */
-                xv = NULL;
-                while ((xv = xml_child_each(xvars, xv, CX_ELMNT)) != NULL) {
-                    if ((varname = xml_find_body(xv, "name")) == NULL)
-                        continue;
-                    if (strcmp(varname, var) != 0)
-                        continue;
-                    varval = xml_find_body(xv, "value");
-                    cprintf(cb, "%s", varval);
-                    break;
-                }
-            }
-            xml_value_set(xb, cbuf_get(cb));
         }
     }
+    *cvv0 = cvv;
     retval = 0;
  done:
-    if (vec)
-        free(vec);
-    if (cb)
-        cbuf_free(cb);
     return retval;
 }
 
@@ -2414,6 +2316,7 @@ rpc_device_template_apply(clixon_handle h,
     cxobj        *xtmpl;
     cxobj        *xvars;
     cxobj        *xvars0;
+    cvec         *cvv = NULL;
     cxobj        *xv;
     char         *varname;
     cxobj        *xd;
@@ -2474,10 +2377,12 @@ rpc_device_template_apply(clixon_handle h,
             goto ok;
         }
     }
+    if (xvars2cvv(xvars, &cvv) < 0)
+        goto done;
     /* Destructively substitute variables in xtempl
      * Maybe work on a copy instead?
      */
-    if (xvars && xml_apply(xtmpl, CX_ELMNT, apply_template, xvars) < 0)
+    if (cvv && xml_apply(xtmpl, CX_ELMNT, xml_template_apply, cvv) < 0)
         goto done;
     if (xml_sort_recurse(xtmpl) < 0)
         goto done;
@@ -2536,6 +2441,8 @@ rpc_device_template_apply(clixon_handle h,
  ok:
     retval = 0;
  done:
+    if (cvv)
+        cvec_free(cvv);
     if (cb)
         cbuf_free(cb);
     if (xret)
