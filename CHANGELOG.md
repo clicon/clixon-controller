@@ -41,6 +41,7 @@ Expected: February 2024
 
 ### Corrected Bugs
 
+* Fixed: [CLI expand of apply services instance](https://github.com/clicon/clixon-controller/issues/106)
 * Fixed: [Syntax errors must be shown in CLI](https://github.com/clicon/clixon-controller/issues/103)
 * Fixed: [Lock-denied if device connection fails](https://github.com/clicon/clixon-controller/issues/98)
 * Fixed: [Device connection errors could be more informative](https://github.com/clicon/clixon-controller/issues/7)

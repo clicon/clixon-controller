@@ -70,10 +70,9 @@ apply("Apply template on devices") {
               variables @template_vars;
      }
      services("(Re)Apply services"), cli_rpc_controller_commit("candidate", "FORCE", "COMMIT"); {
-          <service:string expand_yang("/ctrl:services")>
-          <instance:string>
-#          (<instance:string>|<instance:string expand_dbvar("running", "/clixon-controller:services/${service}")>)
-           , cli_rpc_controller_commit("candidate", "FORCE", "COMMIT");
+          <service:string expand_yang_list("/ctrl:services", "true")>
+          <instance:string expand_dbvar("running", "/clixon-controller:services/%s/name")>,
+          cli_rpc_controller_commit("candidate", "FORCE", "COMMIT");
           {
           diff("Show the result of running the services but do not commit"), cli_rpc_controller_commit("candidate", "FORCE", "NONE");
           }

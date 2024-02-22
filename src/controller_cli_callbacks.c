@@ -785,6 +785,12 @@ cli_rpc_commit_diff(clixon_handle h)
 }
 
 /*! Get first list key of controller service
+ *
+ * @param[in]  yspec   YANG specification
+ * @param[in]  service Name o service
+ * @param[out] keyname Name of (first) key of service
+ * @retval     0       OK
+ * @retval    -1       Error
  */
 static int
 get_service_key(yang_stmt *yspec,
@@ -852,6 +858,7 @@ cli_rpc_controller_commit(clixon_handle h,
     char              *actions_type;
     char              *source;
     transaction_result result;
+    char              *str;
     char              *service = NULL;
     char              *instance = NULL;
     yang_stmt         *yspec;
@@ -890,8 +897,11 @@ cli_rpc_controller_commit(clixon_handle h,
     }
     if ((cv = cvec_find(cvv, "name")) != NULL)
         name = cv_string_get(cv);
-    if ((cv = cvec_find(cvv, "service")) != NULL)
-        service = cv_string_get(cv);
+    if ((cv = cvec_find(cvv, "service")) != NULL &&
+        (str = cv_string_get(cv)) != NULL){
+        if (nodeid_split(str, NULL, &service) < 0)
+            goto done;
+    }
     if ((cv = cvec_find(cvv, "instance")) != NULL)
         instance = cv_string_get(cv);
     if ((cb = cbuf_new()) == NULL){
@@ -959,6 +969,8 @@ cli_rpc_controller_commit(clixon_handle h,
  ok:
     retval = 0;
  done:
+    if (service)
+        free(service);
     if (cb)
         cbuf_free(cb);
     if (xret)

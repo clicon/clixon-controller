@@ -904,10 +904,10 @@ expectpart "$(${clixon_cli} -m configure -1f $CFG commit 2>&1)" 0 "OK"
 
 # XXX: These are not properly tested
 new "apply single services diff"
-expectpart "$(${clixon_cli} -m configure -1f $CFG apply services testA foo diff 2>&1)" 0 "OK"
+expectpart "$(${clixon_cli} -m configure -1f $CFG apply services myyang:testA foo diff 2>&1)" 0 "OK"
 
 new "apply single services"
-expectpart "$(${clixon_cli} -m configure -1f $CFG apply services testA foo 2>&1)" 0 "OK"
+expectpart "$(${clixon_cli} -m configure -1f $CFG apply services myyang:testA foo 2>&1)" 0 "OK"
 
 new "apply all services"
 expectpart "$(${clixon_cli} -m configure -1f $CFG apply services 2>&1)" 0 "OK"
