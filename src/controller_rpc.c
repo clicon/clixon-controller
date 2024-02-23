@@ -300,10 +300,6 @@ push_device_one(clixon_handle           h,
         cprintf(*cberr, "Device not configured");
         goto failed;
     }
-#if 0 // debug
-    fprintf(stderr, "%s before push x1 db:%s:\n", __FUNCTION__, db);
-    xml_creator_print(stderr, x1);
-#endif
     yspec = NULL;
     if (controller_mount_yspec_get(h, name, &yspec) < 0)
         goto done;
