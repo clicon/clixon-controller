@@ -88,6 +88,7 @@ static const map_str2int csmap[] = {
     {"PUSH_LOCK",        CS_PUSH_LOCK},
     {"PUSH-CHECK",       CS_PUSH_CHECK},
     {"PUSH-EDIT",        CS_PUSH_EDIT},
+    {"PUSH-EDIT2",       CS_PUSH_EDIT2},
     {"PUSH-VALIDATE",    CS_PUSH_VALIDATE},
     {"PUSH-WAIT",        CS_PUSH_WAIT},
     {"PUSH-COMMIT",      CS_PUSH_COMMIT},
@@ -176,7 +177,8 @@ device_close_connection(device_handle dh,
     //    device_handle_yang_lib_set(dh, NULL); XXX mem-error: caller using xylib
     if (device_state_set(dh, CS_CLOSED) < 0)
         goto done;
-    device_handle_outmsg_set(dh, NULL);
+    device_handle_outmsg_set(dh, 1, NULL);
+    device_handle_outmsg_set(dh, 2, NULL);
     if (format == NULL)
         device_handle_logmsg_set(dh, NULL);
     else {
@@ -1257,7 +1259,7 @@ device_state_handler(clixon_handle h,
             break;
         }
         else if (ret == 1){ /*
-                               1. The device has failed and is closed */
+                              1. The device has failed and is closed */
             if (controller_transaction_failed(h, tid, ct, dh, TR_FAILED_DEV_IGNORE, name, NULL) < 0)
                 goto done;
             break;
@@ -1278,7 +1280,7 @@ device_state_handler(clixon_handle h,
         /* Receive config data, force transient, ie do not commit */
         if ((ret = device_state_recv_config(h, dh, xmsg, yspec0, rpcname, conn_state, 1, 0)) < 0)
             goto done;
-         /* Compare transient with last sync 0: closed, 1: unequal, 2: is equal */
+        /* Compare transient with last sync 0: closed, 1: unequal, 2: is equal */
         if (ret && (ret = device_config_compare(h, dh, name, ct, &cberr)) < 0)
             goto done;
         if (ret == 0){ /* closed */
@@ -1302,11 +1304,17 @@ device_state_handler(clixon_handle h,
             break;
         /* 2.2 The transaction is OK
            Proceed to next step: get saved edit-msg and send it */
-        if ((cbmsg = device_handle_outmsg_get(dh)) == NULL){
-            device_close_connection(dh, "Device %s no edit-msg in state %s",
-                                    name, device_state_int2str(conn_state));
-
-            if (controller_transaction_failed(h, tid, ct, dh, TR_FAILED_DEV_LEAVE, name, device_handle_logmsg_get(dh)) < 0)
+        if ((cbmsg = device_handle_outmsg_get(dh, 1)) == NULL){
+            if ((cbmsg = device_handle_outmsg_get(dh, 2)) == NULL){
+                device_close_connection(dh, "Device %s no edit-msg in state %s",
+                                        name, device_state_int2str(conn_state));
+                if (controller_transaction_failed(h, tid, ct, dh, TR_FAILED_DEV_LEAVE, name, device_handle_logmsg_get(dh)) < 0)
+                    goto done;
+                break;
+            }
+            if (clicon_msg_send1(s, device_handle_name_get(dh), cbmsg) < 0)
+                goto done;
+            if (device_state_set(dh, CS_PUSH_EDIT2) < 0)
                 goto done;
             break;
         }
@@ -1344,11 +1352,53 @@ device_state_handler(clixon_handle h,
             break;
         /* 2.2 The transaction is OK
            Proceed to next step */
+        if ((cbmsg = device_handle_outmsg_get(dh, 2)) == NULL){
+            if ((ret = device_send_validate(h, dh)) < 0)
+                goto done;
+            if (device_state_set(dh, CS_PUSH_VALIDATE) < 0)
+                goto done;
+            break;
+        }
+        fprintf(stderr, "%s 2 %p\n", __FUNCTION__, cbmsg);
+        if (clicon_msg_send1(s, device_handle_name_get(dh), cbmsg) < 0)
+            goto done;
+        if (device_state_set(dh, CS_PUSH_EDIT2) < 0)
+            goto done;
+        break;
+    case CS_PUSH_EDIT2:
+        if (device_state_check_sanity(dh, tid, ct, name, conn_state, rpcname) == 0)
+            break;
+        /* Retval: 2 OK, 1 Closed, 0 Failed, -1 Error */
+        if ((ret = device_state_recv_ok(h, dh, xmsg, rpcname, conn_state, &cberr)) < 0)
+            goto done;
+        if (ret == 0){      /* 1. The device has failed: received rpc-error/not <ok>  */
+            if (controller_transaction_failed(h, tid, ct, dh, TR_FAILED_DEV_IGNORE, name, cbuf_get(cberr)) < 0)
+                goto done;
+            /* 1.1 The error is "recoverable" (eg validate fail) */
+            /* --> 1.1.1 Trigger DISCARD of the device */
+            if (device_send_discard_changes(h, dh) < 0)
+                goto done;
+            if (device_state_set(dh, CS_PUSH_DISCARD) < 0)
+                goto done;
+            break;
+        }
+        else if (ret == 1){ /* 1. The device has failed and is closed */
+            if (controller_transaction_failed(h, tid, ct, dh, TR_FAILED_DEV_LEAVE, name, NULL) < 0)
+                goto done;
+            break;
+        }
+        /* The device is OK */
+        if ((ret = device_state_check_fail(h, dh, ct, 1)) < 0)
+            goto done;
+        if (ret == 0)
+            break;
+        /* 2.2 The transaction is OK
+           Proceed to next step */
         if ((ret = device_send_validate(h, dh)) < 0)
             goto done;
         if (device_state_set(dh, CS_PUSH_VALIDATE) < 0)
             goto done;
-       break;
+        break;
     case CS_PUSH_VALIDATE:
         if (device_state_check_sanity(dh, tid, ct, name, conn_state, rpcname) == 0)
             break;
@@ -1476,7 +1526,7 @@ device_state_handler(clixon_handle h,
 
             /* Copy transient to device config (last sync)
                XXXX in commit push
-             */
+            */
             if ((cb = cbuf_new()) == NULL){
                 clixon_err(OE_UNIX, errno, "cbuf_new");
                 goto done;

@@ -420,6 +420,8 @@ controller_transaction_done(clixon_handle           h,
     while ((dh = device_handle_each(h, dh)) != NULL){
         if (device_handle_tid_get(dh) == ct->ct_id)
             device_handle_tid_set(dh, 0);
+        device_handle_outmsg_set(dh, 1, NULL);
+        device_handle_outmsg_set(dh, 2, NULL);
     }
     /* This should be the only place */
     if (controller_transaction_notify(h, ct) < 0)
@@ -590,6 +592,7 @@ controller_transaction_wait(clixon_handle h,
             device_handle_conn_state_get(dh) == CS_PUSH_LOCK ||
             device_handle_conn_state_get(dh) == CS_PUSH_CHECK ||
             device_handle_conn_state_get(dh) == CS_PUSH_EDIT ||
+            device_handle_conn_state_get(dh) == CS_PUSH_EDIT2 ||
             device_handle_conn_state_get(dh) == CS_PUSH_VALIDATE)
             notready++;
         else if (device_handle_conn_state_get(dh) == CS_PUSH_WAIT)

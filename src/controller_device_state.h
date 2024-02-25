@@ -77,7 +77,8 @@ enum conn_state_t {
     CS_OPEN,          /* Connection established and Hello sent to device. */
     CS_PUSH_LOCK,     /* Lock device candidate */
     CS_PUSH_CHECK,    /* sync device transient to check if device is unchanged */
-    CS_PUSH_EDIT,     /* edit-config sent, waiting for reply */
+    CS_PUSH_EDIT,     /* First edit-config sent (if any) waiting for reply */
+    CS_PUSH_EDIT2,    /* Second edit-config sent (if any), waiting for reply */
     CS_PUSH_VALIDATE, /* validate sent, waiting for reply  */
     CS_PUSH_WAIT,     /* Waiting for other devices to validate */
     CS_PUSH_COMMIT,   /* commit sent, waiting for reply ok */

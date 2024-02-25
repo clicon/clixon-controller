@@ -93,7 +93,8 @@ struct controller_device_handle{
     char              *cdh_schema_name; /* Pending schema name */
     char              *cdh_schema_rev;  /* Pending schema revision */
     char              *cdh_logmsg;      /* Error log message / reason of failed open */
-    cbuf              *cdh_outmsg;      /* Pending outgoing netconf message for delayed output */
+    cbuf              *cdh_outmsg1;     /* Pending outgoing netconf message #1 for delayed output */
+    cbuf              *cdh_outmsg2;     /* Pending outgoing netconf message #2 for delayed output */
 };
 
 /*! Check struct magic number for sanity checks
@@ -171,8 +172,10 @@ device_handle_free1(struct controller_device_handle *cdh)
         free(cdh->cdh_schema_name);
     if (cdh->cdh_schema_rev)
         free(cdh->cdh_schema_rev);
-    if (cdh->cdh_outmsg)
-        cbuf_free(cdh->cdh_outmsg);
+    if (cdh->cdh_outmsg1)
+        cbuf_free(cdh->cdh_outmsg1);
+    if (cdh->cdh_outmsg2)
+        cbuf_free(cdh->cdh_outmsg2);
     free(cdh);
     return 0;
 }
@@ -970,33 +973,57 @@ device_handle_logmsg_set(device_handle dh,
 /*! Get pending netconf outmsg
  *
  * @param[in]  dh     Device handle
+ * @param[in]  nr     Message nr, 1 or 2
  * @retval     msg
  * @retval     NULL
  */
 cbuf*
-device_handle_outmsg_get(device_handle dh)
+device_handle_outmsg_get(device_handle dh,
+                         int           nr)
 {
     struct controller_device_handle *cdh = devhandle(dh);
 
-    return cdh->cdh_outmsg;
+    if (nr == 1)
+        return cdh->cdh_outmsg1;
+    else if (nr == 2)
+        return cdh->cdh_outmsg2;
+    else
+        return NULL;
 }
 
-/*! Set pending netconf outmsg
+/*! Set pending netconf outmsg #1
  *
  * @param[in]  dh   Device handle
- * @param[in]  cb   Netconf msg
+ * @param[in]  nr   Message nr, 1 or 2
+ * @param[in]  cb   Netconf msg (is consumed)
+ * @retval     0    OK
+ * @retval    -1    Error
  */
 int
 device_handle_outmsg_set(device_handle dh,
+                         int           nr,
                          cbuf         *cb)
 {
     struct controller_device_handle *cdh = devhandle(dh);
 
-    if (cdh->cdh_outmsg){
-        cbuf_free(cdh->cdh_outmsg);
-        cdh->cdh_outmsg = NULL;
+    if (nr != 1 && nr != 2){
+        clixon_err(OE_XML, EINVAL, "nr must be 1 or 2");
+        return -1;
     }
-    cdh->cdh_outmsg = cb;
+    if (nr == 1){
+        if (cdh->cdh_outmsg1){
+            cbuf_free(cdh->cdh_outmsg1);
+            cdh->cdh_outmsg1 = NULL;
+        }
+        cdh->cdh_outmsg1 = cb;
+    }
+    else if (nr == 2) {
+        if (cdh->cdh_outmsg2){
+            cbuf_free(cdh->cdh_outmsg2);
+            cdh->cdh_outmsg2 = NULL;
+        }
+        cdh->cdh_outmsg2 = cb;
+    }
     return 0;
 }
 

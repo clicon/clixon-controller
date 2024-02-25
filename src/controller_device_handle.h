@@ -97,8 +97,8 @@ char  *device_handle_schema_rev_get(device_handle dh);
 int    device_handle_schema_rev_set(device_handle dh, char  *schema_rev);
 char  *device_handle_logmsg_get(device_handle dh);
 int    device_handle_logmsg_set(device_handle dh, char *logmsg);
-cbuf  *device_handle_outmsg_get(device_handle dh);
-int    device_handle_outmsg_set(device_handle dh, cbuf *cb);
+cbuf  *device_handle_outmsg_get(device_handle dh, int nr);
+int    device_handle_outmsg_set(device_handle dh, int nr, cbuf *cb);
 
 #ifdef __cplusplus
 }

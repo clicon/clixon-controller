@@ -173,7 +173,7 @@ expectpart "$($clixon_cli -1 -f $CFG -m configure apply template interfaces open
 new "Verify compare 2"
 expectpart "$($clixon_cli -1 -f $CFG -m configure show compare)" 0 "^+\ *interface z {" "^+\ *type ianaift:v35;" "^+\ *description \"Config of interface z,z and ianaift:v35 type\";" --not-- "^\-"
 
-new "commit push"
+new "commit push 1"
 expectpart "$($clixon_cli -1f $CFG -m configure commit push 2>&1)" 0 "^OK$"
 
 # 1) commit add new version and diff
@@ -224,7 +224,7 @@ expectpart "$($clixon_cli -1f $CFG -m configure commit  2>&1)" 0 "^OK$"
 new "Apply template CLI 2"
 expectpart "$($clixon_cli -1 -f $CFG -m configure apply template interfaces openconfig* variables NAME z TYPE ianaift:v35)" 0 "^$"
 
-new "commit push"
+new "commit push 2"
 expectpart "$($clixon_cli -1f $CFG -m configure commit push 2>&1)" 0 "^OK$"
 
 # 2) add operation="merge" / "replace" within
@@ -272,7 +272,7 @@ expectpart "$($clixon_cli -1 -f $CFG -m configure apply template interfaces open
 new "Verify compare 3"
 expectpart "$($clixon_cli -1 -f $CFG -m configure show compare xml)" 0 "^-\ *<description>Changed description</description>" --not-- "^+\ *"
 
-new "commit push"
+new "commit push 3"
 expectpart "$($clixon_cli -1f $CFG -m configure commit push 2>&1)" 0 "^OK$"
 
 new "Check description removed"

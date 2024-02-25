@@ -342,6 +342,71 @@ remove_subtree(cxobj *xn)
     return retval;
 }
 
+/*! Create edit-config helper function
+ *
+ * @param[in]  h       Clixon handle.
+ * @param[in]  dh      Clixon client handle.
+ * @param[in]  xc      XML tree
+ * @param[in]  rpc     RPC edit-config string
+ * @param[out] cbret   Buffer containing edit-config
+ * @retval     0       OK
+ * @retval    -1       Error
+ */
+static int
+create_edit_config(clixon_handle h,
+                   device_handle dh,
+                   cxobj        *xc,
+                   char         *rpc,
+                   cbuf        **cbret)
+{
+    int     retval = -1;
+    int     ret;
+    cxobj  *xt = NULL;
+    cvec   *nsc = NULL;
+    cxobj **xvec = NULL;
+    size_t  xveclen;
+    cbuf   *cb = NULL;
+    int     encap;
+
+    if (cbret == NULL) {
+        clixon_err(OE_UNIX, EINVAL, "cbret is NULL");
+        goto done;
+    }
+    encap = device_handle_framing_type_get(dh);
+    if ((ret = clixon_xml_parse_string(rpc, YB_NONE, NULL, &xt, NULL)) < 0)
+        goto done;
+    if (xpath_vec(xt, nsc, "rpc/edit-config", &xvec, &xveclen) < 0)
+        goto done;
+    if (xveclen != 1){
+        clixon_err(OE_XML, 0, "Unexpected len %lu should be 1", xveclen);
+        goto done;
+    }
+    if (xml_addsub(xvec[0], xc) < 0)
+        goto done;
+    if ((cb = cbuf_new()) == NULL){
+        clixon_err(OE_PLUGIN, errno, "cbuf_new");
+        goto done;
+    }
+    if (clixon_xml2cbuf(cb, xt, 0, 0, NULL, -1, 1) < 0){
+        xml_rm(xc);
+        goto done;
+    }
+    xml_rm(xc);
+    if (netconf_output_encap(encap, cb) < 0)
+        goto done;
+    *cbret = cb;
+    cb = NULL;
+    retval = 0;
+ done:
+    if (cb)
+        cbuf_free(cb);
+    if (xt)
+        xml_free(xt);
+    if (xvec)
+        free(xvec);
+    return retval;
+}
+
 /*! Create edit-config to a device given a diff between two XML trees x0 and x1
  *
  * 1. Add netconf operation attributes to add/del/change nodes in x0 and x1 and mark
@@ -362,7 +427,8 @@ remove_subtree(cxobj *xn)
  * @param[in]  chvec0  Source changed xml vector
  * @param[in]  chvec1  Target changed xml vector
  * @param[in]  chlen   Changed xml vector length
- * @param[out] cbret   Cligen  buf containing the whole message (not sent)
+ * @param[out] cbret1  Buffer containing first edit-config
+ * @param[out] cbret2  Buffer containing second edit-config
  * @retval     0       OK
  * @retval    -1       Error
  * XXX Lots of xml and cbuf handling, try to contain some parts in sub-functions
@@ -381,26 +447,17 @@ device_create_edit_config_diff(clixon_handle h,
                                cxobj       **chvec0,
                                cxobj       **chvec1,
                                int           chlen,
-                               cbuf        **cbret)
+                               cbuf        **cbret1,
+                               cbuf        **cbret2)
 {
-    int    retval = -1;
-    cbuf  *cb = NULL;
-    int    encap;
-    int    i;
-    cxobj *xt = NULL;
-    cxobj *xn;
-    cxobj *xa;
-    char  *reason = NULL;
-    int    ret;
-    cvec  *nsc = NULL;
-    cxobj **xvec = NULL;
-    size_t  xveclen;
+    int     retval = -1;
+    cbuf   *cb = NULL;
+    int     i;
+    cxobj  *xn;
+    cxobj  *xa;
+    char   *reason = NULL;
 
     clixon_debug(1, "%s", __FUNCTION__);
-    if (cbret == NULL){
-        clixon_err(OE_UNIX, EINVAL, "cbret is NULL");
-        goto done;
-    }
     /* 1. Add netconf operation attributes to add/del/change nodes in x0 and x1 and mark */
     for (i=0; i<dlen; i++){
         xn = dvec[i];
@@ -431,7 +488,7 @@ device_create_edit_config_diff(clixon_handle h,
             goto done;
         if (xml_prefix_set(xa, NETCONF_BASE_PREFIX) < 0)
             goto done;
-        if (xml_value_set(xa, xml_operation2str(OP_REPLACE)) < 0)
+        if (xml_value_set(xa, xml_operation2str(OP_REPLACE)) < 0) // XXX
             goto done;
         xml_flag_set(xn, XML_FLAG_MARK);
     }
@@ -458,45 +515,17 @@ device_create_edit_config_diff(clixon_handle h,
     cprintf(cb, "<target><candidate/></target>");
     cprintf(cb, "<default-operation>none</default-operation>");
     cprintf(cb, "</edit-config>");
-    cprintf(cb, "<edit-config>");
-    cprintf(cb, "<target><candidate/></target>");
-    cprintf(cb, "<default-operation>none</default-operation>");
-    cprintf(cb, "</edit-config>");
     cprintf(cb, "</rpc>");
-    if ((ret = clixon_xml_parse_string(cbuf_get(cb), YB_NONE, NULL, &xt, NULL)) < 0)
+    if (dlen && create_edit_config(h, dh, x0, cbuf_get(cb), cbret1) < 0)
         goto done;
-    if (xpath_vec(xt, nsc, "rpc/edit-config", &xvec, &xveclen) < 0)
+    if ((alen || chlen) && create_edit_config(h, dh, x1, cbuf_get(cb), cbret2) < 0)
         goto done;
-    if (xveclen != 2){
-        clixon_err(OE_XML, 0, "Unexpected len %lu should be 2", xveclen);
-        goto done;
-    }
-    if (xml_addsub(xvec[0], x0) < 0)
-        goto done;
-    if (xml_addsub(xvec[1], x1) < 0)
-        goto done;
-    cbuf_reset(cb);
-    if (clixon_xml2cbuf(cb, xt, 0, 0, NULL, -1, 1) < 0){
-        xml_rm(x0);
-        goto done;
-    }
-    xml_rm(x0);
-    xml_rm(x1);
-    encap = device_handle_framing_type_get(dh);
-    if (netconf_output_encap(encap, cb) < 0)
-        goto done;
-    *cbret = cb;
-    cb = NULL;
     retval = 0;
  done:
-    if (xvec)
-        free(xvec);
     if (reason)
         free(reason);
     if (cb)
         cbuf_free(cb);
-    if (xt)
-        xml_free(xt);
     return retval;
 }
 

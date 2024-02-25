@@ -274,7 +274,8 @@ push_device_one(clixon_handle           h,
     cxobj    **chvec1 = NULL;
     int        chlen;
     yang_stmt *yspec;
-    cbuf      *cbmsg = NULL;
+    cbuf      *cbmsg1 = NULL;
+    cbuf      *cbmsg2 = NULL;
     int        ret;
     cvec      *nsc = NULL;
 
@@ -324,9 +325,12 @@ push_device_one(clixon_handle           h,
                                            dvec, dlen,
                                            avec, alen,
                                            chvec0, chvec1, chlen,
-                                           &cbmsg) < 0)
+                                           &cbmsg1, &cbmsg2) < 0)
             goto done;
-        device_handle_outmsg_set(dh, cbmsg);
+        if (cbmsg1)
+            device_handle_outmsg_set(dh, 1, cbmsg1);
+        if (cbmsg2)
+            device_handle_outmsg_set(dh, 2, cbmsg2);
         if (device_send_lock(h, dh, 1) < 0)
             goto done;
         device_handle_tid_set(dh, ct->ct_id);

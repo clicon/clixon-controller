@@ -127,12 +127,13 @@ module myyang {
     }
     augment "/ctrl:services" {
 	list testA {
+	    description "Test A service";
 	    key name;
 	    leaf name {
-		description "Not used";
+		description "Test A instance";
 		type string;
 	    }
-	    description "Test service A";
+
 	    leaf-list params{
 	       type string;
                min-elements 1; /* For validate fail*/
@@ -142,11 +143,12 @@ module myyang {
     }
     augment "/ctrl:services" {
 	list testB {
+	   description "Test B service";
 	   key name;
 	   leaf name {
+		description "Test B instance";
 	      type string;
 	   }
-	   description "Test service B";
 	   leaf-list params{
 	      type string;
 	   }
