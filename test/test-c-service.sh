@@ -128,8 +128,8 @@ module myyang {
     augment "/ctrl:services" {
 	list testA {
 	    description "Test A service";
-	    key name;
-	    leaf name {
+	    key a_name;
+	    leaf a_name {
 		description "Test A instance";
 		type string;
 	    }
@@ -144,8 +144,8 @@ module myyang {
     augment "/ctrl:services" {
 	list testB {
 	   description "Test B service";
-	   key name;
-	   leaf name {
+	   key b_name;
+	   leaf b_name {
 		description "Test B instance";
 	      type string;
 	   }
@@ -324,7 +324,7 @@ ret=$(${clixon_netconf} -0 -f $CFG <<EOF
     <config>
        <services xmlns="http://clicon.org/controller">
 	  <testA xmlns="urn:example:test" nc:operation="replace">
-	     <name>foo</name>
+	     <a_name>foo</a_name>
 	     <params>A0x</params>
 	     <params>A0y</params>
 	     <params>Ax</params>
@@ -333,7 +333,7 @@ ret=$(${clixon_netconf} -0 -f $CFG <<EOF
 	     <params>ABy</params>
 	 </testA>
 	  <testB xmlns="urn:example:test" nc:operation="replace">
-	     <name>foo</name>
+	     <b_name>foo</b_name>
 	     <params>A0x</params>
 	     <params>A0y</params>
 	     <params>ABx</params>
@@ -401,7 +401,7 @@ message-id="42">
     <filter type='subtree'>
       <services xmlns="http://clicon.org/controller">
         <testA xmlns="urn:example:test">
-          <name>foo</name>
+          <a_name>foo</a_name>
         </testA>
       </services>
     </filter>
@@ -431,7 +431,7 @@ message-id="42">
     <filter type='subtree'>
       <services xmlns="http://clicon.org/controller">
         <testB xmlns="urn:example:test">
-          <name>foo</name>
+          <b_name>foo</b_name>
         </testB>
       </services>
     </filter>
@@ -465,7 +465,7 @@ message-id="42">
     <filter type='subtree'>
       <services xmlns="http://clicon.org/controller">
         <testA xmlns="urn:example:test">
-          <name>foo</name>
+          <a_name>foo</a_name>
         </testA>
       </services>
     </filter>
@@ -527,7 +527,7 @@ message-id="42">
     <filter type='subtree'>
       <services xmlns="http://clicon.org/controller">
         <testA xmlns="urn:example:test">
-          <name>foo</name>
+          <a_name>foo</a_name>
         </testA>
       </services>
     </filter>
@@ -563,7 +563,7 @@ ret=$(${clixon_netconf} -0 -f $CFG <<EOF
     <config>
        <services xmlns="http://clicon.org/controller">
 	  <testA xmlns="urn:example:test" nc:operation="replace">
-	     <name>foo</name>
+	     <a_name>foo</a_name>
 	     <params>A0y</params>
 	     <params>A0z</params>
 	     <params>Ay</params>
@@ -614,7 +614,7 @@ ret=$(${clixon_netconf} -0 -f $CFG <<EOF
     <config>
        <services xmlns="http://clicon.org/controller">
           <testA xmlns="urn:example:test" nc:operation="delete">
-            <name>foo</name>
+            <a_name>foo</a_name>
           </testA>
       </services>
     </config>
@@ -686,7 +686,7 @@ ret=$(${clixon_netconf} -0 -f $CFG <<EOF
     <config>
        <services xmlns="http://clicon.org/controller">
           <testB xmlns="urn:example:test" nc:operation="delete">
-            <name>foo</name>
+            <b_name>foo</b_name>
           </testB>
       </services>
     </config>
@@ -759,7 +759,7 @@ ret=$(${clixon_netconf} -0 -f $CFG <<EOF
     <config>
        <services xmlns="http://clicon.org/controller">
 	  <testA xmlns="urn:example:test" nc:operation="replace">
-	     <name>fie</name>
+	     <a_name>fie</a_name>
 	     <params>ZZ</params>
 	 </testA>
       </services>
@@ -775,7 +775,7 @@ if [ -n "$match" ]; then
 fi
 
 new "show compare service"
-expectpart "$($clixon_cli -1 -f $CFG -m configure show compare xml)" 0 "^+\ *<services xmlns=\"http://clicon.org/controller\">" "^+\ *<testA xmlns=\"urn:example:test\">" "^+\ *<name>fie</name>" "^+\ *<params>ZZ</params>"
+expectpart "$($clixon_cli -1 -f $CFG -m configure show compare xml)" 0 "^+\ *<services xmlns=\"http://clicon.org/controller\">" "^+\ *<testA xmlns=\"urn:example:test\">" "^+\ *<a_name>fie</a_name>" "^+\ *<params>ZZ</params>"
 
 new "discard"
 expectpart "$(${clixon_cli} -1f $CFG -m configure discard)" 0 ""
@@ -882,11 +882,11 @@ ret=$(${clixon_netconf} -0 -f $CFG <<EOF
     <config>
        <services xmlns="http://clicon.org/controller">
 	  <testA xmlns="urn:example:test" nc:operation="replace">
-	     <name>foo</name>
+	     <a_name>foo</a_name>
 	     <params>A0x</params>
 	 </testA>
 	  <testB xmlns="urn:example:test" nc:operation="replace">
-	     <name>foo</name>
+	     <b_name>foo</b_name>
 	     <params>A0x</params>
 	 </testB>
       </services>
@@ -971,7 +971,7 @@ ret=$(${clixon_netconf} -0 -f $CFG <<EOF
     <config>
        <services xmlns="http://clicon.org/controller">
 	  <testA xmlns="urn:example:test" nc:operation="replace">
-	     <name>foo</name>
+	     <a_name>foo</a_name>
 	     <params>A0y</params>
 	     <params>A0z</params>
 	     <params>Ay</params>

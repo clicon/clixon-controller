@@ -65,19 +65,19 @@ cli_apipath(clixon_handle h,
     char      *api_path_fmt01 = NULL;
     yang_stmt *yspec0;
 
+    if ((yspec0 = clicon_dbspec_yang(h)) == NULL){
+        clixon_err(OE_FATAL, 0, "No DB_SPEC");
+        goto done;
+    }
     if (mtpoint){
-        if ((yspec0 = clicon_dbspec_yang(h)) == NULL){
-            clixon_err(OE_FATAL, 0, "No DB_SPEC");
-            goto done;
-        }
         /* Get and combined api-path01 */
         if (mtpoint_paths(yspec0, mtpoint, api_path_fmt, &api_path_fmt01) < 0)
             goto done;
-        if (api_path_fmt2api_path(api_path_fmt01, cvv, api_path, cvvi) < 0)
+        if (api_path_fmt2api_path(api_path_fmt01, cvv, yspec0, api_path, cvvi) < 0)
             goto done;
     }
     else{
-        if (api_path_fmt2api_path(api_path_fmt, cvv, api_path, cvvi) < 0)
+        if (api_path_fmt2api_path(api_path_fmt, cvv, yspec0, api_path, cvvi) < 0)
             goto done;
     }
     retval = 0;
@@ -810,12 +810,10 @@ get_service_key(yang_stmt *yspec,
     cprintf(cb, "/ctrl:services/%s", service);
     if (yang_abs_schema_nodeid(yspec, cbuf_get(cb), &yres) < 0)
         goto done;
-    if (yres){
-        if (yres &&
-            (cvk = yang_cvec_get(yres)) != NULL &&
-            (cvi = cvec_i(cvk, 0)) != NULL){
-            *keyname = cv_string_get(cvi);
-        }
+    if (yres &&
+        (cvk = yang_cvec_get(yres)) != NULL &&
+        (cvi = cvec_i(cvk, 0)) != NULL){
+        *keyname = cv_string_get(cvi);
     }
     retval = 0;
  done:
