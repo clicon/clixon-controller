@@ -465,7 +465,7 @@ service_action_instance(clixon_handle h,
 static int
 service_action_handler(clixon_handle      h,
                        int                s,
-                       struct clicon_msg *notification,
+                       char              *notification,
                        char              *pattern,
                        int                send_error)
 {
@@ -477,17 +477,12 @@ service_action_handler(clixon_handle      h,
     cxobj  *xservices = NULL;
     cxobj  *xdevs = NULL;
     char   *tidstr;
-    int     ret;
     char   *sourcedb = NULL;
     char   *targetdb = NULL;
 
     clixon_debug(1, "%s", __FUNCTION__);
-    if ((ret = clicon_msg_decode(notification, NULL, NULL, &xt, NULL)) < 0)
+    if (clixon_xml_parse_string(notification, YB_NONE, NULL, &xt, NULL) < 0)
         goto done;
-    if (ret == 0){ /* will not happen since no yspec ^*/
-        clixon_err(OE_NETCONF, EFAULT, "Notification malformed");
-        goto done;
-    }
     if ((xn = xpath_first(xt, 0, "notification/services-commit")) == NULL){
         clixon_err(OE_NETCONF, EFAULT, "Notification malformed");
         goto done;
@@ -504,13 +499,11 @@ service_action_handler(clixon_handle      h,
         clixon_err(OE_NETCONF, EFAULT, "Notification malformed: no source");
         goto done;
     }
-#if 1
     if (send_error){
         if (send_transaction_error(h, tidstr) < 0)
             goto done;
         goto ok;
     }
-#endif
     /* Read services and devices definition */
     if (read_services(h, sourcedb, &xservices) < 0)
         goto done;
@@ -534,14 +527,6 @@ service_action_handler(clixon_handle      h,
     }
     if (send_transaction_actions_done(h, tidstr) < 0)
         goto done;
-#if 0
-    if (send_error){
-        sleep(1);
-        if (send_transaction_error(h, tidstr) < 0)
-            goto done;
-        goto ok;
-    }
-#endif
  ok:
     retval = 0;
  done:
@@ -615,11 +600,11 @@ main(int    argc,
     clixon_handle        h = NULL; /* clixon handle */
     clixon_client_handle ch = NULL; /* clixon client handle */
     int                  s = -1;
-    struct clicon_msg   *notification = NULL;
     int                  eof = 0;
     char                *service_pattern = "*";
     int                  send_error = 0;
     int                  once = 0;
+    cbuf                *cb = NULL;
 
     if ((h = clixon_handle_init()) == NULL)
         goto done;;
@@ -688,24 +673,24 @@ main(int    argc,
     clixon_debug(CLIXON_DBG_DEFAULT, "%s notification socket:%d", __FUNCTION__, s);
 
     if (!once)
-        while (clicon_msg_rcv(s, NULL, 0, &notification, &eof) == 0){
+        while (clixon_msg_rcv11(s, NULL, 0, &cb, &eof) == 0){
             if (eof)
                 break;
-            if (service_action_handler(h, s, notification, service_pattern, send_error) < 0)
+            if (service_action_handler(h, s, cbuf_get(cb), service_pattern, send_error) < 0)
                 goto done;
-            if (notification){
-                free(notification);
-                notification = NULL;
+            if (cb){
+                cbuf_free(cb);
+                cb = NULL;
             }
         }
     retval = 0;
   done:
+    if (cb)
+        cbuf_free(cb);
     if (ch)
         clixon_client_disconnect(ch);
     if (h)
         service_action_terminate(h); /* Cannot use h after this */
-    if (notification)
-        free(notification);
     printf("done\n"); /* for test output */
     return retval;
 }

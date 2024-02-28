@@ -1312,13 +1312,13 @@ device_state_handler(clixon_handle h,
                     goto done;
                 break;
             }
-            if (clicon_msg_send1(s, device_handle_name_get(dh), cbmsg) < 0)
+            if (clixon_msg_send10(s, device_handle_name_get(dh), cbmsg) < 0)
                 goto done;
             if (device_state_set(dh, CS_PUSH_EDIT2) < 0)
                 goto done;
             break;
         }
-        if (clicon_msg_send1(s, device_handle_name_get(dh), cbmsg) < 0)
+        if (clixon_msg_send10(s, device_handle_name_get(dh), cbmsg) < 0)
             goto done;
         if (device_state_set(dh, CS_PUSH_EDIT) < 0)
             goto done;
@@ -1360,7 +1360,7 @@ device_state_handler(clixon_handle h,
             break;
         }
         fprintf(stderr, "%s 2 %p\n", __FUNCTION__, cbmsg);
-        if (clicon_msg_send1(s, device_handle_name_get(dh), cbmsg) < 0)
+        if (clixon_msg_send10(s, device_handle_name_get(dh), cbmsg) < 0)
             goto done;
         if (device_state_set(dh, CS_PUSH_EDIT2) < 0)
             goto done;

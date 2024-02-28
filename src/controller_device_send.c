@@ -90,7 +90,7 @@ device_send_lock(clixon_handle h,
     encap = device_handle_framing_type_get(dh);
     if (netconf_output_encap(encap, cb) < 0)
         goto done;
-    if (clicon_msg_send1(s, device_handle_name_get(dh), cb) < 0)
+    if (clixon_msg_send10(s, device_handle_name_get(dh), cb) < 0)
         goto done;
     retval = 0;
  done:
@@ -137,7 +137,7 @@ device_send_get_config(clixon_handle h,
     if (netconf_output_encap(encap, cb) < 0)
         goto done;
     s = device_handle_socket_get(dh);
-    if (clicon_msg_send1(s, device_handle_name_get(dh), cb) < 0)
+    if (clixon_msg_send10(s, device_handle_name_get(dh), cb) < 0)
         goto done;
     retval = 0;
  done:
@@ -186,7 +186,7 @@ device_get_schema_sendit(clixon_handle h,
     encap = device_handle_framing_type_get(dh);
     if (netconf_output_encap(encap, cb) < 0)
         goto done;
-    if (clicon_msg_send1(s, device_handle_name_get(dh), cb) < 0)
+    if (clixon_msg_send10(s, device_handle_name_get(dh), cb) < 0)
         goto done;
     clixon_debug(1, "%s %s: sent get-schema(%s@%s) seq:%" PRIu64, __FUNCTION__, name, identifier, version, seq);
     retval = 0;
@@ -308,7 +308,7 @@ device_send_get_schema_list(clixon_handle h,
     encap = device_handle_framing_type_get(dh);
     if (netconf_output_encap(encap, cb) < 0)
         goto done;
-    if (clicon_msg_send1(s, device_handle_name_get(dh), cb) < 0)
+    if (clixon_msg_send10(s, device_handle_name_get(dh), cb) < 0)
         goto done;
     retval = 0;
  done:
@@ -562,7 +562,7 @@ device_send_rpc(clixon_handle h,
     encap = device_handle_framing_type_get(dh);
     if (netconf_output_encap(encap, cb) < 0)
         goto done;
-    if (clicon_msg_send1(s, device_handle_name_get(dh), cb) < 0)
+    if (clixon_msg_send10(s, device_handle_name_get(dh), cb) < 0)
         goto done;
     retval = 0;
  done:

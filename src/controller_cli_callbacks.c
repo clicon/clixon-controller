@@ -399,21 +399,20 @@ transaction_notification_handler(clixon_handle       h,
                                  int                *eof)
 {
     int                retval = -1;
-    struct clicon_msg *reply = NULL;
     cxobj             *xt = NULL;
     cxobj             *xn;
-    int                ret;
     char              *tidstr;
     char              *reason = NULL;
     char              *resstr;
     transaction_result result;
     void              *wh = NULL;
+    cbuf              *cb = NULL;
 
     clixon_debug(CLIXON_DBG_DEFAULT, "%s tid:%s", __FUNCTION__, tidstr0);
     /* Need to set "intr" to enable ^C */
     if (clixon_resource_check(h, &wh, tidstr0, __FUNCTION__) < 0)
         goto done;
-    if (clicon_msg_rcv(s, NULL, 1, &reply, eof) < 0){
+    if (clixon_msg_rcv11(s, NULL, 1, &cb, eof) < 0){
         if (clixon_resource_check(h, &wh, tidstr0, __FUNCTION__) < 0)
             goto done;
         goto done;
@@ -425,12 +424,8 @@ transaction_notification_handler(clixon_handle       h,
         close(s);
         goto done; /* Fatal, or possibly cli may reconnect */
     }
-    if ((ret = clicon_msg_decode(reply, NULL, NULL, &xt, NULL)) < 0)
+    if (clixon_xml_parse_string(cbuf_get(cb), YB_NONE, NULL, &xt, NULL) < 0)
         goto done;
-    if (ret == 0){ /* will not happen since no yspec ^*/
-        clixon_err(OE_NETCONF, EFAULT, "Notification malformed");
-        goto done;
-    }
     clixon_debug_xml(1, xt, "Transaction");
     if ((xn = xpath_first(xt, 0, "notification/controller-transaction")) == NULL){
         clixon_err(OE_NETCONF, EFAULT, "Notification malformed");
@@ -458,8 +453,8 @@ transaction_notification_handler(clixon_handle       h,
     retval = 0;
  done:
     clixon_debug(CLIXON_DBG_DEFAULT, "%s %d", __FUNCTION__, retval);
-    if (reply)
-        free(reply);
+    if (cb)
+        cbuf_free(cb);
     if (xt)
         xml_free(xt);
     return retval;
