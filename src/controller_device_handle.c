@@ -112,6 +112,36 @@ device_handle_check(device_handle dh)
     return cdh->cdh_magic == CLIXON_CLIENT_MAGIC ? 0 : -1;
 }
 
+/*! Free handle itself
+ *
+ * @param[in]  dh  Controller device handle
+ * @retval     0   OK
+ */
+static int
+device_handle_free1(struct controller_device_handle *cdh)
+{
+    if (cdh->cdh_name)
+        free(cdh->cdh_name);
+    if (cdh->cdh_frame_buf)
+        cbuf_free(cdh->cdh_frame_buf);
+    if (cdh->cdh_xcaps)
+        xml_free(cdh->cdh_xcaps);
+    if (cdh->cdh_yang_lib)
+        xml_free(cdh->cdh_yang_lib);
+    if (cdh->cdh_logmsg)
+        free(cdh->cdh_logmsg);
+    if (cdh->cdh_schema_name)
+        free(cdh->cdh_schema_name);
+    if (cdh->cdh_schema_rev)
+        free(cdh->cdh_schema_rev);
+    if (cdh->cdh_outmsg1)
+        cbuf_free(cdh->cdh_outmsg1);
+    if (cdh->cdh_outmsg2)
+        cbuf_free(cdh->cdh_outmsg2);
+    free(cdh);
+    return 0;
+}
+
 /*! Create new controller device handle given clixon handle and add it to global list
  *
  * A new device handle is created when a connection is made, also passively in
@@ -141,10 +171,12 @@ device_handle_new(clixon_handle h,
     cdh->cdh_conn_state = CS_CLOSED;
     if ((cdh->cdh_name = strdup(name)) == NULL){
         clixon_err(OE_UNIX, errno, "strdup");
+        device_handle_free1(cdh);
         return NULL;
     }
     if ((cdh->cdh_frame_buf = cbuf_new()) == NULL){
         clixon_err(OE_UNIX, errno, "cbuf_new");
+        device_handle_free1(cdh);
         return NULL;
     }
     (void)clicon_ptr_get(h, "client-list", (void**)&cdh_list);
@@ -153,32 +185,6 @@ device_handle_new(clixon_handle h,
     return cdh;
 }
 
-/*! Free handle itself
- */
-static int
-device_handle_free1(struct controller_device_handle *cdh)
-{
-    if (cdh->cdh_name)
-        free(cdh->cdh_name);
-    if (cdh->cdh_frame_buf)
-        cbuf_free(cdh->cdh_frame_buf);
-    if (cdh->cdh_xcaps)
-        xml_free(cdh->cdh_xcaps);
-    if (cdh->cdh_yang_lib)
-        xml_free(cdh->cdh_yang_lib);
-    if (cdh->cdh_logmsg)
-        free(cdh->cdh_logmsg);
-    if (cdh->cdh_schema_name)
-        free(cdh->cdh_schema_name);
-    if (cdh->cdh_schema_rev)
-        free(cdh->cdh_schema_rev);
-    if (cdh->cdh_outmsg1)
-        cbuf_free(cdh->cdh_outmsg1);
-    if (cdh->cdh_outmsg2)
-        cbuf_free(cdh->cdh_outmsg2);
-    free(cdh);
-    return 0;
-}
 
 /*! Free controller device handle
  *
@@ -349,11 +355,11 @@ device_handle_disconnect(device_handle dh)
     int                              retval = -1;
     struct controller_device_handle *cdh = devhandle(dh);
 
-    clixon_debug(1, "%s %s", __FUNCTION__, cdh->cdh_name);
     if (cdh == NULL){
         clixon_err(OE_XML, EINVAL, "Expected cdh handle");
         goto done;
     }
+    clixon_debug(1, "%s %s", __FUNCTION__, cdh->cdh_name);
     switch(cdh->cdh_type){
     case CLIXON_CLIENT_IPC:
         close(cdh->cdh_socket);

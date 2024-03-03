@@ -344,7 +344,7 @@ controller_transaction_free1(controller_transaction *ct)
     if (ct->ct_reason)
         free(ct->ct_reason);
     if (ct->ct_warning)
-        free(ct->ct_reason);
+        free(ct->ct_warning);
     if (ct->ct_sourcedb)
         free(ct->ct_sourcedb);
     free(ct);
@@ -511,6 +511,10 @@ controller_transaction_failed(clixon_handle           h,
 {
     int retval = -1;
 
+    if (ct == NULL){
+        device_close_connection(dh, "Device not associated with transaction");
+        goto done;
+    }
     clixon_debug(CLIXON_DBG_DEFAULT, "%s", __FUNCTION__);
     if (dh != NULL && devclose != TR_FAILED_DEV_IGNORE){
         if (devclose == TR_FAILED_DEV_CLOSE){
@@ -666,11 +670,9 @@ controller_transaction_statedata(clixon_handle   h,
                                  char           *xpath,
                                  cxobj          *xstate)
 {
-    int            retval = -1;
-    cxobj        **vec = NULL;
-    cxobj         *xret = NULL;
-    cbuf          *cb = NULL;
-    struct timeval *tv;
+    int                     retval = -1;
+    cbuf                   *cb = NULL;
+    struct timeval         *tv;
     controller_transaction *ct_list = NULL;
     controller_transaction *ct = NULL;
 
@@ -720,9 +722,5 @@ controller_transaction_statedata(clixon_handle   h,
  done:
     if (cb)
         cbuf_free(cb);
-    if (vec)
-        free(vec);
-    if (xret)
-        xml_free(xret);
     return retval;
 }

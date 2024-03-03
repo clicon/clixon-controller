@@ -158,12 +158,12 @@ int
 device_close_connection(device_handle dh,
                         const char   *format, ...)
 {
-    int            retval = -1;
-    va_list        ap;
-    size_t         len;
-    char          *str = NULL;
-    int            s;
-    char          *name;
+    int      retval = -1;
+    va_list  ap;
+    int      len;
+    char    *str = NULL;
+    int      s;
+    char    *name;
 
     name = device_handle_name_get(dh);
     clixon_debug(CLIXON_DBG_DETAIL, "%s %s", __FUNCTION__, name);
@@ -802,7 +802,6 @@ device_config_compare(clixon_handle           h,
     cbuf   *cberr = NULL;
     int     eq;
     int     ret;
-    cxobj **vec = NULL;
 
     if ((ret = device_config_read(h, name, "SYNCED", &x0, &cberr)) < 0)
         goto done;
@@ -826,8 +825,6 @@ device_config_compare(clixon_handle           h,
     else
         retval = 2;
  done:
-    if (vec)
-        free(vec);
     if (cberr)
         cbuf_free(cberr);
     if (x0)
@@ -1587,7 +1584,6 @@ device_state_handler(clixon_handle h,
             clixon_err(OE_XML, 0, "Transaction unexpected SUCCESS state");
             goto done;
         }
-        if (ct->ct_state == TS_RESOLVED) ;/* XXX What to do if discard fails?? */
         if (device_send_lock(h, dh, 0) < 0)
             goto done;
         if (device_state_set(dh, CS_PUSH_UNLOCK) < 0)
@@ -1676,7 +1672,6 @@ devices_statedata(clixon_handle   h,
                   cxobj          *xstate)
 {
     int            retval = -1;
-    cxobj         *xret = NULL;
     char          *name;
     device_handle  dh;
     cbuf          *cb = NULL;
@@ -1738,7 +1733,5 @@ devices_statedata(clixon_handle   h,
  done:
     if (cb)
         cbuf_free(cb);
-    if (xret)
-        xml_free(xret);
     return retval;
 }

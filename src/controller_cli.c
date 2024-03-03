@@ -225,7 +225,6 @@ create_autocli_mount_tree(clixon_handle h,
                           yang_stmt   **yspec1p)
 {
     int        retval = -1;
-    cbuf      *cb = NULL;
     yang_stmt *yspec1 = NULL;
     char      *devname;
     int        ret;
@@ -248,8 +247,6 @@ create_autocli_mount_tree(clixon_handle h,
         *yspec1p = yspec1;
     retval = 0;
  done:
-    if (cb)
-        cbuf_free(cb);
     return retval;
 }
 

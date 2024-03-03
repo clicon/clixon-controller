@@ -455,7 +455,6 @@ device_create_edit_config_diff(clixon_handle h,
     int     i;
     cxobj  *xn;
     cxobj  *xa;
-    char   *reason = NULL;
 
     clixon_debug(1, "%s", __FUNCTION__);
     /* 1. Add netconf operation attributes to add/del/change nodes in x0 and x1 and mark */
@@ -522,8 +521,6 @@ device_create_edit_config_diff(clixon_handle h,
         goto done;
     retval = 0;
  done:
-    if (reason)
-        free(reason);
     if (cb)
         cbuf_free(cb);
     return retval;

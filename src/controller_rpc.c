@@ -128,7 +128,6 @@ controller_connect(clixon_handle           h,
     int           retval = -1;
     char         *name;
     device_handle dh;
-    cbuf         *cb = NULL;
     char         *type;
     char         *addr;
     char         *user = NULL;
@@ -229,8 +228,6 @@ controller_connect(clixon_handle           h,
  ok:
     retval = 1;
  done:
-    if (cb)
-        cbuf_free(cb);
     return retval;
  failed:
     retval = 0;
@@ -1019,7 +1016,6 @@ devices_match(clixon_handle   h,
     char         *name;
     device_handle dh;
     int           i;
-    cbuf         *reason = NULL;
     char         *body;
 
     if (xmldb_get(h, "running", nsc, "devices", &xret) < 0)
@@ -1049,8 +1045,6 @@ devices_match(clixon_handle   h,
     } /* for */
     retval = 0;
  done:
-    if (reason)
-        cbuf_free(reason);
     if (xret)
         xml_free(xret);
     if (vec)
@@ -2326,7 +2320,6 @@ rpc_device_template_apply(clixon_handle h,
     int           i;
     int           ret;
     cxobj        *xerr = NULL;
-    cxobj        *xput = NULL;
     cxobj        *xtc;
     cxobj        *xroot;
     cxobj        *xmnt;
@@ -2449,8 +2442,6 @@ rpc_device_template_apply(clixon_handle h,
         xml_free(xret);
     if (xerr)
         xml_free(xerr);
-    if (xput)
-        xml_free(xput);
     if (vec)
         free(vec);
     return retval;
@@ -2487,11 +2478,8 @@ attr_ns_value(cxobj *x,
         }
     }
     *valp = val;
-    val = NULL;
     retval = 1;
  done:
-    if (val)
-        free(val);
     return retval;
  fail:
     retval = 0;
@@ -2622,7 +2610,6 @@ controller_edit_config(clixon_handle h,
     cxobj     *xc;
     cvec      *nsc = NULL;
     char      *target;
-    char      *prefix = NULL;
     yang_stmt *yspec;
     cxobj     *xconfig = NULL;
     cxobj     *xserv;
@@ -2638,10 +2625,7 @@ controller_edit_config(clixon_handle h,
     if ((target = netconf_db_find(xe, "target")) == NULL)
         goto ok;
     /* Get config element */
-    if ((xc = xpath_first(xe, nsc, "%s%s%s",
-                          prefix?prefix:"",
-                          prefix?":":"",
-                          NETCONF_INPUT_CONFIG)) == NULL){
+    if ((xc = xpath_first(xe, nsc, "%s", NETCONF_INPUT_CONFIG)) == NULL){
         goto ok;
     }
     if ((ret = xml_bind_yang(h, xc, YB_MODULE, yspec, NULL)) < 0)

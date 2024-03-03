@@ -488,7 +488,6 @@ device_state_recv_get_schema(device_handle dh,
     cbuf         *cb = cbuf_new();
     FILE         *f = NULL;
     size_t        sz;
-    yang_stmt    *yspec = NULL;
     char         *dir;
     int           ret;
 
@@ -532,8 +531,6 @@ device_state_recv_get_schema(device_handle dh,
     fflush(f);
     retval = 1;
  done:
-    if (yspec)
-        ys_free(yspec);
     if (f)
         fclose(f);
     if (cb)

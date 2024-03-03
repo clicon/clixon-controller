@@ -413,8 +413,7 @@ transaction_notification_handler(clixon_handle       h,
     if (clixon_resource_check(h, &wh, tidstr0, __FUNCTION__) < 0)
         goto done;
     if (clixon_msg_rcv11(s, NULL, 1, &cb, eof) < 0){
-        if (clixon_resource_check(h, &wh, tidstr0, __FUNCTION__) < 0)
-            goto done;
+        clixon_resource_check(h, &wh, tidstr0, __FUNCTION__);
         goto done;
     }
     if (clixon_resource_check(h, &wh, tidstr0, __FUNCTION__) < 0)
@@ -697,10 +696,6 @@ cli_rpc_commit_diff_one(clixon_handle h,
     cprintf(cb, "<config-type2>ACTIONS</config-type2>");
     cprintf(cb, "</datastore-diff>");
     cprintf(cb, "</rpc>");
-    if (xtop){
-        xml_free(xtop);
-        xtop = NULL;
-    }
     if (clixon_xml_parse_string(cbuf_get(cb), YB_NONE, NULL, &xtop, NULL) < 0)
         goto done;
     xrpc = xml_child_i(xtop, 0);
@@ -855,7 +850,7 @@ cli_rpc_controller_commit(clixon_handle h,
     char              *service = NULL;
     char              *instance = NULL;
     yang_stmt         *yspec;
-    char              *keyname;
+    char              *keyname = NULL;
 
     if (argv == NULL || cvec_len(argv) != 3){
         clixon_err(OE_PLUGIN, EINVAL, "requires arguments: <datastore> <actions-type> <push-type>");
@@ -1140,6 +1135,10 @@ cli_show_devices(clixon_handle h,
             cligen_output(stdout, "\n");
             xc = NULL;
             while ((xc = xml_child_each(xn, xc, CX_ELMNT)) != NULL) {
+                if (logstr){
+                    free(logstr);
+                    logstr = NULL;
+                }
                 if ((logstr = calloc(logw+1, sizeof(char))) == NULL){
                     clixon_err(OE_UNIX, errno, "calloc");
                     goto done;
@@ -1577,10 +1576,6 @@ compare_device_config_type(clixon_handle      h,
     cprintf(cb, "<config-type2>%s</config-type2>", device_type);
     cprintf(cb, "</datastore-diff>");
     cprintf(cb, "</rpc>");
-    if (xtop){
-        xml_free(xtop);
-        xtop = NULL;
-    }
     if (clixon_xml_parse_string(cbuf_get(cb), YB_NONE, NULL, &xtop, NULL) < 0)
         goto done;
     xrpc = xml_child_i(xtop, 0);
@@ -1673,10 +1668,6 @@ compare_dbs_rpc(clixon_handle h,
     cprintf(cb, "<dsref2>ds:%s</dsref2>", db2);
     cprintf(cb, "</datastore-diff>");
     cprintf(cb, "</rpc>");
-    if (xtop){
-        xml_free(xtop);
-        xtop = NULL;
-    }
     if (clixon_xml_parse_string(cbuf_get(cb), YB_NONE, NULL, &xtop, NULL) < 0)
         goto done;
     xrpc = xml_child_i(xtop, 0);
@@ -1941,7 +1932,6 @@ cli_dbxml_devs(clixon_handle       h,
 {
     int        retval = -1;
     char      *api_path_fmt;    /* xml key format */
-    char      *api_path_fmt01 = NULL;
     char      *api_path = NULL;
     cg_var    *cv;
     int        cvvi = 0;
@@ -2026,8 +2016,6 @@ cli_dbxml_devs(clixon_handle       h,
  done:
     if (api_path_fmt_cb)
         cbuf_free(api_path_fmt_cb);
-    if (api_path_fmt01)
-        free(api_path_fmt01);
     if (api_path)
         free(api_path);
     return retval;
@@ -2128,7 +2116,7 @@ cli_auto_load_devs(clixon_handle h,
     cg_var             *cv;
     cvec               *cvv = NULL;
     char               *filename = NULL;
-    FILE               *fp = stdin;
+    FILE               *fp = NULL;
     struct stat         st;
     cxobj              *xt = NULL;
     cxobj              *xerr = NULL;
@@ -2160,7 +2148,7 @@ cli_auto_load_devs(clixon_handle h,
     /* XXX Do without YANG (for the time being) */
     switch (format){
     case FORMAT_XML:
-        if ((ret = clixon_xml_parse_file(fp, YB_NONE, NULL, &xt, &xerr)) < 0)
+        if ((ret = clixon_xml_parse_file(fp?fp:stdin, YB_NONE, NULL, &xt, &xerr)) < 0)
             goto done;
         if (ret == 0){
             clixon_err_netconf(h, OE_XML, 0, xerr, "Loading: %s", filename?filename:"stdin");
@@ -2172,7 +2160,7 @@ cli_auto_load_devs(clixon_handle h,
         }
         break;
     case FORMAT_JSON:
-        if ((ret = clixon_json_parse_file(fp, 1, YB_NONE, NULL, &xt, &xerr)) < 0)
+        if ((ret = clixon_json_parse_file(fp?fp:stdin, 1, YB_NONE, NULL, &xt, &xerr)) < 0)
             goto done;
         if (ret == 0){
             clixon_err_netconf(h, OE_XML, 0, xerr, "Loading: %s", filename?filename:"stdin");
@@ -2208,12 +2196,8 @@ cli_auto_load_devs(clixon_handle h,
         xml_free(xt);
     if (xerr)
         xml_free(xerr);
-    if (fp){
-        if (filename)
-            fclose(fp);
-        else
-            clearerr(fp);
-    }
+    if (fp)
+        fclose(fp);
     if (cvv)
         cvec_free(cvv);
     return retval;
