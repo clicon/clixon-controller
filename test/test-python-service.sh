@@ -145,6 +145,8 @@ def setup(root, log, **kwargs):
         return
 
     for instance in root.services.ssh_users:
+        if instance.service_name != kwargs["instance"]:
+            continue
         for user in instance.username:
             service_name = instance.service_name.cdata
             username = user.name.cdata
