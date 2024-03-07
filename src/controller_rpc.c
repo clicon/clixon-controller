@@ -2447,7 +2447,22 @@ rpc_device_template_apply(clixon_handle h,
     return retval;
 }
 
-/*! Slightly modeified from clixon_datastore_write.c
+/*! Given an attribute name and its expected namespace, find its value
+ *
+ * An attribute may have a prefix(or NULL). The routine finds the associated
+ * xmlns binding to find the namespace: <namespace>:<name>.
+ * If such an attribute is not found, failure is returned with cbret set,
+ * If such an attribute is found, its string value is returned and removed from XML
+ * @param[in]  x         XML node (where to look for attribute)
+ * @param[in]  name      Attribute name
+ * @param[in]  ns        (Expected) Namespace of attribute
+ * @param[out] cbret     Error message (if retval=0)
+ * @param[out] valp      Malloced value (if retval=1)
+ * @retval     1         OK
+ * @retval     0         Failed (cbret set)
+ * @retval    -1         Error
+ * @note as a side.effect the attribute is removed
+ * @note slightly modeified from clixon_datastore_write.c
  */
 static int
 attr_ns_value(cxobj *x,
@@ -2486,8 +2501,9 @@ attr_ns_value(cxobj *x,
     goto done;
 }
 
-/*! Callback function type for xml_apply
+/*! Look for creator attributes in edit-config and create corresponding entry in service instance
  *
+ * Callback function type for xml_apply
  * @param[in]  x    XML node
  * @param[in]  arg  General-purpose argument
  * @retval     2    Locally abort this subtree, continue with others
@@ -2528,6 +2544,8 @@ creator_applyfn(cxobj *x,
         if ((xi = xpath_first(xserv, NULL, "%s", creator)) != NULL){
             if ((xc = xml_find_type(xi, NULL, "created", CX_ELMNT)) == NULL)
                 goto ok;
+            if (xpath_first(xc, 0, "path[.='%s']", xpath) != NULL)
+                goto ok; /* duplicate: silently drop */
             if ((ret = clixon_xml_parse_va(YB_PARENT, NULL, &xc, NULL, "<path>%s</path>", xpath)) < 0)
                 goto done;
             if (ret == 0)
@@ -2573,7 +2591,7 @@ creator_applyfn(cxobj *x,
                 goto ok;
         }
     }
-    ok:
+ ok:
     retval = 0;
  done:
     if (creator)
@@ -2599,21 +2617,22 @@ creator_applyfn(cxobj *x,
  * @retval    -1       Error
  * @see from_client_edit_config
  */
-static int
+int
 controller_edit_config(clixon_handle h,
                        cxobj        *xe,
                        cbuf         *cbret,
                        void         *arg,
                        void         *regarg)
 {
-    int        retval = -1;
-    cxobj     *xc;
-    cvec      *nsc = NULL;
-    char      *target;
-    yang_stmt *yspec;
-    cxobj     *xconfig = NULL;
-    cxobj     *xserv;
-    int        ret;
+    int                  retval = -1;
+    cxobj               *xc;
+    cvec                *nsc = NULL;
+    char                *target;
+    yang_stmt           *yspec;
+    cxobj               *xconfig = NULL;
+    cxobj               *xserv;
+    cxobj               *xret = NULL;
+    int                  ret;
 
     clixon_debug(CLIXON_DBG_DEFAULT, "controller edit-config wrapper");
     if ((yspec =  clicon_dbspec_yang(h)) == NULL){
@@ -2650,8 +2669,6 @@ controller_edit_config(clixon_handle h,
         goto ok;
     if ((ret = xml_apply(xc, CX_ELMNT, creator_applyfn, xserv)) < 0)
         goto done;
-    if (ret == 1)
-        goto ok;
     if (xml_child_nr_type(xserv, CX_ELMNT) == 0)
         goto ok;
     clixon_debug_xml(CLIXON_DBG_DEFAULT, xserv, "Objects created in %s-db", target);
@@ -2663,6 +2680,8 @@ controller_edit_config(clixon_handle h,
  ok:
     retval = 0;
  done:
+    if (xret)
+        xml_free(xret);
     if (xconfig)
         xml_free(xconfig);
     return retval;

@@ -263,13 +263,14 @@ main(int    argc,
         memset(buf, 0, len);
         i = 0;
         while (1){
-            if ((ret = read(0, &c, 1)) < 0){
+            char ch;
+            if ((ret = read(0, &ch, 1)) < 0){
                 perror("read");
                 goto done;
             }
             if (ret == 0)
                 break;
-            if (c == '\n')
+            if (ch == '\n')
                 break;
             if (len==i){
                 if ((buf = realloc(buf, 2*len)) == NULL){
@@ -279,7 +280,7 @@ main(int    argc,
                 memset(buf+len, 0, len);
                 len *= 2;
             }
-            buf[i++] = (char)(c&0xff);
+            buf[i++] = (char)(ch&0xff);
         }
         xpath = buf;
     }

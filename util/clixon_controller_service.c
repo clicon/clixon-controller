@@ -37,7 +37,7 @@
 #define CONTROLLER_NAMESPACE "http://clicon.org/controller"
 
 /* Command line options to be passed to getopt(3) */
-#define SERVICE_ACTION_OPTS "hD:f:l:s:e1"
+#define SERVICE_ACTION_OPTS "hD:f:l:s:de1"
 
 /*! Read services definition, write and mark an interface for each param in the service
  *
@@ -91,7 +91,8 @@ send_transaction_actions_done(clixon_handle h,
 
 static int
 send_transaction_error(clixon_handle h,
-                       char         *tidstr)
+                       char         *tidstr,
+                       const char   *reason)
 {
     int                retval = -1;
     cbuf              *cb = NULL;
@@ -112,7 +113,7 @@ send_transaction_error(clixon_handle h,
             CONTROLLER_NAMESPACE);
     cprintf(cb, "<tid>%s</tid>", tidstr);
     cprintf(cb, "<origin>service action</origin>");
-    cprintf(cb, "<reason>simulated error</reason>");
+    cprintf(cb, "<reason>%s</reason>", reason);
     cprintf(cb, "</transaction-error>");
     cprintf(cb, "</rpc>");
     if ((msg = clicon_msg_encode(0, "%s", cbuf_get(cb))) == NULL)
@@ -263,14 +264,15 @@ read_devices(clixon_handle h,
 
 /*! Given service+instance config, send an edit-config interface for each param in the service
  *
- * @param[in] h       Clixon handle
- * @param[in] s       Socket
- * @param[in] devname Device name
- * @param[in] xsc     XML service tree
- * @param[in] db      Target datastore
- * @param[in] tag     Creator tag
- * @retval    0       OK
- * @retval   -1       Error
+ * @param[in] h         Clixon handle
+ * @param[in] s         Socket
+ * @param[in] devname   Device name
+ * @param[in] xsc       XML service tree
+ * @param[in] db        Target datastore
+ * @param[in] tag       Creator tag
+ * @param[in] send_dupl Send first entry twice
+ * @retval    0         OK
+ * @retval   -1         Error
  */
 static int
 do_service(clixon_handle h,
@@ -278,7 +280,9 @@ do_service(clixon_handle h,
            char         *devname,
            cxobj        *xsc,
            char         *db,
-           char         *tag)
+           char         *tag,
+           char         *tidstr,
+           int           send_dupl)
 {
     int    retval = -1;
     cbuf  *cb = NULL;
@@ -317,6 +321,23 @@ do_service(clixon_handle h,
         cprintf(cb, "</config>");
         cprintf(cb, "</interface>");
     }
+    if (send_dupl){
+        x = NULL;
+        while ((x = xml_child_each(xsc, x,  CX_ELMNT)) != NULL){
+            if (strcmp(xml_name(x), "params") != 0)
+                continue;
+            if ((p = xml_body(x)) == NULL)
+                continue;
+            cprintf(cb, "<interface %s:creator=\"%s\">", CLIXON_LIB_PREFIX, tag);
+            cprintf(cb, "<name>%s</name>", p);
+            cprintf(cb, "<config>");
+            cprintf(cb, "<name>%s</name>", p);
+            cprintf(cb, "<type xmlns:ianaift=\"%s\">ianaift:ethernetCsmacd</type>", "urn:ietf:params:xml:ns:yang:iana-if-type");
+            cprintf(cb, "</config>");
+            cprintf(cb, "</interface>");
+            break;
+        }
+    }
     cprintf(cb, "</interfaces>");
     cprintf(cb, "</config>");
     cprintf(cb, "</device>");
@@ -324,8 +345,11 @@ do_service(clixon_handle h,
     cprintf(cb, "</config>");
     /* (Read service and) produce device output and mark with service name */
     if (clicon_rpc_edit_config(h, "actions xmlns=\"http://clicon.org/controller\"",
-                               OP_NONE, cbuf_get(cb)) < 0)
+                               OP_NONE, cbuf_get(cb)) < 0){
+        /* XXX: The error reason from edit-config should be passed instead of "duplicate" */
+        send_transaction_error(h, tidstr, "duplicate");
         goto done;
+    }
     retval = 0;
  done:
     if (cb)
@@ -341,6 +365,7 @@ do_service(clixon_handle h,
  * @param[in]  xdevs     Devices XML tree
  * @param[in]  xs        XML tree of one service instance (in config services tree)
  * @param[in]  tag       Service/instance tag
+ * @param[in]  send_dupl Send first entry twice
  * @retval     0         OK
  * @retval    -1         Error
  */
@@ -350,7 +375,9 @@ service_loop_devices(clixon_handle h,
                      char         *targetdb,
                      cxobj        *xdevs,
                      cxobj        *xs,
-                     char         *tag)
+                     char         *tag,
+                     char         *tidstr,
+                     int           send_dupl)
 {
     int     retval = -1;
     cxobj  *xd;
@@ -359,7 +386,7 @@ service_loop_devices(clixon_handle h,
     xd = NULL;
     while ((xd = xml_child_each(xdevs, xd,  CX_ELMNT)) != NULL){
         devname = xml_find_body(xd, "name");
-        if (do_service(h, s, devname, xs, targetdb, tag) < 0)
+        if (do_service(h, s, devname, xs, targetdb, tag, tidstr, send_dupl) < 0)
             goto done;
     }
     retval = 0;
@@ -375,6 +402,7 @@ service_loop_devices(clixon_handle h,
  * @param[in]  targetdb  Datastore to edit
  * @param[in]  xdevs     Devices XML tree
  * @param[in]  xs        XML tree of one service instance (in config services tree)
+ * @param[in]  send_dupl Send first entry twice
  * @retval     0         OK
  * @retval    -1         Error
  */
@@ -384,7 +412,9 @@ service_action_one(clixon_handle h,
                    char         *pattern,
                    char         *targetdb,
                    cxobj        *xdevs,
-                   cxobj        *xs)
+                   cxobj        *xs,
+                   char         *tidstr,
+                   int           send_dupl)
 {
     int    retval = -1;
     cxobj *xi;
@@ -400,7 +430,7 @@ service_action_one(clixon_handle h,
     }
     /* XXX See also controller_actions_diff where tags are also created */
     cprintf(cb, "%s[%s='%s']", xml_name(xs), xml_name(xi), instance);
-    if (service_loop_devices(h, s, targetdb, xdevs, xs, cbuf_get(cb)) < 0)
+    if (service_loop_devices(h, s, targetdb, xdevs, xs, cbuf_get(cb), tidstr, send_dupl) < 0)
         goto done;
  ok:
     retval = 0;
@@ -419,6 +449,7 @@ service_action_one(clixon_handle h,
  * @param[in]  xservices Services XML tree
  * @param[in]  xdevs     Devices XML tree
  * @param[in]  xsi       XML tree of one service instance (in notification msg tree)
+ * @param[in]  send_dupl Send first entry twice
  * @retval     0         OK
  * @retval    -1         Error
  */
@@ -429,7 +460,9 @@ service_action_instance(clixon_handle h,
                         char         *targetdb,
                         cxobj        *xservices,
                         cxobj        *xdevs,
-                        cxobj        *xsi)
+                        cxobj        *xsi,
+                        char         *tidstr,
+                        int           send_dupl)
 {
     int     retval = -1;
     char   *tag;
@@ -443,7 +476,7 @@ service_action_instance(clixon_handle h,
      * See also controller_actions_diff()
      */
     if ((xs = xpath_first(xservices, NULL, "%s", tag)) != NULL){
-        if (service_loop_devices(h, s, targetdb, xdevs, xs, tag) < 0)
+        if (service_loop_devices(h, s, targetdb, xdevs, xs, tag, tidstr, send_dupl) < 0)
             goto done;
     }
  ok:
@@ -458,6 +491,7 @@ service_action_instance(clixon_handle h,
  * @param[in]  s            Socket
  * @param[in]  notification XML of notification
  * @param[in]  pattern      Glob of services/instance, typically '*'
+ * @param[in]  send_dupl    Send first entry twice
  * @param[in]  send_error   Send error instead of edit-config/done
  * @retval     0            OK
  * @retval    -1            Error
@@ -467,6 +501,7 @@ service_action_handler(clixon_handle      h,
                        int                s,
                        char              *notification,
                        char              *pattern,
+                       int                send_dupl,
                        int                send_error)
 {
     int     retval = -1;
@@ -500,7 +535,7 @@ service_action_handler(clixon_handle      h,
         goto done;
     }
     if (send_error){
-        if (send_transaction_error(h, tidstr) < 0)
+        if (send_transaction_error(h, tidstr, "simulated error") < 0)
             goto done;
         goto ok;
     }
@@ -512,7 +547,7 @@ service_action_handler(clixon_handle      h,
     if (xpath_first(xn, 0, "service") == 0){ /* All services: loop through service definitions */
         xs = NULL;
         while ((xs = xml_child_each(xservices, xs,  CX_ELMNT)) != NULL){
-            if (service_action_one(h, s, pattern, targetdb, xdevs, xs) < 0)
+            if (service_action_one(h, s, pattern, targetdb, xdevs, xs, tidstr, send_dupl) < 0)
                 goto done;
         }
     }
@@ -521,7 +556,7 @@ service_action_handler(clixon_handle      h,
         while ((xsi = xml_child_each(xn, xsi,  CX_ELMNT)) != NULL){
             if (strcmp(xml_name(xsi), "service") != 0)
                 continue;
-            if (service_action_instance(h, s, pattern, targetdb, xservices, xdevs, xsi) < 0)
+            if (service_action_instance(h, s, pattern, targetdb, xservices, xdevs, xsi, tidstr, send_dupl) < 0)
                 goto done;
         }
     }
@@ -582,7 +617,8 @@ usage(clixon_handle h,
             "\t-f <file> \tConfig-file (mandatory)\n"
             "\t-l <s|e|o|n|f<file>> \tLog on (s)yslog, std(e)rr, std(o)ut, (n)one or (f)ile (syslog is default)\n"
             "\t-s <pattern> \tGlob pattern of services served, (default *)\n"
-            "\t-e  \tSend an error instead of done\n"
+            "\t-d  \tSend first entry as a duplicate (trigger error)\n"
+            "\t-e  \tSend a transaction-error instead of transaction-done(trigger error)\n"
             "\t-1\t\tRun once and then quit (dont wait for events)\n",
             argv0
             );
@@ -598,10 +634,10 @@ main(int    argc,
     int                  dbg = 0;
     int                  logdst = CLIXON_LOG_SYSLOG|CLIXON_LOG_STDERR;
     clixon_handle        h = NULL; /* clixon handle */
-    clixon_client_handle ch = NULL; /* clixon client handle */
     int                  s = -1;
     int                  eof = 0;
     char                *service_pattern = "*";
+    int                  send_dupl = 0;
     int                  send_error = 0;
     int                  once = 0;
     cbuf                *cb = NULL;
@@ -641,6 +677,9 @@ main(int    argc,
                 usage(h, argv[0]);
             service_pattern = optarg;
             break;
+        case 'd': /* duplicate */
+            send_dupl++;
+            break;
         case 'e': /* error */
             send_error++;
             break;
@@ -676,8 +715,9 @@ main(int    argc,
         while (clixon_msg_rcv11(s, NULL, 0, &cb, &eof) == 0){
             if (eof)
                 break;
-            if (service_action_handler(h, s, cbuf_get(cb), service_pattern, send_error) < 0)
+            if (service_action_handler(h, s, cbuf_get(cb), service_pattern, send_dupl, send_error) < 0)
                 goto done;
+            send_dupl = 0; /* just once */
             if (cb){
                 cbuf_free(cb);
                 cb = NULL;
@@ -687,8 +727,6 @@ main(int    argc,
   done:
     if (cb)
         cbuf_free(cb);
-    if (ch)
-        clixon_client_disconnect(ch);
     if (h)
         service_action_terminate(h); /* Cannot use h after this */
     printf("done\n"); /* for test output */
