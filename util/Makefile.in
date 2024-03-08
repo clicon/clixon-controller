@@ -41,7 +41,7 @@ LIBS    	= @LIBS@
 LDFLAGS 	= @LDFLAGS@
 CPPFLAGS  	= @CPPFLAGS@
 LINKAGE         = @LINKAGE@
-INCLUDES        = -I. @INCLUDES@
+INCLUDES        = -I. -I@top_srcdir@/src @INCLUDES@
 INSTALLFLAGS    = @INSTALLFLAGS@
 
 # Utilities, unit testings.

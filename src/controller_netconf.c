@@ -137,7 +137,7 @@ clixon_client_connect_ssh(clixon_handle h,
     char       *ssh_bin = SSH_BIN;
     struct stat st = {0,};
 
-    clixon_debug(1, "%s %s", __FUNCTION__, dest);
+    clixon_debug(CLIXON_DBG_MSG|CLIXON_DBG_DETAIL, "%s %s", __FUNCTION__, dest);
     nr = 12;  /* NOTE this is hardcoded */
     if ((argv = calloc(nr, sizeof(char *))) == NULL){
         clixon_err(OE_UNIX, errno, "calloc");
@@ -168,7 +168,7 @@ clixon_client_connect_ssh(clixon_handle h,
         goto done;
     }
     for (i=0;i<nr;i++)
-        clixon_debug(1, "%s: argv[%d]:%s", __FUNCTION__, i, argv[i]);
+        clixon_debug(CLIXON_DBG_MSG|CLIXON_DBG_DETAIL, "%s: argv[%d]:%s", __FUNCTION__, i, argv[i]);
     if (clixon_proc_socket(h, argv, SOCK_STREAM, pid, sock, sockerr) < 0){
         goto done;
     }

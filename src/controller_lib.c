@@ -229,7 +229,7 @@ schema_check_location_netconf(cxobj *xd)
     int      retval = 0;
     cxobj   *x;
 
-    clixon_debug(CLIXON_DBG_DETAIL, "%s", __FUNCTION__);
+    clixon_debug(CLIXON_DBG_CTRL | CLIXON_DBG_DETAIL, "%s", __FUNCTION__);
     x = NULL;
     while ((x = xml_child_each(xd, x, CX_ELMNT)) != NULL) {
         if (strcmp("location", xml_name(x)) != 0)
@@ -332,7 +332,7 @@ xdev2yang_library(cxobj  *xmodset,
         if (strcmp(xml_name(x), "module") != 0)
             continue;
         if ((name = xml_find_body(x, "name")) == NULL){
-            clixon_debug(CLIXON_DBG_DEFAULT, "%s: no name in module", __FUNCTION__);
+            clixon_debug(CLIXON_DBG_CTRL, "%s: no name in module", __FUNCTION__);
             continue;
         }
         revision = xml_find_body(x, "revision");

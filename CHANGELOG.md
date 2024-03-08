@@ -28,6 +28,8 @@ Expected: February 2024
 
 ### API changes on existing protocol/config features
 
+* Debug level `-D 1` changed to `-D app`.
+  * -D msg (-D 2) still applies for message debugging
 * CLI apply service syntax changed:
   * From: `apply services <path>` to: `apply services <service> <instance>`
   * Example: `apply services testA[name='foo']` to: `apply services testA foo`

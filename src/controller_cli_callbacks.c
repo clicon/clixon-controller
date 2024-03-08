@@ -153,7 +153,7 @@ rpc_get_yanglib_mount_match(clixon_handle h,
     cxobj *xret = NULL;
     cxobj *xerr;
 
-    clixon_debug(1, "%s", __FUNCTION__);
+    clixon_debug(CLIXON_DBG_CTRL, "%s", __FUNCTION__);
     if ((cb = cbuf_new()) == NULL){
         clixon_err(OE_PLUGIN, errno, "cbuf_new");
         goto done;
@@ -408,7 +408,7 @@ transaction_notification_handler(clixon_handle       h,
     void              *wh = NULL;
     cbuf              *cb = NULL;
 
-    clixon_debug(CLIXON_DBG_DEFAULT, "%s tid:%s", __FUNCTION__, tidstr0);
+    clixon_debug(CLIXON_DBG_CTRL, "%s tid:%s", __FUNCTION__, tidstr0);
     /* Need to set "intr" to enable ^C */
     if (clixon_resource_check(h, &wh, tidstr0, __FUNCTION__) < 0)
         goto done;
@@ -425,7 +425,7 @@ transaction_notification_handler(clixon_handle       h,
     }
     if (clixon_xml_parse_string(cbuf_get(cb), YB_NONE, NULL, &xt, NULL) < 0)
         goto done;
-    clixon_debug_xml(1, xt, "Transaction");
+    clixon_debug_xml(CLIXON_DBG_CTRL, xt, "Transaction");
     if ((xn = xpath_first(xt, 0, "notification/controller-transaction")) == NULL){
         clixon_err(OE_NETCONF, EFAULT, "Notification malformed");
         goto done;
@@ -451,7 +451,7 @@ transaction_notification_handler(clixon_handle       h,
  ok:
     retval = 0;
  done:
-    clixon_debug(CLIXON_DBG_DEFAULT, "%s %d", __FUNCTION__, retval);
+    clixon_debug(CLIXON_DBG_CTRL, "%s %d", __FUNCTION__, retval);
     if (cb)
         cbuf_free(cb);
     if (xt)
@@ -537,7 +537,7 @@ transaction_notification_poll(clixon_handle       h,
     int                s;
     int                match = 0;
 
-    clixon_debug(CLIXON_DBG_DEFAULT, "%s tid:%s", __FUNCTION__, tidstr);
+    clixon_debug(CLIXON_DBG_CTRL, "%s tid:%s", __FUNCTION__, tidstr);
     if ((s = clicon_data_int_get(h, "controller-transaction-notify-socket")) < 0){
         clixon_err(OE_EVENTS, 0, "controller-transaction-notify-socket is closed");
         goto done;
@@ -568,7 +568,7 @@ transaction_notification_poll(clixon_handle       h,
     }
     retval = 0;
  done:
-    clixon_debug(CLIXON_DBG_DEFAULT, "%s %d", __FUNCTION__, retval);
+    clixon_debug(CLIXON_DBG_CTRL, "%s %d", __FUNCTION__, retval);
     return retval;
 }
 

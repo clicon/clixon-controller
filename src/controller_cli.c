@@ -75,7 +75,7 @@ controller_cli_start(clixon_handle h)
         goto done;
     if (clicon_data_int_set(h, "controller-transaction-notify-socket", s) < 0)
         goto done;
-    clixon_debug(CLIXON_DBG_DEFAULT, "%s notification socket:%d", __FUNCTION__, s);
+    clixon_debug(CLIXON_DBG_CTRL, "%s notification socket:%d", __FUNCTION__, s);
     if (gentree_expand_all == 1)
         if (controller_cligen_gentree_all(cli_cligen(h)) < 0)
             goto done;
@@ -177,7 +177,7 @@ device_shared_yspec_xml(clixon_handle h,
         if (controller_mount_yspec_get(h, devname, &yspec) < 0)
             goto done;
         if (yspec != NULL){
-            clixon_debug(CLIXON_DBG_DEFAULT, "%s shared\n", __FUNCTION__);
+            clixon_debug(CLIXON_DBG_CTRL, "%s shared\n", __FUNCTION__);
             yang_ref_inc(yspec); /* share */
             break;
         }
@@ -229,7 +229,7 @@ create_autocli_mount_tree(clixon_handle h,
     char      *devname;
     int        ret;
 
-    clixon_debug(CLIXON_DBG_DEFAULT, "%s", __FUNCTION__);
+    clixon_debug(CLIXON_DBG_CTRL, "%s", __FUNCTION__);
     devname = xml_find_body(xdev, "name");
     if (controller_mount_yspec_get(h, devname, &yspec1) < 0)
         goto done;
@@ -435,7 +435,7 @@ controller_cligen_treeref_wrap(cligen_handle ch,
      * If it does not exist, call a yang2cli_yspec from that
      * create_autocli_mount_tree() should probably be rewritten
      */
-    clixon_debug(1, "");
+    clixon_debug(CLIXON_DBG_CTRL, "");
     if (rpc_get_yanglib_mount_match(h, "*", 0, 0, &xdevs0) < 0)
         goto done;
     if ((cb = cbuf_new()) == NULL){

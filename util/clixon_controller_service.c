@@ -34,6 +34,8 @@
 #include <cligen/cligen.h>
 #include <clixon/clixon.h>
 
+#include "controller.h"
+
 #define CONTROLLER_NAMESPACE "http://clicon.org/controller"
 
 /* Command line options to be passed to getopt(3) */
@@ -515,7 +517,7 @@ service_action_handler(clixon_handle      h,
     char   *sourcedb = NULL;
     char   *targetdb = NULL;
 
-    clixon_debug(1, "%s", __FUNCTION__);
+    clixon_debug(CLIXON_DBG_CTRL, "%s", __FUNCTION__);
     if (clixon_xml_parse_string(notification, YB_NONE, NULL, &xt, NULL) < 0)
         goto done;
     if ((xn = xpath_first(xt, 0, "notification/services-commit")) == NULL){
@@ -583,7 +585,7 @@ static int
 service_action_terminate(clixon_handle h)
 {
     clixon_event_exit();
-    clixon_debug(1, "%s done", __FUNCTION__);
+    clixon_debug(CLIXON_DBG_CTRL, "%s done", __FUNCTION__);
     clixon_err_exit();
     clixon_log_exit();
     clixon_handle_exit(h);
@@ -709,7 +711,7 @@ main(int    argc,
         clixon_log(h, LOG_NOTICE, "services-commit: subscription failed: %s", clixon_err_reason());
         goto done;
     }
-    clixon_debug(CLIXON_DBG_DEFAULT, "%s notification socket:%d", __FUNCTION__, s);
+    clixon_debug(CLIXON_DBG_CTRL, "%s notification socket:%d", __FUNCTION__, s);
 
     if (!once)
         while (clixon_msg_rcv11(s, NULL, 0, &cb, &eof) == 0){

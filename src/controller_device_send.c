@@ -188,7 +188,7 @@ device_get_schema_sendit(clixon_handle h,
         goto done;
     if (clixon_msg_send10(s, device_handle_name_get(dh), cb) < 0)
         goto done;
-    clixon_debug(1, "%s %s: sent get-schema(%s@%s) seq:%" PRIu64, __FUNCTION__, name, identifier, version, seq);
+    clixon_debug(CLIXON_DBG_CTRL, "%s %s: sent get-schema(%s@%s) seq:%" PRIu64, __FUNCTION__, name, identifier, version, seq);
     retval = 0;
  done:
     if (cb)
@@ -224,7 +224,7 @@ device_send_get_schema_next(clixon_handle h,
     cvec     *nsc = NULL;
     int        i;
 
-    clixon_debug(CLIXON_DBG_DETAIL, "%s %d", __FUNCTION__, *nr);
+    clixon_debug(CLIXON_DBG_CTRL|CLIXON_DBG_DETAIL, "%s %d", __FUNCTION__, *nr);
     if (controller_mount_yspec_get(h, device_handle_name_get(dh), &yspec) < 0)
         goto done;
     if (yspec == NULL){
@@ -289,7 +289,7 @@ device_send_get_schema_list(clixon_handle h,
     cbuf *cb = NULL;
     int   encap;
 
-    clixon_debug(1, "%s", __FUNCTION__);
+    clixon_debug(CLIXON_DBG_CTRL, "%s", __FUNCTION__);
     if ((cb = cbuf_new()) == NULL){
         clixon_err(OE_PLUGIN, errno, "cbuf_new");
         goto done;
@@ -456,7 +456,7 @@ device_create_edit_config_diff(clixon_handle h,
     cxobj  *xn;
     cxobj  *xa;
 
-    clixon_debug(1, "%s", __FUNCTION__);
+    clixon_debug(CLIXON_DBG_CTRL, "%s", __FUNCTION__);
     /* 1. Add netconf operation attributes to add/del/change nodes in x0 and x1 and mark */
     for (i=0; i<dlen; i++){
         xn = dvec[i];
@@ -545,7 +545,7 @@ device_send_rpc(clixon_handle h,
     int   encap;
     int   s;
 
-    clixon_debug(1, "%s %s", __FUNCTION__, msgbody);
+    clixon_debug(CLIXON_DBG_CTRL, "%s %s", __FUNCTION__, msgbody);
     s = device_handle_socket_get(dh);
     if ((cb = cbuf_new()) == NULL){
         clixon_err(OE_PLUGIN, errno, "cbuf_new");
