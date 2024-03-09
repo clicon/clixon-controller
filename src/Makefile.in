@@ -104,6 +104,7 @@ CLISPECS += $(APPNAME)_template_vars.cli
 
 clean:
 	rm -f $(PLUGINS) $(OBJS) $(GENOBJS) $(GENSRC)
+	rm -f *.gcda *.gcno *.gcov # coverage
 
 distclean: clean
 	rm -f Makefile *~ .depend $(DESTDIR)$(libdir)/$(APPNAME)/backend/$(BE_PLUGIN) $(DESTDIR)$(libdir)/$(APPNAME)/cli/$(CLI_PLUGIN) $(DESTDIR)$(sysconfdir)/$(APPNAME).xml $(DESTDIR)$(libdir)/$(APPNAME)/clispec/* $(DESTDIR)$(datarootdir)/clixon/controller/mounts # See YANG_SCHEMA_MOUNT_DIR

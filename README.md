@@ -2,7 +2,11 @@
   <img src="https://www.clicon.org/Clixon_logga_liggande_med-ikon.png" width="400">
 </div>
 
-[![Build Status](https://github.com/clicon/clixon-controller/actions/workflows/test.yml/badge.svg)](https://github.com/clicon/clixon-controller/actions/workflows/test.yml)
+[![Build Status](https://github.com/clicon/clixon-controller/actions/workflows/test.yml/badge.svg)](https://github.com/clicon/clixon-controller/actions/workflows/test.yml) [![codecov](https://codecov.io/gh/clicon/clixon-controller/graph/badge.svg?token=4WUSKL7IQC)](https://codecov.io/gh/clicon/clixon-controller)
+<a href="https://scan.coverity.com/projects/clicon-clixon-controller">
+  <img alt="Coverity Scan Build Status"
+       src="https://scan.coverity.com/projects/29844/badge.svg"/>
+</a>
 
 # Clixon Controller
 Clixon network controller is an open-source manager of network devices based on NETCONF and YANG.
