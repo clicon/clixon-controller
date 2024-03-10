@@ -57,6 +57,7 @@ all:	$(APPS)
 
 clean:
 	rm -f $(APPS)
+	rm -f *.gcda *.gcno *.gcov # coverage
 
 distclean: clean
 	rm -f Makefile *~ .depend

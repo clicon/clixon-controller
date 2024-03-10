@@ -2631,7 +2631,6 @@ controller_edit_config(clixon_handle h,
     yang_stmt           *yspec;
     cxobj               *xconfig = NULL;
     cxobj               *xserv;
-    cxobj               *xret = NULL;
     int                  ret;
 
     clixon_debug(CLIXON_DBG_CTRL, "controller edit-config wrapper");
@@ -2680,8 +2679,6 @@ controller_edit_config(clixon_handle h,
  ok:
     retval = 0;
  done:
-    if (xret)
-        xml_free(xret);
     if (xconfig)
         xml_free(xconfig);
     return retval;

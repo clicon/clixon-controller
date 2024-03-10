@@ -2098,11 +2098,13 @@ cli_auto_del_devs(clixon_handle h,
     return retval;
 }
 
-/*! Merge datastore xml entry, specialization for controller devices
+/*! Load configuration from file
  *
- * @param[in]  h    Clixon handle
- * @param[in]  cvv0 Vector of cli string and instantiated variables
- * @param[in]  argv Vector. First element xml key format string, eg "/aaa/%s"
+ * @param[in]  h     Clixon handle
+ * @param[in]  cvv0  Vector of cli string and instantiated variables
+ * @param[in]  argv  Vector. First element xml key format string, eg "/aaa/%s"
+ * @retval     0     OK
+ * @retval    -1     Error
  * @see cli_auto_merge  original callback
  */
 int
@@ -2117,7 +2119,6 @@ cli_auto_load_devs(clixon_handle h,
     cvec               *cvv = NULL;
     char               *filename = NULL;
     FILE               *fp = NULL;
-    struct stat         st;
     cxobj              *xt = NULL;
     cxobj              *xerr = NULL;
     cbuf               *cb = NULL;
@@ -2135,10 +2136,6 @@ cli_auto_load_devs(clixon_handle h,
     }
     if ((cv = cvec_find(cvv, "filename")) != NULL){
         filename = cv_string_get(cv);
-        if (stat(filename, &st) < 0){
-            clixon_err(OE_UNIX, errno, "load_config: stat(%s)", filename);
-            goto done;
-        }
         /* Open and parse local file into xml */
         if ((fp = fopen(filename, "r")) == NULL){
             clixon_err(OE_UNIX, errno, "fopen(%s)", filename);

@@ -81,8 +81,9 @@ configure:	configure.ac
 	cd $(srcdir) && autoconf
 
 clean:
-	for i in $(SUBDIRS) doc; \
+	for i in $(SUBDIRS) doc docker; \
 	do (cd $$i && $(MAKE) $(MFLAGS) $@); done; 
+	rm -f *.gcov *.gcno # coverage
 
 distclean:
 	rm -f Makefile TAGS config.status config.log *~
