@@ -87,7 +87,7 @@ PLUGINS = $(BE_PLUGIN) $(CLI_PLUGIN)
 
 .PHONY: all clean depend install
 
-all: $(PLUGINS) docker
+all: $(PLUGINS)
 
 DATELEN = $(shell date +"%Y.%m.%d %H:%M by `whoami` on `hostname`XXXX"|wc -c)
 build.c:
