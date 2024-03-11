@@ -89,7 +89,12 @@ cli_apipath(clixon_handle h,
 
 /*!
  *
- * @param[in]  h    Clixon handle
+ * @param[in]  h            Clixon handle
+ * @param[in]  cvv          Vector of cli string and instantiated variable
+ * @param[in]  mtpoint      Moint-point
+ * @param[in]  api_path_fmt APi-path meta-format
+ * @param[out] xpath        XPath (use free() to deallocate)
+ * @param[out] nsc          Namespace context of xpath (free w cvec_free)
  * @retval     0    OK
  * @retval    -1    Error
  */
@@ -274,7 +279,6 @@ cli_show_auto_devs(clixon_handle h,
         cv = cvec_i(argv, i);
         if ((str = cv_string_get(cv)) == NULL)
             continue;
-
         if (str && strncmp(str, "mtpoint:", strlen("mtpoint:")) == 0){
             mtpoint = str + strlen("mtpoint:");
             devices = strstr(mtpoint, "/ctrl:devices") != NULL;
@@ -352,7 +356,7 @@ cli_show_auto_devs(clixon_handle h,
                     xpath = NULL;
                 }
                 if (nsc){
-                    free(nsc);
+                    cvec_free(nsc);
                     nsc = NULL;
                 }
             }
@@ -373,7 +377,7 @@ cli_show_auto_devs(clixon_handle h,
     if (xdevs)
         xml_free(xdevs);
     if (nsc)
-        xml_nsctx_free(nsc);
+        cvec_free(nsc);
     if (xpath)
         free(xpath);
     return retval;
@@ -2014,6 +2018,8 @@ cli_dbxml_devs(clixon_handle       h,
     }
     retval = 0;
  done:
+    if (xdevs)
+        xml_free(xdevs);
     if (api_path_fmt_cb)
         cbuf_free(api_path_fmt_cb);
     if (api_path)

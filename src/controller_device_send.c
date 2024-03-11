@@ -342,71 +342,6 @@ remove_subtree(cxobj *xn)
     return retval;
 }
 
-/*! Create edit-config helper function
- *
- * @param[in]  h       Clixon handle.
- * @param[in]  dh      Clixon client handle.
- * @param[in]  xc      XML tree
- * @param[in]  rpc     RPC edit-config string
- * @param[out] cbret   Buffer containing edit-config
- * @retval     0       OK
- * @retval    -1       Error
- */
-static int
-create_edit_config(clixon_handle h,
-                   device_handle dh,
-                   cxobj        *xc,
-                   char         *rpc,
-                   cbuf        **cbret)
-{
-    int     retval = -1;
-    int     ret;
-    cxobj  *xt = NULL;
-    cvec   *nsc = NULL;
-    cxobj **xvec = NULL;
-    size_t  xveclen;
-    cbuf   *cb = NULL;
-    int     encap;
-
-    if (cbret == NULL) {
-        clixon_err(OE_UNIX, EINVAL, "cbret is NULL");
-        goto done;
-    }
-    encap = device_handle_framing_type_get(dh);
-    if ((ret = clixon_xml_parse_string(rpc, YB_NONE, NULL, &xt, NULL)) < 0)
-        goto done;
-    if (xpath_vec(xt, nsc, "rpc/edit-config", &xvec, &xveclen) < 0)
-        goto done;
-    if (xveclen != 1){
-        clixon_err(OE_XML, 0, "Unexpected len %lu should be 1", xveclen);
-        goto done;
-    }
-    if (xml_addsub(xvec[0], xc) < 0)
-        goto done;
-    if ((cb = cbuf_new()) == NULL){
-        clixon_err(OE_PLUGIN, errno, "cbuf_new");
-        goto done;
-    }
-    if (clixon_xml2cbuf(cb, xt, 0, 0, NULL, -1, 1) < 0){
-        xml_rm(xc);
-        goto done;
-    }
-    xml_rm(xc);
-    if (netconf_output_encap(encap, cb) < 0)
-        goto done;
-    *cbret = cb;
-    cb = NULL;
-    retval = 0;
- done:
-    if (cb)
-        cbuf_free(cb);
-    if (xt)
-        xml_free(xt);
-    if (xvec)
-        free(xvec);
-    return retval;
-}
-
 /*! Create edit-config to a device given a diff between two XML trees x0 and x1
  *
  * 1. Add netconf operation attributes to add/del/change nodes in x0 and x1 and mark
@@ -455,6 +390,7 @@ device_create_edit_config_diff(clixon_handle h,
     int     i;
     cxobj  *xn;
     cxobj  *xa;
+    int     encap;
 
     clixon_debug(CLIXON_DBG_CTRL, "%s", __FUNCTION__);
     /* 1. Add netconf operation attributes to add/del/change nodes in x0 and x1 and mark */
@@ -497,28 +433,56 @@ device_create_edit_config_diff(clixon_handle h,
     if (xml_tree_prune_flagged_sub(x1, XML_FLAG_MARK, 1, NULL) < 0)
         goto done;
     // XXX validate
-    /* 4. Create an edit-config message and parse it */
-    if ((cb = cbuf_new()) == NULL){
-        clixon_err(OE_PLUGIN, errno, "cbuf_new");
-        goto done;
+    /* 4. Create two edit-config messages and parse them */
+    encap = device_handle_framing_type_get(dh);
+    if (dlen) {
+        if ((cb = cbuf_new()) == NULL){
+            clixon_err(OE_PLUGIN, errno, "cbuf_new");
+            goto done;
+        }
+        cprintf(cb, "<rpc xmlns=\"%s\" xmlns:nc=\"%s\" message-id=\"%" PRIu64 "\">",
+                NETCONF_BASE_NAMESPACE,
+                NETCONF_BASE_NAMESPACE,
+                device_handle_msg_id_getinc(dh)
+                );
+        cprintf(cb, "<edit-config>");
+        cprintf(cb, "<target><candidate/></target>");
+        cprintf(cb, "<default-operation>none</default-operation>");
+        cprintf(cb, "<config>");
+        if (clixon_xml2cbuf(cb, x0, 0, 0, NULL, -1, 1) < 0)
+            goto done;
+        cprintf(cb, "</config>");
+        cprintf(cb, "</edit-config>");
+        cprintf(cb, "</rpc>");
+        if (netconf_output_encap(encap, cb) < 0)
+            goto done;
+        *cbret1 = cb;
+        cb = NULL;
     }
-    if (xml_name_set(x0, "config") < 0)
-        goto done;
-    if (xml_name_set(x1, "config") < 0)
-        goto done;
-    cprintf(cb, "<rpc xmlns=\"%s\" xmlns:nc=\"%s\" message-id=\"%" PRIu64 "\">",
-            NETCONF_BASE_NAMESPACE,
-            NETCONF_BASE_NAMESPACE,
-            device_handle_msg_id_getinc(dh));
-    cprintf(cb, "<edit-config>");
-    cprintf(cb, "<target><candidate/></target>");
-    cprintf(cb, "<default-operation>none</default-operation>");
-    cprintf(cb, "</edit-config>");
-    cprintf(cb, "</rpc>");
-    if (dlen && create_edit_config(h, dh, x0, cbuf_get(cb), cbret1) < 0)
-        goto done;
-    if ((alen || chlen) && create_edit_config(h, dh, x1, cbuf_get(cb), cbret2) < 0)
-        goto done;
+    if (alen || chlen) {
+        if ((cb = cbuf_new()) == NULL){
+            clixon_err(OE_PLUGIN, errno, "cbuf_new");
+            goto done;
+        }
+        cprintf(cb, "<rpc xmlns=\"%s\" xmlns:nc=\"%s\" message-id=\"%" PRIu64 "\">",
+                NETCONF_BASE_NAMESPACE,
+                NETCONF_BASE_NAMESPACE,
+                device_handle_msg_id_getinc(dh)
+                );
+        cprintf(cb, "<edit-config>");
+        cprintf(cb, "<target><candidate/></target>");
+        cprintf(cb, "<default-operation>none</default-operation>");
+        cprintf(cb, "<config>");
+        if (clixon_xml2cbuf(cb, x1, 0, 0, NULL, -1, 1) < 0)
+            goto done;
+        cprintf(cb, "</config>");
+        cprintf(cb, "</edit-config>");
+        cprintf(cb, "</rpc>");
+        if (netconf_output_encap(encap, cb) < 0)
+            goto done;
+        *cbret2 = cb;
+        cb = NULL;
+    }
     retval = 0;
  done:
     if (cb)

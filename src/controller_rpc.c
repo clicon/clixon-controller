@@ -333,7 +333,6 @@ push_device_one(clixon_handle           h,
         device_handle_tid_set(dh, ct->ct_id);
         if (device_state_set(dh, CS_PUSH_LOCK) < 0)
             goto done;
-
     }
     else{
         device_handle_tid_set(dh, 0);
@@ -2679,6 +2678,8 @@ controller_edit_config(clixon_handle h,
  ok:
     retval = 0;
  done:
+    if (nsc)
+        cvec_free(nsc);
     if (xconfig)
         xml_free(xconfig);
     return retval;

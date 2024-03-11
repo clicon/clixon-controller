@@ -1356,7 +1356,6 @@ device_state_handler(clixon_handle h,
                 goto done;
             break;
         }
-        fprintf(stderr, "%s 2 %p\n", __FUNCTION__, cbmsg);
         if (clixon_msg_send10(s, device_handle_name_get(dh), cbmsg) < 0)
             goto done;
         if (device_state_set(dh, CS_PUSH_EDIT2) < 0)
