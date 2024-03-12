@@ -29,6 +29,8 @@ Additional features:
 * Loadable device profiles
 
 Demo:
+![Demo GIF](https://media.githubusercontent.com/media/clicon/clixon-controller/main/demo.gif)
+
 To launch a container with the controller and two fake routers based on OpenConfig:
 ```
 $ ./start-demo-containers.sh
