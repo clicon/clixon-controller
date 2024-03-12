@@ -24,6 +24,10 @@ sudo make install
 
 Clixon:
 ```console
+
+# Add a new clicon user
+sudo useradd -g clicon -m clicon
+
 cd clixon
 ./configure
 make
@@ -36,7 +40,6 @@ cd clixon-controller
 ./configure
 make
 sudo make install
-sudo mkdir /usr/local/share/clixon/mounts/
 ```
 
 Clixon Python API
@@ -44,46 +47,16 @@ Clixon Python API
 
 # Build and install the package
 cd clixon-pyapi
-sudo -u clicon pip3 install -r requirements.txt
-sudo python3 setup.py install
-
-# Install the server
-sudo cp clixon_server.py /usr/local/bin/
-
-# Add a new clicon user and install the needed Python packages,
-# the backend will start the Python server and drop the privileges
-# to this user.
-sudo useradd -g clicon -m clicon
+./install.sh
 ```
 
-### Start devices
-
-Example using clixon-example device::
+### Optional: SystemD service
 ```console
-cd test
-./start-devices.sh
-```
 
-### Start controller
+# Copy clixon_controller.service
+cp clixon_controller.service /etc/systemd/network/
 
-Kill old backend and start a new:
-```console
-sudo clixon_backend -f /usr/local/etc/clixon/controller.xml -z
-sudo clixon_backend -f /usr/local/etc/clixon/controller.xml
-```
-
-Start the CLI and configure devices
-
-```console
-clixon_cli -f /usr/local/etc/clixon/controller.xml
-
-configure
-set devices device clixon-example1 description "Clixon container"
-set devices device clixon-example1 conn-type NETCONF_SSH
-set devices device clixon-example1 addr 172.20.20.2
-set devices device clixon-example1 user root
-set devices device clixon-example1 enable true
-set devices device clixon-example1 yang-config VALIDATE
-set devices device clixon-example1 root
-commit
-```
+# Enable and start the service
+systemctl daemon-reload
+systemctl enable clixon_controller
+systemctl start clixon_controller
