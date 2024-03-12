@@ -1,13 +1,15 @@
 # Clixon Controller Changelog
 
-## 0.3.0
-Expected: February 2024
+## 1.0.0
+12 March 2024
+
+Clixon controller 1.0 is the first major release.
 
 ### New features
 
 * Added badges for readthedocs, codecov and coverity
 * New: [show version(s)](https://github.com/clicon/clixon-controller/issues/105)
-* New: Added template (formal) variables which includes cli autocompletion and sanity checks
+* New: Added template (formal) variables which includes CLI autocompletion and sanity checks
   * See [CLI should allow autocomplete of template variables](https://github.com/clicon/clixon-controller/issues/100)
 * New: [SSH StrictHostKeyChecking optional](https://github.com/clicon/clixon-controller/issues/96)
 * New: [Exclusive candidate configuration](https://github.com/clicon/clixon-controller/issues/37)
@@ -53,7 +55,7 @@ Expected: February 2024
 * Fixed: [services reapply does not allow specific service instance](https://github.com/clicon/clixon-controller/issues/80)
 * Fixed: [Device pull from configure only sync running](https://github.com/clicon/clixon-controller/issues/91)
 * Fixed: [Notification is not sent when a service parameter is changed](https://github.com/clicon/clixon-controller/issues/89)
-* Fixed: [Commit/connect transaction may lock datastore with no info or method to break it]([Commit/connect transaction may lock datastore with no info or method to break)
+* Fixed: [Commit/connect transaction may lock datastore with no info or method to break it](https://github.com/clicon/clixon-controller/issues/84)
 * Fixed: [pull config from device also does commit local config](https://github.com/clicon/clixon-controller/issues/82)
 * Fixed: [Commit don't push configuration if service is configured](https://github.com/clicon/clixon-controller/issues/78)
 * Fixed: ["commit diff" after applying a service always seems to show a diff](https://github.com/clicon/clixon-controller/issues/70)
