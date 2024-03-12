@@ -8,29 +8,27 @@
        src="https://scan.coverity.com/projects/29844/badge.svg"/>
 </a>
 
-# Clixon Controller
-Clixon network controller is an open-source manager of network devices based on NETCONF and YANG.
+Clixon controller:
+The Clixon controller is an open-source manager of network devices based on NETCONF and YANG.
 
 See [Install](INSTALL.md), [User guide](https://clixon-controller-docs.readthedocs.io/en/latest/controller.html) and [FAQ](FAQ.md)
 
-The controller has a main branch continuously tested with CI.
-
 Clixon interaction is best done posting issues, pull requests, or joining the
-Matrix clixon forum https://matrix.to/#/#clixonforum:matrix.org.
+[Matrix clixon forum](https://matrix.to/#/#clixonforum:matrix.org).
 
 Other Clixon projects include [CLIgen](https://github.com/clicon/cligen), [Clixon](https://github.com/clicon/clixon), and others.
 
-# Features
+Python API:
+The Clixon controller uses a [Python API](https://github.com/clicon/clixon-pyapi) for services.
+
+Additional features:
 * Add, delete and validate device configuration
 * Multi vendor support, can use any device capable of using NETCONF and YANG.
-* Services which can be implemented using an Python API [Clixon PyAPI](https://github.com/clicon/clixon-pyapi)
-* Templates support,
-* Local configration database
+* Templates support
+* Local configuration datastore
 * Loadable device profiles
-* And much more...
 
-# Demo
-
+Demo:
 To launch a container with the controller and two fake routers based on OpenConfig:
 ```
 $ ./start-demo-containers.sh
@@ -38,5 +36,8 @@ $ docker exec -it demo-controller clixon_cli
 nobody@3e29b6e15c34>
 ```
 
-# License
-The clixon controller is open-source Apache License, Version 2.0, see [LICENSE](LICENSE).
+The Clixon controller is open-source Apache License, Version 2.0, see [LICENSE](LICENSE).
+
+The controller has a main branch continuously tested with CI.
+
+Clixon controller is sponsored by [SUNET](https://www.sunet.se)
