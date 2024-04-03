@@ -1,5 +1,8 @@
 # Clixon Controller Changelog
 
+## 1.1.0
+Expected: June 2024
+
 ## 1.0.0
 12 March 2024
 
