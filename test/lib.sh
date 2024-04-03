@@ -35,7 +35,7 @@ fi
 : ${USER:=noc}
 
 # Controller config file
-: ${CFG:=/usr/local/etc/clixon/controller.xml}
+: ${CFG:=${SYSCONFDIR}/clixon/controller.xml}
 
 : ${DBG:=0}
 
@@ -55,6 +55,12 @@ DEFAULTNS="$DEFAULTONLY message-id=\"42\""
 DEMSLEEP=1
 
 DEMLOOP=10
+
+# Temp directory where all tests write their data to
+dir=/var/tmp/$0
+if [ ! -d $dir ]; then
+    mkdir $dir
+fi
 
 : ${clixon_cli:=clixon_cli}
 
@@ -94,7 +100,6 @@ testname=
 function checkvalgrind(){
     echo "checkvalgrind $valgrindfile"
     if [ -f $valgrindfile ]; then
-        set +e
         res=$(cat $valgrindfile | grep -e "Invalid" | awk '{print  $4}' | grep -v '^0$')
         if [ -n "$res" ]; then
             >&2 cat $valgrindfile

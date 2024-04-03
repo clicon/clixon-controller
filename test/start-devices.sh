@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Start clixon example container devices and initiate with config x=11, y=22
 # Note: dont use with sudo, you need proper ~/ $HOME set for this script to work
-set -eu
+set -u
 
 if [ -f ./site.sh ]; then
     . ./site.sh

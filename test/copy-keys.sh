@@ -7,7 +7,7 @@
 #   HOSTHOMEDIR=~ ./copy-keys.sh # user
 # The latter is already done by start-devices.sh (if there is where you came from)
 
-set -eu
+set -u
 
 if [ -f ./site.sh ]; then
     . ./site.sh

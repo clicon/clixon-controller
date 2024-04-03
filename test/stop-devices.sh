@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Stop clixon example container devices
-set -eu
+set -u
 
 if [ -f ./site.sh ]; then
     . ./site.sh

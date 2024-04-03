@@ -14,11 +14,9 @@ if [[ ! -v CONTAINERS ]]; then
     err1 "CONTAINERS variable set" "not set"
 fi
 
-# Default container name, postfixed with 1,2,..,<nr>
-: ${IMG:=clixon-example}
-
 dir=/var/tmp/$0
-test -d $dir || mkdir -p $dir
+rm -rf $dir
+mkdir -p $dir
 CFG=$dir/controller.xml
 CFD=$dir/conf.d
 test -d $CFD || mkdir -p $CFD
@@ -106,28 +104,6 @@ module clixon-test {
 }
 EOF
 
-# Override in clixon due to root twice
-NGROUPS2=$(cat <<EOF
-     <groups>
-       <group>
-         <name>admin</name>
-         <user-name>root</user-name>
-         <user-name>admin</user-name>
-         <user-name>andy</user-name>
-       </group>
-       <group>
-         <name>limited</name>
-         <user-name>wilma</user-name>
-         <user-name>bam-bam</user-name>
-       </group>
-       <group>
-         <name>guest</name>
-         <user-name>guest</user-name>
-         <user-name>guest@example.com</user-name>
-       </group>
-     </groups>
-EOF
-)
 # The groups are slightly modified from RFC8341 A.1 ($USER added in admin group)
 RULES=$(cat <<EOF
    <nacm xmlns="urn:ietf:params:xml:ns:yang:ietf-netconf-acm">
@@ -136,7 +112,7 @@ RULES=$(cat <<EOF
      <write-default>deny</write-default>
      <exec-default>permit</exec-default>
 
-     $NGROUPS2
+     $NGROUPS
 
      $NADMIN
 
@@ -221,7 +197,6 @@ show("Show a particular state of the system"), @datamodelshow, cli_show_auto_mod
 
 }
 EOF
-
 
 # Reset devices with initial config
 . ./reset-devices.sh
