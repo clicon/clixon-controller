@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Test cli edits
-# ALso restart backend and rerun tests
+# Also restart backend and rerun tests
 
 # Magic line must be first in script (see README.md)
 s="$_" ; . ./lib.sh || if [ "$s" = $0 ]; then exit 0; else return 0; fi
@@ -156,13 +156,13 @@ fi
 if $BE; then
     new "Restart backend -s running -f $CFG"
     start_backend -s running -f $CFG
-fi  
+fi
 
 new "wait backend 2"
 wait_backend
     
 new "Check config after restart"
-expectpart "$($clixon_cli -1 -f $CFG show config)" 0 '<system xmlns="http://openconfig.net/yang/system">' "<hostname>openconfig1</hostname>"
+expectpart "$($clixon_cli -1 -f $CFG show config)" 0 "hostname openconfig1;"
 
 new "Connect to devices after restart"
 expectpart "$($clixon_cli -1 -f $CFG connection open)" 0 ""

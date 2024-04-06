@@ -31,6 +31,7 @@
   <CLICON_BACKEND_USER>@CLICON_USER@</CLICON_BACKEND_USER>
   <!-- pyapi produces some duplicates, when not, please remove me -->
   <CLICON_NETCONF_DUPLICATE_ALLOW>true</CLICON_NETCONF_DUPLICATE_ALLOW>
+  <CLICON_CLI_OUTPUT_FORMAT>text</CLICON_CLI_OUTPUT_FORMAT>
   <CONTROLLER_ACTION_COMMAND xmlns="http://clicon.org/controller-config">@BINDIR@/clixon_server.py -f @SYSCONFDIR@/clixon/controller.xml -F</CONTROLLER_ACTION_COMMAND>
   <CONTROLLER_PYAPI_MODULE_PATH xmlns="http://clicon.org/controller-config">@YANG_INSTALLDIR@/controller/modules</CONTROLLER_PYAPI_MODULE_PATH>
   <CONTROLLER_PYAPI_MODULE_FILTER xmlns="http://clicon.org/controller-config"></CONTROLLER_PYAPI_MODULE_FILTER>

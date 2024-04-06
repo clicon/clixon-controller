@@ -82,6 +82,7 @@ cat<<EOF > $CFG
   <CLICON_VALIDATE_STATE_XML>true</CLICON_VALIDATE_STATE_XML>
   <CLICON_CLI_HELPSTRING_TRUNCATE>true</CLICON_CLI_HELPSTRING_TRUNCATE>
   <CLICON_CLI_HELPSTRING_LINES>1</CLICON_CLI_HELPSTRING_LINES>
+  <CLICON_CLI_OUTPUT_FORMAT>text</CLICON_CLI_OUTPUT_FORMAT>
   <CLICON_YANG_SCHEMA_MOUNT>true</CLICON_YANG_SCHEMA_MOUNT>
 </clixon-config>
 EOF
@@ -836,7 +837,7 @@ new "commit base"
 expectpart "$(${clixon_cli} -m configure -1f $CFG commit 2>&1)" 0 "OK"
 
 new "Check Sy"
-expectpart "$(${clixon_cli} -1f $CFG show configuration devices device openconfig1 config interfaces interface Sy)" 0 "<name>Sy</name>"
+expectpart "$(${clixon_cli} -1f $CFG show configuration devices device openconfig1 config interfaces interface Sy)" 0 "interface Sy {"
 
 new "remove Sy"
 expectpart "$(${clixon_cli} -m configure -1f $CFG delete services testA foo params Sy)" 0 "^$"
@@ -845,7 +846,7 @@ new "commit remove"
 expectpart "$(${clixon_cli} -m configure -1f $CFG commit 2>&1)" 0 "OK"
 
 new "Check not Sy"
-expectpart "$(${clixon_cli} -1f $CFG show configuration devices device openconfig1 config interfaces interface Sy)" 0 --not-- "<name>Sy</name>"
+expectpart "$(${clixon_cli} -1f $CFG show configuration devices device openconfig1 config interfaces interface Sy)" 0 --not-- "interface Sy"
 
 if $BE; then
     new "Kill old backend"

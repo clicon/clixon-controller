@@ -299,7 +299,7 @@ cli_show_auto_devs(clixon_handle h,
     }
     dbname = cv_string_get(cvec_i(argv, argc++));
     if (cvec_len(argv) > argc)
-        if (cli_show_option_format(argv, argc++, &format) < 0)
+        if (cli_show_option_format(h, argv, argc++, &format) < 0)
             goto done;
     if (cvec_len(argv) > argc){
         if (cli_show_option_bool(argv, argc++, &pretty) < 0)
@@ -1549,6 +1549,14 @@ compare_device_config_type(clixon_handle      h,
         clixon_err(OE_PLUGIN, 0, "Not valid format: %s", formatstr);
         goto done;
     }
+    /* Special default format handling */
+    if (format == FORMAT_DEFAULT){
+        formatstr = clicon_option_str(h, "CLICON_CLI_OUTPUT_FORMAT");
+        if ((int)(format = format_str2int(formatstr)) < 0){
+            clixon_err(OE_PLUGIN, 0, "Not valid format: %s", formatstr);
+            goto done;
+        }
+    }
     if ((cv = cvec_find(cvv, "name")) != NULL)
         pattern = cv_string_get(cv);
     /* If remote, start with requesting it asynchrously */
@@ -1632,20 +1640,21 @@ compare_dbs_rpc(clixon_handle h,
                 cvec         *cvv,
                 cvec         *argv)
 {
-    int     retval = -1;
-    char   *db1;
-    char   *db2;
-    char   *formatstr;
-    cxobj  *xtop = NULL;
-    cxobj  *xret = NULL;
-    cxobj  *xrpc;
-    cxobj  *xreply;
-    cxobj  *xerr;
-    cxobj  *xdiff;
-    cbuf   *cb = NULL;
-    cxobj **vec = NULL;
-    size_t  veclen;
-    int     i;
+    int              retval = -1;
+    char            *db1;
+    char            *db2;
+    enum format_enum format;
+    char            *formatstr;
+    cxobj           *xtop = NULL;
+    cxobj           *xret = NULL;
+    cxobj           *xrpc;
+    cxobj           *xreply;
+    cxobj           *xerr;
+    cxobj           *xdiff;
+    cbuf            *cb = NULL;
+    cxobj          **vec = NULL;
+    size_t           veclen;
+    int              i;
 
     if (cvec_len(argv) != 3){
         clixon_err(OE_PLUGIN, EINVAL, "Expected arguments: <db1> <db2> <format>");
@@ -1654,9 +1663,17 @@ compare_dbs_rpc(clixon_handle h,
     db1 = cv_string_get(cvec_i(argv, 0));
     db2 = cv_string_get(cvec_i(argv, 1));
     formatstr = cv_string_get(cvec_i(argv, 2));
-    if (format_str2int(formatstr) < 0){
+    if ((format = format_str2int(formatstr)) < 0){
         clixon_err(OE_XML, 0, "format not found %s", formatstr);
         goto done;
+    }
+    /* Special default format handling */
+    if (format == FORMAT_DEFAULT){
+        formatstr = clicon_option_str(h, "CLICON_CLI_OUTPUT_FORMAT");
+        if ((int)(format = format_str2int(formatstr)) < 0){
+            clixon_err(OE_PLUGIN, 0, "Not valid format: %s", formatstr);
+            goto done;
+        }
     }
     if ((cb = cbuf_new()) == NULL){
         clixon_err(OE_PLUGIN, errno, "cbuf_new");

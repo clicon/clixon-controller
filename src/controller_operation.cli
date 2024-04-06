@@ -9,15 +9,16 @@ configure("Change to configure mode"), cli_set_mode("configure");
 exit("Quit"), cli_quit();
 quit("Quit"), cli_quit();
 
-debug("Debugging parts of the system"), cli_debug_cli((int32)1);{
+debug("Debugging parts of the system") {
     level("Set debug level: 1..n") <level:int32>("Set debug level (0..n)"), cli_debug_backend();
-}
-debug("Debugging parts of the system"){
     cli("Set cli debug")	 <level:int32>("Set debug level (0..n)"), cli_debug_cli();
     backend("Set backend debug") <level:int32>("Set debug level (0..n)"), cli_debug_backend();
     restconf("Set restconf debug") <level:int32>("Set debug level (0..n)"), cli_debug_restconf();
 }
 
+default("Set CLI default values") {
+   format("Set default output format") <fmt:string choice:xml|json|text|cli>("CLI output format"), cli_format_set();
+}
 shell("System command"), cli_start_shell("bash");{
   <source:rest>("Single shell command"), cli_start_shell("bash");
 }
@@ -28,25 +29,22 @@ processes("Process maintenace") services("Service daemon operation") {
     status, cli_process_control("Action process", "status");
 }
 show("Show a particular state of the system"){
-    compare("Compare candidate and running databases"), compare_dbs_rpc("running", "candidate", "text");{
+    compare("Compare candidate and running databases"), compare_dbs_rpc("running", "candidate", "default");{
        xml("Show comparison in xml"), compare_dbs_rpc("running", "candidate","xml");
        text("Show comparison in text"), compare_dbs_rpc("running", "candidate", "text");
     }
-    configuration("Show configuration"), cli_show_auto_mode("running", "xml", true, false);{
+    configuration("Show configuration"), cli_show_auto_mode("running", "default", true, false);{
        @|pipe_show, cli_show_auto_mode("running", "xml", true, false);
-       @datamodelshow, cli_show_auto_devs("running", "xml", true, false, "explicit", "set ", true);
+       @datamodelshow, cli_show_auto_devs("running", "default", true, false, "explicit", "set ", true);
     }
     devices("Show state of devices")[
                  (<name:string>("device pattern")|
                   <name:string expand_dbvar("running","/clixon-controller:devices/device/name")>("device pattern"))
                  ], cli_show_devices();{
-                 check("Check if device is in sync"), check_device_db("xml");
-                 diff("Compare remote device config with local"), compare_device_db_dev("xml");{
-                     	 xml("Show comparison as xml"), compare_device_db_dev("xml");
-		         text("Show comparison as text"), compare_device_db_dev("text");
-                 }
+                 check("Check if device is in sync"), check_device_db("default");
+                 diff("Compare remote device config with local"), compare_device_db_dev("default");
                  detail("Show detailed state"), cli_show_devices("detail");
-                 }
+             }
     options("Show clixon options"), cli_show_options();
     services("Show service process status"), cli_show_services_process();{
        detail("Show detailed process status"), cli_process_control("Action process", "status");
@@ -54,27 +52,27 @@ show("Show a particular state of the system"){
     sessions("Show client sessions"), cli_show_sessions();{
          detail("Show sessions detailed state"), cli_show_sessions("detail");
     }
-    state("Show configuration and state"), cli_show_auto_mode("running", "text", true, true); {
-    	    xml("Show configuration and state as XML"), cli_show_auto_mode("running", "xml", true, true);{
+    state("Show configuration and state"), cli_show_auto_mode("running", "default", true, true); {
+        xml("Show configuration and state as XML"), cli_show_auto_mode("running", "default", true, true);{
 	    default("With-default mode"){
-	     	  report-all, cli_show_auto_mode("running", "xml", true, true, "report-all");
-		  trim, cli_show_auto_mode("running", "xml", true, true, "trim");
-		  explicit, cli_show_auto_mode("running", "xml", true, true, "explicit");
-		  report-all-tagged, cli_show_auto_mode("running", "xml", true, true, "report-all-tagged");
-		  report-all-tagged-default, cli_show_auto_mode("running", "xml", true, true, "report-all-tagged-default");
-		  report-all-tagged-strip, cli_show_auto_mode("running", "xml", true, true, "report-all-tagged-strip");
+                  report-all, cli_show_auto_mode("running", "default", true, true, "report-all");
+		  trim, cli_show_auto_mode("running", "default", true, true, "trim");
+		  explicit, cli_show_auto_mode("running", "default", true, true, "explicit");
+		  report-all-tagged, cli_show_auto_mode("running", "default", true, true, "report-all-tagged");
+		  report-all-tagged-default, cli_show_auto_mode("running", "default", true, true, "report-all-tagged-default");
+		  report-all-tagged-strip, cli_show_auto_mode("running", "default", true, true, "report-all-tagged-strip");
 	    }
         }
     }
     statistics("Show statistics"), cli_show_statistics();{
-      brief, cli_show_statistics();
-      modules, cli_show_statistics("modules");
+       brief, cli_show_statistics();
+       modules, cli_show_statistics("modules");
     }
     transactions("Show state of last transaction"), cli_show_transactions("last");{
          last("Last most recent transactions"), cli_show_transactions("last");
          all("All transactions"), cli_show_transactions("all");
     }
-    version("Show version"), cli_controller_show_version("running", "text", "/");
+    version("Show version"), cli_controller_show_version();
     xpath("Show configuration") <xpath:string>("XPATH expression")
        [<ns:string>("Namespace")], show_conf_xpath("running");{
           @|pipe_show, show_conf_xpath("running");
@@ -106,7 +104,6 @@ push("Push config to one or multiple devices")[
                     validate("Push to devices and validate"), cli_rpc_controller_commit("running", "NONE", "VALIDATE");
                     commit("Push to devices and commit"), cli_rpc_controller_commit("running", "NONE", "COMMIT");
 }
-
 connection("Change connection state of one or several devices")  [<name:string>("device pattern")|
               <name:string expand_dbvar("running","/clixon-controller:devices/device/name")>("device pattern")]{
               close("Close open connections"), cli_connection_change("CLOSE");

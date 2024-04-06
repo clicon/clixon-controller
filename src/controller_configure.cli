@@ -27,30 +27,18 @@ validate("Validate changes"), cli_validate();{
     push("Run services and push to devices"), cli_rpc_controller_commit("candidate", "CHANGE", "VALIDATE");
     local("Local commit, trigger scripts but do not "), cli_validate();
 }
-
 startup("Store running as startup config"), db_copy("running", "startup");
-no("Negate or remove") debug("Debugging parts of the system"), cli_debug_cli((int32)0);
-debug("Debugging parts of the system"), cli_debug_cli((int32)1);{
-    level("Set debug level: 1..n") <level:int32>("Set debug level (0..n)"), cli_debug_backend();
-}
-debug("Debugging parts of the system"){
-    cli("Set cli debug")	 <level:int32>("Set debug level (0..n)"), cli_debug_cli();
-    backend("Set backend debug") <level:int32>("Set debug level (0..n)"), cli_debug_backend();
-    restconf("Set restconf debug") <level:int32>("Set debug level (0..n)"), cli_debug_restconf();
-}
-
 discard("Discard edits (rollback 0)"), discard_changes();
 rollback("Discard edits (rollback 0)"), discard_changes();
 
-show("Show a particular state of the system"), @datamodelshow, cli_show_auto_mode("candidate", "xml", true, false);{
-    @datamodelshow, cli_show_auto_devs("candidate", "xml", true, false, "explicit", "set ", true);
-    @|pipe_show, cli_show_auto_mode("candidate", "xml", true, false);
-    compare("Compare candidate and running databases"), compare_dbs_rpc("running", "candidate", "text");{
-          xml("Show comparison in xml"), compare_dbs_rpc("running", "candidate", "xml");
-	  text("Show comparison in text"), compare_dbs_rpc("running", "candidate", "text");
+show("Show a particular state of the system"), @datamodelshow, cli_show_auto_mode("candidate", "default", true, false);{
+    @datamodelshow, cli_show_auto_devs("candidate", "default", true, false, "explicit", "set ", true);
+    @|pipe_show, cli_show_auto_mode("candidate", "default", true, false);
+    compare("Compare candidate and running databases"), compare_dbs_rpc("running", "candidate", "default");{
+       xml("Show comparison in xml"), compare_dbs_rpc("running", "candidate","xml");
+       text("Show comparison in text"), compare_dbs_rpc("running", "candidate", "text");
     }
 }
-
 save("Save candidate configuration to XML file") <filename:string>("Filename (local filename)"), save_config_file("candidate","filename", "xml");{
     cli("Save configuration as CLI commands"), save_config_file("candidate","filename", "cli");
     xml("Save configuration as XML"), save_config_file("candidate","filename", "xml");
@@ -58,10 +46,8 @@ save("Save candidate configuration to XML file") <filename:string>("Filename (lo
     text("Save configuration as TEXT"), save_config_file("candidate","filename", "text");
     netconf("Save configuration as NETCONF"), save_config_file("candidate","filename", "netconf");
 }
-
 load("Load configuration from file to candidate") <operation:string choice:replace|merge|create>("Write operation on candidate") <format:string choice:xml|json>("File format") [filename <filename:string>("Filename (local filename)")], cli_auto_load_devs(); 
 # {    @datamodel, cli_auto_load_devs(); }
-
 apply("Apply template on devices") {
     template("Apply a template on devices")
              <templ:string expand_dbvar("running","/clixon-controller:devices/template/name")>("template to apply")
@@ -72,9 +58,8 @@ apply("Apply template on devices") {
      services("(Re)Apply services"), cli_rpc_controller_commit("candidate", "FORCE", "COMMIT"); {
           <service:string expand_yang_list("/ctrl:services", "true")>
           <instance:string expand_dbvar("running", "/clixon-controller:services/%s/%k")>,
-          cli_rpc_controller_commit("candidate", "FORCE", "COMMIT");
-          {
-          diff("Show the result of running the services but do not commit"), cli_rpc_controller_commit("candidate", "FORCE", "NONE");
+          cli_rpc_controller_commit("candidate", "FORCE", "COMMIT"); {
+              diff("Show the result of running the services but do not commit"), cli_rpc_controller_commit("candidate", "FORCE", "NONE");
           }
      }
 }

@@ -3,6 +3,11 @@
 ## 1.1.0
 Expected: June 2024
 
+### New features
+
+* CLI configurable format: [Default format should be configurable](https://github.com/clicon/clixon-controller/issues/87)
+  * Set text/curly as default
+
 ## 1.0.0
 12 March 2024
 
