@@ -987,24 +987,20 @@ controller_commit_actions(clixon_handle           h,
     return retval;
 }
 
-/*! Mark devices with transaction-id if name matches device pattern AND state is OPEN
+/*! Mark devices with transaction-id if name matches device pattern
  *
  * Read running config and compare configured devices with the selection pattern
- * and its state is open, then set the tid on that device
- * If state of a selected device is not open, then return first closed device
+ * then set the tid on that device
  * @param[in]  h       Clixon handle
  * @param[in]  device  Name of device to push to, can use wildchars for several, or NULL for all
  * @param[in]  tid     Transaction id
- * @param[out] closed  Device handle of first closed device, if any
  * @retval     0       OK, note if "closed" is set, then matching was interrupted
  * @retval    -1       Error
- * @note  cleanup (unmarking) must be done by calling function, even if closed is non-NULL
  */
 static int
 devices_match(clixon_handle   h,
               char           *device,
-              uint64_t        tid,
-              device_handle  *closed)
+              uint64_t        tid)
 {
     int           retval = -1;
     cxobj       **vec = NULL;
@@ -1035,10 +1031,6 @@ devices_match(clixon_handle   h,
             continue;
         if (strcmp(body, "true") != 0)
             continue;
-        if (device_handle_conn_state_get(dh) != CS_OPEN &&
-            *closed == NULL){
-            *closed = dh;
-        }
         /* Include device in transaction */
         device_handle_tid_set(dh, tid);
     } /* for */
@@ -1127,16 +1119,19 @@ devices_local_change(clixon_handle       h,
 
 /*! Diff candidate/running and fill in a diff transaction structure for devices in transaction
  *
- * @param[in]  h   Clixon handle
- * @param[in]  ct  Controller transaction
- * @param[out] td  diff structure
- * @retval     0   OK
- * @retval    -1   Error
+ * and check if any changed device is closed
+ * @param[in]  h      Clixon handle
+ * @param[in]  ct     Controller transaction
+ * @param[out] td     Diff structure
+ * @param[out] closed (First) Changed device handle which is also closed
+ * @retval     0      OK
+ * @retval    -1      Error
  */
 static int
 devices_diff(clixon_handle           h,
              controller_transaction *ct,
-             transaction_data_t     *td)
+             transaction_data_t     *td,
+             device_handle          *closed)
 {
     int           retval = -1;
     cvec         *nsc = NULL;
@@ -1162,13 +1157,13 @@ devices_diff(clixon_handle           h,
     }
     if (xml_diff(td->td_src,
                  td->td_target,
-                 &td->td_dvec,      /* removed: only in running */
-                 &td->td_dlen,
-                 &td->td_avec,      /* added: only in candidate */
-                 &td->td_alen,
-                 &td->td_scvec,     /* changed: original values */
-                 &td->td_tcvec,     /* changed: wanted values */
-                 &td->td_clen) < 0)
+                &td->td_dvec,      /* removed: only in running */
+                &td->td_dlen,
+                &td->td_avec,      /* added: only in candidate */
+                &td->td_alen,
+                &td->td_scvec,     /* changed: original values */
+                &td->td_tcvec,     /* changed: wanted values */
+                &td->td_clen) < 0)
         goto done;
     /* Mark flags, see also validate_common */
     for (i=0; i<td->td_dlen; i++){ /* Also down */
@@ -1191,6 +1186,28 @@ devices_diff(clixon_handle           h,
         xml_flag_set(xn, XML_FLAG_CHANGE);
         xml_apply_ancestor(xn, (xml_applyfn_t*)xml_flag_set, (void*)XML_FLAG_CHANGE);
     }
+    /* Check if any device with changes is closed */
+    dh = NULL;
+    while ((dh = device_handle_each(h, dh)) != NULL){
+        int touch = 0;
+        if (device_handle_tid_get(dh) != ct->ct_id)
+            continue;
+        name = device_handle_name_get(dh);
+        if ((xn = xpath_first(td->td_src, nsc, "devices/device[name='%s']", name)) != NULL){
+            if (xml_flag(xn, XML_FLAG_CHANGE) != 0)
+                touch++;
+        }
+        if ((xn = xpath_first(td->td_target, nsc, "devices/device[name='%s']", name)) != NULL){
+            if (xml_flag(xn, XML_FLAG_CHANGE) != 0)
+                touch++;
+        }
+        if (touch){
+            if (device_handle_conn_state_get(dh) != CS_OPEN){
+                *closed = dh;
+                break;
+            }
+        }
+    }
     retval = 0;
  done:
     return retval;
@@ -1201,7 +1218,7 @@ devices_diff(clixon_handle           h,
  * @param[in]  h      Clixon handle
  * @param[in]  ct     Controller transaction
  * @param[in]  dh     Device handle (reason=0,1)
- * @param[in]  reason 0: closed, 1: changed, 2: no devices
+ * @param[in]  reason 0: closed, 1: changed, 2: no devices, 3: no changes
  * @param[out] cbret   Return xml tree, eg <rpc-reply>..., <rpc-error..
  * @retval     0      OK
  * @retval    -1      Error
@@ -1223,12 +1240,20 @@ device_error(clixon_handle           h,
     }
     if (dh)
         name = device_handle_name_get(dh);
-    if (reason == 0) /* closed */
+    switch (reason){
+    case 0: /* closed */
         cprintf(cb, "Device is closed: '%s' (try 'connection open' or edit, local commit, and connect)", name);
-    else if (reason == 1)  /* changed */
+        break;
+    case 1: /* changed */
         cprintf(cb, "Device '%s': local fields are changed (try 'commit local' instead)", name);
-    else                   /* empty */
+        break;
+    case 2: /* empty */
         cprintf(cb, "No devices are selected (or no devices exist) and you have requested commit PUSH");
+        break;
+    case 3: /* unchanged */
+        cprintf(cb, "No change to devices");
+        break;
+    }
     if (netconf_operation_failed(cbret, "application", cbuf_get(cb))< 0)
         goto done;
     if (controller_transaction_done(h, ct, TR_FAILED) < 0)
@@ -1341,8 +1366,21 @@ rpc_controller_commit(clixon_handle h,
     ct->ct_actions_type = actions;
     ct->ct_sourcedb = sourcedb;
     sourcedb = NULL;
-    /* Mark devices with transaction-id if name matches device pattern AND state is OPEN */
-    if (devices_match(h, device, ct->ct_id, &closed) < 0)
+    /* Mark devices with transaction-id if name matches device pattern */
+    if (devices_match(h, device, ct->ct_id) < 0)
+        goto done;
+    /* If there are no devices selected and push != NONE */
+    if (controller_transaction_nr_devices(h, ct->ct_id) == 0 && pusht != PT_NONE){
+        if (device_error(h, ct, NULL, 2, cbret) < 0)
+            goto done;
+        goto ok;
+    }
+    /* Start local commit/diff transaction */
+    if ((td = transaction_new()) == NULL)
+        goto done;
+    /* Diff candidate/running and fill in a diff transaction structure td for future use 
+     */
+    if (devices_diff(h, ct, td, &closed) < 0)
         goto done;
     /* If device is closed and push != NONE, then error */
     if (closed != NULL && pusht != PT_NONE){
@@ -1350,18 +1388,6 @@ rpc_controller_commit(clixon_handle h,
             goto done;
         goto ok;
     }
-    /* If there are no devices selected and push != NONE */
-    if (controller_transaction_nr_devices(h, ct->ct_id) == 0 && pusht != PT_NONE){
-        if (device_error(h, ct, closed, 2, cbret) < 0)
-            goto done;
-        goto ok;
-    }
-    /* Start local commit/diff transaction */
-    if ((td = transaction_new()) == NULL)
-        goto done;
-    /* Diff candidate/running and fill in a diff transaction structure td for future use */
-    if (devices_diff(h, ct, td) < 0)
-        goto done;
     /* Check if any local/meta device fields have changed of selected devices */
     if (devices_local_change(h, td, &changed) < 0)
         goto done;
@@ -1410,9 +1436,8 @@ rpc_controller_commit(clixon_handle h,
  ok:
     retval = 0;
  done:
-    if (td){
+    if (td)
         transaction_free(td);
-    }
     if (sourcedb)
         free(sourcedb);
     if (cbtr)

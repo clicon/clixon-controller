@@ -186,7 +186,7 @@ if ! $push ; then
     exit 0
 fi
 
-# Change devices only mtu (should be ok)
+# Change devices only mtu (mtu is ignored by extension)
 i=1
 for ip in $CONTAINERS; do
     NAME=$IMG$i

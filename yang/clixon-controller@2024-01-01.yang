@@ -685,7 +685,10 @@ module clixon-controller {
              4) Avoid doing BOTH local and remote edits simultaneously
                 The system detects local edits (see 2) but if one instead uses local commit,
                 the remote edits need to be explicitly pushed
-             ";
+             Note that:
+             - a PUSH is done even though no changes are detected on that device
+             - An error is returned if a change is detected on a device that is closed
+            ";
         input {
             choice devices {
                 description "Specify devices with either name or group. None means all.";

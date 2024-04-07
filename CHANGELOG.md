@@ -8,6 +8,11 @@ Expected: June 2024
 * CLI configurable format: [Default format should be configurable](https://github.com/clicon/clixon-controller/issues/87)
   * Set text/curly as default
 
+### Corrected Bugs
+
+* Fixed: [Commit to device(s) in OPEN state even if we have other devices in CLOSED state](https://github.com/clicon/clixon-controller/issues/95)
+
+
 ## 1.0.0
 12 March 2024
 

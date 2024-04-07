@@ -176,7 +176,7 @@ if [ -z "$match" ]; then
     err1 "rpc-error"
 fi
 
-match=$(echo $ret | grep --null -Eo "Device is closed") || true
+match=$(echo $ret | grep --null -Eo "No changes to push") || true
 if [ -z "$match" ]; then
     err1 "Device is closed"
 fi
