@@ -1958,7 +1958,7 @@ datastore_diff_device(clixon_handle      h,
         clixon_err(OE_UNIX, errno, "cbuf_new");
         goto done;
     }
-    if (xmldb_get0(h, "running", Y_MODULE, nsc, "devices/device/name", 1, WITHDEFAULTS_EXPLICIT, &xret, NULL, NULL) < 0)
+    if (xmldb_get0(h, "running", YB_MODULE, nsc, "devices/device/name", 1, WITHDEFAULTS_EXPLICIT, &xret, NULL, NULL) < 0)
         goto done;
     cprintf(cbret, "<rpc-reply xmlns=\"%s\">", NETCONF_BASE_NAMESPACE);
     if (xpath_vec(xret, nsc, "devices/device/name", &vec, &veclen) < 0)
@@ -1976,21 +1976,21 @@ datastore_diff_device(clixon_handle      h,
         case DT_RUNNING:
             cbuf_reset(cbxpath);
             cprintf(cbxpath, "devices/device[name='%s']/config", devname);
-            if (xmldb_get0(h, "running", Y_MODULE, nsc, cbuf_get(cbxpath), 1, WITHDEFAULTS_EXPLICIT, &x1ret, NULL, NULL) < 0)
+            if (xmldb_get0(h, "running", YB_MODULE, nsc, cbuf_get(cbxpath), 1, WITHDEFAULTS_EXPLICIT, &x1ret, NULL, NULL) < 0)
                 goto done;
             x1 = xpath_first(x1ret, nsc, "devices/device/config");
             break;
         case DT_CANDIDATE:
             cbuf_reset(cbxpath);
             cprintf(cbxpath, "devices/device[name='%s']/config", devname);
-            if (xmldb_get0(h, "candidate", Y_MODULE, nsc, cbuf_get(cbxpath), 1, WITHDEFAULTS_EXPLICIT, &x1ret, NULL, NULL) < 0)
+            if (xmldb_get0(h, "candidate", YB_MODULE, nsc, cbuf_get(cbxpath), 1, WITHDEFAULTS_EXPLICIT, &x1ret, NULL, NULL) < 0)
                 goto done;
             x1 = xpath_first(x1ret, nsc, "devices/device/config");
             break;
         case DT_ACTIONS:
             cbuf_reset(cbxpath);
             cprintf(cbxpath, "devices/device[name='%s']/config", devname);
-            if (xmldb_get0(h, "actions", Y_MODULE, nsc, cbuf_get(cbxpath), 1, WITHDEFAULTS_EXPLICIT, &x1ret, NULL, NULL) < 0)
+            if (xmldb_get0(h, "actions", YB_MODULE, nsc, cbuf_get(cbxpath), 1, WITHDEFAULTS_EXPLICIT, &x1ret, NULL, NULL) < 0)
                 goto done;
             x1 = xpath_first(x1ret, nsc, "devices/device/config");
             break;
@@ -2012,21 +2012,21 @@ datastore_diff_device(clixon_handle      h,
         case DT_RUNNING:
             cbuf_reset(cbxpath);
             cprintf(cbxpath, "devices/device[name='%s']/config", devname);
-            if (xmldb_get0(h, "running", Y_MODULE, nsc, cbuf_get(cbxpath), 1, WITHDEFAULTS_EXPLICIT, &x2ret, NULL, NULL) < 0)
+            if (xmldb_get0(h, "running", YB_MODULE, nsc, cbuf_get(cbxpath), 1, WITHDEFAULTS_EXPLICIT, &x2ret, NULL, NULL) < 0)
                 goto done;
             x2 = xpath_first(x2ret, nsc, "devices/device/config");
             break;
         case DT_CANDIDATE:
             cbuf_reset(cbxpath);
             cprintf(cbxpath, "devices/device[name='%s']/config", devname);
-            if (xmldb_get0(h, "candidate", Y_MODULE, nsc, cbuf_get(cbxpath), 1, WITHDEFAULTS_EXPLICIT, &x2ret, NULL, NULL) < 0)
+            if (xmldb_get0(h, "candidate", YB_MODULE, nsc, cbuf_get(cbxpath), 1, WITHDEFAULTS_EXPLICIT, &x2ret, NULL, NULL) < 0)
                 goto done;
             x2 = xpath_first(x2ret, nsc, "devices/device/config");
             break;
         case DT_ACTIONS:
             cbuf_reset(cbxpath);
             cprintf(cbxpath, "devices/device[name='%s']/config", devname);
-            if (xmldb_get0(h, "actions", Y_MODULE, nsc, cbuf_get(cbxpath), 1, WITHDEFAULTS_EXPLICIT, &x2ret, NULL, NULL) < 0)
+            if (xmldb_get0(h, "actions", YB_MODULE, nsc, cbuf_get(cbxpath), 1, WITHDEFAULTS_EXPLICIT, &x2ret, NULL, NULL) < 0)
                 goto done;
             x2 = xpath_first(x2ret, nsc, "devices/device/config");
             break;
@@ -2356,7 +2356,7 @@ rpc_device_template_apply(clixon_handle h,
     clixon_debug(CLIXON_DBG_CTRL, "%s", __FUNCTION__);
     yspec0 = clicon_dbspec_yang(h);
     /* get template and device names */
-    if (xmldb_get0(h, "running", Y_MODULE, nsc, "devices", 1, WITHDEFAULTS_EXPLICIT, &xret, NULL, NULL) < 0)
+    if (xmldb_get0(h, "running", YB_MODULE, nsc, "devices", 1, WITHDEFAULTS_EXPLICIT, &xret, NULL, NULL) < 0)
         goto done;
     if ((tmplname = xml_find_body(xe, "template")) == NULL){
         if (netconf_operation_failed(cbret, "application", "No template in rpc")< 0)
