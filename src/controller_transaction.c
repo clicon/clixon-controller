@@ -259,13 +259,13 @@ controller_transaction_new(clixon_handle            h,
                            char                    *description,
                            controller_transaction **ctp,
                            cbuf                   **cberr)
-
 {
     int                     retval = -1;
     controller_transaction *ct = NULL;
     controller_transaction *ct_list = NULL;
     size_t                  sz;
     uint32_t                iddb;
+    uint32_t                lock_id;
     char                   *db = "candidate";
 
     if (ctp == NULL){
@@ -273,7 +273,11 @@ controller_transaction_new(clixon_handle            h,
         goto done;
     }
     clixon_debug(CLIXON_DBG_CTRL, "%s", __FUNCTION__);
-    if ((iddb = xmldb_islocked(h, db)) != 0){
+    iddb = xmldb_islocked(h, db);
+    /* If no lock create transaction lock else use existing lock */
+    if (iddb == 0)
+        lock_id = TRANSACTION_CLIENT_ID;
+    else if (iddb == TRANSACTION_CLIENT_ID){
         if ((*cberr = cbuf_new()) == NULL){
             clixon_err(OE_UNIX, errno, "cbuf_new");
             goto done;
@@ -281,6 +285,8 @@ controller_transaction_new(clixon_handle            h,
         cprintf(*cberr, "Candidate db is locked by %u", iddb);
         goto failed;
     }
+    else
+        lock_id = 0; /* Reuse lock */
     /* Exclusive lock of single active transaction */
     if (clicon_ptr_get(h, "controller-transaction-list", (void**)&ct_list) == 0 &&
         (ct = ct_list) != NULL) {
@@ -291,6 +297,7 @@ controller_transaction_new(clixon_handle            h,
                     goto done;
                 }
                 cprintf(*cberr, "Transaction %s is ongoing", ct->ct_description);
+                ct = NULL;
                 goto failed;
             }
             ct = NEXTQ(controller_transaction *, ct);
@@ -314,11 +321,13 @@ controller_transaction_new(clixon_handle            h,
     (void)clicon_ptr_get(h, "controller-transaction-list", (void**)&ct_list);
     ADDQ(ct, ct_list);
     clicon_ptr_set(h, "controller-transaction-list", (void*)ct_list);
-    if (xmldb_lock(h, db, TRANSACTION_CLIENT_ID) < 0)
-        goto done;
-     /* user callback */
-    if (clixon_plugin_lockdb_all(h, db, 1, TRANSACTION_CLIENT_ID) < 0)
-        goto done;
+    if (lock_id) {
+        if (xmldb_lock(h, db, lock_id) < 0)
+            goto done;
+        /* user callback */
+        if (clixon_plugin_lockdb_all(h, db, 1, lock_id) < 0)
+            goto done;
+    }
     *ctp = ct;
     ct = NULL;
     retval = 1;
@@ -405,15 +414,13 @@ controller_transaction_done(clixon_handle           h,
     clixon_debug(CLIXON_DBG_CTRL, "%s %s", __FUNCTION__, transaction_result_int2str(ct->ct_state));
     controller_transaction_state_set(ct, TS_DONE, result);
     iddb = xmldb_islocked(h, db);
-    if (iddb != TRANSACTION_CLIENT_ID){
-        clixon_err(OE_NETCONF, 0, "Unlock failed, not locked by transaction");
-        goto done;
+    if (iddb == TRANSACTION_CLIENT_ID){
+        if (xmldb_unlock(h, db) < 0)
+            goto done;
+        /* user callback */
+        if (clixon_plugin_lockdb_all(h, db, 0, TRANSACTION_CLIENT_ID) < 0)
+            goto done;
     }
-    if (xmldb_unlock(h, db) < 0)
-        goto done;
-     /* user callback */
-    if (clixon_plugin_lockdb_all(h, db, 0, TRANSACTION_CLIENT_ID) < 0)
-        goto done;
     /* Unmark all devices */
     dh = NULL;
     while ((dh = device_handle_each(h, dh)) != NULL){

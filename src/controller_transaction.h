@@ -48,7 +48,7 @@ struct controller_transaction_t{
     transaction_state  ct_state;         /* Transaction state */
     transaction_result ct_result;        /* Transaction result */
     void              *ct_h;             /* Back-pointer to clixon handle (for convenience in timeout callbacks) */
-    uint32_t           ct_client_id;     /* Client id of originator */
+    uint32_t           ct_client_id;     /* Client id of originator (may be stale) */
     int                ct_pull_transient;/* pull: dont commit locally */
     int                ct_pull_merge;    /* pull: Merge instead of replace */
     push_type          ct_push_type;     /* push to remote devices: Do not, validate, or commit */

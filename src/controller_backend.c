@@ -527,6 +527,51 @@ controller_exit(clixon_handle h)
     return 0;
 }
 
+/*! Lock database status has changed status, check transaction lock
+ *
+ * @param[in]  h    Clixon handle
+ * @param[in]  db   Database name (eg "running")
+ * @param[in]  lock Lock status: 0: unlocked, 1: locked
+ * @param[in]  id   Session id (of locker/unlocker)
+ * @retval     0    OK
+ * @retval    -1    Fatal error
+*/
+static int
+controller_lockdb(clixon_handle h,
+                  char         *db,
+                  int           lock,
+                  int           id)
+{
+    int                     retval = -1;
+    controller_transaction *ct = NULL;
+    controller_transaction *ct_list = NULL;
+
+    clixon_debug(CLIXON_DBG_APP, "Lock callback: db%s: locked:%d", db, lock);
+    fprintf(stderr, "%s Lock callback: db%s: locked:%d id:%u\n",
+            __FUNCTION__, db, lock, id);
+    /* If client releases lock while transaction ongoing, 
+     * then create a new per-transaction lock */
+    if (lock == 0 &&
+        clicon_ptr_get(h, "controller-transaction-list", (void**)&ct_list) == 0 &&
+        (ct = ct_list) != NULL) {
+        do {
+            if (ct->ct_state != TS_DONE &&
+                ct->ct_client_id == id){
+                fprintf(stderr, "%s Found transaction client-id:%u\n", __FUNCTION__, ct->ct_client_id);
+                if (xmldb_lock(h, db, TRANSACTION_CLIENT_ID) < 0)
+                    goto done;
+                /* user callback */
+                if (clixon_plugin_lockdb_all(h, db, 1, TRANSACTION_CLIENT_ID) < 0)
+                    goto done;
+            }
+            ct = NEXTQ(controller_transaction *, ct);
+        } while (ct && ct != ct_list);
+    }
+    retval = 0;
+ done:
+    return retval;
+}
+
 /*! Forward declaration */
 clixon_plugin_api *clixon_plugin_init(clixon_handle h);
 
@@ -540,6 +585,7 @@ static clixon_plugin_api api = {
     .ca_trans_commit = controller_commit,
     .ca_yang_mount   = controller_yang_mount,
     .ca_version      = controller_version,
+    .ca_lockdb       = controller_lockdb,
 #ifdef CONTROLLER_JUNOS_ADD_COMMAND_FORWARDING
     .ca_yang_patch   = controller_yang_patch_junos,
 #endif
