@@ -1,9 +1,9 @@
 CLICON_MODE="|pipe_show";
 \| { 
    display {
-     xml, pipe_showas_fn("xml", true);
-     curly, pipe_showas_fn("text", true);
-     json, pipe_showas_fn("json", true);
-     cli, pipe_showas_fn("cli", true, "set ");
+     xml("XML"), pipe_showas_fn("xml", true);
+     text("Text curly braces"), pipe_showas_fn("text", true);
+     json("JSON"), pipe_showas_fn("json", true);
+     cli("set Input cli syntax"), pipe_showas_fn("cli", true, "set ");
    }
 }
