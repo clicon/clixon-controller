@@ -84,7 +84,7 @@ extern "C" {
 
 int   controller_transaction_state_set(controller_transaction *ct, transaction_state state, transaction_result result);
 int   controller_transaction_notify(clixon_handle h, controller_transaction *ct);
-int   controller_transaction_new(clixon_handle h, char *description, controller_transaction **ct, cbuf **cberr);
+int   controller_transaction_new(clixon_handle h, uint32_t ce_id, char *description, controller_transaction **ct, cbuf **cberr);
 int   controller_transaction_free(clixon_handle h, controller_transaction *ct);
 int   controller_transaction_free_all(clixon_handle h);
 int   controller_transaction_done(clixon_handle h, controller_transaction *ct, transaction_result result);

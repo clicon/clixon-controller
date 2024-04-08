@@ -426,14 +426,13 @@ rpc_config_pull(clixon_handle h,
 
     clixon_debug(CLIXON_DBG_CTRL, "%s", __FUNCTION__);
     /* Initiate new transaction */
-    if ((ret = controller_transaction_new(h, "pull", &ct, &cberr)) < 0)
+    if ((ret = controller_transaction_new(h, ce->ce_id, "pull", &ct, &cberr)) < 0)
         goto done;
     if (ret == 0){
         if (netconf_operation_failed(cbret, "application", cbuf_get(cberr))< 0)
             goto done;
         goto ok;
     }
-    ct->ct_client_id = ce->ce_id;
     pattern = xml_find_body(xe, "devname");
     if ((str = xml_find_body(xe, "transient")) != NULL)
         transient = strcmp(str, "true") == 0;
@@ -1291,8 +1290,8 @@ rpc_controller_commit(clixon_handle h,
                       void         *arg,
                       void         *regarg)
 {
-    int                     retval = -1;
     client_entry           *ce = (client_entry *)arg;
+    int                     retval = -1;
     controller_transaction *ct = NULL;
     char                   *str;
     char                   *device;
@@ -1354,14 +1353,13 @@ rpc_controller_commit(clixon_handle h,
     /* Initiate new transaction.
      * NB: this locks candidate, which always needs to be unlocked, eg by controller_transaction_done
      */
-    if ((ret = controller_transaction_new(h, cbuf_get(cbtr), &ct, &cberr)) < 0)
+    if ((ret = controller_transaction_new(h, ce->ce_id, cbuf_get(cbtr), &ct, &cberr)) < 0)
         goto done;
     if (ret == 0){
         if (netconf_operation_failed(cbret, "application", cbuf_get(cberr))< 0)
             goto done;
         goto ok;
     }
-    ct->ct_client_id = ce->ce_id;
     ct->ct_push_type = pusht;
     ct->ct_actions_type = actions;
     ct->ct_sourcedb = sourcedb;
@@ -1575,6 +1573,7 @@ rpc_connection_change(clixon_handle h,
                       void         *arg,
                       void         *regarg)
 {
+    client_entry           *ce = (client_entry *)arg;
     int                     retval = -1;
     char                   *pattern = NULL;
     cxobj                  *xret = NULL;
@@ -1588,7 +1587,6 @@ rpc_connection_change(clixon_handle h,
     int                     enabled;
     device_handle           dh;
     controller_transaction *ct = NULL;
-    client_entry           *ce;
     char                   *operation;
     cbuf                   *cberr = NULL;
     cbuf                   *cbtr = NULL;
@@ -1596,7 +1594,6 @@ rpc_connection_change(clixon_handle h,
     int                     ret;
 
     clixon_debug(CLIXON_DBG_CTRL, "%s", __FUNCTION__);
-    ce = (client_entry *)arg;
     if ((cbtr = cbuf_new()) == NULL){
         clixon_err(OE_UNIX, errno, "cbuf_new");
         goto done;
@@ -1605,14 +1602,13 @@ rpc_connection_change(clixon_handle h,
     pattern = xml_find_body(xe, "devname");
     operation = xml_find_body(xe, "operation");
     cprintf(cbtr, " %s", operation);
-    if ((ret = controller_transaction_new(h, cbuf_get(cbtr), &ct, &cberr)) < 0)
+    if ((ret = controller_transaction_new(h, ce->ce_id, cbuf_get(cbtr), &ct, &cberr)) < 0)
         goto done;
     if (ret == 0){
         if (netconf_operation_failed(cbret, "application", cbuf_get(cberr))< 0)
             goto done;
         goto ok;
     }
-    ct->ct_client_id = ce->ce_id;
     // XXX: Should work with WITHDEFAULTS_EXPLICIT?
     if (xmldb_get0(h, "running", YB_MODULE, nsc, "devices", 1, WITHDEFAULTS_REPORT_ALL, &xret, NULL, NULL) < 0)
         goto done;

@@ -27,7 +27,7 @@ function init_device_config()
     NAME=$1
     ip=$2
 
-    new "reset-contoller: Init device $NAME edit-config"
+    new "reset-controller: Init device $NAME edit-config"
     ret=$(${clixon_netconf} -qe0 -f $CFG <<EOF
 <rpc xmlns="urn:ietf:params:xml:ns:netconf:base:1.0"
   xmlns:nc="urn:ietf:params:xml:ns:netconf:base:1.0"
@@ -59,7 +59,7 @@ EOF
 }
 
 if $delete ; then
-    new "reset-contoller: Delete device config"
+    new "reset-controller: Delete device config"
     ret=$(${clixon_netconf} -qe0 -f $CFG <<EOF
 <rpc xmlns="urn:ietf:params:xml:ns:netconf:base:1.0"
   xmlns:nc="urn:ietf:params:xml:ns:netconf:base:1.0"
@@ -101,12 +101,12 @@ for ip in $CONTAINERS; do
 	if [ -z "$match" ]; then
 	    err1 "netconf rpc-error detected"
 	fi
-	new "reset-contoller: retry after sleep"
+	new "reset-controller: retry after sleep"
 	sleep $sleep
     done
 done
 
-new "reset-contoller: Controller commit"
+new "reset-controller: Controller commit"
 ret=$(${clixon_netconf} -q0 -f $CFG <<EOF
 <rpc xmlns="urn:ietf:params:xml:ns:netconf:base:1.0" message-id="43">
   <commit/>
@@ -120,7 +120,7 @@ if [ -n "$match" ]; then
     err1 "netconf rpc-error detected"
 fi
 
-new "reset-contoller: Send rpc connection-change OPEN"
+new "reset-controller: Send rpc connection-change OPEN"
 ret=$(${clixon_netconf} -q0 -f $CFG <<EOF
 <rpc xmlns="urn:ietf:params:xml:ns:netconf:base:1.0" message-id="43">
    <connection-change xmlns="http://clicon.org/controller">
@@ -139,7 +139,7 @@ fi
 sleep $sleep
 jmax=5
 for j in $(seq 1 $jmax); do
-    new "reset-contoller: Verify open devices 1"
+    new "reset-controller: Verify open devices 1"
     ret=$(${clixon_netconf} -q0 -f $CFG <<EOF
 <rpc xmlns="urn:ietf:params:xml:ns:netconf:base:1.0" xmlns:nc="urn:ietf:params:xml:ns:netconf:base:1.0" message-id="43">
    <get cl:content="all" xmlns:cl="http://clicon.org/lib">
@@ -156,7 +156,7 @@ EOF
 
     res=$(echo "$ret" | sed 's/OPEN/OPEN\n/g' | grep "$IMG" | grep -c "OPEN") || true
     if [ "$res" != "$nr" ]; then
-        new "reset-contoller: retry after sleep"
+        new "reset-controller: retry after sleep"
         sleep $sleep
         continue
     fi
@@ -166,7 +166,7 @@ if [ $j -eq $jmax ]; then
     err "$nr devices open" "$res devices open"
 fi
 
-new "reset-contoller: Netconf pull"
+new "reset-controller: Netconf pull"
 ret=$(${clixon_netconf} -q0 -f $CFG <<EOF
 <rpc xmlns="urn:ietf:params:xml:ns:netconf:base:1.0" message-id="43">
 	<config-pull xmlns="http://clicon.org/controller">
@@ -181,7 +181,7 @@ if [ -n "$match" ]; then
     err1 "Error: $ret"
 fi
 
-new "reset-contoller: Verify open devices 2"
+new "reset-controller: Verify open devices 2"
 ret=$(${clixon_netconf} -q0 -f $CFG <<EOF
 <rpc xmlns="urn:ietf:params:xml:ns:netconf:base:1.0" xmlns:nc="urn:ietf:params:xml:ns:netconf:base:1.0" message-id="43">
    <get cl:content="all" xmlns:cl="http://clicon.org/lib">
@@ -210,7 +210,7 @@ fi
 i=1
 # Only works for openconfig, others should set check=false
 for ip in $CONTAINERS; do
-    new "reset-contoller: Check config on device$i"
+    new "reset-controller: Check config on device$i"
     NAME=$IMG$i
     ret=$(${clixon_netconf} -qe0 -f $CFG <<EOF
 <rpc xmlns="urn:ietf:params:xml:ns:netconf:base:1.0"

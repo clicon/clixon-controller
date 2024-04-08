@@ -244,6 +244,7 @@ transaction_new_id(clixon_handle h,
  * - Ongoing transaction, only one active transaction is allowed.
  *   Actually should always be a sub-condition of the former condition
  * @param[in]   h           Clixon handle
+ * @param[in]   ce_id       Client/session identifier
  * @param[in]   description Description of transaction
  * @param[out]  ct          Transaction struct (if retval = 1)
  * @param[out]  reason      Reason for failure. Freed by caller
@@ -254,6 +255,7 @@ transaction_new_id(clixon_handle h,
  */
 int
 controller_transaction_new(clixon_handle            h,
+                           uint32_t                 ce_id,
                            char                    *description,
                            controller_transaction **ctp,
                            cbuf                   **cberr)
@@ -272,13 +274,11 @@ controller_transaction_new(clixon_handle            h,
     }
     clixon_debug(CLIXON_DBG_CTRL, "%s", __FUNCTION__);
     if ((iddb = xmldb_islocked(h, db)) != 0){
-        if (cberr){
-            if ((*cberr = cbuf_new()) == NULL){
-                clixon_err(OE_UNIX, errno, "cbuf_new");
-                goto done;
-            }
-            cprintf(*cberr, "Candidate db is locked by %u", iddb);
+        if ((*cberr = cbuf_new()) == NULL){
+            clixon_err(OE_UNIX, errno, "cbuf_new");
+            goto done;
         }
+        cprintf(*cberr, "Candidate db is locked by %u", iddb);
         goto failed;
     }
     /* Exclusive lock of single active transaction */
@@ -286,13 +286,11 @@ controller_transaction_new(clixon_handle            h,
         (ct = ct_list) != NULL) {
         do {
             if (ct->ct_state != TS_DONE){
-                if (cberr){
-                    if ((*cberr = cbuf_new()) == NULL){
-                        clixon_err(OE_UNIX, errno, "cbuf_new");
-                        goto done;
-                    }
-                    cprintf(*cberr, "Transaction %s is ongoing", ct->ct_description);
+                if ((*cberr = cbuf_new()) == NULL){
+                    clixon_err(OE_UNIX, errno, "cbuf_new");
+                    goto done;
                 }
+                cprintf(*cberr, "Transaction %s is ongoing", ct->ct_description);
                 goto failed;
             }
             ct = NEXTQ(controller_transaction *, ct);
@@ -305,6 +303,7 @@ controller_transaction_new(clixon_handle            h,
     }
     memset(ct, 0, sz);
     ct->ct_h = h;
+    ct->ct_client_id = ce_id;
     if (transaction_new_id(h, &ct->ct_id) < 0)
         goto done;
     if (description &&
