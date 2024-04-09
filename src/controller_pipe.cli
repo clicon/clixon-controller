@@ -1,7 +1,8 @@
 CLICON_MODE="|pipe_common:|pipe_show";
 \| { 
-   grep <arg:string>, pipe_grep_fn("-e", "arg");
-   except <arg:string>, pipe_grep_fn("-v", "arg");
-   tail <arg:string>, pipe_tail_fn("-n", "arg");
-   count, pipe_wc_fn("-l");
+   grep("Search for pattern") <arg:string>, pipe_grep_fn("-e", "arg");
+   except("Inverted search") <arg:string>, pipe_grep_fn("-v", "arg");
+   tail("Output last part") <arg:string>, pipe_tail_fn("-n", "arg");
+   count("Line count"), pipe_wc_fn("-l");
+   save("Save to file") <filename:string>("Local filename"), pipe_save_file("filename");
 }

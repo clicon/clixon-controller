@@ -1,6 +1,6 @@
 CLICON_MODE="|pipe_show";
 \| { 
-   display {
+   display("Show other format") {
      xml("XML"), pipe_showas_fn("xml", true);
      text("Text curly braces"), pipe_showas_fn("text", true);
      json("JSON"), pipe_showas_fn("json", true);
