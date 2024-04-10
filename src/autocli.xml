@@ -16,7 +16,7 @@
      </rule>
      <rule>
        <name>include junos</name>
-       <module-name>junos-conf-root</module-name>
+       <module-name>junos-*conf-root</module-name>
        <operation>enable</operation>
      </rule>
      <rule>

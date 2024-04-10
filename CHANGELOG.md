@@ -10,6 +10,7 @@ Expected: June 2024
 
 ### Corrected Bugs
 
+* Fixed: [CLI: Can't change configuration on Juniper QFX devices](https://github.com/clicon/clixon-controller/issues/109)
 * Fixed: [Commit to device(s) in OPEN state even if we have other devices in CLOSED state](https://github.com/clicon/clixon-controller/issues/95)
 
 
