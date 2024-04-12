@@ -26,8 +26,16 @@ module clixon-controller {
     import ietf-yang-library {
         prefix yanglib;
     }
+    import ietf-netconf-acm {
+        prefix nacm;
+    }
     description
         "Clixon controller";
+    revision 2024-04-01 {
+        description
+             "Added NACM
+              Released in 1.1.0";
+    }
     revision 2024-01-01 {
         description
             "Added warning field to transaction
@@ -35,7 +43,7 @@ module clixon-controller {
              Added variables to templates
              Added service-instance parameter to rpc controller-commit
              Added ssh-stricthostkey
-             Released in 0.3.0";
+             Released in 1.0.0";
     }
     revision 2023-11-01 {
         description

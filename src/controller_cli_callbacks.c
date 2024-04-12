@@ -1338,16 +1338,20 @@ cli_show_sessions(clixon_handle h,
     int      retval = -1;
     cvec    *nsc = NULL;
     cxobj   *xret = NULL;
+    cxobj   *xdbs = NULL;
     cxobj   *xerr;
+    cxobj   *x;
     cbuf    *cb = NULL;
     cxobj   *xsess;
     cxobj  **vec = NULL;
     size_t   veclen;
     char    *b;
+    char    *sid;
     int      i;
     cg_var  *cv;
     int      detail = 0;
     uint32_t session_id;
+    char    *locked_by = NULL;
 
     if (argv != NULL && cvec_len(argv) != 1){
         clixon_err(OE_PLUGIN, EINVAL, "optional argument: <detail>");
@@ -1370,13 +1374,22 @@ cli_show_sessions(clixon_handle h,
     if (clicon_rpc_get(h, "ncm:netconf-state/ncm:sessions", nsc, CONTENT_NONCONFIG, -1, "report-all", &xret) < 0)
         goto done;
     if ((xerr = xpath_first(xret, NULL, "/rpc-error")) != NULL){
-        clixon_err_netconf(h, OE_XML, 0, xerr, "Get devices");
+        clixon_err_netconf(h, OE_XML, 0, xerr, "Get sessions");
         goto done;
     }
     if (xpath_vec(xret, NULL, "netconf-state/sessions/session", &vec, &veclen) < 0)
         goto done;
-    if (detail && veclen){
-        cligen_output(stdout, "%-8s %-10s %-15s %-15s\n", "Id", "User", "Type", "Time");
+    if (clicon_rpc_get(h, "ncm:netconf-state/ncm:datastores/ncm:datastore[ncm:name='candidate']/ncm:locks", nsc, CONTENT_NONCONFIG, -1, "report-all", &xdbs) < 0)
+        goto done;
+    if ((xerr = xpath_first(xdbs, NULL, "/rpc-error")) != NULL){
+        clixon_err_netconf(h, OE_XML, 0, xerr, "Get locks");
+        goto done;
+    }
+    if ((x = xpath_first(xdbs, NULL, "netconf-state/datastores/datastore[name='candidate']/locks/global-lock/locked-by-session")) != NULL){
+        locked_by = xml_body(x);
+    }
+    if (!detail && veclen){
+        cligen_output(stdout, "%-8s %-10s %-15s %-10s %-15s\n", "Id", "User", "Type", "Locks", "Time");
         cligen_output(stdout, "===============================================================\n");
     }
     clicon_session_id_get(h, &session_id);
@@ -1387,18 +1400,25 @@ cli_show_sessions(clixon_handle h,
                 goto done;
         }
         else{
-            b = xml_find_body(xsess, "session-id");
-            if (b && session_id == atoi(b))
-                cligen_output(stdout, "*");
-            else
-                cligen_output(stdout, " ");
-            cligen_output(stdout, "%-8s",  b?b:"");
+            sid = xml_find_body(xsess, "session-id");
+            if (sid) {
+                if (session_id == atoi(sid))
+                    cligen_output(stdout, "*");
+                else
+                    cligen_output(stdout, " ");
+            }
+            cligen_output(stdout, "%-8s",  sid?sid:"");
             b = xml_find_body(xsess, "username");
             cligen_output(stdout, "%-11s",  b?b:"");
             b = xml_find_body(xsess, "transport");
             cligen_output(stdout, "%-16s",  b?b:"");
+            if (locked_by && strcmp(sid, locked_by) == 0)
+                cligen_output(stdout, "%-11s", "candidate");
+            else
+                cligen_output(stdout, "%-11s", "");
             b = xml_find_body(xsess, "login-time");
             cligen_output(stdout, "%-16s",  b?b:"");
+
             cligen_output(stdout, "\n");
         }
     }
@@ -1410,6 +1430,8 @@ cli_show_sessions(clixon_handle h,
         free(vec);
     if (xret)
         xml_free(xret);
+    if (xdbs)
+        xml_free(xdbs);
     if (cb)
         cbuf_free(cb);
     return retval;

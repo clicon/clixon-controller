@@ -110,5 +110,10 @@ connection("Change connection state of one or several devices")  [<name:string>(
               open("Open closed connections"), cli_connection_change("OPEN");
               reconnect("Close all open connections and open all connections"), cli_connection_change("RECONNECT");
               }
-# Shouldnt happend
-transaction("Controller transaction") unlock("Unlock candidate datastore "), cli_kill_session(1677721);
+session("Client sessions") {
+    kill("Kill client session") {
+           <session:uint32 choice:1677721>("Transaction number"), cli_kill_session("session");
+           <session:uint32>("Client session number"), cli_kill_session("session");
+    }
+}
+

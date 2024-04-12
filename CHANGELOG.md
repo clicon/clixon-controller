@@ -5,6 +5,7 @@ Expected: June 2024
 
 ### New features
 
+* Added session kill 
 * CLI configurable format: [Default format should be configurable](https://github.com/clicon/clixon-controller/issues/87)
   * Set text/curly as default
 
@@ -12,7 +13,6 @@ Expected: June 2024
 
 * Fixed: [CLI: Can't change configuration on Juniper QFX devices](https://github.com/clicon/clixon-controller/issues/109)
 * Fixed: [Commit to device(s) in OPEN state even if we have other devices in CLOSED state](https://github.com/clicon/clixon-controller/issues/95)
-
 
 ## 1.0.0
 12 March 2024
