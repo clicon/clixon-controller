@@ -2,6 +2,7 @@
 #
 # Simple C / non-python service checking shared object create and delete
 # Uses util/controller_service.c as C-based server
+# Uses NACM
 #
 # Check starting of service (startup/disable/init)
 #
@@ -56,6 +57,9 @@ fyang=$dir/myyang.yang
 # source IMG/USER etc
 . ./site.sh
 
+# Common NACM scripts
+. ./nacm.sh
+
 cat<<EOF > $CFG
 <clixon-config xmlns="http://clicon.org/config">
   <CLICON_CONFIGFILE>$CFG</CLICON_CONFIGFILE>
@@ -84,6 +88,9 @@ cat<<EOF > $CFG
   <CLICON_CLI_HELPSTRING_LINES>1</CLICON_CLI_HELPSTRING_LINES>
   <CLICON_CLI_OUTPUT_FORMAT>text</CLICON_CLI_OUTPUT_FORMAT>
   <CLICON_YANG_SCHEMA_MOUNT>true</CLICON_YANG_SCHEMA_MOUNT>
+  <CLICON_NACM_CREDENTIALS>exact</CLICON_NACM_CREDENTIALS>
+  <CLICON_NACM_MODE>internal</CLICON_NACM_MODE>
+  <CLICON_NACM_DISABLED_ON_EMPTY>true</CLICON_NACM_DISABLED_ON_EMPTY>
 </clixon-config>
 EOF
 
@@ -195,10 +202,26 @@ EOF
     fi
 }
 
+RULES=$(cat <<EOF
+   <nacm xmlns="urn:ietf:params:xml:ns:yang:ietf-netconf-acm">
+     <enable-nacm>true</enable-nacm>
+     <read-default>permit</read-default>
+     <write-default>permit</write-default>
+     <exec-default>permit</exec-default>
+
+     $NGROUPS
+
+     $NADMIN
+
+   </nacm>
+EOF
+)
+
 # Enable services process to check for already running
 # if you run a separate debug clixon_controller_service process for debugging, set this to false
 cat <<EOF > $dir/startup_db
 <config>
+  $RULES
   <processes xmlns="http://clicon.org/controller">
     <services>
       <enabled>false</enabled>
@@ -253,6 +276,7 @@ cat <<EOF > $dir/startup_db
       <enabled>true</enabled>
     </services>
   </processes>
+  $RULES
 </config>
 EOF
 

@@ -30,6 +30,7 @@
 #include <syslog.h>
 #include <fnmatch.h>
 #include <errno.h>
+#include <pwd.h>
 
 #include <cligen/cligen.h>
 #include <clixon/clixon.h>
@@ -63,6 +64,7 @@ send_transaction_actions_done(clixon_handle h,
         goto done;
     }
     cprintf(cb, "<rpc xmlns=\"%s\"", NETCONF_BASE_NAMESPACE);
+    cprintf(cb, " username=\"%s\"", clicon_username_get(h));
     cprintf(cb, " xmlns:%s=\"%s\"",
             NETCONF_BASE_PREFIX, NETCONF_BASE_NAMESPACE);
     cprintf(cb, " %s", NETCONF_MESSAGE_ID_ATTR);
@@ -107,6 +109,7 @@ send_transaction_error(clixon_handle h,
         goto done;
     }
     cprintf(cb, "<rpc xmlns=\"%s\"", NETCONF_BASE_NAMESPACE);
+    cprintf(cb, " username=\"%s\"", clicon_username_get(h));
     cprintf(cb, " xmlns:%s=\"%s\"",
             NETCONF_BASE_PREFIX, NETCONF_BASE_NAMESPACE);
     cprintf(cb, " %s", NETCONF_MESSAGE_ID_ATTR);
@@ -162,6 +165,7 @@ read_services(clixon_handle h,
         goto done;
     }
     cprintf(cb, "<rpc xmlns=\"%s\"", NETCONF_BASE_NAMESPACE);
+    cprintf(cb, " username=\"%s\"", clicon_username_get(h));
     cprintf(cb, " xmlns:%s=\"%s\"",
             NETCONF_BASE_PREFIX, NETCONF_BASE_NAMESPACE);
     cprintf(cb, " %s", NETCONF_MESSAGE_ID_ATTR); /* XXX: use incrementing sequence */
@@ -225,6 +229,7 @@ read_devices(clixon_handle h,
         goto done;
     }
     cprintf(cb, "<rpc xmlns=\"%s\"", NETCONF_BASE_NAMESPACE);
+    cprintf(cb, " username=\"%s\"", clicon_username_get(h));
     cprintf(cb, " xmlns:%s=\"%s\"",
             NETCONF_BASE_PREFIX, NETCONF_BASE_NAMESPACE);
     cprintf(cb, " %s", NETCONF_MESSAGE_ID_ATTR); /* XXX: use incrementing sequence */
@@ -615,7 +620,7 @@ usage(clixon_handle h,
     fprintf(stderr, "usage:%s <options>*\n"
             "where options are\n"
             "\t-h\t\tHelp\n"
-            "\t-D <level>\tDebug level\n"
+            "\t-D <level> \tDebug level (see available levels below)\n"
             "\t-f <file> \tConfig-file (mandatory)\n"
             "\t-l <s|e|o|n|f<file>> \tLog on (s)yslog, std(e)rr, std(o)ut, (n)one or (f)ile (syslog is default)\n"
             "\t-s <pattern> \tGlob pattern of services served, (default *)\n"
@@ -624,6 +629,9 @@ usage(clixon_handle h,
             "\t-1\t\tRun once and then quit (dont wait for events)\n",
             argv0
             );
+    fprintf(stderr, "Debug keys: ");
+    clixon_debug_key_dump(stderr);
+    fprintf(stderr, "\n");
     exit(-1);
 }
 
@@ -642,11 +650,19 @@ main(int    argc,
     int                  send_dupl = 0;
     int                  send_error = 0;
     int                  once = 0;
+    struct passwd       *pw;
     cbuf                *cb = NULL;
 
     if ((h = clixon_handle_init()) == NULL)
         goto done;;
     clixon_log_init(h, __PROGRAM__, LOG_INFO, logdst);
+    /* Set username to clixon handle. Use in all communication to backend */
+    if ((pw = getpwuid(getuid())) == NULL){
+        clixon_err(OE_UNIX, errno, "getpwuid");
+        goto done;
+    }
+    if (clicon_username_set(h, pw->pw_name) < 0)
+        goto done;
     /*
      * Command-line options for help, debug, and config-file
      */
@@ -657,10 +673,16 @@ main(int    argc,
         case 'h':
             usage(h, argv[0]);
             break;
-        case 'D' : /* debug */
-            if (sscanf(optarg, "%d", &dbg) != 1)
+        case 'D' : { /* debug */
+            int d = 0;
+            /* Try first symbolic, then numeric match */
+            if ((d = clixon_debug_str2key(optarg)) < 0 &&
+                sscanf(optarg, "%d", &d) != 1){
                 usage(h, argv[0]);
+            }
+            dbg |= d;
             break;
+        }
         case 'f': /* config file */
             if (!strlen(optarg))
                 usage(h, argv[0]);

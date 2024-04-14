@@ -14,6 +14,7 @@ NGROUPS=$(cat <<EOF
        <group>
          <name>admin</name>
          <user-name>root</user-name>
+         <user-name>${CLICON_USER}</user-name>
          <user-name>admin</user-name>
          <user-name>andy</user-name>
          $EXTRAUSER

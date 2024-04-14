@@ -1217,9 +1217,10 @@ cli_show_services_process(clixon_handle h,
         clixon_err(OE_UNIX, errno, "cbuf_new");
         goto done;
     }
-    cprintf(cb, "<rpc xmlns=\"%s\"", NETCONF_BASE_NAMESPACE);
-    cprintf(cb, " %s", NETCONF_MESSAGE_ID_ATTR);
-    cprintf(cb, ">");
+    cprintf(cb, "<rpc xmlns=\"%s\" username=\"%s\" %s>",
+            NETCONF_BASE_NAMESPACE,
+            clicon_username_get(h),
+            NETCONF_MESSAGE_ID_ATTR);
     cprintf(cb, "<process-control xmlns=\"%s\">", CLIXON_LIB_NS);
     cprintf(cb, "<name>%s</name>", name);
     cprintf(cb, "<operation>%s</operation>", opstr);

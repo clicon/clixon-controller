@@ -21,6 +21,9 @@ test -d $modules || mkdir -p $modules
 test -d $CFD || mkdir -p $CFD
 pycode=$modules/ssh-users.py
 
+# Common NACM scripts
+. ./nacm.sh
+
 cat <<EOF > $CFG
 <clixon-config xmlns="http://clicon.org/config">
   <CLICON_CONFIGFILE>$CFG</CLICON_CONFIGFILE>
@@ -49,6 +52,11 @@ cat <<EOF > $CFG
   <CLICON_CLI_HELPSTRING_LINES>1</CLICON_CLI_HELPSTRING_LINES>
   <CLICON_CLI_OUTPUT_FORMAT>text</CLICON_CLI_OUTPUT_FORMAT>
   <CLICON_YANG_SCHEMA_MOUNT>true</CLICON_YANG_SCHEMA_MOUNT>
+  <CLICON_NACM_CREDENTIALS>exact</CLICON_NACM_CREDENTIALS>
+  <CLICON_NACM_MODE>internal</CLICON_NACM_MODE>
+  <CLICON_NACM_DISABLED_ON_EMPTY>true</CLICON_NACM_DISABLED_ON_EMPTY>
+
+  <!-- Cant split config file since pyapi cant read that -->
   <CONTROLLER_ACTION_COMMAND xmlns="http://clicon.org/controller-config">${BINDIR}/clixon_server.py -f $CFG -F</CONTROLLER_ACTION_COMMAND>
   <CONTROLLER_PYAPI_MODULE_PATH xmlns="http://clicon.org/controller-config">$modules</CONTROLLER_PYAPI_MODULE_PATH>
   <CONTROLLER_PYAPI_MODULE_FILTER xmlns="http://clicon.org/controller-config"></CONTROLLER_PYAPI_MODULE_FILTER>
@@ -85,7 +93,9 @@ module ssh-users {
 
     import ietf-inet-types { prefix inet; }
     import clixon-controller { prefix ctrl; }
-
+    import clixon-autocli{
+        prefix autocli;
+    }
     revision 2023-05-22{
         description "Initial prototype";
     }
@@ -108,15 +118,7 @@ module ssh-users {
                      type string;
                 }
             }
-        /* inline due to https://github.com/clicon/clixon/issues/494 */
-        container created {
-            description "List of created objects used by services.";
-            leaf-list path {
-                description "Path to object";
-                type string;
-            }
-        }
-//        uses ctrl:created-by-service;
+            uses ctrl:created-by-service;
         }
     }
 }
@@ -171,6 +173,29 @@ if __name__ == "__main__":
     setup()
 EOF
 
+
+# XXX enable=false, NACM dont work with pyapi
+RULES=$(cat <<EOF
+   <nacm xmlns="urn:ietf:params:xml:ns:yang:ietf-netconf-acm">
+     <enable-nacm>false</enable-nacm>
+     <read-default>permit</read-default>
+     <write-default>permit</write-default>
+     <exec-default>permit</exec-default>
+
+     $NGROUPS
+
+     $NADMIN
+
+   </nacm>
+EOF
+)
+
+cat <<EOF > $dir/startup_db
+<config>
+    $RULES
+</config>
+EOF
+
 # Sleep and verify devices are open
 function sleep_open()
 {
@@ -194,8 +219,8 @@ if $BE; then
     new "Kill old backend"
     stop_backend -f $CFG
 
-    new "Start new backend -s init -f $CFG"
-    start_backend -s init -f $CFG
+    new "Start new backend -s startup -f $CFG"
+    start_backend -s startup -f $CFG
 fi
 
 new "Wait backend"
