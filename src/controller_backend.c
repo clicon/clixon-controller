@@ -547,8 +547,6 @@ controller_lockdb(clixon_handle h,
     controller_transaction *ct_list = NULL;
 
     clixon_debug(CLIXON_DBG_APP, "Lock callback: db%s: locked:%d", db, lock);
-    fprintf(stderr, "%s Lock callback: db%s: locked:%d id:%u\n",
-            __FUNCTION__, db, lock, id);
     /* If client releases lock while transaction ongoing, 
      * then create a new per-transaction lock */
     if (lock == 0 &&
