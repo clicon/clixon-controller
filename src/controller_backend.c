@@ -480,11 +480,16 @@ controller_reset(clixon_handle h,
     cxobj *xtop = NULL;
     cxobj *xse = NULL;
     cvec  *nsc = NULL;
+    int    ret;
 
     if ((nsc = xml_nsctx_init(NULL, CONTROLLER_NAMESPACE)) == NULL)
         goto done;
-    if (xmldb_get(h, "running", nsc, xpath, &xtop) < 0)
+    if ((ret = xmldb_get0(h, "running", YB_MODULE, nsc, xpath, 1, 0, &xtop, NULL, NULL)) < 0)
         goto done;
+    if (ret == 0){
+        clixon_err(OE_DB, 0, "Error when reading from running_db, unknown error");
+        goto done;
+    }
     if ((xse = xpath_first(xtop, 0, "processes/services/enabled")) != NULL){
         if (strcmp(xml_body(xse), "true") == 0)
             if (clixon_process_operation(h, ACTION_PROCESS, PROC_OP_START, 0) < 0)

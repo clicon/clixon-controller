@@ -418,11 +418,11 @@ rpc_config_pull(clixon_handle h,
     int                     i;
     char                   *devname;
     device_handle           dh;
-    int                     ret;
     controller_transaction *ct = NULL;
     char                   *str;
     cbuf                   *cberr = NULL;
     int                     transient = 0;
+    int                     ret;
 
     clixon_debug(CLIXON_DBG_CTRL, "%s", __FUNCTION__);
     /* Initiate new transaction */
@@ -439,8 +439,12 @@ rpc_config_pull(clixon_handle h,
     ct->ct_pull_transient = transient;
     if ((str = xml_find_body(xe, "merge")) != NULL)
         ct->ct_pull_merge = strcmp(str, "true") == 0;
-    if (xmldb_get(h, "running", nsc, "devices/device", &xret) < 0)
+    if ((ret = xmldb_get0(h, "running", YB_MODULE, nsc, "devices/device", 1, 0, &xret, NULL, NULL)) < 0)
         goto done;
+    if (ret == 0){
+        clixon_err(OE_DB, 0, "Error when reading from running_db, unknown error");
+        goto done;
+    }
     if (xpath_vec(xret, nsc, "devices/device", &vec, &veclen) < 0)
         goto done;
     for (i=0; i<veclen; i++){
@@ -1011,9 +1015,14 @@ devices_match(clixon_handle   h,
     device_handle dh;
     int           i;
     char         *body;
+    int           ret;
 
-    if (xmldb_get(h, "running", nsc, "devices", &xret) < 0)
+    if ((ret = xmldb_get0(h, "running", YB_MODULE, nsc, "devices", 1, 0, &xret, NULL, NULL)) < 0)
         goto done;
+    if (ret == 0){
+        clixon_err(OE_DB, 0, "Error when reading from running_db, unknown error");
+        goto done;
+    }
     if (xpath_vec(xret, nsc, "devices/device", &vec, &veclen) < 0)
         goto done;
     for (i=0; i<veclen; i++){
@@ -1480,19 +1489,23 @@ rpc_get_device_config(clixon_handle h,
     cbuf              *cb = NULL;
     cbuf              *cberr = NULL;
     device_config_type dt;
-    int                ret;
     int                i;
+    int                ret;
 
     pattern = xml_find_body(xe, "devname");
     config_type = xml_find_body(xe, "config-type");
     dt = device_config_type_str2int(config_type);
     if (dt == DT_CANDIDATE){
-        if (xmldb_get(h, "candidate", nsc, "devices/device", &xret) < 0)
+        if ((ret = xmldb_get0(h, "candidate", YB_MODULE, nsc, "devices/device", 1, 0, &xret, NULL, NULL)) < 0)
             goto done;
     }
     else{
-        if (xmldb_get(h, "running", nsc, "devices/device", &xret) < 0)
+        if ((ret = xmldb_get0(h, "running", YB_MODULE, nsc, "devices/device", 1, 0, &xret, NULL, NULL)) < 0)
             goto done;
+    }
+    if (ret == 0){
+        clixon_err(OE_DB, 0, "Error when reading from running_db, unknown error");
+        goto done;
     }
     if (xpath_vec(xret, nsc, "devices/device", &vec, &veclen) < 0)
         goto done;
