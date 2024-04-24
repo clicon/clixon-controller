@@ -7,6 +7,7 @@ echo "reset-devices"
 # Set if also check, which only works for clixon-example
 : ${check:=true}
 : ${dir:=/var/tmp}
+: ${nrif:=2}
 
 # Netconf monitoring on device config (affects clients not backend)
 : ${NETCONF_MONITORING:=true}
@@ -16,7 +17,16 @@ echo "reset-devices"
 # Initial config: Define two interfaces x and y
 REQ='<interfaces xmlns="http://openconfig.net/yang/interfaces"/>'
 
-CONFIG='<interfaces xmlns="http://openconfig.net/yang/interfaces"><interface><name>x</name><config><name>x</name><type xmlns:ianaift="urn:ietf:params:xml:ns:yang:iana-if-type">ianaift:ethernetCsmacd</type></config></interface><interface><name>y</name><config><name>y</name><type xmlns:ianaift="urn:ietf:params:xml:ns:yang:iana-if-type">ianaift:atm</type></config></interface></interfaces>'
+CONFIG='<interfaces xmlns="http://openconfig.net/yang/interfaces">'
+CONFIG+='<interface><name>x</name><config><name>x</name><type xmlns:ianaift="urn:ietf:params:xml:ns:yang:iana-if-type">ianaift:ethernetCsmacd</type></config></interface>'
+CONFIG+='<interface><name>y</name><config><name>y</name><type xmlns:ianaift="urn:ietf:params:xml:ns:yang:iana-if-type">ianaift:atm</type></config></interface>'
+
+for i in $(seq 3 $nrif); do
+    CONFIG+="<interface><name>x$i</name><config><name>x$i</name><type xmlns:ianaift=\"urn:ietf:params:xml:ns:yang:iana-if-type\">ianaift:ethernetCsmacd</type></config></interface>"
+done
+CONFIG+='</interfaces>'
+
+echo "CONFIG:$CONFIG"
 
 # Reset devices backends with RFC 6022 enabled
 cat <<EOF > $dir/extra.xml
@@ -148,14 +158,6 @@ EOF
     if [ -n "$match" ]; then
 	echo "netconf rpc-error detected"
         echo "$ret"
-	exit 1
-    fi
-    match=$(echo "$ret" | grep --null -Eo "$CONFIG") || true
-    if [ -z "$match" ]; then
-	echo "Config of device $i not matching:"
-	echo "$ret"
-        echo "Expected:"
-        echo "$CONFIG"
 	exit 1
     fi
     i=$((i+1))

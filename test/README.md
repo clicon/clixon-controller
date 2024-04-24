@@ -72,7 +72,8 @@ Tests names without `cli` indicates a netconf test.
 
 The following modifiers apply to some tests:
 
-* nr=<nr>               Apply on <nr> devices (all)
+* nr=<nr>               Number of devices
+* nrif=<nr>             Number of configured interfaces (size of datastore). 2 is min
 * BE=false              Do not start backend in script, start backend externally instead,
                         ie in a debugger (init-controller.sh only)
 * push=false            Only change dont sync push (change-push.sh only)

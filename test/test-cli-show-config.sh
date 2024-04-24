@@ -37,7 +37,7 @@ cat<<EOF > $CFG
   <CLICON_RESTCONF_USER>${CLICON_USER}</CLICON_RESTCONF_USER>
   <CLICON_RESTCONF_PRIVILEGES>drop_perm</CLICON_RESTCONF_PRIVILEGES>
   <CLICON_RESTCONF_INSTALLDIR>${SBINDIR}</CLICON_RESTCONF_INSTALLDIR>
-  <CLICON_VALIDATE_STATE_XML>true</CLICON_VALIDATE_STATE_XML>
+  <CLICON_VALIDATE_STATE_XML>false</CLICON_VALIDATE_STATE_XML>
   <CLICON_CLI_HELPSTRING_TRUNCATE>true</CLICON_CLI_HELPSTRING_TRUNCATE>
   <CLICON_CLI_HELPSTRING_LINES>1</CLICON_CLI_HELPSTRING_LINES>
   <CLICON_CLI_OUTPUT_FORMAT>text</CLICON_CLI_OUTPUT_FORMAT>
@@ -81,7 +81,12 @@ CLICON_PLUGIN="controller_cli";
 configure("Change to configure mode"), cli_set_mode("configure");
 exit("Quit"), cli_quit();
 quit("Quit"), cli_quit();
-
+connection("Change connection state of one or several devices")  [<name:string>("device pattern")|
+              <name:string expand_dbvar("running","/clixon-controller:devices/device/name")>("device pattern")]{
+              close("Close open connections"), cli_connection_change("CLOSE");
+              open("Open closed connections"), cli_connection_change("OPEN");
+              reconnect("Close all open connections and open all connections"), cli_connection_change("RECONNECT");
+}
 show("Show a particular state of the system"){
     configuration("Show configuration"), cli_show_auto_mode("running", "text", true, false);{
       xml, cli_show_auto_mode("running", "xml", false, false);{

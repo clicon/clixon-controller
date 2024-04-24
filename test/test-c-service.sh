@@ -515,6 +515,7 @@ if $BE; then
     sudo clixon_backend -f $CFG -z
 fi
 
+# Note start from previous running
 if $BE; then
     new "Start new backend -s running -f $CFG -D $DBG"
     sudo clixon_backend -s running -f $CFG -D $DBG
@@ -823,6 +824,7 @@ if $BE; then
     stop_backend -f $CFG
 fi
 
+# Note start from previous running
 # Edit sub-service fields https://github.com/clicon/clixon-controller/issues/89
 if $BE; then
     new "Start new backend -s running -f $CFG -D $DBG"
@@ -878,6 +880,7 @@ if $BE; then
 fi
 
 # apply services
+# Note start from previous running
 if $BE; then
     new "Start new backend -s running -f $CFG -D $DBG"
     sudo clixon_backend -s running -f $CFG -D $DBG
@@ -951,6 +954,7 @@ cat<<EOF > $CFD/action-command.xml
 </clixon-config>
 EOF
 
+# Note start from previous running
 if $BE; then
     new "Start new backend -s running -f $CFG -D $DBG"
     sudo clixon_backend -s running -f $CFG -D $DBG

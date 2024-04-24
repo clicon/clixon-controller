@@ -2654,7 +2654,7 @@ controller_edit_config(clixon_handle h,
     int                  ret;
 
     clixon_debug(CLIXON_DBG_CTRL, "controller edit-config wrapper");
-    if ((yspec =  clicon_dbspec_yang(h)) == NULL){
+    if ((yspec = clicon_dbspec_yang(h)) == NULL){
         clixon_err(OE_YANG, ENOENT, "No yang spec9");
         goto done;
     }

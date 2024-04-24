@@ -14,12 +14,20 @@ set -u
 : ${description:="Clixon example container"}
 : ${yang_config:=VALIDATE}
 : ${USER:=root}
+: ${nrif:=2}
 
 : ${EXTRA:=} # Extra top-level device config
 
 REQ='<interfaces xmlns="http://openconfig.net/yang/interfaces"/>'
 # see reset-devices
-CONFIG='<interfaces xmlns="http://openconfig.net/yang/interfaces"><interface><name>x</name><config><name>x</name><type xmlns:ianaift="urn:ietf:params:xml:ns:yang:iana-if-type">ianaift:ethernetCsmacd</type></config></interface><interface><name>y</name><config><name>y</name><type xmlns:ianaift="urn:ietf:params:xml:ns:yang:iana-if-type">ianaift:atm</type></config></interface></interfaces>'
+CONFIG='<interfaces xmlns="http://openconfig.net/yang/interfaces">'
+CONFIG+='<interface><name>x</name><config><name>x</name><type xmlns:ianaift="urn:ietf:params:xml:ns:yang:iana-if-type">ianaift:ethernetCsmacd</type></config></interface>'
+CONFIG+='<interface><name>y</name><config><name>y</name><type xmlns:ianaift="urn:ietf:params:xml:ns:yang:iana-if-type">ianaift:atm</type></config></interface>'
+
+for i in $(seq 3 $nrif); do
+    CONFIG+="<interface><name>x$i</name><config><name>x$i</name><type xmlns:ianaift=\"urn:ietf:params:xml:ns:yang:iana-if-type\">ianaift:ethernetCsmacd</type><description></description></config></interface>"
+done
+CONFIG+='</interfaces>'
 
 # Send edit-config to controller with initial device meta-config
 function init_device_config()
