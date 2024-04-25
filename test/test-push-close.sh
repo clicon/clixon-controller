@@ -51,7 +51,7 @@ expectpart "$($clixon_cli -1 -f $CFG -m configure commit 2>&1)" 0 "^OK$"
 # Therefore we close via administrative down
 
 new "Close ${IMG}2"
-expectpart "$($clixon_cli -1 -f $CFG connection ${IMG}2 close)" 0 "^$"
+expectpart "$($clixon_cli -1 -f $CFG connection close ${IMG}2)" 0 "^$"
 
 new "edit:- push commit: no devices"
 expectpart "$($clixon_cli -1 -f $CFG -m configure commit)" 0 "^$"

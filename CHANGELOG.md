@@ -11,6 +11,10 @@ Expected: June 2024
 * CLI configurable format: [Default format should be configurable](https://github.com/clicon/clixon-controller/issues/87)
   * Set text/curly as default
 
+### API changes on existing protocol/config features
+
+* Rearranged CLI `connection` command and added a `wait` parameter for blocking wait
+
 ### Corrected Bugs
 
 * Fixed: [CLI: Can't change configuration on Juniper QFX devices](https://github.com/clicon/clixon-controller/issues/109)

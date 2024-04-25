@@ -29,10 +29,12 @@ cat<<EOF > $CFG
   <CLICON_CLISPEC_DIR>${dir}</CLICON_CLISPEC_DIR>
   <CLICON_BACKEND_DIR>${LIBDIR}/controller/backend</CLICON_BACKEND_DIR>
   <CLICON_SOCK>${LOCALSTATEDIR}/run/controller.sock</CLICON_SOCK>
+  <CLICON_SOCK_GROUP>${CLICON_GROUP}</CLICON_SOCK_GROUP>
+  <CLICON_SOCK_PRIO>true</CLICON_SOCK_PRIO>
   <CLICON_BACKEND_PIDFILE>${LOCALSTATEDIR}/run/controller.pid</CLICON_BACKEND_PIDFILE>
   <CLICON_XMLDB_DIR>${LOCALSTATEDIR}/controller</CLICON_XMLDB_DIR>
+  <CLICON_XMLDB_MULTI>true</CLICON_XMLDB_MULTI>
   <CLICON_STARTUP_MODE>init</CLICON_STARTUP_MODE>
-  <CLICON_SOCK_GROUP>${CLICON_GROUP}</CLICON_SOCK_GROUP>
   <CLICON_STREAM_DISCOVERY_RFC5277>true</CLICON_STREAM_DISCOVERY_RFC5277>
   <CLICON_RESTCONF_USER>${CLICON_USER}</CLICON_RESTCONF_USER>
   <CLICON_RESTCONF_PRIVILEGES>drop_perm</CLICON_RESTCONF_PRIVILEGES>
@@ -81,11 +83,25 @@ CLICON_PLUGIN="controller_cli";
 configure("Change to configure mode"), cli_set_mode("configure");
 exit("Quit"), cli_quit();
 quit("Quit"), cli_quit();
-connection("Change connection state of one or several devices")  [<name:string>("device pattern")|
-              <name:string expand_dbvar("running","/clixon-controller:devices/device/name")>("device pattern")]{
-              close("Close open connections"), cli_connection_change("CLOSE");
-              open("Open closed connections"), cli_connection_change("OPEN");
-              reconnect("Close all open connections and open all connections"), cli_connection_change("RECONNECT");
+connection("Change connection state of one or several devices") {
+   close("Close open connections"), cli_connection_change("CLOSE", false);{
+      (<name:string>("device pattern")|
+       <name:string expand_dbvar("running","/clixon-controller:devices/device/name")>("device pattern")), cli_connection_change("CLOSE", false);
+   }
+   open("Open closed connections"), cli_connection_change("OPEN", false);{
+      wait("Block until completion"), cli_connection_change("OPEN", true);
+      (<name:string>("device pattern")|
+       <name:string expand_dbvar("running","/clixon-controller:devices/device/name")>("device pattern")), cli_connection_change("OPEN", false);{
+         wait("Block until completion"), cli_connection_change("OPEN", true);
+      }
+   }
+   reconnect("Close all open connections and open all connections"), cli_connection_change("RECONNECT", false);{
+      wait("Block until completion"), cli_connection_change("RECONNECT", true);
+      (<name:string>("device pattern")|
+       <name:string expand_dbvar("running","/clixon-controller:devices/device/name")>("device pattern")), cli_connection_change("RECONECT", false);{
+                wait("Block until completion"), cli_connection_change("RECONNECT", true);
+      }
+   }
 }
 show("Show a particular state of the system"){
     configuration("Show configuration"), cli_show_auto_mode("running", "text", true, false);{

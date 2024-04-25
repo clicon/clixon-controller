@@ -576,6 +576,48 @@ transaction_notification_poll(clixon_handle       h,
     return retval;
 }
 
+/*! Query backend if transaction exists. call this before polling
+ *
+ * @param[in]  h      Clixon handle
+ * @param[in]  tidstr Transaction id
+ * @param[out] exists 1 if exists
+ * @retval     0      OK
+ * @retval    -1      Error
+ */
+static int
+transaction_exist(clixon_handle h,
+                  char         *tidstr,
+                  int          *exists)
+{
+    int    retval = -1;
+    cxobj *xn = NULL; /* XML of transactions */
+    cxobj *xerr;
+    cxobj *xt;
+    cvec  *nsc = NULL;
+    char  *state;
+
+    if ((nsc = xml_nsctx_init("co", CONTROLLER_NAMESPACE)) == NULL)
+        goto done;
+    if (clicon_rpc_get(h, "co:transactions", nsc, CONTENT_ALL, -1, "report-all", &xn) < 0)
+        goto done;
+    if ((xerr = xpath_first(xn, NULL, "/rpc-error")) != NULL){
+        clixon_err_netconf(h, OE_XML, 0, xerr, "Get transactions");
+        goto done;
+    }
+    (*exists) = 0;
+    if ((xt = xpath_first(xn, nsc, "transactions/transaction[tid='%s']", tidstr)) != NULL)
+        if ((state = xml_find_body(xt, "state")) != NULL)
+            if (strcmp(state, "DONE") != 0)
+                (*exists) = 1;
+    retval = 0;
+ done:
+    if (nsc)
+        cvec_free(nsc);
+    if (xn)
+        xml_free(xn);
+    return retval;
+}
+
 /*! Read(pull) the config of one or several devices.
  *
  * @param[in] h
@@ -601,8 +643,8 @@ cli_rpc_pull(clixon_handle h,
     char      *name = "*";
     cxobj     *xid;
     char      *tidstr;
-    uint64_t   tid = 0;
     transaction_result result;
+    int                exists = 0;
 
     if (argv == NULL || cvec_len(argv) != 1){
         clixon_err(OE_PLUGIN, EINVAL, "requires argument: replace/merge");
@@ -653,12 +695,14 @@ cli_rpc_pull(clixon_handle h,
         goto done;
     }
     tidstr = xml_body(xid);
-    if (tidstr && parse_uint64(tidstr, &tid, NULL) <= 0)
+    if (transaction_exist(h, tidstr, &exists) < 0)
         goto done;
-    if (transaction_notification_poll(h, tidstr, &result) < 0)
-        goto done;
-    if (result == TR_SUCCESS)
-        cligen_output(stderr, "OK\n");
+    if (exists){
+        if (transaction_notification_poll(h, tidstr, &result) < 0)
+            goto done;
+        if (result == TR_SUCCESS)
+            cligen_output(stderr, "OK\n");
+    }
     retval = 0;
  done:
     if (cb)
@@ -846,7 +890,6 @@ cli_rpc_controller_commit(clixon_handle h,
     char              *name = "*";
     cxobj             *xid;
     char              *tidstr;
-    uint64_t           tid = 0;
     char              *actions_type;
     char              *source;
     transaction_result result;
@@ -855,6 +898,7 @@ cli_rpc_controller_commit(clixon_handle h,
     char              *instance = NULL;
     yang_stmt         *yspec;
     char              *keyname = NULL;
+    int                exists = 0;
 
     if (argv == NULL || cvec_len(argv) != 3){
         clixon_err(OE_PLUGIN, EINVAL, "requires arguments: <datastore> <actions-type> <push-type>");
@@ -945,12 +989,14 @@ cli_rpc_controller_commit(clixon_handle h,
         goto done;
     }
     tidstr = xml_body(xid);
-    if (tidstr && parse_uint64(tidstr, &tid, NULL) <= 0)
+    if (transaction_exist(h, tidstr, &exists) < 0)
         goto done;
-    if (transaction_notification_poll(h, tidstr, &result) < 0)
-        goto done;
-    if (result != TR_SUCCESS)
-        goto ok;
+    if (exists){
+        if (transaction_notification_poll(h, tidstr, &result) < 0)
+            goto done;
+        if (result != TR_SUCCESS)
+            goto ok;
+    }
     /* Interpret actions and no push as diff */
     if (actions_type_str2int(actions_type) != AT_NONE &&
         push_type_str2int(push_type) == PT_NONE){
@@ -972,10 +1018,10 @@ cli_rpc_controller_commit(clixon_handle h,
     return retval;
 }
 
-/*! Read the config of one or several devices
+/*! Read the config of one or several devices, assumes a name variable for pattern, or NULL for all
  *
  * @param[in] h
- * @param[in] cvv  : name pattern
+ * @param[in] cvv  : <operation>, <wait>
  * @param[in] argv : 0: close, 1: open, 2: reconnect
  * @retval    0    OK
  * @retval   -1    Error
@@ -995,9 +1041,14 @@ cli_connection_change(clixon_handle h,
     cxobj     *xerr;
     char      *name = "*";
     char      *op;
+    char      *wait;
+    cxobj             *xid;
+    char              *tidstr;
+    transaction_result result;
+    int                exists = 0;
 
-    if (argv == NULL || cvec_len(argv) != 1){
-        clixon_err(OE_PLUGIN, EINVAL, "requires argument: <operation>");
+    if (argv == NULL || cvec_len(argv) != 2){
+        clixon_err(OE_PLUGIN, EINVAL, "requires argument: <operation> <wait>");
         goto done;
     }
     if ((cv = cvec_i(argv, 0)) == NULL){
@@ -1005,6 +1056,11 @@ cli_connection_change(clixon_handle h,
         goto done;
     }
     op = cv_string_get(cv);
+    if ((cv = cvec_i(argv, 1)) == NULL){
+        clixon_err(OE_PLUGIN, 0, "Error when accessing argument <push>");
+        goto done;
+    }
+    wait = cv_string_get(cv);
     if ((cv = cvec_find(cvv, "name")) != NULL)
         name = cv_string_get(cv);
     if ((cb = cbuf_new()) == NULL){
@@ -1034,6 +1090,21 @@ cli_connection_change(clixon_handle h,
     if ((xerr = xpath_first(xreply, NULL, "rpc-error")) != NULL){
         clixon_err_netconf(h, OE_XML, 0, xerr, "Get configuration");
         goto done;
+    }
+    if (strcmp(wait, "true") == 0){
+        if ((xid = xpath_first(xreply, NULL, "tid")) == NULL){
+            clixon_err(OE_CFG, 0, "No returned id");
+            goto done;
+        }
+        tidstr = xml_body(xid);
+        if (transaction_exist(h, tidstr, &exists) < 0)
+            goto done;
+        if (exists){
+            if (transaction_notification_poll(h, tidstr, &result) < 0)
+                goto done;
+            if (result != TR_SUCCESS)
+                cligen_output(stderr, "OK\n");
+        }
     }
     retval = 0;
  done:
@@ -1266,7 +1337,7 @@ cli_show_transactions(clixon_handle h,
     cxobj             *xc;
     cxobj             *xerr;
     cbuf              *cb = NULL;
-    cxobj             *xn = NULL; /* XML of senders */
+    cxobj             *xn = NULL; /* XML of transactions */
     cg_var            *cv;
     int                all = 0;
 
@@ -1557,6 +1628,7 @@ compare_device_config_type(clixon_handle      h,
     cxobj            **vec = NULL;
     size_t             veclen;
     int                i;
+    int                exists = 0;
 
     if (cvec_len(argv) > 1){
         clixon_err(OE_PLUGIN, EINVAL, "Received %d arguments. Expected: <format>]", cvec_len(argv));
@@ -1587,11 +1659,15 @@ compare_device_config_type(clixon_handle      h,
         /* Send pull <transient> */
         if (send_pull_transient(h, pattern, &tidstr) < 0)
             goto done;
-        /* Wait to complete transaction try ^C here */
-        if (transaction_notification_poll(h, tidstr, &result) < 0)
+        if (transaction_exist(h, tidstr, &exists) < 0)
             goto done;
-        if (result != TR_SUCCESS)
-            goto done;
+        if (exists){
+            /* Wait to complete transaction try ^C here */
+            if (transaction_notification_poll(h, tidstr, &result) < 0)
+                goto done;
+            if (result != TR_SUCCESS)
+                goto done;
+        }
     }
     if ((cb = cbuf_new()) == NULL){
         clixon_err(OE_PLUGIN, errno, "cbuf_new");
