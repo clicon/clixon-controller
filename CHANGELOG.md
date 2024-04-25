@@ -5,7 +5,9 @@ Expected: June 2024
 
 ### New features
 
-* Added session kill 
+* Added split config data into multi-datastore
+* Added priority for NB sockets
+* Added session kill
 * CLI configurable format: [Default format should be configurable](https://github.com/clicon/clixon-controller/issues/87)
   * Set text/curly as default
 
