@@ -203,7 +203,6 @@ device_state_recv_config(clixon_handle h,
     int                     retval = -1;
     cxobj                  *xdata;
     cxobj                  *xt = NULL;
-    cxobj                  *xt1 = NULL;
     cxobj                  *xa;
     cbuf                   *cbret = NULL;
     cbuf                   *cberr = NULL;
@@ -326,40 +325,9 @@ device_state_recv_config(clixon_handle h,
         }
         goto ok;
     }
-    /*
-     * Write changed device to tmp-db, make a regular commit from tmp-db
-     * If not revert, write changed device to candidate
-     * XXX: Actually this should be changed to make all proper commits when transaction ends, not
-     * in intermediate steps as done here. This is troublesome in mid-tramsaction abort.
-     */
-    if (xmldb_copy(h, "running", "tmp") < 0)
-        goto done;
-    /* Must make a copy: xmldb_put strips attributes */
-    if ((xt1 = xml_dup(xt)) == NULL)
-        goto done;
-    /* 1. Why not just to candidate? */
-    if ((ret = xmldb_put(h, "tmp", OP_NONE, xt, NULL, cbret)) < 0)
-        goto done;
-    if (ret == 1){
-        if ((ret = candidate_commit(h, NULL, "tmp", 0, 0, cbret)) < 0){
-            /* Handle that candidate_commit can return < 0 if transaction ongoing */
-            cprintf(cbret, "%s", clixon_err_reason());
-            ret = 0;
-        }
-    }
-    if (ret == 0){ /* discard */
-        clixon_debug(CLIXON_DBG_CTRL, "%s", cbuf_get(cbret));
-        if (device_close_connection(dh, "Failed to commit: %s", cbuf_get(cbret)) < 0)
-            goto done;
-        goto closed;
-    }
-    else {
-        device_handle_sync_time_set(dh, NULL);
-    }
     /* 2. Why not just cp? */
-    if ((ret = xmldb_put(h, "candidate", OP_NONE, xt1, NULL, cbret)) < 0)
+    if ((ret = xmldb_put(h, "candidate", OP_NONE, xt, NULL, cbret)) < 0)
         goto done;
-    xmldb_delete(h, "tmp");
     if ((ret = device_config_write(h, name, "SYNCED", xt, cbret)) < 0)
         goto done;
     if (ret == 0){
@@ -367,13 +335,12 @@ device_state_recv_config(clixon_handle h,
             goto done;
         goto closed;
     }
+    device_handle_sync_time_set(dh, NULL);
  ok:
     retval = 1;
  done:
     if (xt)
         xml_free(xt);
-    if (xt1)
-        xml_free(xt1);
     if (xerr)
         xml_free(xerr);
     if (cberr)

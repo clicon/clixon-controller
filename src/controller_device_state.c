@@ -1013,6 +1013,46 @@ device_state_check_sanity(device_handle           dh,
     return 1;
 }
 
+/*! Commit candidate
+ */
+static int
+device_commit_when_done(clixon_handle           h,
+                        device_handle           dh,
+                        char                   *name,
+                        controller_transaction *ct,
+                        uint64_t                tid)
+{
+    int   retval = -1;
+    cbuf *cbret = NULL;
+    int   ret;
+
+    if ((cbret = cbuf_new()) == NULL){
+        clixon_err(OE_UNIX, errno, "cbuf_new");
+        goto done;
+    }
+    if ((ret = candidate_commit(h, NULL, "candidate", 0, 0, cbret)) < 0){
+        /* Handle that candidate_commit can return < 0 if transaction ongoing */
+        cprintf(cbret, "%s", clixon_err_reason());
+        ret = 0;
+    }
+    if (ret == 0){ /* discard */
+        clixon_debug(CLIXON_DBG_CTRL, "%s", cbuf_get(cbret));
+        if (device_close_connection(dh, "Failed to commit: %s", cbuf_get(cbret)) < 0)
+            goto done;
+        if (controller_transaction_failed(h, tid, ct, dh, TR_FAILED_DEV_LEAVE, name, device_handle_logmsg_get(dh)) < 0)
+            goto done;
+        goto failed;
+    }
+    retval = 1;
+ done:
+    if (cbret)
+        cbuf_free(cbret);
+    return retval;
+ failed:
+    retval = 0;
+    goto done;
+}
+
 /*! Main state machine for controller transactions+devices
  *
  * @param[in]  h     Clixon handle
@@ -1241,7 +1281,13 @@ device_state_handler(clixon_handle h,
         /* The device is OK */
         if (device_state_check_ok(h, dh, ct) < 0)
             goto done;
-        break;
+        if (ct->ct_state == TS_DONE && ct->ct_result == TR_SUCCESS){
+            if ((ret = device_commit_when_done(h, dh, name, ct, tid)) < 0)
+                goto done;
+            if (ret == 0)
+                break;
+        }
+      break;
     case CS_PUSH_LOCK:
         if (device_state_check_sanity(dh, tid, ct, name, conn_state, rpcname) == 0)
             break;

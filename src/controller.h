@@ -72,7 +72,7 @@
  */
 #undef CONTROLLER_EXTRA_PUSH_SYNC
 
-/*! Enable to share same yang-spec structure for all devices
+/*! Enable to share same yang-spec structure for all devices with same yang-specs
  */
 #define SHARED_PROFILE_YSPEC
 
