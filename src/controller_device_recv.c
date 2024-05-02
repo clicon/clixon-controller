@@ -218,6 +218,7 @@ device_state_recv_config(clixon_handle h,
     controller_transaction *ct;
     int                     merge = 0;
     int                     transient = 0;
+    cxobj                  *xt1 = NULL;
 
     clixon_debug(CLIXON_DBG_CTRL | CLIXON_DBG_DETAIL, "%s", __FUNCTION__);
     if ((ret = rpc_reply_sanity(dh, xmsg, rpcname, conn_state)) < 0)
@@ -325,10 +326,23 @@ device_state_recv_config(clixon_handle h,
         }
         goto ok;
     }
-    /* 2. Why not just cp? */
-    if ((ret = xmldb_put(h, "candidate", OP_NONE, xt, NULL, cbret)) < 0)
+    /* Must make a copy: xmldb_put strips attributes */
+    if ((xt1 = xml_dup(xt)) == NULL)
         goto done;
-    if ((ret = device_config_write(h, name, "SYNCED", xt, cbret)) < 0)
+    /* 1. Put device config change to tmp */
+    if ((ret = xmldb_put(h, "tmpdev", OP_NONE, xt, NULL, cbret)) < 0)
+        goto done;
+    if (ret == 0){ /* discard */
+        clixon_debug(CLIXON_DBG_CTRL, "%s", cbuf_get(cbret));
+        if (device_close_connection(dh, "Failed to commit: %s", cbuf_get(cbret)) < 0)
+            goto done;
+        goto closed;
+    }
+    device_handle_sync_time_set(dh, NULL);
+    /* 2. Put same to candidate */
+    if (ret && (ret = xmldb_put(h, "candidate", OP_NONE, xt1, NULL, cbret)) < 0)
+        goto done;
+    if (ret && (ret = device_config_write(h, name, "SYNCED", xt, cbret)) < 0)
         goto done;
     if (ret == 0){
         if (device_close_connection(dh, "%s", cbuf_get(cbret)) < 0)
@@ -339,6 +353,8 @@ device_state_recv_config(clixon_handle h,
  ok:
     retval = 1;
  done:
+    if (xt1)
+        xml_free(xt1);
     if (xt)
         xml_free(xt);
     if (xerr)

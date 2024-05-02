@@ -221,6 +221,10 @@ controller_connect(clixon_handle           h,
                 goto done;
         }
     }
+    if (xmldb_db_reset(h, "tmpdev") < 0) /* Requires root access */
+        goto done;
+    if (xmldb_copy(h, "running", "tmpdev") < 0)
+        goto done;
     /* Point of no return: assume errors handled in device_input_cb */
     device_handle_tid_set(dh, ct->ct_id);
     if (connect_netconf_ssh(h, dh, user, addr, ssh_stricthostkey) < 0) /* match */
@@ -462,6 +466,10 @@ rpc_config_pull(clixon_handle h,
         if (ret == 0)  /* Failed but cbret set */
             goto ok;
     } /* for */
+    if (xmldb_db_reset(h, "tmpdev") < 0) /* Requires root access */
+        goto done;
+    if (xmldb_copy(h, "running", "tmpdev") < 0)
+        goto done;
     cprintf(cbret, "<rpc-reply xmlns=\"%s\">", NETCONF_BASE_NAMESPACE);
     cprintf(cbret, "<tid xmlns=\"%s\">%" PRIu64"</tid>", CONTROLLER_NAMESPACE, ct->ct_id);
     cprintf(cbret, "</rpc-reply>");

@@ -542,6 +542,9 @@ module clixon-controller {
                     description
                        "Root for yang models retrieved from device via get-schema";
                 }
+                cl:xmldb-split {
+                    description "Multi-XMLDB: split datastore here";
+                }
             }
         }
     }

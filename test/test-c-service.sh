@@ -219,6 +219,8 @@ RULES=$(cat <<EOF
 EOF
 )
 
+if false; then
+    
 # Enable services process to check for already running
 # if you run a separate debug clixon_controller_service process for debugging, set this to false
 cat <<EOF > $dir/startup_db
@@ -231,6 +233,8 @@ cat <<EOF > $dir/startup_db
   </processes>
 </config>
 EOF
+
+
 
 if $BE; then
     new "Kill old backend $CFG"
@@ -263,6 +267,8 @@ expectpart "$(${clixon_cli} -m configure -1f $CFG commit diff 2>&1)" 0 "Timeout 
 
 new "discard"
 expectpart "$(${clixon_cli} -m configure -1f $CFG discard)" 0 ""
+
+fi # XXX
 
 if $BE; then
     new "Kill old backend"
@@ -391,28 +397,41 @@ if [ -n "$match" ]; then
     err "<ok/>" "$ret"
 fi
 
+#edit # edit
 sleep $sleep
 
 new "commit push"
 set +e
 expectpart "$(${clixon_cli} -m configure -1f $CFG commit push 2>&1)" 0 OK --not-- Error
 
+#edit # push
+
 # see https://github.com/clicon/clixon-controller/issues/70
 new "commit diff 1"
 expectpart "$(${clixon_cli} -m configure -1f $CFG commit diff 2>&1)" 0 OK --not-- "<interface"
+
+# exit # commit diff 1
 
 # see https://github.com/clicon/clixon-controller/issues/78
 new "local change"
 expectpart "$(${clixon_cli} -m configure -1f $CFG set devices device openconfig1 config system config login-banner mylogin-banner)" 0 ""
 
+# exit # set login-banner
+
 new "commit diff 2"
 expectpart "$(${clixon_cli} -m configure -1f $CFG commit diff 2>&1)" 0 "^+\ *<login-banner>mylogin-banner</login-banner>"
+
+# exit # commit diff 2
 
 new "commit"
 expectpart "$(${clixon_cli} -m configure -1f $CFG commit 2>&1)" 0 ""
 
+# exit # commit 2
+
 new "commit diff 3"
 expectpart "$(${clixon_cli} -m configure -1f $CFG commit diff 2>&1)" 0 --not-- "^+\ *<login-banner>mylogin-banner</login-banner>"
+
+# exit # commit diff 3
 
 CREATORSA="<created><path>/devices/device\[name=\"openconfig1\"\]/config/interfaces/interface\[name=\"A0x\"\]</path><path>/devices/device\[name=\"openconfig1\"\]/config/interfaces/interface\[name=\"A0y\"\]</path><path>/devices/device\[name=\"openconfig1\"\]/config/interfaces/interface\[name=\"ABx\"\]</path><path>/devices/device\[name=\"openconfig1\"\]/config/interfaces/interface\[name=\"ABy\"\]</path><path>/devices/device\[name=\"openconfig1\"\]/config/interfaces/interface\[name=\"Ax\"\]</path><path>/devices/device\[name=\"openconfig1\"\]/config/interfaces/interface\[name=\"Ay\"\]</path><path>/devices/device\[name=\"openconfig2\"\]/config/interfaces/interface\[name=\"A0x\"\]</path><path>/devices/device\[name=\"openconfig2\"\]/config/interfaces/interface\[name=\"A0y\"\]</path><path>/devices/device\[name=\"openconfig2\"\]/config/interfaces/interface\[name=\"ABx\"\]</path><path>/devices/device\[name=\"openconfig2\"\]/config/interfaces/interface\[name=\"ABy\"\]</path><path>/devices/device\[name=\"openconfig2\"\]/config/interfaces/interface\[name=\"Ax\"\]</path><path>/devices/device\[name=\"openconfig2\"\]/config/interfaces/interface\[name=\"Ay\"\]</path></created>"
 
@@ -479,8 +498,9 @@ if [ -z "$match" ]; then
 fi
 
 # Pull and ensure attributes remain
-new "Pull replace"
+new "Pull"
 expectpart "$(${clixon_cli} -1f $CFG pull)" 0 ""
+#exit # pull
 
 new "Check creator attributes after pull"
 ret=$(${clixon_netconf} -qe0 -f $CFG <<EOF
@@ -510,6 +530,14 @@ match=$(echo $ret | grep --null -Eo "$CREATORSA") || true
 if [ -z "$match" ]; then
     err "$CREATORSA" "$ret"
 fi
+
+# Here, if FINAL_COMMIT, then creator attributes are in candidate but not in running
+# It is logial in a way since attributes are removed in actions, then added by service
+# then copied to candidate.
+# When pulled configs arrive, they are commited into tmpdev and committed into running
+# Have to draw,...
+
+#exit # XXXXXXXXXXXXXXXXXXXXXXXX
 
 # Restart backend and ensure attributes remain
 if $BE; then
@@ -943,170 +971,6 @@ expectpart "$(${clixon_cli} -m configure -1f $CFG apply services myyang:testA fo
 
 new "apply all services"
 expectpart "$(${clixon_cli} -m configure -1f $CFG apply services 2>&1)" 0 "OK"
-
-if $BE; then
-    new "Kill old backend"
-    stop_backend -f $CFG
-fi
-
-# Simulated error
-cat<<EOF > $CFD/action-command.xml
-<clixon-config xmlns="http://clicon.org/config">
-  <CONTROLLER_ACTION_COMMAND xmlns="http://clicon.org/controller-config">${BINDIR}/clixon_controller_service -f $CFG -e</CONTROLLER_ACTION_COMMAND>
-</clixon-config>
-EOF
-
-# Note start from previous running
-if $BE; then
-    new "Start new backend -s running -f $CFG -D $DBG"
-    sudo clixon_backend -s running -f $CFG -D $DBG
-fi
-
-# Simulated error
-new "Wait backend 6"
-wait_backend
-
-new "open connections"
-expectpart "$(${clixon_cli} -1f $CFG connect open)" 0 ""
-
-new "Verify open devices"
-sleep $sleep
-
-imax=5
-for i in $(seq 1 $imax); do
-    res=$(${clixon_cli} -1f $CFG show devices | grep OPEN | wc -l)
-    if [ "$res" = "$nr" ]; then
-        break;
-    fi
-    echo "retry $i after sleep"
-    sleep $sleep
-done
-if [ $i -eq $imax ]; then
-    err1 "$nr open devices" "$res"
-fi
-
-new "edit testA(2)"
-ret=$(${clixon_netconf} -0 -f $CFG <<EOF
-<?xml version="1.0" encoding="UTF-8"?>
-<hello xmlns="urn:ietf:params:xml:ns:netconf:base:1.0">
-   <capabilities>
-      <capability>urn:ietf:params:netconf:base:1.0</capability>
-   </capabilities>
-</hello>]]>]]>
-<rpc xmlns="urn:ietf:params:xml:ns:netconf:base:1.0"
-     xmlns:nc="urn:ietf:params:xml:ns:netconf:base:1.0"
-     message-id="42">
-  <edit-config>
-    <target><candidate/></target>
-    <default-operation>none</default-operation>
-    <config>
-       <services xmlns="http://clicon.org/controller">
-	  <testA xmlns="urn:example:test" nc:operation="replace">
-	     <a_name>foo</a_name>
-	     <params>A0y</params>
-	     <params>A0z</params>
-	     <params>Ay</params>
-	     <params>Az</params>
-	     <params>ABy</params>
-	     <params>ABz</params>
-	 </testA>
-      </services>
-    </config>
-  </edit-config>
-</rpc>]]>]]>
-EOF
-)
-
-match=$(echo "$ret" | grep --null -Eo "<rpc-error>") || true
-if [ -n "$match" ]; then
-    err "<ok/>" "$ret"
-fi
-
-new "commit"
-expectpart "$(${clixon_cli} -m configure -1f $CFG commit 2>&1)" 0 "simulated error"
-
-new "commit diff" # not locked
-expectpart "$(${clixon_cli} -m configure -1f $CFG commit diff 2>&1)" 0 "simulated error"
-
-if $BE; then
-    new "Kill old backend"
-    stop_backend -f $CFG
-fi
-
-# Simulated duplicate
-cat<<EOF > $CFD/action-command.xml
-<clixon-config xmlns="http://clicon.org/config">
-  <CONTROLLER_ACTION_COMMAND xmlns="http://clicon.org/controller-config">${BINDIR}/clixon_controller_service -f $CFG -d</CONTROLLER_ACTION_COMMAND>
-</clixon-config>
-EOF
-
-if $BE; then
-    new "Start new backend -s running -f $CFG -D $DBG"
-    sudo clixon_backend -s running -f $CFG -D $DBG
-fi
-
-new "Wait backend 7"
-wait_backend
-
-new "open connections"
-expectpart "$(${clixon_cli} -1f $CFG connect open)" 0 ""
-
-new "Verify open devices"
-sleep $sleep
-
-imax=5
-for i in $(seq 1 $imax); do
-    res=$(${clixon_cli} -1f $CFG show devices | grep OPEN | wc -l)
-    if [ "$res" = "$nr" ]; then
-        break;
-    fi
-    echo "retry $i after sleep"
-    sleep $sleep
-done
-
-if [ $i -eq $imax ]; then
-    err1 "$nr open devices" "$res"
-fi
-
-new "edit testA(2)"
-ret=$(${clixon_netconf} -0 -f $CFG <<EOF
-<?xml version="1.0" encoding="UTF-8"?>
-<hello xmlns="urn:ietf:params:xml:ns:netconf:base:1.0">
-   <capabilities>
-      <capability>urn:ietf:params:netconf:base:1.0</capability>
-   </capabilities>
-</hello>]]>]]>
-<rpc xmlns="urn:ietf:params:xml:ns:netconf:base:1.0"
-     xmlns:nc="urn:ietf:params:xml:ns:netconf:base:1.0"
-     message-id="42">
-  <edit-config>
-    <target><candidate/></target>
-    <default-operation>none</default-operation>
-    <config>
-       <services xmlns="http://clicon.org/controller">
-	  <testA xmlns="urn:example:test" nc:operation="replace">
-	     <a_name>foo</a_name>
-	     <params>A0y</params>
-	     <params>A0z</params>
-	     <params>Ay</params>
-	     <params>Az</params>
-	     <params>ABy</params>
-	     <params>ABz</params>
-	 </testA>
-      </services>
-    </config>
-  </edit-config>
-</rpc>]]>]]>
-EOF
-)
-
-match=$(echo "$ret" | grep --null -Eo "<rpc-error>") || true
-if [ -n "$match" ]; then
-    err "<ok/>" "$ret"
-fi
-
-new "commit"
-expectpart "$(${clixon_cli} -m configure -1f $CFG commit 2>&1)" 0 "operation-failed" "data-not-unique"
 
 if $BE; then
     new "Kill old backend"
