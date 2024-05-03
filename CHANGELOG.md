@@ -17,6 +17,8 @@ Expected: June 2024
 
 ### Corrected Bugs
 
+* Fixed: [default format does not work in configure mode](https://github.com/clicon/clixon-controller/issues/118)
+  But must be default format xml for pipe display to work
 * Fixed: [connection open does local commit on services](https://github.com/clicon/clixon-controller/issues/119)
 * Fixed: [CLI: Can't change configuration on Juniper QFX devices](https://github.com/clicon/clixon-controller/issues/109)
 * Fixed: [Commit to device(s) in OPEN state even if we have other devices in CLOSED state](https://github.com/clicon/clixon-controller/issues/95)
