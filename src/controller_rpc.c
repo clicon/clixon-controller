@@ -221,10 +221,6 @@ controller_connect(clixon_handle           h,
                 goto done;
         }
     }
-    if (xmldb_db_reset(h, "tmpdev") < 0) /* Requires root access */
-        goto done;
-    if (xmldb_copy(h, "running", "tmpdev") < 0)
-        goto done;
     /* Point of no return: assume errors handled in device_input_cb */
     device_handle_tid_set(dh, ct->ct_id);
     if (connect_netconf_ssh(h, dh, user, addr, ssh_stricthostkey) < 0) /* match */
@@ -1613,6 +1609,7 @@ rpc_connection_change(clixon_handle h,
     cbuf                   *cbtr = NULL;
     char                   *reason = NULL;
     int                     ret;
+    int                     tmpdev = 0;
 
     clixon_debug(CLIXON_DBG_CTRL, "%s", __FUNCTION__);
     if ((cbtr = cbuf_new()) == NULL){
@@ -1664,6 +1661,7 @@ rpc_connection_change(clixon_handle h,
                         goto done;
                     goto ok;
                 }
+                tmpdev++;
             }
         }
         else if (strcmp(operation, "RECONNECT") == 0){
@@ -1681,6 +1679,7 @@ rpc_connection_change(clixon_handle h,
                         goto done;
                     goto ok;
                 }
+                tmpdev++;
             }
         }
         else {
@@ -1688,6 +1687,14 @@ rpc_connection_change(clixon_handle h,
             goto done;
         }
     } /* for */
+    /* Initiate tmpdev datastore for device commits */
+    if (tmpdev) {
+        /* Possibly only copy files / dir */
+        if (xmldb_db_reset(h, "tmpdev") < 0) /* Requires root access */
+            goto done;
+        if (xmldb_copy(h, "running", "tmpdev") < 0)
+            goto done;
+    }
     cprintf(cbret, "<rpc-reply xmlns=\"%s\">", NETCONF_BASE_NAMESPACE);
     cprintf(cbret, "<tid xmlns=\"%s\">%" PRIu64"</tid>", CONTROLLER_NAMESPACE, ct->ct_id);
     cprintf(cbret, "</rpc-reply>");
