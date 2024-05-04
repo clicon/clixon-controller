@@ -26,8 +26,6 @@ for i in $(seq 3 $nrif); do
 done
 CONFIG+='</interfaces>'
 
-echo "CONFIG:$CONFIG"
-
 # Reset devices backends with RFC 6022 enabled
 cat <<EOF > $dir/extra.xml
 <clixon-config xmlns="http://clicon.org/config">

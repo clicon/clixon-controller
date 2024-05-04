@@ -234,12 +234,11 @@ cat <<EOF > $dir/startup_db
 </config>
 EOF
 
-
-
 if $BE; then
     new "Kill old backend $CFG"
     sudo clixon_backend -f $CFG -z
-
+fi
+if $BE; then
     new "Start new backend -s startup -f $CFG"
     start_backend -s startup -f $CFG
 fi

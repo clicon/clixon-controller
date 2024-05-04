@@ -158,7 +158,7 @@ rpc_get_yanglib_mount_match(clixon_handle h,
     cxobj *xret = NULL;
     cxobj *xerr;
 
-    clixon_debug(CLIXON_DBG_CTRL, "%s", __FUNCTION__);
+    clixon_debug(CLIXON_DBG_CTRL, "");
     if ((cb = cbuf_new()) == NULL){
         clixon_err(OE_PLUGIN, errno, "cbuf_new");
         goto done;
@@ -412,7 +412,7 @@ transaction_notification_handler(clixon_handle       h,
     void              *wh = NULL;
     cbuf              *cb = NULL;
 
-    clixon_debug(CLIXON_DBG_CTRL, "%s tid:%s", __FUNCTION__, tidstr0);
+    clixon_debug(CLIXON_DBG_CTRL, "tid:%s", tidstr0);
     /* Need to set "intr" to enable ^C */
     if (clixon_resource_check(h, &wh, tidstr0, __FUNCTION__) < 0)
         goto done;
@@ -448,14 +448,12 @@ transaction_notification_handler(clixon_handle       h,
     if ((result = transaction_result_str2int(resstr)) != TR_SUCCESS){
         clixon_log(h, LOG_NOTICE, "%s: pid: %u Transaction %s failed: %s",
                    __FUNCTION__, getpid(), tidstr, reason?reason:"no reason");
-        goto ok; // error == ^C
     }
     if (result)
         *resultp = result;
- ok:
     retval = 0;
  done:
-    clixon_debug(CLIXON_DBG_CTRL, "%s %d", __FUNCTION__, retval);
+    clixon_debug(CLIXON_DBG_CTRL, "%d", retval);
     if (cb)
         cbuf_free(cb);
     if (xt)
@@ -541,7 +539,9 @@ transaction_notification_poll(clixon_handle       h,
     int                s;
     int                match = 0;
 
-    clixon_debug(CLIXON_DBG_CTRL, "%s tid:%s", __FUNCTION__, tidstr);
+    clixon_debug(CLIXON_DBG_CTRL, "tid:%s", tidstr);
+    if (result)
+        *result = 0;
     if ((s = clicon_data_int_get(h, "controller-transaction-notify-socket")) < 0){
         clixon_err(OE_EVENTS, 0, "controller-transaction-notify-socket is closed");
         goto done;
@@ -572,7 +572,7 @@ transaction_notification_poll(clixon_handle       h,
     }
     retval = 0;
  done:
-    clixon_debug(CLIXON_DBG_CTRL, "%s %d", __FUNCTION__, retval);
+    clixon_debug(CLIXON_DBG_CTRL, "%d", retval);
     return retval;
 }
 
@@ -605,10 +605,9 @@ transaction_exist(clixon_handle h,
         goto done;
     }
     (*exists) = 0;
-    if ((xt = xpath_first(xn, nsc, "transactions/transaction[tid='%s']", tidstr)) != NULL)
-        if ((state = xml_find_body(xt, "state")) != NULL)
-            if (strcmp(state, "DONE") != 0)
-                (*exists) = 1;
+    if ((xt = xpath_first(xn, nsc, "transactions/transaction[tid='%s']", tidstr)) != NULL){
+        *exists = 1;
+    }
     retval = 0;
  done:
     if (nsc)
@@ -631,19 +630,19 @@ cli_rpc_pull(clixon_handle h,
              cvec         *cvv,
              cvec         *argv)
 {
-    int        retval = -1;
-    cbuf      *cb = NULL;
-    cg_var    *cv;
-    cxobj     *xtop = NULL;
-    cxobj     *xrpc;
-    cxobj     *xret = NULL;
-    cxobj     *xreply;
-    cxobj     *xerr;
-    char      *op;
-    char      *name = "*";
-    cxobj     *xid;
-    char      *tidstr;
-    transaction_result result;
+    int                retval = -1;
+    cbuf              *cb = NULL;
+    cg_var            *cv;
+    cxobj             *xtop = NULL;
+    cxobj             *xrpc;
+    cxobj             *xret = NULL;
+    cxobj             *xreply;
+    cxobj             *xerr;
+    char              *op;
+    char              *name = "*";
+    cxobj             *xid;
+    char              *tidstr;
+    transaction_result result = 0;
     int                exists = 0;
 
     if (argv == NULL || cvec_len(argv) != 1){
@@ -892,7 +891,7 @@ cli_rpc_controller_commit(clixon_handle h,
     char              *tidstr;
     char              *actions_type;
     char              *source;
-    transaction_result result;
+    transaction_result result = 0;
     char              *str;
     char              *service = NULL;
     char              *instance = NULL;
@@ -1031,20 +1030,20 @@ cli_connection_change(clixon_handle h,
                       cvec         *cvv,
                       cvec         *argv)
 {
-    int        retval = -1;
-    cbuf      *cb = NULL;
-    cg_var    *cv;
-    cxobj     *xtop = NULL;
-    cxobj     *xrpc;
-    cxobj     *xret = NULL;
-    cxobj     *xreply;
-    cxobj     *xerr;
-    char      *name = "*";
-    char      *op;
-    char      *wait;
+    int                retval = -1;
+    cbuf              *cb = NULL;
+    cg_var            *cv;
+    cxobj             *xtop = NULL;
+    cxobj             *xrpc;
+    cxobj             *xret = NULL;
+    cxobj             *xreply;
+    cxobj             *xerr;
+    char              *name = "*";
+    char              *op;
+    char              *wait;
     cxobj             *xid;
     char              *tidstr;
-    transaction_result result;
+    transaction_result result = 0;
     int                exists = 0;
 
     if (argv == NULL || cvec_len(argv) != 2){
@@ -1624,7 +1623,7 @@ compare_device_config_type(clixon_handle      h,
     cxobj             *xdiff;
     cbuf              *cb = NULL;
     char              *device_type = NULL;
-    transaction_result result;
+    transaction_result result = 0;
     cxobj            **vec = NULL;
     size_t             veclen;
     int                i;

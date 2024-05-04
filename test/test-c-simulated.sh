@@ -207,6 +207,10 @@ EOF
 . ./reset-devices.sh
 
 if $BE; then
+    new "Kill old backend $CFG"
+    sudo clixon_backend -f $CFG -z
+fi
+if $BE; then
     new "Start new backend -s startup -f $CFG -D $DBG"
     sudo clixon_backend -s startup -f $CFG -D $DBG
 fi
@@ -237,7 +241,7 @@ done
 if [ $i -eq $imax ]; then
     err1 "$nr open devices" "$res"
 fi
-sleep 1
+
 new "edit testA(2)"
 ret=$(${clixon_netconf} -0 -f $CFG <<EOF
 <?xml version="1.0" encoding="UTF-8"?>
