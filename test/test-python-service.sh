@@ -203,7 +203,7 @@ function sleep_open()
 {
     for j in $(seq 1 10); do
         new "Verify devices are open"
-        ret=$($clixon_cli -1 -f $CFG show devices)
+        ret=$($clixon_cli -1 -f $CFG show connections)
         match1=$(echo "$ret" | grep --null -Eo "openconfig1.*OPEN") || true
         match2=$(echo "$ret" | grep --null -Eo "openconfig2.*OPEN") || true
         if [ -n "$match1" -a -n "$match2" ]; then
@@ -242,7 +242,7 @@ new "Sleep and verify devices are open"
 sleep_open
 
 new "Show device diff, should be empty"
-expectpart "$($clixon_cli -1 -f $CFG show devices diff)" 0 "^$"
+expectpart "$($clixon_cli -1 -f $CFG show connections diff)" 0 "^$"
 
 # Verify that service processes are running
 new "Verify service processes are running"

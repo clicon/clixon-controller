@@ -561,7 +561,7 @@ sleep $sleep
 
 imax=5
 for i in $(seq 1 $imax); do
-    res=$(${clixon_cli} -1f $CFG show devices | grep OPEN | wc -l)
+    res=$(${clixon_cli} -1f $CFG show connections | grep OPEN | wc -l)
     if [ "$res" = "$nr" ]; then
         break;
     fi
@@ -871,7 +871,7 @@ sleep $sleep
 
 imax=5
 for i in $(seq 1 $imax); do
-    res=$(${clixon_cli} -1f $CFG show devices | grep OPEN | wc -l)
+    res=$(${clixon_cli} -1f $CFG show connections | grep OPEN | wc -l)
     if [ "$res" = "$nr" ]; then
         break;
     fi

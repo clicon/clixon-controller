@@ -155,7 +155,7 @@ for ip in $CONTAINERS; do
     sleep $sleep
     
     new "Verify controller $NAME"
-    res=$(${clixon_cli} -1f $CFG show devices | grep OPEN | wc -l)
+    res=$(${clixon_cli} -1f $CFG show connections | grep OPEN | wc -l)
 
     if [ "$res" != "$ii" ]; then
         err1 "$ii open devices" "$res"
@@ -181,7 +181,7 @@ expectpart "$($clixon_cli -1 -f $CFG connection open)" 0 "^$"
 sleep $sleep
 
 new "Verify controller $NAME"
-res=$(${clixon_cli} -1f $CFG show devices | grep OPEN | wc -l)
+res=$(${clixon_cli} -1f $CFG show connections | grep OPEN | wc -l)
 
 nr1=$((nr-1))
 if [ "$res" != "$nr1" ]; then
@@ -207,7 +207,7 @@ new "commit local"
 expectpart "$($clixon_cli -1 -m configure -f $CFG commit local)" 0 "^$"
 
 new "Verify controller 1"
-res=$(${clixon_cli} -1f $CFG show devices | grep OPEN | wc -l)
+res=$(${clixon_cli} -1f $CFG show connections | grep OPEN | wc -l)
 
 if [ "$res" != "0" ]; then
     echo "Error: $res devices open, expected 0"
@@ -261,7 +261,7 @@ expectpart "$($clixon_cli -1 -f $CFG connection open)" 0 "^$"
 sleep $sleep
     
 new "Verify controller 2"
-res=$(${clixon_cli} -1f $CFG show devices | grep OPEN | wc -l)
+res=$(${clixon_cli} -1f $CFG show connections | grep OPEN | wc -l)
 
 nr=$((ii-1))
 if [ "$res" != "$nr" ]; then

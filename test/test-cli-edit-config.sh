@@ -20,8 +20,8 @@ function sleep_open()
 {
     jmax=10
     for j in $(seq 1 $jmax); do
-        new "cli show devices and check open"
-        ret=$($clixon_cli -1 -f $CFG show devices)
+        new "cli show connections and check open"
+        ret=$($clixon_cli -1 -f $CFG show connections)
         match1=$(echo "$ret" | grep --null -Eo "openconfig1.*OPEN") || true
         match2=$(echo "$ret" | grep --null -Eo "openconfig2.*OPEN") || true
         if [ -n "$match1" -a -n "$match2" ]; then
@@ -38,10 +38,10 @@ function sleep_open()
 function testrun()
 {
     new "Show device diff, should be empty"
-    expectpart "$($clixon_cli -1 -f $CFG show devices diff)" 0 ""
-    expectpart "$($clixon_cli -1 -f $CFG 'show devices openconfig* diff')" 0 ""
-    expectpart "$($clixon_cli -1 -f $CFG show devices openconfig1 diff)" 0 ""
-    expectpart "$($clixon_cli -1 -f $CFG show devices openconfig2 diff)" 0 ""
+    expectpart "$($clixon_cli -1 -f $CFG show connections diff)" 0 ""
+    expectpart "$($clixon_cli -1 -f $CFG 'show connections openconfig* diff')" 0 ""
+    expectpart "$($clixon_cli -1 -f $CFG show connections openconfig1 diff)" 0 ""
+    expectpart "$($clixon_cli -1 -f $CFG show connections openconfig2 diff)" 0 ""
 
     new "Configure hostname on openconfig1"
     expectpart "$($clixon_cli -1 -f $CFG -m configure set devices device openconfig1 config system config hostname test1)" 0 ""
@@ -131,7 +131,7 @@ new "Close all devices"
 expectpart "$($clixon_cli -1 -f $CFG connection close)" 0 ""
 
 new "Ensure closed"
-expectpart "$($clixon_cli -1 -f $CFG show devices)" 0 "openconfig1.*CLOSED" "openconfig2.*CLOSED"
+expectpart "$($clixon_cli -1 -f $CFG show connections)" 0 "openconfig1.*CLOSED" "openconfig2.*CLOSED"
 
 new "Connect to devices"
 expectpart "$($clixon_cli -1 -f $CFG connection open)" 0 ""

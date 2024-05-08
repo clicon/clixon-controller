@@ -146,7 +146,7 @@ fi
 sleep $sleep
 
 new "Verify controller"
-res=$(${clixon_cli} -1f $CFG show devices | grep OPEN | wc -l)
+res=$(${clixon_cli} -1f $CFG show connections | grep OPEN | wc -l)
 
 ret=$(${clixon_netconf} -q0 -f $CFG <<EOF
 <rpc xmlns="urn:ietf:params:xml:ns:netconf:base:1.0" xmlns:nc="urn:ietf:params:xml:ns:netconf:base:1.0" message-id="43">

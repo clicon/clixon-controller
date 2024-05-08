@@ -102,7 +102,7 @@ function sleep_open()
     jmax=10
     for j in $(seq 1 $jmax); do
         new "cli show devices and check open"
-        ret=$($clixon_cli -1 -f $CFG show devices)
+        ret=$($clixon_cli -1 -f $CFG show connections)
         match1=$(echo "$ret" | grep --null -Eo "openconfig1.*OPEN") || true
         match2=$(echo "$ret" | grep --null -Eo "openconfig2.*OPEN") || true
         if [ -n "$match1" -a -n "$match2" ]; then
@@ -239,7 +239,7 @@ new "pull"
 expectpart "$($clixon_cli -1f $CFG pull 2>&1)" 0 "OK"
 
 new "check sync OK 1"
-expectpart "$($clixon_cli -1f $CFG show devices $NAME check 2>&1)" 0 "OK" --not-- "out-of-sync"
+expectpart "$($clixon_cli -1f $CFG show connections $NAME check 2>&1)" 0 "OK" --not-- "out-of-sync"
 
 NAME=${IMG}1
 for ip in $CONTAINERS; do # Just to get first element
@@ -260,13 +260,13 @@ new "Commit local"
 expectpart "$($clixon_cli -1f $CFG -m configure commit local)" 0 "^$"
 
 new "check sync OK"
-expectpart "$($clixon_cli -1f $CFG show devices $NAME check 2>&1)" 0 "OK" --not-- "out-of-sync"
+expectpart "$($clixon_cli -1f $CFG show connections $NAME check 2>&1)" 0 "OK" --not-- "out-of-sync"
 
 new "Commit push"
 expectpart "$($clixon_cli -1f $CFG -m configure commit push)" 0 "^$"
 
 new "check sync OK"
-expectpart "$($clixon_cli -1f $CFG show devices $NAME check 2>&1)" 0 "OK" --not-- "out-of-sync"
+expectpart "$($clixon_cli -1f $CFG show connections $NAME check 2>&1)" 0 "OK" --not-- "out-of-sync"
 
 device_mtu_get $ip ""
 
@@ -286,13 +286,13 @@ new "Commit local"
 expectpart "$($clixon_cli -1f $CFG -m configure commit local)" 0 "^$"
 
 new "check sync OK"
-expectpart "$($clixon_cli -1f $CFG show devices $NAME check 2>&1)" 0 "OK" --not-- "out-of-sync"
+expectpart "$($clixon_cli -1f $CFG show connections $NAME check 2>&1)" 0 "OK" --not-- "out-of-sync"
 
 new "Commit push"
 expectpart "$($clixon_cli -1f $CFG -m configure commit push)" 0 "^$"
 
 new "check sync OK"
-expectpart "$($clixon_cli -1f $CFG show devices $NAME check 2>&1)" 0 "OK" --not-- "out-of-sync"
+expectpart "$($clixon_cli -1f $CFG show connections $NAME check 2>&1)" 0 "OK" --not-- "out-of-sync"
 
 device_mtu_get $ip 999
 
@@ -332,13 +332,13 @@ new "Check controller is gone"
 expectpart "$($clixon_cli -1f $CFG show config devices device openconfig1 config interfaces interface y config mtu)" 0 --not-- "<mtu>"
 
 new "check sync OK"
-expectpart "$($clixon_cli -1f $CFG show devices $NAME check 2>&1)" 0 "OK" --not-- "out-of-sync"
+expectpart "$($clixon_cli -1f $CFG show connections $NAME check 2>&1)" 0 "OK" --not-- "out-of-sync"
 
 new "Commit push"
 expectpart "$($clixon_cli -1f $CFG -m configure commit push)" 0 "^$"
 
 new "check sync OK"
-expectpart "$($clixon_cli -1f $CFG show devices $NAME check 2>&1)" 0 "OK" --not-- "out-of-sync"
+expectpart "$($clixon_cli -1f $CFG show connections $NAME check 2>&1)" 0 "OK" --not-- "out-of-sync"
 
 device_mtu_get $ip 999
 

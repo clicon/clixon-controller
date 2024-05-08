@@ -175,14 +175,14 @@ sleep $sleep
 
 # Not complete YANG
 new "Verify controller: all closed"
-res=$(${clixon_cli} -1f $CFG show devices | grep CLOSED | wc -l)
+res=$(${clixon_cli} -1f $CFG show connections | grep CLOSED | wc -l)
 
 if [ "$res" != "$ii" ]; then
     err1 "$ii closed devices" "$res"
 fi
 
 new "Verify reason: YANG bind failed"
-res=$(${clixon_cli} -1f $CFG show devices | grep "YANG bind failed" | wc -l)
+res=$(${clixon_cli} -1f $CFG show connections | grep "YANG bind failed" | wc -l)
 if [ "$res" != "$ii" ]; then
     err1 "$ii bind failed" "$res"
 fi
@@ -205,14 +205,14 @@ expectpart "$($clixon_cli -1 -f $CFG connection open)" 0 "^$"
 sleep $sleep
 
 new "Verify controller: all closed"
-res=$(${clixon_cli} -1f $CFG show devices | grep CLOSED | wc -l)
+res=$(${clixon_cli} -1f $CFG show connections | grep CLOSED | wc -l)
 
 if [ "$res" != "$ii" ]; then
     err1 "$ii closed devices" "$res"
 fi
 
 new "Verify reason: No yang files found"
-res=$(${clixon_cli} -1f $CFG show devices detail | grep "<logmsg>Yang \"openconfig-xxx\" not found in the list of CLICON_YANG_DIRs</logmsg>" | wc -l)
+res=$(${clixon_cli} -1f $CFG show connections detail | grep "<logmsg>Yang \"openconfig-xxx\" not found in the list of CLICON_YANG_DIRs</logmsg>" | wc -l)
 if [ "$res" != "$ii" ]; then
     err1 "$ii bind failed" "$res"
 fi
@@ -235,7 +235,7 @@ expectpart "$($clixon_cli -1 -f $CFG connection open)" 0 "^$"
 sleep $sleep
 
 new "Verify controller: all open"
-res=$(${clixon_cli} -1f $CFG show devices | grep OPEN | wc -l)
+res=$(${clixon_cli} -1f $CFG show connections | grep OPEN | wc -l)
 
 if [ "$res" != "$ii" ]; then
     err1 "$ii open devices" "$res"
