@@ -88,6 +88,6 @@
  */
 extern const char CONTROLLER_BUILDSTR[];
 extern const char CONTROLLER_VERSIONSTR[];
-extern const char CONTROLLER_GITHASHSTR[];
+extern const char CONTROLLER_GITHASH[];
 
 #endif /* _CONTROLLER_H */

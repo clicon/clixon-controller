@@ -475,7 +475,6 @@ controller_mount_yspec_set(clixon_handle h,
  *
  * A plugin can customize a version (or banner) output on stdout.
  * Several version strings can be printed if there are multiple callbacks.
- * If not registered plugins exist, clixon prints CLIXON_VERSION_STRING
  * Typically invoked by command-line option -V
  * @param[in]  h   Clixon handle
  * @param[in]  f   Output file
@@ -489,9 +488,8 @@ controller_version(clixon_handle h,
 {
     /* Assume clixon version already printed */
     cligen_output(f, "CLIgen: \t%s\n", CLIGEN_VERSION);
-    cligen_output(f, "Controller: \t%s\n", CONTROLLER_VERSIONSTR);
-    cligen_output(f, "Controller GIT:\t%s\n", CONTROLLER_GITHASHSTR);
-    cligen_output(f, "Controller bld:\t%s\n", CONTROLLER_BUILDSTR);
+    cligen_output(f, "Controller:\t%s\n", CONTROLLER_GITHASH);
+    cligen_output(f, "Build:\t\t%s\n", CONTROLLER_BUILDSTR);
     return 0;
 }
 

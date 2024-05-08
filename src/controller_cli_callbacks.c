@@ -594,7 +594,6 @@ transaction_exist(clixon_handle h,
     cxobj *xerr;
     cxobj *xt;
     cvec  *nsc = NULL;
-    char  *state;
 
     if ((nsc = xml_nsctx_init("co", CONTROLLER_NAMESPACE)) == NULL)
         goto done;
@@ -2322,14 +2321,19 @@ cli_auto_load_devs(clixon_handle h,
 }
 
 /*! Show controller and clixon version
+ *
+ * @see controller_version
  */
 int
 cli_controller_show_version(clixon_handle h,
                             cvec         *vars,
                             cvec         *argv)
 {
-    cligen_output(stdout, "Clixon: \t%s\n", CLIXON_VERSION_STRING);
-    return controller_version(h, stdout);
+    cligen_output(stdout, "CLIgen: \t%s\n", CLIGEN_VERSION);
+    cligen_output(stdout, "Clixon: \t%s\n", CLIXON_GITHASH);
+    cligen_output(stdout, "Controller:\t%s\n", CONTROLLER_GITHASH);
+    cligen_output(stdout, "Build:\t\t%s\n", CONTROLLER_BUILDSTR);
+    return 0;
 }
 
 /*! Apply template on devices
