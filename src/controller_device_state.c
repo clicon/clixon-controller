@@ -166,21 +166,12 @@ device_close_connection(device_handle dh,
     char    *name;
 
     name = device_handle_name_get(dh);
-    clixon_debug(CLIXON_DBG_CTRL | CLIXON_DBG_DETAIL, "%s %s", __FUNCTION__, name);
-    if ((s = device_handle_socket_get(dh)) == -1){
-        clixon_err(OE_UNIX, errno, "%s: socket is -1", device_handle_name_get(dh));
-        goto done;
-    }
-    clixon_event_unreg_fd(s, device_input_cb); /* deregister events */
-    if (device_handle_disconnect(dh) < 0) /* close socket, reap sub-processes */
-        goto done;
-    //    device_handle_yang_lib_set(dh, NULL); XXX mem-error: caller using xylib
-    if (device_state_set(dh, CS_CLOSED) < 0)
-        goto done;
     device_handle_outmsg_set(dh, 1, NULL);
     device_handle_outmsg_set(dh, 2, NULL);
-    if (format == NULL)
+    if (format == NULL){
+        clixon_debug(CLIXON_DBG_CTRL, "%s", name);
         device_handle_logmsg_set(dh, NULL);
+    }
     else {
         va_start(ap, format); /* dryrun */
         if ((len = vsnprintf(NULL, 0, format, ap)) < 0) /* dryrun, just get len */
@@ -196,8 +187,19 @@ device_close_connection(device_handle dh,
             goto done;
         }
         va_end(ap);
+        clixon_debug(CLIXON_DBG_CTRL, "%s %s", name, str);
+    }
+    /* Handle case already closed */
+    if ((s = device_handle_socket_get(dh)) != -1){
+        clixon_event_unreg_fd(s, device_input_cb); /* deregister events */
+        if (device_handle_disconnect(dh) < 0) /* close socket, reap sub-processes */
+            goto done;
+    }
+    //    device_handle_yang_lib_set(dh, NULL); XXX mem-error: caller using xylib
+    if (device_state_set(dh, CS_CLOSED) < 0)
+        goto done;
+    if (str){
         device_handle_logmsg_set(dh, str);
-        clixon_debug(CLIXON_DBG_CTRL, "%s %s: %s", __FUNCTION__, name, str);
         str = NULL;
     }
     retval = 0;
