@@ -522,7 +522,7 @@ service_action_handler(clixon_handle      h,
     char   *sourcedb = NULL;
     char   *targetdb = NULL;
 
-    clixon_debug(CLIXON_DBG_CTRL, "%s", __FUNCTION__);
+    clixon_debug(CLIXON_DBG_CTRL, "");
     if (clixon_xml_parse_string(notification, YB_NONE, NULL, &xt, NULL) < 0)
         goto done;
     if ((xn = xpath_first(xt, 0, "notification/services-commit")) == NULL){
@@ -590,7 +590,7 @@ static int
 service_action_terminate(clixon_handle h)
 {
     clixon_event_exit();
-    clixon_debug(CLIXON_DBG_CTRL, "%s done", __FUNCTION__);
+    clixon_debug(CLIXON_DBG_CTRL, "done");
     clixon_err_exit();
     clixon_log_exit();
     clixon_handle_exit(h);
@@ -733,7 +733,7 @@ main(int    argc,
         clixon_log(h, LOG_NOTICE, "services-commit: subscription failed: %s", clixon_err_reason());
         goto done;
     }
-    clixon_debug(CLIXON_DBG_CTRL, "%s notification socket:%d", __FUNCTION__, s);
+    clixon_debug(CLIXON_DBG_CTRL, "notification socket:%d", s);
 
     if (!once)
         while (clixon_msg_rcv11(s, NULL, 0, &cb, &eof) == 0){

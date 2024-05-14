@@ -352,7 +352,7 @@ controller_action_proc_cb(clixon_handle    h,
 {
     int    retval = -1;
 
-    clixon_debug(CLIXON_DBG_CTRL, "%s", __FUNCTION__);
+    clixon_debug(CLIXON_DBG_CTRL, "");
     switch (*operation){
     case PROC_OP_STOP:
         /* if RPC op is stop, stop the service */
@@ -393,7 +393,7 @@ action_daemon_register(clixon_handle h)
     char       *group;
     char       *user;
 
-    clixon_debug(CLIXON_DBG_CTRL, "%s", __FUNCTION__);
+    clixon_debug(CLIXON_DBG_CTRL, "");
     if ((cmd = clicon_option_str(h, "CONTROLLER_ACTION_COMMAND")) == NULL)
         goto ok;
     if ((argv0 = clicon_strsep(cmd, " \t", &argc0)) == NULL)
@@ -560,7 +560,6 @@ controller_lockdb(clixon_handle h,
         do {
             if (ct->ct_state != TS_DONE &&
                 ct->ct_client_id == id){
-                fprintf(stderr, "%s Found transaction client-id:%u\n", __FUNCTION__, ct->ct_client_id);
                 if (xmldb_lock(h, db, TRANSACTION_CLIENT_ID) < 0)
                     goto done;
                 /* user callback */

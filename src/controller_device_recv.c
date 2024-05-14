@@ -125,7 +125,7 @@ device_state_recv_hello(clixon_handle h,
     cvec                *nsc = NULL;
     cxobj               *xcaps;
 
-    clixon_debug(CLIXON_DBG_CTRL|CLIXON_DBG_DETAIL, "%s", __FUNCTION__);
+    clixon_debug(CLIXON_DBG_CTRL|CLIXON_DBG_DETAIL, "");
     rpcprefix = xml_prefix(xmsg);
     if (xml2ns(xmsg, rpcprefix, &namespace) < 0)
         goto done;
@@ -160,7 +160,7 @@ device_state_recv_hello(clixon_handle h,
         device_close_connection(dh, "No base netconf capability found");
         goto closed;
     }
-    clixon_debug(CLIXON_DBG_CTRL, "%s version: %d", __FUNCTION__, version);
+    clixon_debug(CLIXON_DBG_CTRL, "version: %d", version);
     version = 0; /* XXX hardcoded to 0 */
     device_handle_framing_type_set(dh, version);
     /* Send hello */
@@ -220,7 +220,7 @@ device_state_recv_config(clixon_handle h,
     int                     transient = 0;
     cxobj                  *xt1 = NULL;
 
-    clixon_debug(CLIXON_DBG_CTRL | CLIXON_DBG_DETAIL, "%s", __FUNCTION__);
+    clixon_debug(CLIXON_DBG_CTRL | CLIXON_DBG_DETAIL, "");
     if ((ret = rpc_reply_sanity(dh, xmsg, rpcname, conn_state)) < 0)
         goto done;
     if (ret == 0)
@@ -395,7 +395,7 @@ device_state_recv_schema_list(device_handle dh,
     cxobj *xyanglib = NULL;
     int    ret;
 
-    clixon_debug(CLIXON_DBG_CTRL | CLIXON_DBG_DETAIL, "%s", __FUNCTION__);
+    clixon_debug(CLIXON_DBG_CTRL | CLIXON_DBG_DETAIL, "");
     if ((ret = rpc_reply_sanity(dh, xmsg, rpcname, conn_state)) < 0)
         goto done;
     if (ret == 0)
@@ -474,7 +474,7 @@ device_state_recv_get_schema(device_handle dh,
     char         *dir;
     int           ret;
 
-    clixon_debug(CLIXON_DBG_CTRL, "%s", __FUNCTION__);
+    clixon_debug(CLIXON_DBG_CTRL, "");
     h = device_handle_handle_get(dh);
     if ((ret = rpc_reply_sanity(dh, xmsg, rpcname, conn_state)) < 0)
         goto done;
@@ -502,7 +502,7 @@ device_state_recv_get_schema(device_handle dh,
     if (revision)
         cprintf(cb, "@%s", revision);
     cprintf(cb, ".yang");
-    clixon_debug(CLIXON_DBG_CTRL, "%s: Write yang to %s", __FUNCTION__, cbuf_get(cb));
+    clixon_debug(CLIXON_DBG_CTRL, "Write yang to %s", cbuf_get(cb));
     if ((f = fopen(cbuf_get(cb), "w")) == NULL){
         clixon_err(OE_UNIX, errno, "fopen(%s)", cbuf_get(cb));
         goto done;

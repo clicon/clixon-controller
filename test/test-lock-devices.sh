@@ -91,13 +91,14 @@ rollback("Discard edits (rollback 0)"), discard_changes();
 show("Show a particular state of the system"){
     compare("Compare candidate and running databases"), compare_dbs_rpc("running", "candidate", "xml");
     configuration("Show configuration"), cli_show_auto_mode("running", "xml", true, false);
-    devices("Show state of devices")[
+    connections("Show state of connection state of devices")[
                  (<name:string>("device pattern")|
                   <name:string expand_dbvar("running","/clixon-controller:devices/device/name")>("device pattern"))
-                 ], cli_show_devices();{
-                 check("Check if device is in sync"), check_device_db("text");
-                 detail("Show detailed state"), cli_show_devices("detail");
-                 }
+                 ], cli_show_connections();{
+                 check("Check if device is in sync"), check_device_db("default");
+                 diff("Compare remote device config with local"), compare_device_db_dev("default");
+                 detail("Show detailed state"), cli_show_connections("detail");
+             }
     state("Show configuration and state"), cli_show_auto_mode("running", "xml", false, true);
 }
 pull("sync config from one or multiple devices")[

@@ -110,20 +110,17 @@ controller_transaction_state_set(controller_transaction *ct,
     case TS_INIT:
         assert(ct->ct_state != TS_DONE);
         if (ct->ct_state != TS_INIT)
-            clixon_debug(CLIXON_DBG_CTRL, "%s %" PRIu64 " : %s -> %s",
-                         __FUNCTION__,
+            clixon_debug(CLIXON_DBG_CTRL, "%" PRIu64 " : %s -> %s",
                          ct->ct_id,
                          transaction_state_int2str(ct->ct_state),
                          transaction_state_int2str(state));
         else
-            clixon_debug(CLIXON_DBG_CTRL, "%s %" PRIu64 " : -> %s",
-                         __FUNCTION__,
+            clixon_debug(CLIXON_DBG_CTRL, "%" PRIu64 " : -> %s",
                          ct->ct_id,
                          transaction_state_int2str(state));
         break;
     case TS_ACTIONS:
-        clixon_debug(CLIXON_DBG_CTRL, "%s %" PRIu64 " : %s -> %s",
-                     __FUNCTION__,
+        clixon_debug(CLIXON_DBG_CTRL, "%" PRIu64 " : %s -> %s",
                      ct->ct_id,
                      transaction_state_int2str(ct->ct_state),
                      transaction_state_int2str(state));
@@ -131,8 +128,7 @@ controller_transaction_state_set(controller_transaction *ct,
     case TS_RESOLVED:
         assert(result != -1);
         assert(state != ct->ct_state);
-        clixon_debug(CLIXON_DBG_CTRL, "%s %" PRIu64 " : %s -> %s result: %s",
-                     __FUNCTION__,
+        clixon_debug(CLIXON_DBG_CTRL, "%" PRIu64 " : %s -> %s result: %s",
                      ct->ct_id,
                      transaction_state_int2str(ct->ct_state),
                      transaction_state_int2str(state),
@@ -141,15 +137,13 @@ controller_transaction_state_set(controller_transaction *ct,
     case TS_DONE:
         assert(state != ct->ct_state);
         if (result != -1 && result != ct->ct_result)
-            clixon_debug(CLIXON_DBG_CTRL, "%s %" PRIu64 " : %s -> %s result: %s",
-                         __FUNCTION__,
+            clixon_debug(CLIXON_DBG_CTRL, "%" PRIu64 " : %s -> %s result: %s",
                          ct->ct_id,
                          transaction_state_int2str(ct->ct_state),
                          transaction_state_int2str(state),
                          transaction_result_int2str(result));
         else
-            clixon_debug(CLIXON_DBG_CTRL, "%s %" PRIu64 " : %s -> %s",
-                         __FUNCTION__,
+            clixon_debug(CLIXON_DBG_CTRL, "%" PRIu64 " : %s -> %s",
                          ct->ct_id,
                          transaction_state_int2str(ct->ct_state),
                          transaction_state_int2str(state));
@@ -177,7 +171,7 @@ controller_transaction_notify(clixon_handle           h,
     int   retval = -1;
     cbuf *cb = NULL;
 
-    clixon_debug(CLIXON_DBG_CTRL, "%s %" PRIu64, __FUNCTION__, ct->ct_id);
+    clixon_debug(CLIXON_DBG_CTRL, "%" PRIu64, ct->ct_id);
     if (ct->ct_state == TS_INIT){
         clixon_err(OE_CFG, EINVAL, "Transaction notify sent in state INIT");
         goto done;
@@ -272,7 +266,7 @@ controller_transaction_new(clixon_handle            h,
         clixon_err(OE_PLUGIN, EINVAL, "ctp is NULL");
         goto done;
     }
-    clixon_debug(CLIXON_DBG_CTRL, "%s", __FUNCTION__);
+    clixon_debug(CLIXON_DBG_CTRL, "");
     iddb = xmldb_islocked(h, db);
     /* If no lock create transaction lock else use existing lock */
     if (iddb == 0)
@@ -411,7 +405,7 @@ controller_transaction_done(clixon_handle           h,
     char         *db = "candidate";
     device_handle dh;
 
-    clixon_debug(CLIXON_DBG_CTRL, "%s %s", __FUNCTION__, transaction_result_int2str(ct->ct_state));
+    clixon_debug(CLIXON_DBG_CTRL, "%s", transaction_result_int2str(ct->ct_state));
     controller_transaction_state_set(ct, TS_DONE, result);
     iddb = xmldb_islocked(h, db);
     if (iddb == TRANSACTION_CLIENT_ID){
@@ -521,7 +515,7 @@ controller_transaction_failed(clixon_handle           h,
         device_close_connection(dh, "Device not associated with transaction");
         goto done;
     }
-    clixon_debug(CLIXON_DBG_CTRL, "%s", __FUNCTION__);
+    clixon_debug(CLIXON_DBG_CTRL, "");
     if (dh != NULL && devclose != TR_FAILED_DEV_IGNORE){
         if (devclose == TR_FAILED_DEV_CLOSE){
             /* 1.2 The error is not recoverable */
@@ -574,7 +568,7 @@ controller_transaction_failed(clixon_handle           h,
     }
     retval = 0;
  done:
-    clixon_debug(CLIXON_DBG_CTRL, "%s retval:%d", __FUNCTION__, retval);
+    clixon_debug(CLIXON_DBG_CTRL, "retval:%d", retval);
     return retval;
 }
 
@@ -682,7 +676,7 @@ controller_transaction_statedata(clixon_handle   h,
     controller_transaction *ct_list = NULL;
     controller_transaction *ct = NULL;
 
-    clixon_debug(CLIXON_DBG_CTRL|CLIXON_DBG_DETAIL, "%s", __FUNCTION__);
+    clixon_debug(CLIXON_DBG_CTRL|CLIXON_DBG_DETAIL, "");
     if ((cb = cbuf_new()) == NULL){
         clixon_err(OE_UNIX, errno, "cbuf_new");
         goto done;

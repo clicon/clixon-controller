@@ -101,7 +101,7 @@ function sleep_open()
 {
     jmax=10
     for j in $(seq 1 $jmax); do
-        new "cli show devices and check open"
+        new "cli show connections and check open"
         ret=$($clixon_cli -1 -f $CFG show connections)
         match1=$(echo "$ret" | grep --null -Eo "openconfig1.*OPEN") || true
         match2=$(echo "$ret" | grep --null -Eo "openconfig2.*OPEN") || true

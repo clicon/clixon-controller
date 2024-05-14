@@ -204,7 +204,7 @@ device_close_connection(device_handle dh,
     }
     retval = 0;
  done:
-    clixon_debug(CLIXON_DBG_CTRL | CLIXON_DBG_DETAIL, "%s retval: %d", __FUNCTION__, retval);
+    clixon_debug(CLIXON_DBG_CTRL | CLIXON_DBG_DETAIL, "retval: %d", retval);
     if (str)
         free(str);
     return retval;
@@ -247,7 +247,7 @@ device_input_cb(int   s,
     int                     ret;
     int                     sockerr;
 
-    clixon_debug(CLIXON_DBG_CTRL | CLIXON_DBG_DETAIL, "%s", __FUNCTION__);
+    clixon_debug(CLIXON_DBG_CTRL | CLIXON_DBG_DETAIL, "");
     h = device_handle_handle_get(dh);
     frame_state = device_handle_frame_state_get(dh);
     frame_size = device_handle_frame_size_get(dh);
@@ -297,7 +297,7 @@ device_input_cb(int   s,
                                &eom) < 0)
             goto done;
         if (eom == 0){ /* frame not complete */
-            clixon_debug(CLIXON_DBG_CTRL | CLIXON_DBG_DETAIL, "%s: frame: %lu", __FUNCTION__, cbuf_len(cbmsg));
+            clixon_debug(CLIXON_DBG_CTRL | CLIXON_DBG_DETAIL, "frame: %lu", cbuf_len(cbmsg));
             /* Extra data to read, save data and continue on next round */
             break;
         }
@@ -408,7 +408,7 @@ device_schemas_mount_parse(clixon_handle h,
     yang_stmt *yspec1;
     int        ret;
 
-    clixon_debug(CLIXON_DBG_CTRL | CLIXON_DBG_DETAIL, "%s", __FUNCTION__);
+    clixon_debug(CLIXON_DBG_CTRL | CLIXON_DBG_DETAIL, "");
     if (xpath_first(xyanglib, 0, "module-set/module") == NULL){
         /* No modules: No local and no */
         device_close_connection(dh, "Empty set of YANG modules");
@@ -432,7 +432,7 @@ device_schemas_mount_parse(clixon_handle h,
     }
     retval = 1;
  done:
-    clixon_debug(CLIXON_DBG_CTRL | CLIXON_DBG_DETAIL, "%s retval %d", __FUNCTION__, retval);
+    clixon_debug(CLIXON_DBG_CTRL | CLIXON_DBG_DETAIL, "retval %d", retval);
     return retval;
  fail:
     retval = 0;
@@ -508,7 +508,7 @@ device_state_timeout(int   s,
     char                   *name;
 
     name = device_handle_name_get(dh);
-    clixon_debug(CLIXON_DBG_CTRL, "%s %s", __FUNCTION__, name);
+    clixon_debug(CLIXON_DBG_CTRL, "%s", name);
     h = device_handle_handle_get(dh);
 
     if ((tid = device_handle_tid_get(dh)) != 0)
@@ -550,7 +550,7 @@ device_state_timeout_register(device_handle dh)
     else
         t1.tv_sec = 60;
     t1.tv_usec = 0;
-    clixon_debug(CLIXON_DBG_CTRL | CLIXON_DBG_DETAIL, "%s timeout:%ld s", __FUNCTION__, t1.tv_sec);
+    clixon_debug(CLIXON_DBG_CTRL | CLIXON_DBG_DETAIL, "timeout:%ld s", t1.tv_sec);
     timeradd(&t, &t1, &t);
     if ((cb = cbuf_new()) == NULL){
         clixon_err(OE_UNIX, errno, "cbuf_new");
@@ -577,7 +577,7 @@ device_state_timeout_unregister(device_handle dh)
     char *name;
 
     name = device_handle_name_get(dh);
-    clixon_debug(CLIXON_DBG_CTRL | CLIXON_DBG_DETAIL, "%s %s", __FUNCTION__, name);
+    clixon_debug(CLIXON_DBG_CTRL | CLIXON_DBG_DETAIL, "%s", name);
     (void)clixon_event_unreg_timeout(device_state_timeout, dh);
     return 0;
 }
@@ -1008,8 +1008,8 @@ device_state_check_sanity(device_handle           dh,
         return 0;
     }
     if (ct->ct_state != TS_INIT && ct->ct_state != TS_RESOLVED){
-        clixon_debug(CLIXON_DBG_CTRL, "%s %s: Unexpected msg %s in state %s",
-                     __FUNCTION__, name, rpcname, transaction_state_int2str(ct->ct_state));
+        clixon_debug(CLIXON_DBG_CTRL, "%s: Unexpected msg %s in state %s",
+                     name, rpcname, transaction_state_int2str(ct->ct_state));
         return 0;
     }
     return 1;
@@ -1130,7 +1130,7 @@ device_state_handler(clixon_handle h,
             }
         }
         if (!device_handle_capabilities_find(dh, "urn:ietf:params:xml:ns:yang:ietf-netconf-monitoring")){
-            clixon_debug(CLIXON_DBG_CTRL, "%s Device %s: Netconf monitoring capability not announced", __FUNCTION__, name);
+            clixon_debug(CLIXON_DBG_CTRL, "Device %s: Netconf monitoring capability not announced", name);
             if (xyanglib == NULL){
                 if (controller_transaction_failed(h, tid, ct, dh, TR_FAILED_DEV_CLOSE, name, "No YANG device lib") < 0)
                     goto done;
@@ -1168,7 +1168,7 @@ device_state_handler(clixon_handle h,
             break;
         }
         else
-            clixon_debug(CLIXON_DBG_CTRL, "%s Device %s: Netconf monitoring capability announced", __FUNCTION__, name);
+            clixon_debug(CLIXON_DBG_CTRL, "Device %s: Netconf monitoring capability announced", name);
         if ((ret = device_send_get_schema_list(h, dh, s)) < 0)
             goto done;
         if (device_state_set(dh, CS_SCHEMA_LIST) < 0)
@@ -1697,8 +1697,8 @@ device_state_handler(clixon_handle h,
     case CS_CLOSED:
     case CS_OPEN:
     default:
-        clixon_debug(CLIXON_DBG_CTRL, "%s %s: Unexpected msg %s in state %s",
-                     __FUNCTION__, name, rpcname,
+        clixon_debug(CLIXON_DBG_CTRL, "%s: Unexpected msg %s in state %s",
+                     name, rpcname,
                      device_state_int2str(conn_state));
         clixon_debug_xml(CLIXON_DBG_MSG, xmsg, "Message");
         device_close_connection(dh, "Unexpected msg %s in state %s",

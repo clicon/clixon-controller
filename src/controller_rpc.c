@@ -140,7 +140,7 @@ controller_connect(clixon_handle           h,
     cxobj        *xyanglib = NULL;
     int           ssh_stricthostkey = 1;
 
-    clixon_debug(CLIXON_DBG_CTRL, "%s", __FUNCTION__);
+    clixon_debug(CLIXON_DBG_CTRL, "");
     if ((name = xml_find_body(xn, "name")) == NULL)
         goto ok;
     dh = device_handle_find(h, name); /* can be NULL */
@@ -378,7 +378,7 @@ pull_device_one(clixon_handle h,
     int  retval = -1;
     int  s;
 
-    clixon_debug(CLIXON_DBG_CTRL, "%s", __FUNCTION__);
+    clixon_debug(CLIXON_DBG_CTRL, "");
     s = device_handle_socket_get(dh);
     if (device_send_get_config(h, dh, s) < 0)
         goto done;
@@ -424,7 +424,7 @@ rpc_config_pull(clixon_handle h,
     int                     transient = 0;
     int                     ret;
 
-    clixon_debug(CLIXON_DBG_CTRL, "%s", __FUNCTION__);
+    clixon_debug(CLIXON_DBG_CTRL, "");
     /* Initiate new transaction */
     if ((ret = controller_transaction_new(h, ce->ce_id, "pull", &ct, &cberr)) < 0)
         goto done;
@@ -501,7 +501,7 @@ actions_timeout(int   s,
     controller_transaction *ct = (controller_transaction *)arg;
     clixon_handle           h;
 
-    clixon_debug(CLIXON_DBG_CTRL, "%s", __FUNCTION__);
+    clixon_debug(CLIXON_DBG_CTRL, "");
     h = ct->ct_h;
     if (ct->ct_state == TS_DONE)
         goto ok;
@@ -533,7 +533,7 @@ actions_timeout_register(controller_transaction *ct)
     struct timeval t1;
     int            d;
 
-    clixon_debug(CLIXON_DBG_CTRL, "%s", __FUNCTION__);
+    clixon_debug(CLIXON_DBG_CTRL, "");
     gettimeofday(&t, NULL);
     d = clicon_data_int_get(ct->ct_h, "controller-device-timeout");
     if (d != -1)
@@ -541,7 +541,7 @@ actions_timeout_register(controller_transaction *ct)
     else
         t1.tv_sec = CONTROLLER_DEVICE_TIMEOUT_DEFAULT;
     t1.tv_usec = 0;
-    clixon_debug(CLIXON_DBG_CTRL, "%s timeout:%ld s", __FUNCTION__, t1.tv_sec);
+    clixon_debug(CLIXON_DBG_CTRL, "timeout:%ld s", t1.tv_sec);
     timeradd(&t, &t1, &t);
     if (clixon_event_reg_timeout(t, actions_timeout, ct, "Controller service actions") < 0)
         goto done;
@@ -974,7 +974,7 @@ controller_commit_actions(clixon_handle           h,
         /* Strip service data in device config for services that changed */
         if (strip_service_data_from_device_config(h, "actions", cvv) < 0)
             goto done;
-        clixon_debug(CLIXON_DBG_CTRL, "%s stream_notify: services-commit: %" PRIu64, __FUNCTION__, ct->ct_id);
+        clixon_debug(CLIXON_DBG_CTRL, "stream_notify: services-commit: %" PRIu64, ct->ct_id);
         if (stream_notify(h, "services-commit", "%s", cbuf_get(notifycb)) < 0)
             goto done;
         controller_transaction_state_set(ct, TS_ACTIONS, -1);
@@ -1320,7 +1320,7 @@ rpc_controller_commit(clixon_handle h,
     transaction_data_t     *td = NULL;
     char                   *service_instance = NULL;
 
-    clixon_debug(CLIXON_DBG_CTRL, "%s", __FUNCTION__);
+    clixon_debug(CLIXON_DBG_CTRL, "");
     device = xml_find_body(xe, "device");
     if ((device_group = xml_find_body(xe, "device-group")) != NULL){
         if (netconf_operation_failed(cbret, "application", "Device-groups NYI")< 0)
@@ -1611,7 +1611,7 @@ rpc_connection_change(clixon_handle h,
     int                     ret;
     int                     tmpdev = 0;
 
-    clixon_debug(CLIXON_DBG_CTRL, "%s", __FUNCTION__);
+    clixon_debug(CLIXON_DBG_CTRL, "");
     if ((cbtr = cbuf_new()) == NULL){
         clixon_err(OE_UNIX, errno, "cbuf_new");
         goto done;
@@ -1745,7 +1745,7 @@ rpc_transaction_error(clixon_handle h,
     int                     ret;
     controller_transaction *ct;
 
-    clixon_debug(CLIXON_DBG_CTRL, "%s", __FUNCTION__);
+    clixon_debug(CLIXON_DBG_CTRL, "");
     if ((tidstr = xml_find_body(xe, "tid")) == NULL){
         if (netconf_operation_failed(cbret, "application", "No tid")< 0)
             goto done;
@@ -1812,7 +1812,7 @@ rpc_transactions_actions_done(clixon_handle h,
     int                     ret;
     controller_transaction *ct;
 
-    clixon_debug(CLIXON_DBG_CTRL, "%s", __FUNCTION__);
+    clixon_debug(CLIXON_DBG_CTRL, "");
     if ((tidstr = xml_find_body(xe, "tid")) == NULL){
         if (netconf_operation_failed(cbret, "application", "No tid")< 0)
             goto done;
@@ -2170,7 +2170,7 @@ rpc_datastore_diff(clixon_handle h,
     char              *formatstr;
     enum format_enum   format = FORMAT_XML;
 
-    clixon_debug(CLIXON_DBG_CTRL, "%s", __FUNCTION__);
+    clixon_debug(CLIXON_DBG_CTRL, "");
     xpath = xml_find_body(xe, "xpath");
     if ((formatstr = xml_find_body(xe, "format")) != NULL){
         if ((int)(format = format_str2int(formatstr)) < 0){
@@ -2264,7 +2264,7 @@ check_services_commit_subscription(clixon_handle h,
     struct stream_subscription *ss;
     int                         i;
 
-    clixon_debug(CLIXON_DBG_CTRL, "%s", __FUNCTION__);
+    clixon_debug(CLIXON_DBG_CTRL, "");
     /* XXX should use prefix cf edit_config */
     if ((nsc = xml_nsctx_init(NULL, EVENT_RFC5277_NAMESPACE)) == NULL)
         goto done;
@@ -2277,8 +2277,6 @@ check_services_commit_subscription(clixon_handle h,
     if ((ss = es->es_subscription) != NULL){
         i = 0;
         do {
-            struct client_entry *ce = (struct client_entry *)ss->ss_arg;
-            fprintf(stderr, "%s %d\n", __FUNCTION__, ce->ce_nr);
             ss = NEXTQ(struct stream_subscription *, ss);
             i++;
         } while (ss && ss != es->es_subscription);
@@ -2377,7 +2375,7 @@ rpc_device_template_apply(clixon_handle h,
     yang_stmt    *yspec0;
     yang_stmt    *yspec1;
 
-    clixon_debug(CLIXON_DBG_CTRL, "%s", __FUNCTION__);
+    clixon_debug(CLIXON_DBG_CTRL, "");
     yspec0 = clicon_dbspec_yang(h);
     /* get template and device names */
     if (xmldb_get0(h, "running", YB_MODULE, nsc, "devices", 1, WITHDEFAULTS_EXPLICIT, &xret, NULL, NULL) < 0)
@@ -2681,7 +2679,7 @@ controller_edit_config(clixon_handle h,
     cxobj               *xserv;
     int                  ret;
 
-    clixon_debug(CLIXON_DBG_CTRL, "controller edit-config wrapper");
+    clixon_debug(CLIXON_DBG_CTRL, "wrapper");
     if ((yspec = clicon_dbspec_yang(h)) == NULL){
         clixon_err(OE_YANG, ENOENT, "No yang spec9");
         goto done;
