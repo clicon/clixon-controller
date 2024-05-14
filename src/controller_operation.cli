@@ -43,7 +43,7 @@ show("Show a particular state of the system"){
                  ], cli_show_connections();{
                  check("Check if device is in sync"), check_device_db("default");
                  diff("Compare remote device config with local"), compare_device_db_dev("default");
-                 detail("Show detailed state"), cli_show_connections("detail");
+                 @|pipe_common, cli_show_connections();
              }
     options("Show clixon options"), cli_show_options();
     services("Show service process status"), cli_show_services_process();{

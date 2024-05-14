@@ -1187,57 +1187,57 @@ cli_show_connections(clixon_handle h,
         if (xml_rootchild_node(xn, xc) < 0)
             goto done;
         xn = xc;
-        if (detail){
-            xc = NULL;
-            while ((xc = xml_child_each(xn, xc, CX_ELMNT)) != NULL) {
-                if (strcmp(xml_name(xc), "device") != 0)
-                    continue;
-                name = xml_find_body(xc, "name");
-                if (pattern != NULL && fnmatch(pattern, name, 0) != 0)
-                    continue;
-                if (clixon_xml2file(stdout, xc, 0, 1, NULL, cligen_output, 0, 1) < 0)
-                    goto done;
-            }
+        /* First run to see if no matches */
+        xc = NULL;
+        while ((xc = xml_child_each(xn, xc, CX_ELMNT)) != NULL) {
+            if (strcmp(xml_name(xc), "device") != 0)
+                continue;
+            name = xml_find_body(xc, "name");
+            if (pattern != NULL && fnmatch(pattern, name, 0) != 0)
+                continue;
+            break;
         }
-        else {
-            width = cligen_terminal_width(cli_cligen(h));
-            logw = width - 58;
-            cligen_output(stdout, "%-23s %-10s %-22s %-*s\n", "Name", "State", "Time", width-58, "Logmsg");
-            for (i=0; i<width; i++)
-                cligen_output(stdout, "=");
-            cligen_output(stdout, "\n");
-            xc = NULL;
-            while ((xc = xml_child_each(xn, xc, CX_ELMNT)) != NULL) {
-                if (logstr){
-                    free(logstr);
-                    logstr = NULL;
-                }
-                if ((logstr = calloc(logw+1, sizeof(char))) == NULL){
-                    clixon_err(OE_UNIX, errno, "calloc");
-                    goto done;
-                }
-                if (strcmp(xml_name(xc), "device") != 0)
-                    continue;
-                name = xml_find_body(xc, "name");
-                if (pattern != NULL && fnmatch(pattern, name, 0) != 0)
-                    continue;
-                cligen_output(stdout, "%-24s",  name);
-                state = xml_find_body(xc, "conn-state");
-                cligen_output(stdout, "%-11s",  state?state:"");
-                if ((timestamp = xml_find_body(xc, "conn-state-timestamp")) != NULL){
-                    /* Remove 6 us digits */
-                    if ((p = rindex(timestamp, '.')) != NULL)
-                        *p = '\0';
-                }
-                cligen_output(stdout, "%-23s", timestamp?timestamp:"");
-                if ((logmsg = xml_find_body(xc, "logmsg")) != NULL){
-                    strncpy(logstr, logmsg, logw);
-                    if ((p = index(logstr, '\n')) != NULL)
-                        *p = '\0';
-                    cligen_output(stdout, "%s",  logstr);
-                }
-                cligen_output(stdout, "\n");
+        if (xc == NULL){
+            clixon_err(OE_CFG, errno, "No matching devices");
+            goto done;
+        }
+        width = cligen_terminal_width(cli_cligen(h));
+        logw = width - 58;
+        cligen_output(stdout, "%-23s %-10s %-22s %-*s\n", "Name", "State", "Time", width-58, "Logmsg");
+        for (i=0; i<width; i++)
+            cligen_output(stdout, "=");
+        cligen_output(stdout, "\n");
+        xc = NULL;
+        while ((xc = xml_child_each(xn, xc, CX_ELMNT)) != NULL) {
+            if (logstr){
+                free(logstr);
+                logstr = NULL;
             }
+            if ((logstr = calloc(logw+1, sizeof(char))) == NULL){
+                clixon_err(OE_UNIX, errno, "calloc");
+                goto done;
+            }
+            if (strcmp(xml_name(xc), "device") != 0)
+                continue;
+            name = xml_find_body(xc, "name");
+            if (pattern != NULL && fnmatch(pattern, name, 0) != 0)
+                continue;
+            cligen_output(stdout, "%-24s",  name);
+            state = xml_find_body(xc, "conn-state");
+            cligen_output(stdout, "%-11s",  state?state:"");
+            if ((timestamp = xml_find_body(xc, "conn-state-timestamp")) != NULL){
+                /* Remove 6 us digits */
+                if ((p = rindex(timestamp, '.')) != NULL)
+                    *p = '\0';
+            }
+            cligen_output(stdout, "%-23s", timestamp?timestamp:"");
+            if ((logmsg = xml_find_body(xc, "logmsg")) != NULL){
+                strncpy(logstr, logmsg, logw);
+                if ((p = index(logstr, '\n')) != NULL)
+                    *p = '\0';
+                cligen_output(stdout, "%s",  logstr);
+            }
+            cligen_output(stdout, "\n");
         }
     }
     retval = 0;
