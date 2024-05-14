@@ -49,7 +49,7 @@ int cli_show_auto_devs(clixon_handle h, cvec *cvv, cvec *argv);
 int cli_rpc_pull(clixon_handle h, cvec *cvv, cvec *argv);
 int cli_rpc_controller_commit(clixon_handle h, cvec *cvv, cvec *argv);
 int cli_connection_change(clixon_handle h, cvec *cvv, cvec *argv);
-int cli_show_devices(clixon_handle h, cvec *cvv, cvec *argv);
+int cli_show_connections(clixon_handle h, cvec *cvv, cvec *argv);
 int cli_show_transactions(clixon_handle h, cvec *cvv, cvec *argv);
 int compare_device_db_sync(clixon_handle h, cvec *cvv, cvec *argv);
 int compare_device_db_dev(clixon_handle h, cvec *cvv, cvec *argv);

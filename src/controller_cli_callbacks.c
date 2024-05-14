@@ -130,7 +130,7 @@ cli_apipath2xpath(clixon_handle h,
     return retval;
 }
 
-/*! Send get yanglib of all mountpoints to backend and only return devices/yang-libs that match pattern
+/*! Send get yanglib of all mountpoints to backend and return matching devices/yang-libs
  *
  * @param[in]  h         Clixon handle
  * @param[in]  pattern   Name glob pattern
@@ -1115,18 +1115,18 @@ cli_connection_change(clixon_handle h,
     return retval;
 }
 
-/*! Show controller device states
+/*! Show connection state
  *
- * @param[in]  h    Clixon handle
- * @param[in] cvv  : name pattern
- * @param[in] argv : "detail"?
- * @retval    0    OK
- * @retval   -1    Error
+ * @param[in] h     Clixon handle
+ * @param[in] cvv   name pattern
+ * @param[in] argv  [detail]
+ * @retval    0     OK
+ * @retval   -1     Error
  */
 int
-cli_show_devices(clixon_handle h,
-                 cvec         *cvv,
-                 cvec         *argv)
+cli_show_connections(clixon_handle h,
+                     cvec         *cvv,
+                     cvec         *argv)
 {
     int     retval = -1;
     cvec   *nsc = NULL;
@@ -1232,7 +1232,8 @@ cli_show_devices(clixon_handle h,
                 cligen_output(stdout, "%-23s", timestamp?timestamp:"");
                 if ((logmsg = xml_find_body(xc, "logmsg")) != NULL){
                     strncpy(logstr, logmsg, logw);
-                    logstr[logw] = '\0';
+                    if ((p = index(logstr, '\n')) != NULL)
+                        *p = '\0';
                     cligen_output(stdout, "%s",  logstr);
                 }
                 cligen_output(stdout, "\n");

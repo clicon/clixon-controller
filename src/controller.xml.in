@@ -40,10 +40,10 @@
   <CLICON_LOG_STRING_LIMIT>0</CLICON_LOG_STRING_LIMIT>
   <!-- Enable for exclusive lock on edit -->
   <CLICON_AUTOLOCK>false</CLICON_AUTOLOCK>
+  <!-- NACM is inlined in configuration -->
   <CLICON_NACM_MODE>internal</CLICON_NACM_MODE>
   <CLICON_NACM_DISABLED_ON_EMPTY>true</CLICON_NACM_DISABLED_ON_EMPTY>
-  <!-- pyapi produces some duplicates, when not, please remove me -->
-  <CLICON_NETCONF_DUPLICATE_ALLOW>true</CLICON_NETCONF_DUPLICATE_ALLOW>
+  <!-- Default output format for show config etc -->
   <CLICON_CLI_OUTPUT_FORMAT>text</CLICON_CLI_OUTPUT_FORMAT>
   <CONTROLLER_ACTION_COMMAND xmlns="http://clicon.org/controller-config">@BINDIR@/clixon_server.py -f @SYSCONFDIR@/clixon/controller.xml -F</CONTROLLER_ACTION_COMMAND>
   <CONTROLLER_PYAPI_MODULE_PATH xmlns="http://clicon.org/controller-config">@YANG_INSTALLDIR@/controller/modules</CONTROLLER_PYAPI_MODULE_PATH>
