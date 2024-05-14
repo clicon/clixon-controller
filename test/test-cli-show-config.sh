@@ -98,7 +98,7 @@ connection("Change connection state of one or several devices") {
    reconnect("Close all open connections and open all connections"), cli_connection_change("RECONNECT", false);{
       wait("Block until completion"), cli_connection_change("RECONNECT", true);
       (<name:string>("device pattern")|
-       <name:string expand_dbvar("running","/clixon-controller:devices/device/name")>("device pattern")), cli_connection_change("RECONECT", false);{
+       <name:string expand_dbvar("running","/clixon-controller:devices/device/name")>("device pattern")), cli_connection_change("RECONNECT", false);{
                 wait("Block until completion"), cli_connection_change("RECONNECT", true);
       }
    }

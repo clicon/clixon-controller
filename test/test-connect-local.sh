@@ -212,9 +212,9 @@ if [ "$res" != "$ii" ]; then
 fi
 
 new "Verify reason: No yang files found"
-res=$(${clixon_cli} -1f $CFG show connections detail | grep "<logmsg>Yang \"openconfig-xxx\" not found in the list of CLICON_YANG_DIRs</logmsg>" | wc -l)
+res=$(${clixon_cli} -1f $CFG show state xml | grep "<logmsg>Yang \"openconfig-xxx\" not found in the list of CLICON_YANG_DIRs</logmsg>" | wc -l)
 if [ "$res" != "$ii" ]; then
-    err1 "$ii bind failed" "$res"
+   err "$ii" "$res"
 fi
 
 # Add proper yang
