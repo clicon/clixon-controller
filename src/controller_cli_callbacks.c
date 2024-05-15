@@ -955,10 +955,10 @@ cli_rpc_controller_commit(clixon_handle h,
             goto done;
         if (keyname){
             cprintf(cb, "<service-instance>");
-            if (xml_chardata_cbuf_append(cb, service) < 0)
+            if (xml_chardata_cbuf_append(cb, 0, service) < 0)
                 goto done;
             cprintf(cb, "[%s='", keyname);
-            if (xml_chardata_cbuf_append(cb, instance) < 0)
+            if (xml_chardata_cbuf_append(cb, 0, instance) < 0)
                 goto done;
             cprintf(cb, "']");
             cprintf(cb, "</service-instance>");

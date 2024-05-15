@@ -187,7 +187,7 @@ controller_transaction_notify(clixon_handle           h,
         cprintf(cb, "<origin>%s</origin>", ct->ct_origin);
     if (ct->ct_reason){
         cprintf(cb, "<reason>");
-        if (xml_chardata_cbuf_append(cb, ct->ct_reason) < 0)
+        if (xml_chardata_cbuf_append(cb, 0, ct->ct_reason) < 0)
             goto done;
         cprintf(cb, "</reason>");
     }
@@ -694,12 +694,12 @@ controller_transaction_statedata(clixon_handle   h,
                 cprintf(cb, "<origin>%s</origin>", ct->ct_origin);
             if (ct->ct_reason){
                 cprintf(cb, "<reason>");
-                xml_chardata_cbuf_append(cb, ct->ct_reason);
+                xml_chardata_cbuf_append(cb, 0, ct->ct_reason);
                 cprintf(cb, "</reason>");
             }
             if (ct->ct_warning){
                 cprintf(cb, "<warning>");
-                xml_chardata_cbuf_append(cb, ct->ct_warning);
+                xml_chardata_cbuf_append(cb, 0, ct->ct_warning);
                 cprintf(cb, "</warning>");
             }
             if (ct->ct_state != TS_INIT)

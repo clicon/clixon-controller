@@ -967,7 +967,7 @@ controller_commit_actions(clixon_handle           h,
         cprintf(notifycb, "<target>actions</target>");
         while ((cv = cvec_each(cvv, cv)) != NULL){
             cprintf(notifycb, "<service>");
-            xml_chardata_cbuf_append(notifycb, cv_name_get(cv));
+            xml_chardata_cbuf_append(notifycb, 0, cv_name_get(cv));
             cprintf(notifycb, "</service>");
         }
         cprintf(notifycb, "</services-commit>");
@@ -1916,7 +1916,7 @@ datastore_diff_dsref(clixon_handle    h,
     }
     cprintf(cbret, "<rpc-reply xmlns=\"%s\">", NETCONF_BASE_NAMESPACE);
     cprintf(cbret, "<diff xmlns=\"%s\">", CONTROLLER_NAMESPACE);
-    xml_chardata_cbuf_append(cbret, cbuf_get(cb));
+    xml_chardata_cbuf_append(cbret, 0, cbuf_get(cb));
     cprintf(cbret, "</diff>");
     cprintf(cbret, "</rpc-reply>");
     retval = 0;
@@ -2075,7 +2075,7 @@ datastore_diff_device(clixon_handle      h,
             if (cbuf_len(cb)){
                 cprintf(cbret, "<diff xmlns=\"%s\">", CONTROLLER_NAMESPACE);
                 cprintf(cbret, "%s:\n", devname);
-                xml_chardata_cbuf_append(cbret, cbuf_get(cb));
+                xml_chardata_cbuf_append(cbret, 0, cbuf_get(cb));
                 cprintf(cbret, "</diff>");
             }
             break;
@@ -2086,7 +2086,7 @@ datastore_diff_device(clixon_handle      h,
             if (cbuf_len(cb)){
                 cprintf(cbret, "<diff xmlns=\"%s\">", CONTROLLER_NAMESPACE);
                 cprintf(cbret, "%s:\n", devname);
-                xml_chardata_cbuf_append(cbret, cbuf_get(cb));
+                xml_chardata_cbuf_append(cbret, 0, cbuf_get(cb));
                 cprintf(cbret, "</diff>");
             }
             break;

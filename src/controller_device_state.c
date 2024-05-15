@@ -1761,7 +1761,7 @@ devices_statedata(clixon_handle   h,
                 if ((xb = xml_body(x)) == NULL)
                     continue;
                 cprintf(cb, "<capability>");
-                xml_chardata_cbuf_append(cb, xb);
+                xml_chardata_cbuf_append(cb, 0, xb);
                 cprintf(cb, "</capability>");
             }
             cprintf(cb, "</capabilities>");
@@ -1780,7 +1780,7 @@ devices_statedata(clixon_handle   h,
         }
         if ((logmsg = device_handle_logmsg_get(dh)) != NULL){
             cprintf(cb, "<logmsg>");
-            xml_chardata_cbuf_append(cb, logmsg);
+            xml_chardata_cbuf_append(cb, 0, logmsg);
             cprintf(cb, "</logmsg>");
         }
         cprintf(cb, "</device></devices>");
