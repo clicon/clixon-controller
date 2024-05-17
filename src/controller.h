@@ -72,10 +72,6 @@
  */
 #undef CONTROLLER_EXTRA_PUSH_SYNC
 
-/*! Enable to share same yang-spec structure for all devices with same yang-specs
- */
-#define SHARED_PROFILE_YSPEC
-
 #define ACTION_PROCESS "Action process"
 
 /*! Controller debug levels
