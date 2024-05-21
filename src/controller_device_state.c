@@ -850,6 +850,7 @@ device_config_compare(clixon_handle           h,
  * @param[out] yspec1    New or shared yang-spec
  * @retval     0         OK
  * @retval    -1         Error
+ * @see device_shared_yspec_xml for cli code
  */
 static int
 device_shared_yspec(clixon_handle h,
@@ -859,41 +860,34 @@ device_shared_yspec(clixon_handle h,
 {
     int           retval = -1;
     yang_stmt    *yspec = NULL;
-#ifdef SHARED_PROFILE_YSPEC
     device_handle dh1;
     cxobj        *xyanglib;
 
-    /* New yspec only on first connect */
-    dh1 = NULL;
-    while ((dh1 = device_handle_each(h, dh1)) != NULL){
-        if (dh1 == dh0)
-            continue;
-        if ((xyanglib = device_handle_yang_lib_get(dh1)) == NULL)
-            continue;
-        if (xml_tree_equal(xyanglib0, xyanglib) == 0)
-            break;
+    if (clicon_option_bool(h, "CLICON_YANG_SCHEMA_MOUNT_SHARE")) {
+        /* New yspec only on first connect */
+        dh1 = NULL;
+        while ((dh1 = device_handle_each(h, dh1)) != NULL){
+            if (dh1 == dh0)
+                continue;
+            if ((xyanglib = device_handle_yang_lib_get(dh1)) == NULL)
+                continue;
+            if (xml_tree_equal(xyanglib0, xyanglib) == 0)
+                break;
+        }
+        if (dh1 != NULL){
+            if (controller_mount_yspec_get(h, device_handle_name_get(dh1), &yspec) < 0)
+                goto done;
+            if (yspec != NULL)
+                yang_ref_inc(yspec); /* share */
+        }
     }
-    if (dh1 == NULL){
-        if ((yspec = yspec_new()) == NULL)
-            goto done;
-    }
-    else {
-        if (controller_mount_yspec_get(h, device_handle_name_get(dh1), &yspec) < 0)
-            goto done;
-        if (yspec == NULL){
-            if ((yspec = yspec_new()) == NULL)
+    if (yspec1){
+        if (yspec == NULL) {
+            if ((yspec = yspec_new()) == NULL) // 3
                 goto done;
         }
-        else{
-            yang_ref_inc(yspec); /* share */
-        }
+        *yspec1 = yspec;
     }
-#else /* SHARED_PROFILE_YSPEC */
-
-    if ((yspec = yspec_new()) == NULL)
-        goto done;
-#endif /* SHARED_PROFILE_YSPEC */
-    *yspec1 = yspec;
     retval = 0;
  done:
     return retval;

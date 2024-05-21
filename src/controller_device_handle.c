@@ -752,6 +752,7 @@ device_handle_yang_lib_get(device_handle dh)
  * @param[in]  xylib  XML tree, is consumed
  * @retval     0      OK
  * On the form: yang-library/module-set/name=<name>/module/name,revision,namespace  RFC 8525
+ * @note many uses is to get it and then modify it directly, ie not via set
  */
 int
 device_handle_yang_lib_set(device_handle dh,

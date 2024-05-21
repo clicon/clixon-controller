@@ -440,7 +440,7 @@ controller_mount_yspec_get(clixon_handle h,
     return retval;
 }
 
-/*! Specialized version of yang_mount_get for the controller using YANG
+/*! Specialized version of yang_mount_set for the controller using YANG
  *
  * @param[in]  h        Clixon handle
  * @param[in]  devname  Name of device

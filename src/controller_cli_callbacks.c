@@ -2263,22 +2263,24 @@ cli_auto_load_devs(clixon_handle h,
             goto done;
         }
     }
+    else
+        fp = stdin;
     /* XXX Do without YANG (for the time being) */
     switch (format){
     case FORMAT_XML:
-        if ((ret = clixon_xml_parse_file(fp?fp:stdin, YB_NONE, NULL, &xt, &xerr)) < 0)
+        if ((ret = clixon_xml_parse_file(fp, YB_NONE, NULL, &xt, &xerr)) < 0)
             goto done;
         if (ret == 0){
             clixon_err_netconf(h, OE_XML, 0, xerr, "Loading: %s", filename?filename:"stdin");
             goto done;
         }
-        if (xml_child_nr(xt) == 0){
+        if (xml_child_nr(xt) == 0){ // XXX DENNIS
             clixon_err(OE_XML, 0, "No XML in file %s", filename?filename:"stdin");
             goto done;
         }
         break;
     case FORMAT_JSON:
-        if ((ret = clixon_json_parse_file(fp?fp:stdin, 1, YB_NONE, NULL, &xt, &xerr)) < 0)
+        if ((ret = clixon_json_parse_file(fp, 1, YB_NONE, NULL, &xt, &xerr)) < 0)
             goto done;
         if (ret == 0){
             clixon_err_netconf(h, OE_XML, 0, xerr, "Loading: %s", filename?filename:"stdin");
@@ -2314,8 +2316,12 @@ cli_auto_load_devs(clixon_handle h,
         xml_free(xt);
     if (xerr)
         xml_free(xerr);
-    if (fp)
-        fclose(fp);
+    if (fp){
+        if (fp == stdin)
+            clearerr(stdin);
+        else
+            fclose(fp);
+    }
     if (cvv)
         cvec_free(cvv);
     return retval;

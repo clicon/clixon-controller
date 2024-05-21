@@ -278,7 +278,7 @@ controller_unknown(clixon_handle h,
  * @param[in]  h       Clixon handle
  * @param[in]  xt      XML mount-point in XML tree
  * @param[out] config  If '0' all data nodes in the mounted schema are read-only
- * @param[out] vallevel Do or dont do full RFC 7950 validation
+ * @param[out] cl      Do or dont do full RFC 7950 validation
  * @param[out] yanglib XML yang-lib module-set tree. Freed by caller.
  * @retval     0       OK
  * @retval    -1       Error

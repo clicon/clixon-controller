@@ -17,6 +17,7 @@ Expected: June 2024
 
 ### Corrected Bugs
 
+* Fixed: CLI load merge from stdin only worked once
 * Fixed: [default format does not work in configure mode](https://github.com/clicon/clixon-controller/issues/118)
   But must be default format xml for pipe display to work
 * Fixed: [connection open does local commit on services](https://github.com/clicon/clixon-controller/issues/119)
