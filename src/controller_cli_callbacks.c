@@ -1202,8 +1202,10 @@ cli_show_connections(clixon_handle h,
             goto done;
         }
         width = cligen_terminal_width(cli_cligen(h));
-        logw = width - 58;
-        cligen_output(stdout, "%-23s %-10s %-22s %-*s\n", "Name", "State", "Time", width-58, "Logmsg");
+        logw = width - 59;
+        if (logw < 0)
+            logw = 1;
+        cligen_output(stdout, "%-23s %-10s %-22s %-*s\n", "Name", "State", "Time", logw, "Logmsg");
         for (i=0; i<width; i++)
             cligen_output(stdout, "=");
         cligen_output(stdout, "\n");
