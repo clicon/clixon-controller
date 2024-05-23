@@ -210,7 +210,7 @@ device_close_connection(device_handle dh,
     return retval;
 }
 
-/*! Handle input data from device, whole or part of a frame ,called by event loop
+/*! Handle input data from device, whole or part of a frame, called by event loop
  *
  * @param[in] s    Socket
  * @param[in] arg  Device handle
@@ -265,14 +265,19 @@ device_input_cb(int   s,
                 goto done;
             }
             memset(buferr, 0, buferrlen);
-            if ((len = read(sockerr, buferr, buferrlen-1)) < 0){
-                free(buferr);
-                buferr = NULL;
+            if (clixon_event_poll(sockerr) == 0){
+                strncpy(buferr, "ssh sub-process killed", buferrlen);
             }
-            /* Special case for removing CR at end of stderr string */
-            while (len>0 && (buferr[len-1] == '\r' || buferr[len-1] == '\n')) {
-                buferr[len - 1] = '\0';
-                len--;
+            else {
+                if ((len = read(sockerr, buferr, buferrlen-1)) < 0){ // XXX hangs on SIGCHLD?
+                    free(buferr);
+                    buferr = NULL;
+                }
+                /* Special case for removing CR at end of stderr string */
+                while (len>0 && (buferr[len-1] == '\r' || buferr[len-1] == '\n')) {
+                    buferr[len - 1] = '\0';
+                    len--;
+                }
             }
         }
         if (ct){
@@ -281,8 +286,12 @@ device_input_cb(int   s,
                                               ) < 0)
                 goto done;
         }
-        else
-            device_close_connection(dh, "Closed by device");
+        else{
+            if (buferr)
+                device_close_connection(dh, "%s", buferr);
+            else
+                device_close_connection(dh, "Closed by device");
+        }
         goto ok;
     }
     p = buf;
