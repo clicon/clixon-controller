@@ -384,13 +384,14 @@ controller_gentree_all(cligen_handle ch)
     return retval;
 }
 
-/*! Pattern match all devices (mountpoints) into xdevs
+/*! Generate clispec tree for devices matching pattern
+ *
+ * Query module-state of devices, create cligen ph tree from YANG
  *
  * Match devname against all existing devices via get-config (using depth?)
  * Find a "newtree" device name (or NULL)
  * construct a treename from that: mountpoint-<newtree>
  * If it does not exist, call a yang2cli_yspec from that
- * @param[in]  h       Clixon handle
  * @param[in]  ch      CLIgen handle
  * @param[in]  pattern Device name pattern
  * @param[out] namep   New (malloced) name
@@ -414,7 +415,8 @@ controller_gentree_one(cligen_handle ch,
     char         *devname;
     pt_head      *ph;
     char         *firsttree = NULL;
-    int           nomatch = 0;
+    int           failed = 0;
+    int           allequal = 1; /* if 0, at least 2 trees and at least two of the trees are !eq */
     int           ret;
 
     clixon_debug(CLIXON_DBG_CTRL, "");
@@ -438,13 +440,15 @@ controller_gentree_one(cligen_handle ch,
         cbuf_reset(cb);
         cprintf(cb, "mountpoint-%s", devname);
         newtree = cbuf_get(cb);
-        if (firsttree == NULL &&
-            (firsttree= strdup(newtree)) == NULL){
-            clixon_err(OE_UNIX, errno, "strdup");
-            goto done;
+        if (firsttree == NULL) {
+            if ((firsttree= strdup(newtree)) == NULL){
+                clixon_err(OE_UNIX, errno, "strdup");
+                goto done;
+            }
         }
         if ((ph = cligen_ph_find(ch, newtree)) == NULL){
-            /* No such cligen specs, query full modules once */
+            /* No such cligen specs, query full modules once
+               (* is optimization so you dont need to call again) */
             if (xdevs1 == NULL)
                 if (rpc_get_yanglib_mount_match(h, "*", 0, 1, &xdevs1) < 0)
                     goto done;
@@ -452,8 +456,10 @@ controller_gentree_one(cligen_handle ch,
                 continue;
             if ((ret = check_mtpoint_yspec(h, xdevs1, devname, newtree, &yspec1)) < 0)
                 goto done;
-            if (ret == 0)
+            if (ret == 0){
+                failed++;
                 continue;
+            }
             /* Generate auto-cligen tree from the specs */
             if (yang2cli_yspec(h, yspec1, newtree) < 0)
                 goto done;
@@ -463,33 +469,30 @@ controller_gentree_one(cligen_handle ch,
                 goto done;
             }
         }
-        /* Check if multiple trees are equal */
-        if (strcmp(firsttree, newtree) != 0){
+        /* Check if all trees are equal, if not allequal to 0 */
+        if (allequal && strcmp(firsttree, newtree) != 0){
             parse_tree *pt0 = cligen_ph_parsetree_get(cligen_ph_find(ch, firsttree));
             parse_tree *pt1 = cligen_ph_parsetree_get(ph);
-
             if (pt_eq1(pt0, pt1) != 0)
-                nomatch++;
+                allequal = 0;
         }
     }
-    if (namep){
-        if (firsttree && nomatch == 0){
-            *namep = firsttree;
-            firsttree = NULL;
-        }
-        else{ /* create dummy tree */
-            if (cligen_ph_find(ch, "mointpoint") == NULL){
-                parse_tree     *pt0;
-                if ((ph = cligen_ph_add(ch, "mountpoint")) == NULL)
-                    goto done;
-                if ((pt0 = pt_new()) == NULL){
-                    clixon_err(OE_UNIX, errno, "pt_new");
-                    goto done;
-                }
-                if (cligen_ph_parsetree_set(ph, pt0) < 0){
-                    clixon_err(OE_UNIX, 0, "cligen_ph_parsetree_set");
-                    goto done;
-                }
+    if (firsttree && allequal && failed == 0){
+        *namep = firsttree;
+        firsttree = NULL;
+    }
+    else { /* create dummy tree */
+        if (cligen_ph_find(ch, "mointpoint") == NULL){
+            parse_tree     *pt0;
+            if ((ph = cligen_ph_add(ch, "mountpoint")) == NULL)
+                goto done;
+            if ((pt0 = pt_new()) == NULL){
+                clixon_err(OE_UNIX, errno, "pt_new");
+                goto done;
+            }
+            if (cligen_ph_parsetree_set(ph, pt0) < 0){
+                clixon_err(OE_UNIX, 0, "cligen_ph_parsetree_set");
+                goto done;
             }
         }
     }
@@ -509,6 +512,9 @@ controller_gentree_one(cligen_handle ch,
 /*! CLIgen wrap function for making treeref lookup: generate clispec tree from YANG
  *
  * This adds an indirection based on name and context
+ * If a yang and specific tree is created, the name of that tree is returned in namep,
+ * That tree is called something like mountpoint-<device-name>
+ * otherwise the generic name "mountpoint" is used.
  * @param[in]  ch    CLIgen handle
  * @param[in]  name  Base tree name
  * @param[in]  cvt   Tokenized string: vector of tokens
@@ -517,6 +523,7 @@ controller_gentree_one(cligen_handle ch,
  * @retval     1     New malloced name in namep
  * @retval     0     No wrapper, use existing
  * @retval    -1     Error
+ * @see yang2cli_container  where @mountpoint is added as a generic treeref causing this call
  */
 static int
 controller_treeref_wrap(cligen_handle ch,
@@ -532,6 +539,10 @@ controller_treeref_wrap(cligen_handle ch,
     clixon_handle h;
     cvec         *cvv_edit;
 
+    if (namep == NULL){
+        clixon_err(OE_UNIX, EINVAL, "Missing namep");
+        goto done;
+    }
     h = cligen_userhandle(ch);
     if (strcmp(name, "mountpoint") != 0)
         goto ok;
@@ -550,10 +561,13 @@ controller_treeref_wrap(cligen_handle ch,
         if ((cvdev = cvec_next(cvt, cv)) == NULL)
             goto ok;
     }
+    /* Pattern can be globbed, its the <name> argument to devices */
     if ((pattern = cv_string_get(cvdev)) == NULL)
         goto ok;
     if (controller_gentree_one(ch, pattern, namep) < 0)
         goto done;
+    if (*namep == NULL)
+        goto ok;
     retval = 1;
  done:
     return retval;
@@ -574,7 +588,7 @@ controller_treeref_wrap(cligen_handle ch,
  *   </yang-library>
  * Get the schema-list for this device from the backend
  * @param[in]  h       Clixon handle
- * @param[in]  xt      XML mount-point in XML tree
+ * @param[in]  xmt     XML mount-point in XML tree
  * @param[out] config  If '0' all data nodes in the mounted schema are read-only
  * @param[out] vallevel Do or dont do full RFC 7950 validation
  * @param[out] yanglib XML yang-lib module-set tree. Freed by caller.
@@ -587,7 +601,7 @@ controller_treeref_wrap(cligen_handle ch,
  */
 int
 controller_cli_yang_mount(clixon_handle   h,
-                          cxobj          *xm,
+                          cxobj          *xmt,
                           int            *config,
                           validate_level *vl,
                           cxobj         **yanglib)
@@ -608,11 +622,11 @@ controller_cli_yang_mount(clixon_handle   h,
         clixon_err(OE_XML, errno, "cbuf_new");
         goto done;
     }
-    if (xml_nsctx_node(xm, &nsc) < 0)
+    if (xml_nsctx_node(xmt, &nsc) < 0)
         goto done;
-    if (xml2xpath(xm, nsc, 1, 1, &xpath) < 0)
+    if (xml2xpath(xmt, nsc, 1, 1, &xpath) < 0)
         goto done;
-    /* xm can be rooted somewhere else than "/devices" , such as /rpc-reply */
+    /* xmt can be rooted somewhere else than "/devices" , such as /rpc-reply */
     if ((str = strstr(xpath, "/devices/device")) == NULL)
         goto ok;
     cprintf(cb, "%s", str);
@@ -656,18 +670,6 @@ controller_cli_yang_mount(clixon_handle   h,
     return retval;
 }
 
-static clixon_plugin_api api = {
-    "controller",       /* name */
-    clixon_plugin_init,
-    controller_cli_start,
-    controller_cli_exit,
-    .ca_yang_mount = controller_cli_yang_mount,
-    .ca_version    = controller_version,
-#ifdef CONTROLLER_JUNOS_ADD_COMMAND_FORWARDING
-    .ca_yang_patch = controller_yang_patch_junos,
-#endif
-};
-
 /*! CLIgen history callback function, each added command makes a callback
  *
  * Could be used for logging all CLI commands for example, or just mirroring the history file
@@ -688,6 +690,18 @@ cli_history_cb(cligen_handle ch,
 
     return clixon_log(h, LOG_INFO, "command(%s): %s", clicon_username_get(h), cmd);
 }
+
+static clixon_plugin_api api = {
+    "controller",       /* name */
+    clixon_plugin_init,
+    controller_cli_start,
+    controller_cli_exit,
+    .ca_yang_mount = controller_cli_yang_mount,
+    .ca_version    = controller_version,
+#ifdef CONTROLLER_JUNOS_ADD_COMMAND_FORWARDING
+    .ca_yang_patch = controller_yang_patch_junos,
+#endif
+};
 
 /*! CLI plugin initialization
  *

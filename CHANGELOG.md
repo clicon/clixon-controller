@@ -18,6 +18,7 @@ Expected: June 2024
 
 ### Corrected Bugs
 
+* Fixed: [When changing configuration for devices which are in state closed we get an error message](https://github.com/clicon/clixon-controller/issues/116)
 * Fixed: ["show devices" hangs if SSH-process to any device is killed](https://github.com/clicon/clixon-controller/issues/121)
 * Fixed: CLI load merge from stdin only worked once
 * Fixed: [default format does not work in configure mode](https://github.com/clicon/clixon-controller/issues/118)
