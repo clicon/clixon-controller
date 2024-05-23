@@ -668,6 +668,27 @@ static clixon_plugin_api api = {
 #endif
 };
 
+/*! CLIgen history callback function, each added command makes a callback
+ *
+ * Could be used for logging all CLI commands for example, or just mirroring the history file
+ * Note this is not exactly the same as the history command file, since it filters equal
+ * commands
+ * @param[in]  h     CLIgen handle
+ * @param[in]  cmd   CLI command. Do not modify or free
+ * @param[in]  arg   Argument given when registering
+ * @retval     0     OK
+ * @retval    -1     Error
+ */
+static int
+cli_history_cb(cligen_handle ch,
+               char         *cmd,
+               void         *arg)
+{
+    clixon_handle h = arg;
+
+    return clixon_log(h, LOG_INFO, "command(%s): %s", clicon_username_get(h), cmd);
+}
+
 /*! CLI plugin initialization
  *
  * @param[in]  h    Clixon handle
@@ -701,6 +722,8 @@ clixon_plugin_init(clixon_handle h)
     if (clicon_option_bool(h, "CLICON_YANG_SCHEMA_MOUNT")){
         cligen_tree_resolve_wrapper_set(cli_cligen(h), controller_treeref_wrap, NULL);
     }
+    /* Log CLI commands */
+    cligen_hist_fn_set(cli_cligen(h), cli_history_cb, h);
     return &api;
  done:
     return NULL;

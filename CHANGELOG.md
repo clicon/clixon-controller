@@ -5,6 +5,7 @@ Expected: June 2024
 
 ### New features
 
+* Added CLI command logging
 * Added split config data into multi-datastore
 * Added priority for NB sockets
 * Added session kill
