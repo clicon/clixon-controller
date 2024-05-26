@@ -136,7 +136,7 @@ cli_apipath2xpath(clixon_handle h,
  * @param[in]  pattern   Name glob pattern
  * @param[in]  single    pattern is a single device that can be used in an xpath
  * @param[in]  yanglib   0: only device name, 1: Also include config/yang-librarylib
- * @param[out] xdevsp    XML on the form <devices><device><name>x</name>...
+ * @param[out] xdevsp    XML on the form <data><devices><device><name>x</name>...</data>
  * @retval     0         OK
  * @retval    -1         Error
  * XXX: see https://github.com/clicon/clixon/issues/485
@@ -148,15 +148,19 @@ rpc_get_yanglib_mount_match(clixon_handle h,
                             int           yanglib,
                             cxobj       **xdevsp)
 {
-    int    retval = -1;
-    cbuf  *cb = NULL;
-    cxobj *xtop = NULL;
-    cxobj *xrpc;
-    cxobj *xdevs = NULL;
-    cxobj *xdev;
-    char  *devname;
-    cxobj *xret = NULL;
-    cxobj *xerr;
+    int        retval = -1;
+    cbuf      *cb = NULL;
+    cxobj     *xtop = NULL;
+    cxobj     *xrpc;
+    cxobj     *xdevs = NULL;
+    cxobj     *xdev;
+    char      *devname;
+    cxobj     *xret = NULL;
+    cxobj     *xerr;
+    cxobj     *xp;
+    yang_stmt *yspec;
+    int        ret;
+
 
     clixon_debug(CLIXON_DBG_CTRL, "");
     if ((cb = cbuf_new()) == NULL){
@@ -197,7 +201,21 @@ rpc_get_yanglib_mount_match(clixon_handle h,
         clixon_err_netconf(h, OE_XML, 0, xerr, "Get configuration");
         goto done;
     }
+
     if ((xdevs = xpath_first(xret, NULL, "rpc-reply/data/devices")) != NULL){
+        if ((yspec = clicon_dbspec_yang(h)) == NULL){
+            clixon_err(OE_FATAL, 0, "No DB_SPEC");
+            goto done;
+        }
+        /* Populate XML with Yang spec. Binding is done in clicon_rpc_netconf of RPC only
+         * where <data> is ANYDATA
+         */
+        if ((ret = xml_bind_yang0(h, xdevs, YB_MODULE, yspec, &xerr)) < 0)
+            goto done;
+        if (ret == 0){
+            clixon_err_netconf(h, OE_XML, 0, xerr, "Get devices config");
+            goto done;
+        }
         xdev = NULL;
         while ((xdev = xml_child_each(xdevs, xdev, CX_ELMNT)) != NULL) {
             if ((devname = xml_find_body(xdev, "name")) == NULL ||
@@ -208,9 +226,11 @@ rpc_get_yanglib_mount_match(clixon_handle h,
         if (xml_tree_prune_flagged_sub(xdevs, XML_FLAG_MARK, 1, NULL) < 0)
             goto done;
         /* Double check that there is at least one device */
-        if (xdevsp && xpath_first(xdevs, NULL, "device/name") != NULL){
-            *xdevsp = xdevs;
-            xml_rm(*xdevsp);
+        if (xdevsp && xpath_first(xdevs, NULL, "device/name") != NULL &&
+            (xp = xml_parent(xdevs))){
+            xml_rm(xp);
+            xml_spec_set(xp, NULL);
+            *xdevsp = xp;
         }
     }
     retval = 0;
@@ -335,7 +355,7 @@ cli_show_auto_devs(clixon_handle h,
         }
         else {
             xdev = NULL;
-            while ((xdev = xml_child_each(xdevs, xdev, CX_ELMNT)) != NULL) {
+            while ((xdev = xml_child_each(xml_find(xdevs, "devices"), xdev, CX_ELMNT)) != NULL) {
                 if ((devname = xml_find_body(xdev, "name")) == NULL)
                     continue;
                 cv_string_set(cv, devname); /* replace name */
@@ -2112,7 +2132,7 @@ cli_dbxml_devs(clixon_handle       h,
         }
         else {
             xdev = NULL;
-            while ((xdev = xml_child_each(xdevs, xdev, CX_ELMNT)) != NULL) {
+            while ((xdev = xml_child_each(xml_find(xdevs, "devices"), xdev, CX_ELMNT)) != NULL) {
                 if ((devname = xml_find_body(xdev, "name")) == NULL)
                     continue;
                 cv_string_set(cv, devname); /* replace name */

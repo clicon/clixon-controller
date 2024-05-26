@@ -137,65 +137,7 @@ controller_cli_exit(clixon_handle h)
     return retval;
 }
 
-/*! Check if there is another equivalent xyanglib and if so reuse that yspec
- *
- * Prereq: schema-list (xyanglib) is completely known.
- * Look for an existing equivalent schema-list among other devices.
- * If found, re-use that YANG-SPEC.
- * @param[in]  h         Clixon handle
- * @param[in]  xdev0     XML device tree full state
- * @param[in]  xyanglib0 Yang-lib in XML format
- * @param[out] yspec1    Yang-spec to use, new or shared with previously created
- * @retval     0         OK
- * @retval    -1         Error
- * ßee device_shared_yspec for backend code
- */
-static int
-device_shared_yspec_xml(clixon_handle h,
-                        cxobj        *xdev0,
-                        cxobj        *xdevs,
-                        cxobj        *xyanglib0,
-                        yang_stmt   **yspec1)
-{
-    int        retval = -1;
-    yang_stmt *yspec = NULL;
-    cxobj     *xdev;
-    cxobj     *xyanglib;
-    char      *devname;
-
-    if (clicon_option_bool(h, "CLICON_YANG_SCHEMA_MOUNT_SHARE")) {
-        xdev = NULL;
-        while ((xdev = xml_child_each(xdevs, xdev, CX_ELMNT)) != NULL) {
-            if (strcmp(xml_find_body(xdev, "name"), xml_find_body(xdev0, "name")) == 0)
-                continue;
-            if ((xyanglib = xpath_first(xdev, 0, "config/yang-library")) == NULL)
-                continue;
-            if (xml_tree_equal(xyanglib0, xyanglib) != 0)
-                continue;
-            if ((devname = xml_find_body(xdev, "name")) == NULL)
-                continue;
-            if (controller_mount_yspec_get(h, devname, &yspec) < 0)
-                goto done;
-            if (yspec != NULL){
-                clixon_debug(CLIXON_DBG_CTRL, "shared");
-                yang_ref_inc(yspec); /* share */
-                break;
-            }
-        }
-    }
-    if (yspec1) {
-        if (yspec == NULL){
-            if ((yspec = yspec_new()) == NULL)
-                goto done;
-        }
-        *yspec1 = yspec;
-    }
-    retval = 0;
- done:
-    return retval;
-}
-
-/*! Given device config, check yspec of moint-point, see if shared exists, or parse new
+/*! Given device config, check yspec of mount-point, see if shared exists, or parse new
  *
  * Given device name and config, extract module-state (xyanglib)
  * Check if yspec of mount-point exists,
@@ -203,7 +145,7 @@ device_shared_yspec_xml(clixon_handle h,
  * and parse the yang modules and set yspec at mountpoint
  * @param[in]  h         Clixon handle
  * @param[in]  xdev      XML device tree full state
- * @param[in]  xdevs     List of devices shallow tree
+ * @param[in]  xdevsp    List of devices shallow tree on the form <data><devices>..
  * @param[in]  xyanglib  Yang-lib in XML format
  * @param[in]  devname   Device name
  * @param[in]  treename  Autocli treename
@@ -215,38 +157,30 @@ device_shared_yspec_xml(clixon_handle h,
  */
 static int
 check_mtpoint_yspec(clixon_handle h,
-                    cxobj        *xdevs,
+                    cxobj        *xdevsp,
                     char         *devname,
                     char         *treename,
                     yang_stmt   **yspec1p)
 {
     int        retval = -1;
     yang_stmt *yspec1 = NULL;
+    cxobj     *xdevs;
     cxobj     *xdev;
     cxobj     *xyanglib;
-    int        ret;
+    cxobj     *xt;
 
     clixon_debug(CLIXON_DBG_CTRL, "");
+    xdevs = xml_find(xdevsp, "devices");
     if ((xdev = xpath_first(xdevs, 0, "device[name='%s']", devname)) == NULL)
         goto skip;
     if ((xyanglib = xpath_first(xdev, 0, "config/yang-library")) == NULL)
         goto skip;
-    if (controller_mount_yspec_get(h, devname, &yspec1) < 0)
-        goto done;
-    if (yspec1 == NULL){
-        /* Check if there is another equivalent xyanglib and if so reuse that yspec */
-        if (device_shared_yspec_xml(h, xdev, xdevs, xyanglib, &yspec1) < 0)
-            goto done;
-        if (yspec1 == NULL){
-            clixon_err(OE_YANG, 0, "No yang spec");
-            goto done;
-        }
-        /* Parse YANGs locally from the yang specs */
-        if ((ret = yang_lib2yspec(h, xyanglib, yspec1)) < 0)
-            goto done;
-        if (controller_mount_yspec_set(h, devname, yspec1) < 0)
+    if ((xt = xml_find(xdev, "config")) != NULL){
+        if (yang_schema_yanglib_parse_mount(h, xt) < 0)
             goto done;
     }
+    if (controller_mount_yspec_get(h, devname, &yspec1) < 0)
+        goto done;
     if (yspec1p)
         *yspec1p = yspec1;
     retval = 1;
@@ -340,7 +274,7 @@ controller_gentree_all(cligen_handle ch)
      * But only for first match
      */
     xdev0 = NULL;
-    while ((xdev0 = xml_child_each(xdevs0, xdev0, CX_ELMNT)) != NULL) {
+    while ((xdev0 = xml_child_each(xml_find(xdevs0, "devices"), xdev0, CX_ELMNT)) != NULL) {
         if ((devname = xml_find_body(xdev0, "name")) == NULL)
             continue;
         if (pattern != NULL && fnmatch(pattern, devname, 0) != 0)
@@ -350,9 +284,10 @@ controller_gentree_all(cligen_handle ch)
         newtree = cbuf_get(cb);
         if ((ph = cligen_ph_find(ch, newtree)) == NULL){
             /* No such cligen specs, query full modules once */
-            if (xdevs1 == NULL)
+            if (xdevs1 == NULL){
                 if (rpc_get_yanglib_mount_match(h, "*", 0, 1, &xdevs1) < 0)
                     goto done;
+            }
             if (xdevs1 == NULL)
                 continue;
             if ((ret = check_mtpoint_yspec(h, xdevs1, devname, newtree, &yspec1)) < 0)
@@ -432,7 +367,7 @@ controller_gentree_one(cligen_handle ch,
      * But only for first match
      */
     xdev0 = NULL;
-    while ((xdev0 = xml_child_each(xdevs0, xdev0, CX_ELMNT)) != NULL) {
+    while ((xdev0 = xml_child_each(xml_find(xdevs0, "devices"), xdev0, CX_ELMNT)) != NULL) {
         if ((devname = xml_find_body(xdev0, "name")) == NULL)
             continue;
         if (pattern != NULL && fnmatch(pattern, devname, 0) != 0)
@@ -449,9 +384,10 @@ controller_gentree_one(cligen_handle ch,
         if ((ph = cligen_ph_find(ch, newtree)) == NULL){
             /* No such cligen specs, query full modules once
                (* is optimization so you dont need to call again) */
-            if (xdevs1 == NULL)
+            if (xdevs1 == NULL){
                 if (rpc_get_yanglib_mount_match(h, "*", 0, 1, &xdevs1) < 0)
                     goto done;
+            }
             if (xdevs1 == NULL)
                 continue;
             if ((ret = check_mtpoint_yspec(h, xdevs1, devname, newtree, &yspec1)) < 0)

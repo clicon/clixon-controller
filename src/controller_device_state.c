@@ -1006,8 +1006,8 @@ device_state_check_sanity(device_handle           dh,
                           char                   *rpcname)
 {
     if (tid == 0 || ct == NULL){
-        device_close_connection(dh, "Device %s not associated with transaction in state %s",
-                                name, device_state_int2str(conn_state));
+        device_close_connection(dh, "Unexped rpc %s from device %s in state %s: device is not part of any transaction",
+                                rpcname, name, device_state_int2str(conn_state));
         return 0;
     }
     if (ct->ct_state != TS_INIT && ct->ct_state != TS_RESOLVED){
