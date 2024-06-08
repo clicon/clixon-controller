@@ -64,9 +64,16 @@ show("Show a particular state of the system"){
 	    }
         }
     }
-    statistics("Show statistics"), cli_show_statistics();{
-       brief, cli_show_statistics();
-       modules, cli_show_statistics("modules");
+    memory("Show memory usage"), cli_show_statistics();{
+       cli, cli_show_statistics("cli");{
+          detail, cli_show_statistics("cli", "detail");{
+             @|pipe_common, cli_show_statistics("cli", "detail");
+          }
+       }
+       backend, cli_show_statistics("backend"); {
+          detail, cli_show_statistics("backend", "detail");
+          @|pipe_common, cli_show_statistics("backend");
+       }
     }
     transactions("Show state of last transaction"), cli_show_transactions("last");{
          last("Last most recent transactions"), cli_show_transactions("last");

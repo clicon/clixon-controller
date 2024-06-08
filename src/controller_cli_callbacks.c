@@ -161,7 +161,6 @@ rpc_get_yanglib_mount_match(clixon_handle h,
     yang_stmt *yspec;
     int        ret;
 
-
     clixon_debug(CLIXON_DBG_CTRL, "");
     if ((cb = cbuf_new()) == NULL){
         clixon_err(OE_PLUGIN, errno, "cbuf_new");

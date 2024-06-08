@@ -783,13 +783,15 @@ device_handle_yang_lib_append(device_handle dh,
 {
     int                              retval = -1;
     struct controller_device_handle *cdh = devhandle(dh);
-    cxobj                           *x;
     cxobj                           *xms0;
-    cxobj                           *xms = NULL;
+    cxobj                           *xm0;
+    cxobj                           *xms1 = NULL;
+    cxobj                           *xm1;
+    char                            *name;
 
     /* Sanity check */
     if (xylib){
-        if ((xms = xml_find_type(xylib, NULL, "module-set", CX_ELMNT)) == NULL){
+        if ((xms1 = xml_find_type(xylib, NULL, "module-set", CX_ELMNT)) == NULL){
             clixon_err(OE_XML, EINVAL, "yang-lib top-level malformed: not module-set");
             goto done;
         }
@@ -800,14 +802,28 @@ device_handle_yang_lib_append(device_handle dh,
                 clixon_err(OE_XML, EINVAL, "yang-lib top-level malformed: not module-set");
                 goto done;
             }
-            x = NULL;
-            while ((x = xml_child_each(xms, x, CX_ELMNT)) != NULL) {
-                if (strcmp(xml_name(x), "module") != 0)
-                    continue;
-                xml_rm(x);
-                if (xml_addsub(xms0, x) < 0)
-                    goto done;
-                x = NULL; /* reset loop after removal */
+            if (xml_tree_equal(xms0, xms1) != 0) {
+                xm1 = NULL;
+                while ((xm1 = xml_child_each(xms1, xm1, CX_ELMNT)) != NULL) {
+                    if (strcmp(xml_name(xm1), "module") != 0)
+                        continue;
+                    if ((name = xml_find_body(xm1, "name")) == NULL)
+                        continue;
+                    if ((xm0 = xpath_first(xms0, NULL, "module[name='%s']", name)) != NULL){
+                        if (xml_tree_equal(xm0, xm1) != 0) {
+                            if (xml_rm_children(xm0, -1) < 0)
+                                goto done;
+                            if (xml_copy(xm1, xm0) < 0)
+                                goto done;
+                        }
+                    }
+                    else {
+                        if ((xm0 = xml_dup(xm1)) == NULL)
+                            goto done;
+                        if (xml_addsub(xms0, xm0) < 0)
+                            goto done;
+                    }
+                }
             }
         }
     }

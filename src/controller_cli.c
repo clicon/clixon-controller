@@ -157,28 +157,20 @@ controller_cli_exit(clixon_handle h)
  */
 static int
 check_mtpoint_yspec(clixon_handle h,
-                    cxobj        *xdevsp,
+                    cxobj        *xdevs,
                     char         *devname,
                     char         *treename,
                     yang_stmt   **yspec1p)
 {
     int        retval = -1;
     yang_stmt *yspec1 = NULL;
-    cxobj     *xdevs;
-    cxobj     *xdev;
-    cxobj     *xyanglib;
-    cxobj     *xt;
+    cxobj     *xdevc;
 
     clixon_debug(CLIXON_DBG_CTRL, "");
-    xdevs = xml_find(xdevsp, "devices");
-    if ((xdev = xpath_first(xdevs, 0, "device[name='%s']", devname)) == NULL)
+    if ((xdevc = xpath_first(xdevs, 0, "devices/device[name='%s']/config", devname)) == NULL)
         goto skip;
-    if ((xyanglib = xpath_first(xdev, 0, "config/yang-library")) == NULL)
-        goto skip;
-    if ((xt = xml_find(xdev, "config")) != NULL){
-        if (yang_schema_yanglib_parse_mount(h, xt) < 0)
-            goto done;
-    }
+    if (yang_schema_yanglib_parse_mount(h, xdevc) < 0)
+        goto done;
     if (controller_mount_yspec_get(h, devname, &yspec1) < 0)
         goto done;
     if (yspec1p)

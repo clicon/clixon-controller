@@ -859,7 +859,6 @@ device_config_compare(clixon_handle           h,
  * @param[out] yspec1    New or shared yang-spec
  * @retval     0         OK
  * @retval    -1         Error
- * @see device_shared_yspec_xml for cli code
  */
 static int
 device_shared_yspec(clixon_handle h,
