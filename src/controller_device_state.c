@@ -889,13 +889,8 @@ device_shared_yspec(clixon_handle h,
                 yang_ref_inc(yspec); /* share */
         }
     }
-    if (yspec1){
-        if (yspec == NULL) {
-            if ((yspec = yspec_new()) == NULL) // 3
-                goto done;
-        }
+    if (yspec1)
         *yspec1 = yspec;
-    }
     retval = 0;
  done:
     return retval;
@@ -1093,6 +1088,7 @@ device_state_handler(clixon_handle h,
     cbuf       *cberr = NULL;
     cbuf       *cbmsg;
     cxobj      *xyanglib;
+    int         yspec_shared = 0;
 
     rpcname = xml_name(xmsg);
     conn_state = device_handle_conn_state_get(dh);
@@ -1151,16 +1147,24 @@ device_state_handler(clixon_handle h,
             if (yspec1 == NULL){
                 if (device_shared_yspec(h, dh, xyanglib, &yspec1) < 0)
                     goto done;
+                if (yspec1 == NULL){
+                    if ((yspec1 = yspec_new()) == NULL)
+                        goto done;
+                }
+                else
+                    yspec_shared++;
                 if (controller_mount_yspec_set(h, name, yspec1) < 0)
                     goto done;
             }
             /* All schemas ready, parse them (may do device_close) */
-            if ((ret = device_schemas_mount_parse(h, dh, xyanglib)) < 0)
-                goto done;
-            if (ret == 0){
-                if (controller_transaction_failed(h, tid, ct, dh, TR_FAILED_DEV_LEAVE, name, device_handle_logmsg_get(dh)) < 0)
+            if (yspec_shared == 0){
+                if ((ret = device_schemas_mount_parse(h, dh, xyanglib)) < 0)
                     goto done;
-                break;
+                if (ret == 0){
+                    if (controller_transaction_failed(h, tid, ct, dh, TR_FAILED_DEV_LEAVE, name, device_handle_logmsg_get(dh)) < 0)
+                        goto done;
+                    break;
+                }
             }
             /* Unconditionally sync */
             if (device_send_get_config(h, dh, s) < 0)
@@ -1205,6 +1209,12 @@ device_state_handler(clixon_handle h,
         if (yspec1 == NULL){
             if (device_shared_yspec(h, dh, xyanglib, &yspec1) < 0)
                 goto done;
+            if (yspec1 == NULL){
+                if ((yspec1 = yspec_new()) == NULL)
+                    goto done;
+            }
+            else
+                yspec_shared++;
             if (controller_mount_yspec_set(h, name, yspec1) < 0)
                 goto done;
         }
@@ -1212,13 +1222,15 @@ device_state_handler(clixon_handle h,
         if ((ret = device_send_get_schema_next(h, dh, s, &nr)) < 0)
             goto done;
         if (ret == 0){ /* None found */
-            /* All schemas ready, parse them */
-            if ((ret = device_schemas_mount_parse(h, dh, xyanglib)) < 0)
-                goto done;
-            if (ret == 0){
-                if (controller_transaction_failed(h, tid, ct, dh, TR_FAILED_DEV_LEAVE, name, device_handle_logmsg_get(dh)) < 0)
+            if (yspec_shared == 0){
+                /* All schemas ready, parse them */
+                if ((ret = device_schemas_mount_parse(h, dh, xyanglib)) < 0)
                     goto done;
-                break;
+                if (ret == 0){
+                    if (controller_transaction_failed(h, tid, ct, dh, TR_FAILED_DEV_LEAVE, name, device_handle_logmsg_get(dh)) < 0)
+                        goto done;
+                    break;
+                }
             }
             /* Unconditionally sync */
             if (device_send_get_config(h, dh, s) < 0)
