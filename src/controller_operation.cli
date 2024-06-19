@@ -116,12 +116,10 @@ connection("Change connection state of one or several devices") {
       (<name:string>("device pattern")|
        <name:string expand_dbvar("running","/clixon-controller:devices/device/name")>("device pattern")), cli_connection_change("CLOSE", false);
    }
-   open("Open closed connections"), cli_connection_change("OPEN", false);{
-      wait("Block until completion"), cli_connection_change("OPEN", true);
+   open("Open closed connections"), cli_connection_change("OPEN", true);{
+      async("Open connection do not block"), cli_connection_change("OPEN", false);
       (<name:string>("device pattern")|
-       <name:string expand_dbvar("running","/clixon-controller:devices/device/name")>("device pattern")), cli_connection_change("OPEN", false);{
-         wait("Block until completion"), cli_connection_change("OPEN", true);
-      }
+       <name:string expand_dbvar("running","/clixon-controller:devices/device/name")>("device pattern")), cli_connection_change("OPEN", true);
    }
    reconnect("Close all open connections and open all connections"), cli_connection_change("RECONNECT", false);{
       wait("Block until completion"), cli_connection_change("RECONNECT", true);

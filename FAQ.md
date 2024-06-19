@@ -107,7 +107,7 @@ The top-level YANG directory is in `/usr/local/share/clixon/controller`. YANGs a
 
 You may encounter an error when doing commit or connect something like:
 ```
-   Candidate db is lockaed by 1677721
+   Candidate db is locked by 1677721
 ```
 This happens if a commit/connect transaction terminates without releasing the candidate datastore.
 It should not happen, but if it does, you can unlock candidate with the CLI command:

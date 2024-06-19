@@ -127,6 +127,8 @@ wait_backend
 new "reset controller"
 (. ./reset-controller.sh)
 
+# exit
+
 new "Close all devices"
 expectpart "$($clixon_cli -1 -f $CFG connection close)" 0 ""
 
