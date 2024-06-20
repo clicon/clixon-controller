@@ -225,7 +225,7 @@ check_services running
 . ./reset-controller.sh
 
 new "open connections"
-expectpart "$(${clixon_cli} -1f $CFG connect open)" 0 ""
+expectpart "$(${clixon_cli} -1f $CFG connect open async)" 0 ""
 
 new "Verify open devices"
 sleep $sleep
@@ -309,7 +309,7 @@ new "Wait backend 2"
 wait_backend
 
 new "open connections"
-expectpart "$(${clixon_cli} -1f $CFG connect open)" 0 ""
+expectpart "$(${clixon_cli} -1f $CFG connect open async)" 0 ""
 
 new "Verify open devices"
 sleep $sleep

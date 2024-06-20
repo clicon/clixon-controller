@@ -555,7 +555,7 @@ new "Wait backend 3"
 wait_backend
 
 new "open connections"
-expectpart "$(${clixon_cli} -1f $CFG connect open)" 0 ""
+expectpart "$(${clixon_cli} -1f $CFG connect open async)" 0 ""
 
 new "Verify open devices"
 sleep $sleep
@@ -865,7 +865,7 @@ new "Wait backend 4"
 wait_backend
 
 new "open connections"
-expectpart "$(${clixon_cli} -1f $CFG connect open)" 0 ""
+expectpart "$(${clixon_cli} -1f $CFG connect open async)" 0 ""
 
 new "Verify open devices"
 sleep $sleep
@@ -920,7 +920,7 @@ new "Wait backend 5"
 wait_backend
 
 new "open connections"
-expectpart "$(${clixon_cli} -1f $CFG connect open)" 0 ""
+expectpart "$(${clixon_cli} -1f $CFG connect open async)" 0 ""
 sleep $sleep
 
 new "edit testA(1)"
