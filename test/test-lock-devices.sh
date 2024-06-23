@@ -5,6 +5,12 @@
 # Magic line must be first in script (see README.md)
 s="$_" ; . ./lib.sh || if [ "$s" = $0 ]; then exit 0; else return 0; fi
 
+# Dont run this test with valgrind
+if [ $valgrindtest -ne 0 ]; then
+    echo "...skipped "
+    rm -rf $dir
+    return 0 # skip
+fi
 set -u
 
 dir=/var/tmp/$0

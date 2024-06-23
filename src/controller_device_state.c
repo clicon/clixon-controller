@@ -391,9 +391,12 @@ device_state_mount_point_get(char      *devicename,
         goto done;
     }
     *xtp = xt;
+    xt = NULL;
     *xrootp = xroot;
     retval = 0;
  done:
+    if (xt)
+        xml_free(xt);
     if (cb)
         cbuf_free(cb);
     return retval;

@@ -2366,9 +2366,9 @@ rpc_device_template_apply(clixon_handle h,
     int           i;
     int           ret;
     cxobj        *xerr = NULL;
-    cxobj        *xtc;
-    cxobj        *xroot;
-    cxobj        *xmnt;
+    cxobj        *xtc = NULL;
+    cxobj        *xroot = NULL;
+    cxobj        *xmnt = NULL;
     cxobj        *x;
     cbuf         *cb = NULL;
     device_handle dh;
@@ -2473,6 +2473,14 @@ rpc_device_template_apply(clixon_handle h,
             goto ok;
         xml_rm(xroot);
         matching++;
+        if (xtc){
+            xml_free(xtc);
+            xtc = NULL;
+        }
+        if (xroot){
+            xml_free(xroot);
+            xroot = NULL;
+        }
     }
     cprintf(cbret, "<rpc-reply xmlns=\"%s\">", NETCONF_BASE_NAMESPACE);
     cprintf(cbret, "<ok/>");
@@ -2488,6 +2496,10 @@ rpc_device_template_apply(clixon_handle h,
         xml_free(xret);
     if (xerr)
         xml_free(xerr);
+    if (xtc)
+        xml_free(xtc);
+    if (xroot)
+        xml_free(xroot);
     if (vec)
         free(vec);
     return retval;
@@ -2670,14 +2682,14 @@ controller_edit_config(clixon_handle h,
                        void         *arg,
                        void         *regarg)
 {
-    int                  retval = -1;
-    cxobj               *xc;
-    cvec                *nsc = NULL;
-    char                *target;
-    yang_stmt           *yspec;
-    cxobj               *xconfig = NULL;
-    cxobj               *xserv;
-    int                  ret;
+    int        retval = -1;
+    cxobj     *xc;
+    cvec      *nsc = NULL;
+    char      *target;
+    yang_stmt *yspec;
+    cxobj     *xconfig = NULL;
+    cxobj     *xserv;
+    int        ret;
 
     clixon_debug(CLIXON_DBG_CTRL, "wrapper");
     if ((yspec = clicon_dbspec_yang(h)) == NULL){

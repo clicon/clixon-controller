@@ -64,7 +64,7 @@ show("Show a particular state of the system"){
 	    }
         }
     }
-    memory("Show memory usage"), cli_show_statistics();{
+    memory("Show memory usage"), cli_show_statistics("all");{
        cli, cli_show_statistics("cli");{
           detail, cli_show_statistics("cli", "detail");{
              @|pipe_common, cli_show_statistics("cli", "detail");

@@ -98,7 +98,6 @@ testname=
 
 # Test is previous test had valgrind errors if so quit
 function checkvalgrind(){
-    echo "checkvalgrind $valgrindfile"
     if [ -f $valgrindfile ]; then
         res=$(cat $valgrindfile | grep -e "Invalid" | awk '{print  $4}' | grep -v '^0$')
         if [ -n "$res" ]; then
