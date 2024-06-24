@@ -286,10 +286,8 @@ controller_gentree_all(cligen_handle ch)
                 goto done;
             if (ret == 0)
                 continue;
-            if (yspec1 == NULL){
-                clixon_err(OE_YANG, 0, "No yang spec");
-                goto done;
-            }
+            if (yspec1 == NULL) /* Skip if not connected or disabled */
+                continue;
             /* Generate auto-cligen tree from the specs */
             if (yang2cli_yspec(h, yspec1, newtree) < 0)
                 goto done;
