@@ -139,7 +139,8 @@ cli_apipath2xpath(clixon_handle h,
  * @param[out] xdevsp    XML on the form <data><devices><device><name>x</name>...</data>
  * @retval     0         OK
  * @retval    -1         Error
- * XXX: see https://github.com/clicon/clixon/issues/485
+ * @note due to https://github.com/clicon/clixon/issues/485, there is some complex filtering
+ * in the yanglib case marked with "485" below
  */
 int
 rpc_get_yanglib_mount_match(clixon_handle h,
@@ -154,6 +155,7 @@ rpc_get_yanglib_mount_match(clixon_handle h,
     cxobj     *xrpc;
     cxobj     *xdevs = NULL;
     cxobj     *xdev;
+    cxobj     *xy;
     char      *devname;
     cxobj     *xret = NULL;
     cxobj     *xerr;
@@ -170,22 +172,28 @@ rpc_get_yanglib_mount_match(clixon_handle h,
             NETCONF_BASE_NAMESPACE,
             clicon_username_get(h),
             NETCONF_MESSAGE_ID_ATTR);
-    cprintf(cb, "<get>");
+    cprintf(cb, "<get");
+    if (yanglib) // 485
+        cprintf(cb, " %s:depth=\"%d\" xmlns:%s=\"%s\"",
+                CLIXON_LIB_PREFIX,
+                8,
+                CLIXON_LIB_PREFIX, CLIXON_LIB_NS);
+    cprintf(cb, ">");
     cprintf(cb, "<filter type=\"xpath\"");
     cprintf(cb, " select=\"/ctrl:devices/ctrl:device");
     if (single)
         cprintf(cb, "[ctrl:name='%s']", pattern);
     if (yanglib){
         cprintf(cb, "/ctrl:config");
-        // XXX: see https://github.com/clicon/clixon/issues/485
-        //        cprintf(cb, "/yanglib:yang-library");
+#if 0 // 485
+        cprintf(cb, "/yanglib:yang-library");
+#endif
     }
     else
         cprintf(cb, "/ctrl:name");
     cprintf(cb, "\"");
     cprintf(cb, " xmlns:ctrl=\"%s\" xmlns:yanglib=\"urn:ietf:params:xml:ns:yang:ietf-yang-library\">",
                     CONTROLLER_NAMESPACE);
-
     cprintf(cb, "</filter>");
     cprintf(cb, "</get>");
     cprintf(cb, "</rpc>");
@@ -200,30 +208,37 @@ rpc_get_yanglib_mount_match(clixon_handle h,
         clixon_err_netconf(h, OE_XML, 0, xerr, "Get configuration");
         goto done;
     }
-
     if ((xdevs = xpath_first(xret, NULL, "rpc-reply/data/devices")) != NULL){
         if ((yspec = clicon_dbspec_yang(h)) == NULL){
             clixon_err(OE_FATAL, 0, "No DB_SPEC");
             goto done;
         }
+        xdev = NULL;
+        while ((xdev = xml_child_each(xdevs, xdev, CX_ELMNT)) != NULL) {
+            if ((devname = xml_find_body(xdev, "name")) == NULL ||
+                fnmatch(pattern, devname, 0) == 0){ /* Match */
+                if (yanglib && // 485
+                    (xy = xpath_first(xdev, 0, "config/yang-library")) != NULL){
+                    xml_flag_set(xml_find(xdev, "name"), XML_FLAG_MARK);
+                    xml_flag_set(xy, XML_FLAG_MARK);
+                }
+                else
+                    xml_flag_set(xdev, XML_FLAG_MARK);
+            }
+        }
+        // XXX remove under config
+        /* 2. Remove all unmarked nodes, ie non-matching nodes */
+        if (xml_tree_prune_flagged_sub(xdevs, XML_FLAG_MARK, 1, NULL) < 0)
+            goto done;
         /* Populate XML with Yang spec. Binding is done in clicon_rpc_netconf of RPC only
          * where <data> is ANYDATA
          */
-        if ((ret = xml_bind_yang0(h, xdevs, YB_MODULE, yspec, &xerr)) < 0)
+        if ((ret = xml_bind_yang0(h, xdevs, YB_MODULE, yspec, &xerr)) < 0) // <-  here leaks
             goto done;
         if (ret == 0){
             clixon_err_netconf(h, OE_XML, 0, xerr, "Get devices config");
             goto done;
         }
-        xdev = NULL;
-        while ((xdev = xml_child_each(xdevs, xdev, CX_ELMNT)) != NULL) {
-            if ((devname = xml_find_body(xdev, "name")) == NULL ||
-                fnmatch(pattern, devname, 0) == 0) /* Match */
-                xml_flag_set(xdev, XML_FLAG_MARK);
-        }
-        /* 2. Remove all unmarked nodes, ie non-matching nodes */
-        if (xml_tree_prune_flagged_sub(xdevs, XML_FLAG_MARK, 1, NULL) < 0)
-            goto done;
         /* Double check that there is at least one device */
         if (xdevsp && xpath_first(xdevs, NULL, "device/name") != NULL &&
             (xp = xml_parent(xdevs))){

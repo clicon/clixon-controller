@@ -137,52 +137,6 @@ controller_cli_exit(clixon_handle h)
     return retval;
 }
 
-/*! Given device config, check yspec of mount-point, see if shared exists, or parse new
- *
- * Given device name and config, extract module-state (xyanglib)
- * Check if yspec of mount-point exists,
- * If not, check if there is another equivalent xyanglib and if so reuse that yspec
- * and parse the yang modules and set yspec at mountpoint
- * @param[in]  h         Clixon handle
- * @param[in]  xdev      XML device tree full state
- * @param[in]  xdevsp    List of devices shallow tree on the form <data><devices>..
- * @param[in]  xyanglib  Yang-lib in XML format
- * @param[in]  devname   Device name
- * @param[in]  treename  Autocli treename
- * @param[out] yspec1p   yang spec
- * @retval     1         Ok
- * @retval     0         Ok, skip no match
- * @retval    -1         Error
- * @see yang_schema_yanglib_parse_mount
- */
-static int
-check_mtpoint_yspec(clixon_handle h,
-                    cxobj        *xdevs,
-                    char         *devname,
-                    char         *treename,
-                    yang_stmt   **yspec1p)
-{
-    int        retval = -1;
-    yang_stmt *yspec1 = NULL;
-    cxobj     *xdevc;
-
-    clixon_debug(CLIXON_DBG_CTRL, "");
-    if ((xdevc = xpath_first(xdevs, 0, "devices/device[name='%s']/config", devname)) == NULL)
-        goto skip;
-    if (yang_schema_yanglib_parse_mount(h, xdevc) < 0)
-        goto done;
-    if (controller_mount_yspec_get(h, devname, &yspec1) < 0)
-        goto done;
-    if (yspec1p)
-        *yspec1p = yspec1;
-    retval = 1;
- done:
-    return retval;
- skip:
-    retval = 0;
-    goto done;
-}
-
 /*! Check one level of parsetree equivalence
  *
  * @param[in]  pt1
@@ -247,6 +201,7 @@ controller_gentree_all(cligen_handle ch)
     cxobj        *xdevs0 = NULL;
     cxobj        *xdevs1 = NULL;
     cxobj        *xdev0;
+    cxobj        *xdevc;
     char         *pattern = "*";
     char         *devname;
     pt_head      *ph;
@@ -282,11 +237,12 @@ controller_gentree_all(cligen_handle ch)
             }
             if (xdevs1 == NULL)
                 continue;
-            if ((ret = check_mtpoint_yspec(h, xdevs1, devname, newtree, &yspec1)) < 0)
-                goto done;
-            if (ret == 0)
+            if ((xdevc = xpath_first(xdevs1, 0, "devices/device[name='%s']/config", devname)) == NULL){
                 continue;
-            if (yspec1 == NULL) /* Skip if not connected or disabled */
+            }
+            if ((ret = xml_yang_mount_get(h, xdevc, NULL, &yspec1)) < 0)
+                goto done;
+            if (ret == 0 || yspec1 == NULL) /* Skip if not connected or disabled */
                 continue;
             /* Generate auto-cligen tree from the specs */
             if (yang2cli_yspec(h, yspec1, newtree) < 0)
@@ -335,6 +291,7 @@ controller_gentree_one(cligen_handle ch,
     cxobj        *xdevs0 = NULL;
     cxobj        *xdevs1 = NULL;
     cxobj        *xdev0;
+    cxobj        *xdevc;
     char         *newtree;
     yang_stmt    *yspec1 = NULL;
     char         *devname;
@@ -380,11 +337,15 @@ controller_gentree_one(cligen_handle ch,
             }
             if (xdevs1 == NULL)
                 continue;
-            if ((ret = check_mtpoint_yspec(h, xdevs1, devname, newtree, &yspec1)) < 0)
-                goto done;
-            if (ret == 0){
+            if ((xdevc = xpath_first(xdevs1, 0, "devices/device[name='%s']/config", devname)) == NULL){
                 failed++;
                 continue;
+            }
+            if ((ret = xml_yang_mount_get(h, xdevc, NULL, &yspec1)) < 0)
+                goto done;
+            if (ret == 0 || yspec1 == NULL) {
+                clixon_err(OE_YANG, 0, "%s: not moint-point or not already mounted", devname);
+                goto done;
             }
             /* Generate auto-cligen tree from the specs */
             if (yang2cli_yspec(h, yspec1, newtree) < 0)

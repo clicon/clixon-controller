@@ -43,7 +43,6 @@ cat<<EOF > $CFG
   <CLICON_XMLDB_DIR>${LOCALSTATEDIR}/controller</CLICON_XMLDB_DIR>
   <CLICON_XMLDB_MULTI>true</CLICON_XMLDB_MULTI>
   <CLICON_STARTUP_MODE>init</CLICON_STARTUP_MODE>
-
   <CLICON_STREAM_DISCOVERY_RFC5277>true</CLICON_STREAM_DISCOVERY_RFC5277>
   <CLICON_RESTCONF_USER>${CLICON_USER}</CLICON_RESTCONF_USER>
   <CLICON_RESTCONF_PRIVILEGES>drop_perm</CLICON_RESTCONF_PRIVILEGES>
@@ -56,7 +55,6 @@ cat<<EOF > $CFG
   <CLICON_YANG_SCHEMA_MOUNT_SHARE>true</CLICON_YANG_SCHEMA_MOUNT_SHARE>
   <CLICON_BACKEND_USER>${CLICON_USER}</CLICON_BACKEND_USER>
   <CONTROLLER_YANG_SCHEMA_MOUNT_DIR xmlns="http://clicon.org/controller-config">$mntdir</CONTROLLER_YANG_SCHEMA_MOUNT_DIR>
-
 </clixon-config>
 EOF
 
@@ -120,6 +118,9 @@ wait_backend
 # Reset controller 
 new "reset controller"
 EXTRA="<module-set><module><name>clixon-ext</name><namespace>http://clicon.org/ext</namespace></module></module-set>" . ./reset-controller.sh
+
+new "check cli shared memory w extension"
+expectpart "$($clixon_cli -1f $CFG show mem cli detail -- -g 2>&1)" 0 "YANG-mount-point-/ctrl:devices/ctrl:device\[ctrl:name='openconfig1'\]/ctrl:config-size: shared"
 
 CONFIG='<interfaces xmlns="http://openconfig.net/yang/interfaces"><interface nc:operation="remove"><name>x</name></interface><interface><name>y</name><config><type nc:operation="replace" xmlns:ianaift="urn:ietf:params:xml:ns:yang:iana-if-type">ianaift:v35</type></config></interface><interface nc:operation="merge"><name>z</name><config><name>z</name><type xmlns:ianaift="urn:ietf:params:xml:ns:yang:iana-if-type">ianaift:tunnel</type></config></interface></interfaces>'
 
