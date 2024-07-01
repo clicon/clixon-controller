@@ -480,8 +480,12 @@ transaction_notification_handler(clixon_handle       h,
         goto done;
     }
     if ((result = transaction_result_str2int(resstr)) != TR_SUCCESS){
-        clixon_log(h, LOG_NOTICE, "%s: pid: %u Transaction %s failed: %s",
-                   __FUNCTION__, getpid(), tidstr, reason?reason:"no reason");
+      if(clixon_get_logflags() != CLIXON_LOG_STDERR)
+	  cligen_output(stderr, "%s: pid: %u Transaction %s failed: %s\n",
+		  __FUNCTION__, getpid(), tidstr, reason?reason:"no reason");
+
+      clixon_log(h, LOG_NOTICE, "%s: pid: %u Transaction %s failed: %s",
+		 __FUNCTION__, getpid(), tidstr, reason?reason:"no reason");
     }
     if (result)
         *resultp = result;
