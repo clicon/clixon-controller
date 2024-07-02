@@ -76,7 +76,7 @@ new "commit 2"
 expectpart "$($clixon_cli -1 -m configure -f $CFG commit)" 0 ""
 
 new "show config"
-expectpart "$($clixon_cli -1 -f $CFG show config)" 0 "address 1.1.1.1;" "address 2.2.2.2;" --not-- "address 3.3.3.3;"
+expectpart "$($clixon_cli -1 -f $CFG -o CLICON_CLI_OUTPUT_FORMAT=text show config)" 0 "address 1.1.1.1;" "address 2.2.2.2;" --not-- "address 3.3.3.3;"
 
 new "delete first 1.1.1.1"
 expectpart "$($clixon_cli -1 -m configure -f $CFG delete devices device openconfig1 config system dns servers server 1.1.1.1)" 0 ""

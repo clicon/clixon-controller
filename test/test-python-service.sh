@@ -243,7 +243,7 @@ new "Sleep and verify devices are open"
 sleep_open
 
 new "Show device diff, should be empty"
-expectpart "$($clixon_cli -1 -f $CFG show connections diff)" 0 "^$"
+expectpart "$($clixon_cli -1 -f $CFG show devices diff)" 0 "^$"
 
 # Verify that service processes are running
 new "Verify service processes are running"

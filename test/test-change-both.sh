@@ -7,7 +7,7 @@
 # Commit a change to _devices_ remove x, change y, and add z
 # Push validate to devices which should fail
 # Push commit to devices which should fail
-# make a cli show connections check and diff
+# make a cli show devices check and diff
 
 # Magic line must be first in script (see README.md)
 s="$_" ; . ./lib.sh || if [ "$s" = $0 ]; then exit 0; else return 0; fi
@@ -249,14 +249,14 @@ expectpart "$($clixon_cli -1f $CFG push validate 2>&1)" 0 "Transaction [0-9]* fa
 
 NAME=${IMG}1
 new "check if in sync (should not be)"
-ret=$(${clixon_cli} -1f $CFG show connections $NAME check 2>&1)
+ret=$(${clixon_cli} -1f $CFG show devices $NAME check 2>&1)
 match=$(echo $ret | grep --null -Eo "out-of-sync") || true
 if [ -z "$match" ]; then
     err1 "out-of-sync"
 fi
 
 new "check device diff"
-ret=$(${clixon_cli} -1f $CFG show connections $NAME diff 2>&1)
+ret=$(${clixon_cli} -1f $CFG show devices $NAME diff 2>&1)
 match=$(echo $ret | grep --null -Eo "+ <type>ianaift:v35</type>") || true
 if [ -z "$match" ]; then
     err "+ <type>ianaift:v35</type>" "$dir"

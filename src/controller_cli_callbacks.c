@@ -226,7 +226,6 @@ rpc_get_yanglib_mount_match(clixon_handle h,
                     xml_flag_set(xdev, XML_FLAG_MARK);
             }
         }
-        // XXX remove under config
         /* 2. Remove all unmarked nodes, ie non-matching nodes */
         if (xml_tree_prune_flagged_sub(xdevs, XML_FLAG_MARK, 1, NULL) < 0)
             goto done;

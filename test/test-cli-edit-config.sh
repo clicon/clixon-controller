@@ -38,16 +38,16 @@ function sleep_open()
 function testrun()
 {
     new "Show device diff, should be empty"
-    expectpart "$($clixon_cli -1 -f $CFG show connections diff)" 0 ""
-    expectpart "$($clixon_cli -1 -f $CFG 'show connections openconfig* diff')" 0 ""
-    expectpart "$($clixon_cli -1 -f $CFG show connections openconfig1 diff)" 0 ""
-    expectpart "$($clixon_cli -1 -f $CFG show connections openconfig2 diff)" 0 ""
+    expectpart "$($clixon_cli -1 -f $CFG show devices diff)" 0 ""
+    expectpart "$($clixon_cli -1 -f $CFG 'show devices openconfig* diff')" 0 ""
+    expectpart "$($clixon_cli -1 -f $CFG show devices openconfig1 diff)" 0 ""
+    expectpart "$($clixon_cli -1 -f $CFG show devices openconfig2 diff)" 0 ""
 
     new "Configure hostname on openconfig1"
     expectpart "$($clixon_cli -1 -f $CFG -m configure set devices device openconfig1 config system config hostname test1)" 0 ""
 
     new "Verify show compare on openconfig1"
-    expectpart "$($clixon_cli -1 -f $CFG -m configure show compare)" 0 "^-\ *hostname \"openconfig1\";" "^+\ *hostname \"test1\";"
+    expectpart "$($clixon_cli -1 -f $CFG -m configure -o CLICON_CLI_OUTPUT_FORMAT=text show compare)" 0 "^-\ *hostname \"openconfig1\";" "^+\ *hostname \"test1\";"
 
     new "Verify commit diff on openconfig1"
     expectpart "$($clixon_cli -1 -f $CFG -m configure commit diff)" 0 "^\-\ *<hostname>openconfig1</hostname>" "^+\ *<hostname>test1</hostname>"
@@ -59,7 +59,7 @@ function testrun()
     expectpart "$($clixon_cli -1 -f $CFG -m configure 'set devices device openconfig* config system config hostname test')" 0 ""
 
     new "Verify show compare on openconfig*"
-    expectpart "$($clixon_cli -1 -f $CFG -m configure show compare)" 0 "^\-\ *hostname \"openconfig1\";" "^+\ *hostname \"test\";" "^\-\ *hostname \"openconfig2\";"
+    expectpart "$($clixon_cli -1 -f $CFG -m configure -o CLICON_CLI_OUTPUT_FORMAT=text show compare)" 0 "^\-\ *hostname \"openconfig1\";" "^+\ *hostname \"test\";" "^\-\ *hostname \"openconfig2\";"
 
     new "Verify commit diff on openconfig*"
     expectpart "$($clixon_cli -1 -f $CFG -m configure commit diff)" 0 "^\-\ *<hostname>openconfig1</hostname>" "^+\ *<hostname>test</hostname>" "^\-\ *<hostname>openconfig2</hostname>"
@@ -164,7 +164,7 @@ new "wait backend 2"
 wait_backend
     
 new "Check config after restart"
-expectpart "$($clixon_cli -1 -f $CFG show config)" 0 "hostname openconfig1;"
+expectpart "$($clixon_cli -1 -f $CFG -o CLICON_CLI_OUTPUT_FORMAT=text show config)" 0 "hostname openconfig1;"
 
 new "Connect to devices after restart"
 expectpart "$($clixon_cli -1 -f $CFG connection open)" 0 ""

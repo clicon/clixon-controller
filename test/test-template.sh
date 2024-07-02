@@ -119,7 +119,7 @@ if [ -n "$match" ]; then
 fi
 
 new "Verify compare 1"
-expectpart "$($clixon_cli -1 -f $CFG -m configure show compare)" 0 "^+\ *interface z {" "^+\ *type ianaift:v35;" "^+\ *description \"Config of interface z,z and ianaift:v35 type\";" --not-- "^\-"
+expectpart "$($clixon_cli -1 -f $CFG -m configure -o CLICON_CLI_OUTPUT_FORMAT=text show compare)" 0 "^+\ *interface z {" "^+\ *type ianaift:v35;" "^+\ *description \"Config of interface z,z and ianaift:v35 type\";" --not-- "^\-"
 
 new "rollback"
 expectpart "$($clixon_cli -1 -f $CFG -m configure rollback)" 0 "^$"
@@ -173,7 +173,7 @@ new "Apply template CLI 1"
 expectpart "$($clixon_cli -1 -f $CFG -m configure apply template interfaces openconfig* variables NAME z TYPE ianaift:v35)" 0 "^$"
 
 new "Verify compare 2"
-expectpart "$($clixon_cli -1 -f $CFG -m configure show compare)" 0 "^+\ *interface z {" "^+\ *type ianaift:v35;" "^+\ *description \"Config of interface z,z and ianaift:v35 type\";" --not-- "^\-"
+expectpart "$($clixon_cli -1 -f $CFG -m configure -o CLICON_CLI_OUTPUT_FORMAT=text show compare)" 0 "^+\ *interface z {" "^+\ *type ianaift:v35;" "^+\ *description \"Config of interface z,z and ianaift:v35 type\";" --not-- "^\-"
 
 new "commit push 1"
 expectpart "$($clixon_cli -1f $CFG -m configure commit push 2>&1)" 0 "^OK$"
@@ -281,7 +281,7 @@ new "Check description removed"
 expectpart "$($clixon_cli -1 -f $CFG show configuration devices device openconfig1 config interfaces interface)" 0 --not-- "<description"
 
 new "check sync OK"
-expectpart "$($clixon_cli -1f $CFG show connections $NAME check 2>&1)" 0 "OK" --not-- "out-of-sync"
+expectpart "$($clixon_cli -1f $CFG show devices $NAME check 2>&1)" 0 "OK" --not-- "out-of-sync"
 
 # Negative tests CLI
 new "Apply template CLI, missing NAME"
