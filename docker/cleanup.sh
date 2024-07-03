@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
-: ${NAME:=clixon-controller}
-: ${IMG:=clixon/controller:latest}
+: ${NAME:=controller-test}
+: ${IMG:=clixon/controller-test:latest}
 
 rm -rf src yang
 # Kill all controller containers (optionally do `make clean`)

@@ -16,7 +16,7 @@ sleep=2
 EOF
 . ./site.sh
 
-: ${NAME:=clixon-controller}
+: ${NAME:=controller-test}
 
 #testdir=../test
 #(cd $testdir; nr=$nr ./start-devices.sh)
@@ -30,8 +30,10 @@ echo "CONTAINERS:$CONTAINERS"
 CONTAINERS="$CONTAINERS" ./start-controller.sh
 
 # Create controller key and copy public key to example dockers
+echo "rm -f /root/.ssh/id_rsa*"
+sudo docker exec -t $NAME bash -c 'rm -f /root/.ssh/id_rsa*'
 echo "sudo docker exec -t $NAME bash -c 'ssh-keygen -t rsa -f /root/.ssh/id_rsa -N ""'"
-sudo docker exec -t $NAME bash -c 'ssh-keygen -t rsa -f /root/.ssh/id_rsa -N ""'
+sudo docker exec -t $NAME bash -c 'ssh-keygen -q -t rsa -f /root/.ssh/id_rsa -N ""'
 
 echo "sudo docker cp $NAME:/root/.ssh/id_rsa.pub ./tmpkey"
 sudo docker cp $NAME:/root/.ssh/id_rsa.pub ./tmpkey

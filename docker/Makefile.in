@@ -32,21 +32,21 @@ NAME  = clixon-controller
 all:	
 	echo "Run make docker to build docker image, or make test to run tests"
 
-clean:
-	rm -rf clixon-controller
-
 distclean: clean
 	rm -f Makefile *~ .depend
 
 docker: Dockerfile
-	sudo docker compose build -t $(IMG) . --no-cache
+	sudo docker compose build
+
+docker-test: Dockerfile
+	sudo docker compose -f docker-compose-test.yml build
 
 push:
-	sudo docker push $(IMG)
+	sudo docker compose push
 
-test: docker
+test: docker-test
 	./cleanup.sh ; ./start.sh # kill (ignore error) and start it
-	sudo docker exec -t $(NAME) bash -c 'cd clixon-controller/test && sleep 1 && detail=true ./sum.sh'
+	sudo docker exec -t controller-test bash -c 'cd clixon-controller/test && sleep 1 && detail=true ./sum.sh'
 
 depend:
 

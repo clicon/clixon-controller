@@ -2,8 +2,8 @@
 # Start clixon example container devices and initiate with config x=11, y=22
 set -ex
 
-: ${NAME:=clixon-controller}
-: ${IMG:=clixon/controller:latest}
+: ${NAME:=controller-test}
+: ${IMG:=clixon/controller-test:latest}
 
 : ${sleep:=5}
 
