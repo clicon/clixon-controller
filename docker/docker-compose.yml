@@ -6,8 +6,6 @@ services:
     build:
       context: ../
       dockerfile: docker/Dockerfile
-    environment:
-      CONTAINERS: "r1 r2"
     ports:
       - "8082:80"
     volumes:
