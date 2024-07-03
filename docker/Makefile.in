@@ -32,17 +32,14 @@ NAME  = clixon-controller
 all:	
 	echo "Run make docker to build docker image, or make test to run tests"
 
-clixon-controller:
-	git clone file://$(realpath ${top_srcdir})
-
 clean:
 	rm -rf clixon-controller
 
 distclean: clean
 	rm -f Makefile *~ .depend
 
-docker: Dockerfile clixon-controller
-	sudo docker build -t $(IMG) .  # --no-cache
+docker: Dockerfile
+	sudo docker compose build -t $(IMG) . --no-cache
 
 push:
 	sudo docker push $(IMG)
