@@ -4,7 +4,9 @@ docker-compose -f docker/docker-compose.yml up -d
 
 # Echo the SSH key to the console
 echo "SSH key for controller:"
-docker exec -it controller cat /root/.ssh/id_rsa.pub
+docker exec -t controller bash -c "cat /root/.ssh/id_rsa.pub"
+
+echo ""
 
 # Echo the CLI command to the console
 echo "To start Controller CLI run:"
