@@ -6,6 +6,8 @@
   * [My devices are CLOSED](#my-devices-are-closed)
   * [How to configure JunOS and the Clixon controller?](#how-to-configure-junos-and-the-clixon-controller)
   * [How do I add a device in Clixon?](#how-do-i-add-a-device-in-clixon)
+  * [My device symbols do not appear in the CLI?](#my-device-symbols-do-not-appear-in-the-cli)
+  * [What about YANG features?](#what-about-yang-features)
   * [What about the directory structure?](#what-about-the-directory-structure)
   * [Candidate is locked](#candidate-is-locked)
 
@@ -30,7 +32,7 @@ supports NETCONF, RESTCONF and CLI.
 
 ## My devices are CLOSED
 
-If a device does not come up and shows something like::
+If a device does not come up and shows something like:
 ```
 cli>show device
 Name                    State      Time                   Logmsg                        
@@ -91,6 +93,50 @@ Thereafter the device must be explicitly connected:
 
 ```
 connection open
+```
+
+## My device symbols do not appear in the CLI?
+
+Connections are open but when you try to edit the device config, there are no symbols:
+```
+   controller[/]# set devices device mydev config ?
+   controller[/]#
+```
+
+It may be that your `autocli.xml` file needs editing. Suppose your YANG files start with prefix `myyang-`. Edit the existing `autocli.xml` or add a new file `/usr/local/etc/controller/autocli-myang.xml` as follows:
+```
+<?xml version="1.0" encoding="utf-8"?>
+<clixon-config xmlns="http://clicon.org/config">
+  <autocli>
+     <module-default>false</module-default>
+     <list-keyword-default>kw-nokey</list-keyword-default>
+     <treeref-state-default>true</treeref-state-default>
+     <grouping-treeref>true</grouping-treeref>
+     <rule>
+       <name>include controller</name>
+       <module-name>clixon-controller</module-name>
+       <operation>enable</operation>
+     </rule>
+     <rule>
+       <name>include myyang</name>
+       <module-name>myyang*</module-name>
+       <operation>enable</operation>
+     </rule>
+  </autocli>
+</clixon-config>
+```
+
+## What about YANG features?
+
+If you use YANG features that are required to be enabled for your YANG
+to function properly, then you need to explicitly enable them in the configuration file.
+
+Suppose you need the YANG feature: `ietf-ipfix-psamp:exporter`. Edit the existing `controller.xml` or add a new file `/usr/local/etc/controller/myfeatures.xml` as follows:
+```
+<?xml version="1.0" encoding="utf-8"?>
+<clixon-config xmlns="http://clicon.org/config">
+  <CLICON_FEATURE>ietf-ipfix-psamp:exporter</CLICON_FEATURE>
+</clixon-config>
 ```
 
 ## What about the directory structure?
