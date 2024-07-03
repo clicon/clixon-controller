@@ -1,20 +1,22 @@
 # Clixon Controller Changelog
 
+## 1.2.0
+Expected: October 2024
+
 ## 1.1.0
-Expected: June 2024
+3 July 2024
 
 ### New features
 
 * Added CLI command logging
 * Added split config data into multi-datastore
-* Added priority for NB sockets
+* Added priority for north-bound sockets
 * Added session kill
 * CLI configurable format: [Default format should be configurable](https://github.com/clicon/clixon-controller/issues/87)
-  * Set text/curly as default
 
 ### API changes on existing protocol/config features
 
-* Rearranged CLI `connection` command and added a `wait` parameter for blocking wait
+* Rearranged CLI `connection` command and made it blocking.
 
 ### Corrected Bugs
 

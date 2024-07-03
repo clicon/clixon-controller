@@ -99,7 +99,7 @@ device_send_lock(clixon_handle h,
     return retval;
 }
 
-/*! Send a <get> request to a device
+/*! Send a <get-config> request to a device
  *
  * @param[in]  h   Clixon handle
  * @param[in]  dh  Clixon client handle
