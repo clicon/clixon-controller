@@ -2,22 +2,15 @@ version: "2.2"
 services:
   controller:
     container_name: controller
-    image: clixon/controller:latest
-    build: .
+    image: clixon/controller:${TAG}
+    build:
+      context: ../
+      dockerfile: docker/Dockerfile
     environment:
       CONTAINERS: "r1 r2"
     ports:
       - "8082:80"
-    depends_on:
-      - r1
-      - r2
     volumes:
-      - ./prepare-ssh.sh:/prepare-ssh.sh
-    entrypoint: ["/bin/bash", "/prepare-ssh.sh"]
-  r1:
-    container_name: r1
-    image: clixon/openconfig:latest
-  r2:
-    container_name: r2
-    image: clixon/openconfig:latest
-
+      - datastore:/usr/local/var/controller/
+volumes:
+  datastore:

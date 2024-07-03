@@ -1,15 +1,13 @@
 version: "2.2"
 services:
-  demo-controller:
-    container_name: demo-controller
-    image: clixon/demo-controller:latest
-    image: clixon/controller:${TAG}
+  controller-test:
+    container_name: controller-test
+    image: clixon/controller-test
     build:
       context: ../
       dockerfile: docker/Dockerfile
     environment:
-      - CONTAINERS="r1 r2"
-      - USE_STARTUPDB="yes"
+      CONTAINERS: "r1 r2"
     ports:
       - "8082:80"
     depends_on:
@@ -17,7 +15,6 @@ services:
       - r2
     volumes:
       - ./prepare-ssh.sh:/prepare-ssh.sh
-      - ./startup_db:/usr/local/var/controller/startup_db
     entrypoint: ["/bin/bash", "/prepare-ssh.sh"]
   r1:
     container_name: r1

@@ -18,9 +18,7 @@ jobs:
     timeout-minutes: 8
     steps:
     - uses: actions/checkout@v4
-    - name: Clone controller code
-      run: (cd docker; git clone ../ clixon-controller)
     - name: Start containers
-      run: (cd docker; docker-compose up --build -d)
+      run: (cd docker; docker-compose -f docker-compose-test.yml up --build -d)
     - name: Run tests
-      run: sleep 5; docker exec -t controller bash -c 'cd clixon-controller/test/;detail=true ./sum.sh'
+      run: sleep 5; docker exec -t controller-test bash -c 'cd clixon-controller/test/;detail=true ./sum.sh'
