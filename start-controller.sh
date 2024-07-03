@@ -2,8 +2,10 @@
 
 docker-compose -f docker/docker-compose.yml up -d
 
+echo ""
+
 # Echo the SSH key to the console
-echo "SSH key for controller:"
+echo "Public SSH key for controller:"
 docker exec -t controller bash -c "cat /root/.ssh/id_rsa.pub"
 
 echo ""
