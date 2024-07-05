@@ -4796,9 +4796,9 @@ else $as_nop
 fi
 
 done
-{ printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking for clicon_log_init in -lclixon" >&5
-printf %s "checking for clicon_log_init in -lclixon... " >&6; }
-if test ${ac_cv_lib_clixon_clicon_log_init+y}
+{ printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking for clixon_log_init in -lclixon" >&5
+printf %s "checking for clixon_log_init in -lclixon... " >&6; }
+if test ${ac_cv_lib_clixon_clixon_log_init+y}
 then :
   printf %s "(cached) " >&6
 else $as_nop
@@ -4810,28 +4810,28 @@ cat confdefs.h - <<_ACEOF >conftest.$ac_ext
 /* Override any GCC internal prototype to avoid an error.
    Use char because int might match the return type of a GCC
    builtin and then its argument prototype would still apply.  */
-char clicon_log_init ();
+char clixon_log_init ();
 int
 main (void)
 {
-return clicon_log_init ();
+return clixon_log_init ();
   ;
   return 0;
 }
 _ACEOF
 if ac_fn_c_try_link "$LINENO"
 then :
-  ac_cv_lib_clixon_clicon_log_init=yes
+  ac_cv_lib_clixon_clixon_log_init=yes
 else $as_nop
-  ac_cv_lib_clixon_clicon_log_init=no
+  ac_cv_lib_clixon_clixon_log_init=no
 fi
 rm -f core conftest.err conftest.$ac_objext conftest.beam \
     conftest$ac_exeext conftest.$ac_ext
 LIBS=$ac_check_lib_save_LIBS
 fi
-{ printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: $ac_cv_lib_clixon_clicon_log_init" >&5
-printf "%s\n" "$ac_cv_lib_clixon_clicon_log_init" >&6; }
-if test "x$ac_cv_lib_clixon_clicon_log_init" = xyes
+{ printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: $ac_cv_lib_clixon_clixon_log_init" >&5
+printf "%s\n" "$ac_cv_lib_clixon_clixon_log_init" >&6; }
+if test "x$ac_cv_lib_clixon_clixon_log_init" = xyes
 then :
   printf "%s\n" "#define HAVE_LIBCLIXON 1" >>confdefs.h
 
