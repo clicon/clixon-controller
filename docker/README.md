@@ -3,6 +3,10 @@
 This directory contains code for running, building and pushing the clixon
 controller docker container. 
 
+## Requirements
+
+docker
+
 ## Build
 
 Perform the build by `make docker`. This copies the latest committed clixon code into the container.
@@ -59,18 +63,18 @@ A `docker-compose.yml` is provided that will launch two instances of the Clixon 
 
 The Controller's entrypoint is overridden to create a keypair and install the public key on each of r1 and r2 such that the controller can perform passwordless authentication as user "noc".
 
-The docker-compose.yml assumes that the clixon/openconfig and clixon/controller images have alreay been built per instructions found elsewhere, or published to Dockerhub; that is, `docker-compose build` will not build them.
+The docker-compose.yml assumes that the clixon/openconfig and clixon/controller images have alreay been built per instructions found elsewhere, or published to Dockerhub; that is, `docker compose build` will not build them.
 
 ## Startup
 
 ```
-  $ docker-compose up
+  $ docker compose up
 ```
 
 Once the containers are running, the controller CLI can be run and devices added:
 
 ```
-  $ docker-compose up -d
+  $ docker compose up -d
   Creating network "docker_default" with the default driver
   Creating r2 ... done
   Creating r1 ... done
