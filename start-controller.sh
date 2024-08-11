@@ -6,7 +6,7 @@ if [ "$(docker ps -q -f name=controller)" ]; then
 	exit 1
 fi
 
-docker-compose -f docker/docker-compose.yml up -d
+docker compose -f docker/docker-compose.yml up -d
 
 sleep 5
 

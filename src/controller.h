@@ -48,7 +48,7 @@
  * cRPD gives error if you request it with get-schema:
  * <error-message>invalid schema identifier : junos-configuration-metadata</error-message>
  */
-#define CONTROLLER_JUNOS_SKIP_METADATA
+#undef CONTROLLER_JUNOS_SKIP_METADATA
 
 /*! Add grouping command-forwarding in junos-rpc yangs if not exists
  *
@@ -56,7 +56,7 @@
  * uses command-grouping fails.
  * Insert an empty grouping command-forwarding if it does not exist
  */
-#define CONTROLLER_JUNOS_ADD_COMMAND_FORWARDING
+#undef CONTROLLER_JUNOS_ADD_COMMAND_FORWARDING
 
 /*! Top-symbol in clixon datastores
  *

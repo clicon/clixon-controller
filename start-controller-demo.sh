@@ -6,7 +6,7 @@ if [ "$(docker ps -q -f name=demo-controller)" ] || [ "$(docker ps -q -f name=r1
 	exit 1
 fi
 
-docker-compose -f docker/docker-compose-demo.yml up -d
+docker compose -f docker/docker-compose-demo.yml up -d
 
 sleep 5
 

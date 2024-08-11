@@ -713,6 +713,7 @@ main(int    argc,
         }
     clixon_log_init(h, __PROGRAM__, dbg?LOG_DEBUG:LOG_INFO, logdst);
     clixon_debug_init(h, dbg);
+    yang_init(h);
     /* Setup handlers to exit cleanly when killed from parent or user */
     if (set_signal(SIGTERM, service_action_sig_term, NULL) < 0){
         clixon_err(OE_DAEMON, errno, "Setting signal");

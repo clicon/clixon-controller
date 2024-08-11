@@ -248,22 +248,6 @@ controller_commit(clixon_handle    h,
     return retval;
 }
 
-/*! Callback for yang extensions controller
- *
- * @param[in] h    Clixon handle
- * @param[in] yext Yang node of extension
- * @param[in] ys   Yang node of (unknown) statement belonging to extension
- * @retval    0    OK
- * @retval   -1    Error
- */
-int
-controller_unknown(clixon_handle h,
-                     yang_stmt    *yext,
-                     yang_stmt    *ys)
-{
-    return 0;
-}
-
 /*! YANG schema mount
  *
  * Given an XML mount-point xt, return XML yang-lib modules-set
@@ -582,7 +566,6 @@ static clixon_plugin_api api = {
     .ca_start        = controller_start,
     .ca_exit         = controller_exit,
     .ca_reset        = controller_reset,
-    .ca_extension    = controller_unknown,
     .ca_statedata    = controller_statedata,
     .ca_trans_commit = controller_commit,
     .ca_yang_mount   = controller_yang_mount,

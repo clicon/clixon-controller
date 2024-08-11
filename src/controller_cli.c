@@ -247,6 +247,11 @@ controller_gentree_all(cligen_handle ch)
             /* Generate auto-cligen tree from the specs */
             if (yang2cli_yspec(h, yspec1, newtree) < 0)
                 goto done;
+#if 1
+            // Optimize
+            if (yang_parse_optimize_uses(h, yspec1) < 0)
+                goto done;
+#endif
             /* Sanity (ph needed further down) */
             if ((ph = cligen_ph_find(ch, newtree)) == NULL){
                 clixon_err(OE_YANG, 0, "autocli should have been generated but is not?");
@@ -350,6 +355,11 @@ controller_gentree_one(cligen_handle ch,
             /* Generate auto-cligen tree from the specs */
             if (yang2cli_yspec(h, yspec1, newtree) < 0)
                 goto done;
+#if 1
+            // Optimize
+            if (yang_parse_optimize_uses(h, yspec1) < 0)
+                goto done;
+#endif
             /* Sanity (ph needed further down) */
             if ((ph = cligen_ph_find(ch, newtree)) == NULL){
                 clixon_err(OE_YANG, 0, "autocli should have been generated but is not?");

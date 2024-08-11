@@ -434,6 +434,11 @@ device_schemas_mount_parse(clixon_handle h,
         clixon_err(OE_YANG, 0, "No yang spec");
         goto done;
     }
+#if 1
+    // Optimize
+    if (yang_parse_optimize_uses(h, yspec1) < 0)
+        goto done;
+#endif
     /* Given yang-lib, actual parsing of all modules into yspec */
     if ((ret = yang_lib2yspec(h, xyanglib, yspec1)) < 0)
         goto done;
