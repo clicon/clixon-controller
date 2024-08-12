@@ -72,21 +72,6 @@ fi
 
 : ${clixon_snmp:=$(type -p clixon_snmp)}
 
-: ${_ALREADY_HERE:=0}
-
-if [ -n "$CLICON_GROUP" ] && [ $_ALREADY_HERE -eq 0 ]; then
-    # Extra test for some archs, eg ubuntu 18 that have problems with:
-    # Sorry, user <user> is not allowed to execute as <user>:clicon on <arch>
-    sudo -g ${CLICON_GROUP} $clixon_netconf 2> /dev/null
-    if [ $? -eq 0 ]; then
-        clixon_cli="sudo -g ${CLICON_GROUP} $clixon_cli"
-        clixon_netconf="sudo -g ${CLICON_GROUP} $clixon_netconf"
-        clixon_restconf="sudo -g ${CLICON_GROUP} $clixon_restconf"
-        clixon_snmp="sudo -g ${CLICON_GROUP} --preserve-env=MIBDIRS $clixon_snmp"
-    fi
-fi
-_ALREADY_HERE=1
-
 # If set to false, override starting of clixon_backend in test (you bring your own)
 : ${BE:=true}
 
