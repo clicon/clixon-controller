@@ -584,8 +584,16 @@ cli_history_cb(cligen_handle ch,
                void         *arg)
 {
     clixon_handle h = arg;
+    int           flags;
 
-    return clixon_log(h, LOG_INFO, "command(%s): %s", clicon_username_get(h), cmd);
+    /* Trick to not echo history to terminal */
+    flags = clixon_logflags_get();
+    if ((flags & CLIXON_LOG_STDERR) != 0x0)
+        clixon_logflags_set(flags & ~CLIXON_LOG_STDERR);
+    clixon_log(h, LOG_INFO, "command(%s): %s", clicon_username_get(h), cmd);
+    if ((flags & CLIXON_LOG_STDERR) != 0x0)
+        clixon_logflags_set(flags);
+    return 0;
 }
 
 static clixon_plugin_api api = {
@@ -633,7 +641,7 @@ clixon_plugin_init(clixon_handle h)
     if (clicon_option_bool(h, "CLICON_YANG_SCHEMA_MOUNT")){
         cligen_tree_resolve_wrapper_set(cli_cligen(h), controller_treeref_wrap, NULL);
     }
-    /* Log CLI commands */
+    /* Log CLI commands (note filtering in cli_history_cb to stderr */
     cligen_hist_fn_set(cli_cligen(h), cli_history_cb, h);
     return &api;
  done:

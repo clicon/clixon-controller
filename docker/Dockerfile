@@ -21,7 +21,7 @@
 #
 
 FROM debian:bookworm-slim
-MAINTAINER Kristofer Hallin <kristofer@sunet.se>
+LABEL maintainer="Kristofer Hallin <kristofer@sunet.se>"
 
 RUN apt update
 RUN apt install -y procps emacs-nox git make gcc bison libnghttp2-dev libssl-dev flex python3 python3-pip sudo sshpass

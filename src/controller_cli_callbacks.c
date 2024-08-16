@@ -479,7 +479,7 @@ transaction_notification_handler(clixon_handle       h,
         goto done;
     }
     if ((result = transaction_result_str2int(resstr)) != TR_SUCCESS){
-      if(clixon_get_logflags() != CLIXON_LOG_STDERR)
+        if((clixon_logflags_get() | CLIXON_LOG_STDERR) == 0x0)
 	  cligen_output(stderr, "%s: pid: %u Transaction %s failed: %s\n",
 		  __FUNCTION__, getpid(), tidstr, reason?reason:"no reason");
 
