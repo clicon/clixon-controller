@@ -39,7 +39,7 @@
   <!-- Optimization to share YANGs omong schema-mounts -->
   <CLICON_YANG_SCHEMA_MOUNT_SHARE>true</CLICON_YANG_SCHEMA_MOUNT_SHARE>
   <CLICON_BACKEND_USER>@CLICON_USER@</CLICON_BACKEND_USER>
-  <!-- Log to syslog and no log length limitation -->
+  <!-- Log to syslog and stderr. no log length limitation -->
   <CLICON_LOG_DESTINATION>syslog stderr</CLICON_LOG_DESTINATION>
   <CLICON_LOG_STRING_LIMIT>0</CLICON_LOG_STRING_LIMIT>
   <!-- Enable for exclusive lock on edit -->
