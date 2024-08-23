@@ -3,7 +3,12 @@
 ## 1.2.0
 Expected: October 2024
 
+### Corrected Bugs
+
+* Fixed: commit fail in transaction caused assertion
+
 ## 1.1.0
+
 3 July 2024
 
 ### New features

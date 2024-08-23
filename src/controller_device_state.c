@@ -434,11 +434,8 @@ device_schemas_mount_parse(clixon_handle h,
         clixon_err(OE_YANG, 0, "No yang spec");
         goto done;
     }
-#if 1
-    // Optimize
     if (yang_parse_optimize_uses(h, yspec1) < 0)
         goto done;
-#endif
     /* Given yang-lib, actual parsing of all modules into yspec */
     if ((ret = yang_lib2yspec(h, xyanglib, yspec1)) < 0)
         goto done;
@@ -956,7 +953,8 @@ device_state_check_fail(clixon_handle           h,
  * @param[in]  h     Clixon handle
  * @param[in]  dh    Device handle.
  * @param[in]  ct    Controller transaction
- * @retval     0     OK
+ * @retval     1     OK
+ * @retval     0     Failed
  * @retval    -1     Error
  */
 static int
@@ -1045,12 +1043,12 @@ device_commit_when_done(clixon_handle           h,
     }
     if ((ret = candidate_commit(h, NULL, db, 0, 0, cbret)) < 0){
         /* Handle that candidate_commit can return < 0 if transaction ongoing */
-        cprintf(cbret, "%s", clixon_err_reason());
+        cprintf(cbret, "Failed to commit: %s", clixon_err_reason());
         ret = 0;
     }
     if (ret == 0){ /* discard */
         clixon_debug(CLIXON_DBG_CTRL, "%s", cbuf_get(cbret));
-        if (device_close_connection(dh, "Failed to commit: %s", cbuf_get(cbret)) < 0)
+        if (device_close_connection(dh, "%s", cbuf_get(cbret)) < 0)
             goto done;
         if (controller_transaction_failed(h, ct->ct_id, ct, dh, TR_FAILED_DEV_LEAVE,
                                           device_handle_name_get(dh),
@@ -1310,12 +1308,8 @@ device_state_handler(clixon_handle h,
                 goto done;
             break;
         }
-        /* The device is OK */
-        if (device_state_check_ok(h, dh, ct) < 0)
-            goto done;
-        if (ct->ct_state == TS_DONE &&
-            ct->ct_result == TR_SUCCESS &&
-            !ct->ct_pull_transient){
+        if (controller_transaction_nr_devices(h, tid) == 1 &&
+            !ct->ct_pull_transient) {
             /* See puts from each device in device_state_recv_config() */
             if ((ret = device_commit_when_done(h, dh, ct, "tmpdev")) < 0)
                 goto done;
@@ -1323,7 +1317,10 @@ device_state_handler(clixon_handle h,
                 break;
             xmldb_delete(h, "tmpdev");
         }
-      break;
+        /* The device is OK */
+        if (device_state_check_ok(h, dh, ct) < 0)
+            goto done;
+        break;
     case CS_PUSH_LOCK:
         if (device_state_check_sanity(dh, tid, ct, name, conn_state, rpcname) == 0)
             break;
