@@ -120,6 +120,7 @@ char *actions_type_int2str(actions_type t);
 actions_type actions_type_str2int(char *str);
 int schema_list2yang_library(cxobj *xschemas, cxobj **xyanglib);
 int xdev2yang_library(cxobj *xdev, cxobj **xyanglib);
+int controller_mount_xpath_get(char *devname, cbuf **cbxpath);
 int controller_mount_yspec_get(clixon_handle h, char *devname, yang_stmt **yspec1);
 int controller_mount_yspec_set(clixon_handle h, char *devname, yang_stmt *yspec1);
 int controller_version(clixon_handle h, FILE *f);

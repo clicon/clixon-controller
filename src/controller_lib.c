@@ -393,7 +393,7 @@ controller_mount_yang_get(clixon_handle h,
  * @retval     0        OK
  * @retval    -1        Error
  */
-static int
+int
 controller_mount_xpath_get(char  *devname,
                            cbuf **cbxpath)
 {
@@ -513,7 +513,6 @@ controller_yang_patch_junos(clixon_handle h,
     int         retval = -1;
     char       *modname;
     yang_stmt  *ygr;
-    char       *arg = NULL;
 
     if (ymod == NULL){
         clixon_err(OE_PLUGIN, EINVAL, "ymod is NULL");
@@ -524,11 +523,7 @@ controller_yang_patch_junos(clixon_handle h,
         if (yang_find(ymod, Y_GROUPING, "command-forwarding") == NULL){
             if ((ygr = ys_new(Y_GROUPING)) == NULL)
                 goto done;
-            if ((arg = strdup("command-forwarding")) == NULL){
-                clixon_err(OE_UNIX, errno, "strdup");
-                goto done;
-            }
-            if (yang_argument_set(ygr, arg) < 0)
+            if (yang_argument_dup(ygr, "command-forwarding") < 0)
                 goto done;
             if (yn_insert(ymod, ygr) < 0)
                 goto done;

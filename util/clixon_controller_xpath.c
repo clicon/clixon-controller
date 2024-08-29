@@ -237,7 +237,7 @@ main(int    argc,
     yang_init(h);
     /* Parse yang */
     if (yang_file_dir){
-        if ((yspec = yspec_new()) == NULL)
+        if ((yspec = yspec_new(h, YANG_DATA_TOP)) == NULL)
             goto done;
         if (stat(yang_file_dir, &st) < 0){
             clixon_err(OE_YANG, errno, "%s not found", yang_file_dir);

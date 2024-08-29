@@ -437,7 +437,7 @@ device_schemas_mount_parse(clixon_handle h,
     if (yang_parse_optimize_uses(h, yspec1) < 0)
         goto done;
     /* Given yang-lib, actual parsing of all modules into yspec */
-    if ((ret = yang_lib2yspec(h, xyanglib, yspec1)) < 0)
+    if ((ret = yang_lib2yspec(h, xyanglib, device_handle_name_get(dh), yspec1)) < 0)
         goto done;
     if (ret == 0){
         device_close_connection(dh, "%s", clixon_err_reason());
@@ -890,8 +890,6 @@ device_shared_yspec(clixon_handle h,
         if (dh1 != NULL){
             if (controller_mount_yspec_get(h, device_handle_name_get(dh1), &yspec) < 0)
                 goto done;
-            if (yspec != NULL)
-                yang_ref_inc(yspec); /* share */
         }
     }
     if (yspec1)
@@ -1150,15 +1148,25 @@ device_state_handler(clixon_handle h,
             yspec1 = NULL;
             if (controller_mount_yspec_get(h, name, &yspec1) < 0)
                 goto done;
+            // XXX why two NULL checks?
             if (yspec1 == NULL){
+                cbuf *cbxpath = NULL;
                 if (device_shared_yspec(h, dh, xyanglib, &yspec1) < 0)
                     goto done;
+                if (controller_mount_xpath_get(name, &cbxpath) < 0)
+                    goto done;
                 if (yspec1 == NULL){
-                    if ((yspec1 = yspec_new()) == NULL)
+                    if ((yspec1 = yspec_new(h, cbuf_get(cbxpath))) == NULL)
                         goto done;
                 }
-                else
+                else{ /* XXX: use unified shared function */
                     yspec_shared++;
+                    if (yang_cvec_add(yspec1, CGV_STRING, cbuf_get(cbxpath)) < 0)
+                        goto done;
+                }
+                if (cbxpath)
+                    cbuf_free(cbxpath);
+                yang_ref_inc(yspec1);
                 if (controller_mount_yspec_set(h, name, yspec1) < 0)
                     goto done;
             }
@@ -1213,16 +1221,27 @@ device_state_handler(clixon_handle h,
         if (controller_mount_yspec_get(h, name, &yspec1) < 0)
             goto done;
         if (yspec1 == NULL){
+            // XXX subroutine
+            cbuf *cbxpath = NULL;
+
+            if (controller_mount_xpath_get(name, &cbxpath) < 0)
+                goto done;
             if (device_shared_yspec(h, dh, xyanglib, &yspec1) < 0)
                 goto done;
             if (yspec1 == NULL){
-                if ((yspec1 = yspec_new()) == NULL)
+                if ((yspec1 = yspec_new(h, cbuf_get(cbxpath))) == NULL)
                     goto done;
             }
-            else
+            else { /* XXX: use unified shared function */
                 yspec_shared++;
+                if (yang_cvec_add(yspec1, CGV_STRING, cbuf_get(cbxpath)) < 0)
+                    goto done;
+            }
+            yang_ref_inc(yspec1);
             if (controller_mount_yspec_set(h, name, yspec1) < 0)
                 goto done;
+            if (cbxpath)
+                cbuf_free(cbxpath);
         }
         nr = 0;
         if ((ret = device_send_get_schema_next(h, dh, s, &nr)) < 0)
