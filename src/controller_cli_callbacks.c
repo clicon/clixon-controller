@@ -2382,6 +2382,170 @@ cli_controller_show_version(clixon_handle h,
     return 0;
 }
 
+/*! show yang revisions of top-level / mountpoint.
+ *
+ * @param[in]  h     Clixon handle
+ * @param[in]  cvv   Vector of command variables
+ * @param[in]  argv  Name of cv containing name of top-level/mountpoint
+ * @retval     0     OK
+ * @retval    -1     Error
+ */
+int
+show_yang_revisions(clixon_handle h,
+                    cvec         *cvv,
+                    cvec         *argv)
+{
+    int        retval = -1;
+    char      *cvname = NULL;
+    char      *name = NULL;
+    char      *name1;
+    char      *module;
+    char      *revision;
+    cg_var    *cv;
+    cxobj     *xt = NULL;
+    cxobj     *xerr;
+    cxobj     *xmodset;
+    cxobj     *x;
+    cvec      *nsc = NULL;
+    cbuf      *cb = NULL;
+    cxobj    **vec = NULL;
+    size_t     veclen;
+    int        i;
+
+    if (cvec_len(argv) > 0 &&
+        (cvname = cv_string_get(cvec_i(argv, 0))) != NULL) {
+        if ((cv = cvec_find(cvv, cvname)) != NULL){
+            if ((name = cv_string_get(cv)) == NULL){
+                clixon_err(OE_PLUGIN, EINVAL, "cv %s empty", name);
+                goto done;
+            }
+        }
+    }
+    if (name == NULL || (strcmp(name, "top") != 0 && strcmp(name, "config") != 0)) {
+        if ((cb = cbuf_new()) == NULL){
+            clixon_err(OE_UNIX, errno, "cbuf_new");
+            goto done;
+        }
+        if ((nsc = xml_nsctx_init(NULL, CONTROLLER_NAMESPACE)) == NULL)
+            goto done;
+        if (xml_nsctx_add(nsc, "yanglib", "urn:ietf:params:xml:ns:yang:ietf-yang-library") < 0)
+            goto done;
+        /* XXX: cannot access yanglib:yang-library/yanglib:module-set directly */
+        if (name)
+            cprintf(cb, "/devices/device[name='%s']/config", name);
+        else
+            cprintf(cb, "/devices/device/config");
+        if (clicon_rpc_get(h, cbuf_get(cb), nsc, CONTENT_ALL, -1, "explicit", &xt) < 0)
+            goto done;
+        if ((xerr = xpath_first(xt, NULL, "/rpc-error")) != NULL){
+            clixon_err_netconf(h, OE_NETCONF, 0, xerr, "Get configuration");
+            goto done;
+        }
+        cprintf(cb, "/yanglib:yang-library/yanglib:module-set");
+        if (xpath_vec(xt, nsc, "%s", &vec, &veclen, cbuf_get(cb)) < 0)
+            goto done;
+        for (i=0; i<veclen; i++){
+            xmodset = vec[i];
+            name1 = xml_find_body(xml_parent(xml_parent(xml_parent(xmodset))), "name");
+            if (name && strcmp(name, name1))
+                continue;
+            cligen_output(stdout, "%s:\n", name1);
+            x = NULL;
+            while ((x = xml_child_each(xmodset, x, CX_ELMNT)) != NULL){
+                if (strcmp(xml_name(x), "module") != 0)
+                    continue;
+                module = xml_find_body(x, "name");
+                revision = xml_find_body(x, "revision");
+                //            namespace = xml_find_body(x, "namespace");
+                if (revision)
+                    cligen_output(stdout, "%s@%s\n", module, revision);
+                else
+                    cligen_output(stdout, "%s\n", module);
+            }
+            if (name == NULL && i<veclen-1)
+                cligen_output(stdout, "\n");
+        }
+    }
+    retval = 0;
+ done:
+    if (vec)
+        free(vec);
+    if (cb)
+        cbuf_get(cb);
+    if (nsc)
+        cvec_free(nsc);
+    if (xt)
+        xml_free(xt);
+    return retval;
+}
+
+/*! show device capabilities, subset of state / hello
+ *
+ * @param[in]  h     Clixon handle
+ * @param[in]  cvv   Vector of command variables
+ * @param[in]  argv  Name of cv containing name of top-level/mountpoint
+ * @retval     0     OK
+ * @retval    -1     Error
+ */
+int
+show_device_capability(clixon_handle h,
+                       cvec         *cvv,
+                       cvec         *argv)
+{
+    int     retval = -1;
+    char   *cvname = NULL;
+    char   *name = NULL;
+    char   *name1;
+    cg_var *cv;
+    cxobj  *xt = NULL;
+    cxobj  *xerr;
+    cvec   *nsc = NULL;
+    cxobj **vec = NULL;
+    size_t  veclen;
+    cxobj  *xcaps;
+    int     i;
+
+    if (cvec_len(argv) > 0 &&
+        (cvname = cv_string_get(cvec_i(argv, 0))) != NULL) {
+        if ((cv = cvec_find(cvv, cvname)) != NULL){
+            if ((name = cv_string_get(cv)) == NULL){
+                clixon_err(OE_PLUGIN, EINVAL, "cv %s empty", name);
+                goto done;
+            }
+        }
+    }
+    if ((nsc = xml_nsctx_init(NULL, CONTROLLER_NAMESPACE)) == NULL)
+        goto done;
+    if (clicon_rpc_get(h, "/devices/device/capabilities", nsc, CONTENT_ALL, -1, "explicit", &xt) < 0)
+        goto done;
+    if ((xerr = xpath_first(xt, NULL, "/rpc-error")) != NULL){
+        clixon_err_netconf(h, OE_NETCONF, 0, xerr, "Get configuration");
+        goto done;
+    }
+    if (xpath_vec(xt, nsc, "/devices/device/capabilities", &vec, &veclen) < 0)
+        goto done;
+    for (i=0; i<veclen; i++){
+        xcaps = vec[i];
+        name1 = xml_find_body(xml_parent(xcaps), "name");
+        if (name && strcmp(name, name1))
+            continue;
+        cligen_output(stdout, "%s:\n", name1);
+        if (clixon_xml2file(stdout, xcaps, 0, 1, NULL, cligen_output, 0, 1) < 0)
+            goto done;
+        if (name == NULL && i<veclen-1)
+            cligen_output(stdout, "\n");
+    }
+    retval = 0;
+ done:
+    if (vec)
+        free(vec);
+    if (nsc)
+        cvec_free(nsc);
+    if (xt)
+        xml_free(xt);
+    return retval;
+}
+
 /*! Apply template on devices
  *
  * @param[in] h

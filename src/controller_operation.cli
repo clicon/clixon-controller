@@ -49,8 +49,16 @@ show("Show a particular state of the system"){
                  ] {
                  check("Check if device is in sync"), check_device_db("default");
                  diff("Compare remote device config with local"), compare_device_db_dev("default");
+                 capability("Show device capbilities"), show_device_capability("name"); {
+                    @|pipe_show, show_device_capability("name");
+                 }
+                 yang("Show yang revisions"), show_yang_revisions("name"); {
+                    @|pipe_show, show_yang_revisions("name");
+                 }
              }
-    options("Show clixon options"), cli_show_options();
+    options("Show clixon options"), cli_show_options();{
+       @|pipe_show, cli_show_options();
+    }
     services("Show service process status"), cli_show_services_process();{
        detail("Show detailed process status"), cli_process_control("Action process", "status");
     }
@@ -58,6 +66,7 @@ show("Show a particular state of the system"){
          detail("Show sessions detailed state"), cli_show_sessions("detail");
     }
     state("Show configuration and state"), cli_show_auto_mode("running", "default", true, true); {
+        @|pipe_show, cli_show_auto_mode("running", "default", true, true);
         xml("Show configuration and state as XML"), cli_show_auto_mode("running", "xml", true, true);{
 	    default("With-default mode"){
                   report-all, cli_show_auto_mode("running", "default", true, true, "report-all");
@@ -89,9 +98,6 @@ show("Show a particular state of the system"){
        [<ns:string>("Namespace")], show_conf_xpath("running");{
           @|pipe_show, show_conf_xpath("running");
        }
-    yang("Show yang specs"), show_yang(); {
-        controller("Show clixon-controller yang spec"), show_yang("clixon-controller");
-    }		   
 }
 
 save("Save running configuration to XML file") <filename:string>("Filename (local filename)"), save_config_file("running","filename", "xml");{

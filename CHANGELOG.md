@@ -3,6 +3,12 @@
 ## 1.2.0
 Expected: October 2024
 
+### New features
+
+* New CLI commands:
+  * show device yang
+  * show device capability
+
 ### Corrected Bugs
 
 * Fixed: commit fail in transaction caused assertion
