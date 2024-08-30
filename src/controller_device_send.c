@@ -242,6 +242,7 @@ device_send_get_schema_next(clixon_handle h,
         name = xml_find_body(x, "name");
         revision = xml_find_body(x, "revision");
         (*nr)++;
+#ifndef CONTROLLER_YANG_DUMP_DIR
         /* Check if already loaded */
         if (yang_find_module_by_name_revision(yspec, name, revision) != NULL)
             continue;
@@ -250,6 +251,7 @@ device_send_get_schema_next(clixon_handle h,
             goto done;
         if (ret == 1)
             continue;
+#endif
         /* May be some concurrency here if several devices requests same yang simultaneously
          * To avoid that one needs to keep track if another request has been sent.
          */

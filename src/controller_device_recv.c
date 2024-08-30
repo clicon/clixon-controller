@@ -498,7 +498,11 @@ device_state_recv_get_schema(device_handle dh,
         clixon_err(OE_YANG, 0, "schema mount dir not set");
         goto done;
     }
-    cprintf(cb, "%s/%s", dir, modname);
+#ifdef CONTROLLER_YANG_DUMP_DIR
+    cprintf(cb, "%s", CONTROLLER_YANG_DUMP_DIR);
+    cprintf(cb, "/%s", device_handle_name_get(dh));
+#endif
+    cprintf(cb, "/%s", modname);
     if (revision)
         cprintf(cb, "@%s", revision);
     cprintf(cb, ".yang");
@@ -512,6 +516,28 @@ device_state_recv_get_schema(device_handle dh,
         goto done;
     }
     fflush(f);
+#ifdef CONTROLLER_YANG_DUMP_DIR
+    {
+        cbuf *cb2 = NULL;
+
+        /* Check if exists as local file */
+        if ((ret = yang_file_find_match(h, modname, revision, NULL)) < 0)
+            goto done;
+        if (ret == 0) {
+            /* If not exists, copy back to mount-dir */
+            if ((cb2 = cbuf_new()) == NULL){
+                clixon_err(OE_UNIX, errno, "cbuf_new");
+                goto done;
+            }
+            cprintf(cb, "%s", dir);
+            cprintf(cb, "/%s", modname);
+            if (revision)
+                cprintf(cb, "@%s", revision);
+            if (clicon_file_copy(cbuf_get(cb), cbuf_get(cb2)) < 0)
+                goto done;
+        }
+    }
+#endif
     retval = 1;
  done:
     if (f)
