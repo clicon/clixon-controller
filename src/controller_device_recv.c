@@ -501,6 +501,8 @@ device_state_recv_get_schema(device_handle dh,
 #ifdef CONTROLLER_YANG_DUMP_DIR
     cprintf(cb, "%s", CONTROLLER_YANG_DUMP_DIR);
     cprintf(cb, "/%s", device_handle_name_get(dh));
+#else
+    cprintf(cb, "%s", dir);
 #endif
     cprintf(cb, "/%s", modname);
     if (revision)
