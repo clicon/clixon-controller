@@ -1158,6 +1158,7 @@ device_state_handler(clixon_handle h,
                 if (yspec1 == NULL){
                     if ((yspec1 = yspec_new(h, cbuf_get(cbxpath))) == NULL)
                         goto done;
+                    yang_flag_set(yspec1, YANG_FLAG_SPEC_MOUNT);
                 }
                 else{ /* XXX: use unified shared function */
                     yspec_shared++;
@@ -1166,7 +1167,6 @@ device_state_handler(clixon_handle h,
                 }
                 if (cbxpath)
                     cbuf_free(cbxpath);
-                yang_ref_inc(yspec1);
                 if (controller_mount_yspec_set(h, name, yspec1) < 0)
                     goto done;
             }
@@ -1231,13 +1231,13 @@ device_state_handler(clixon_handle h,
             if (yspec1 == NULL){
                 if ((yspec1 = yspec_new(h, cbuf_get(cbxpath))) == NULL)
                     goto done;
+                yang_flag_set(yspec1, YANG_FLAG_SPEC_MOUNT);
             }
             else { /* XXX: use unified shared function */
                 yspec_shared++;
                 if (yang_cvec_add(yspec1, CGV_STRING, cbuf_get(cbxpath)) < 0)
                     goto done;
             }
-            yang_ref_inc(yspec1);
             if (controller_mount_yspec_set(h, name, yspec1) < 0)
                 goto done;
             if (cbxpath)
