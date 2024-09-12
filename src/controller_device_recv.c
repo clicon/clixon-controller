@@ -35,6 +35,7 @@
 #include <fcntl.h>
 #include <fnmatch.h>
 #include <sys/time.h>
+#include <sys/stat.h>
 
 /* clicon */
 #include <cligen/cligen.h>
@@ -268,7 +269,7 @@ device_state_recv_config(clixon_handle h,
             clixon_err(OE_UNIX, errno, "cbuf_new");
             goto done;
         }
-        cprintf(cberr, "YANG bind failed at mountpoint");
+        cprintf(cberr, "YANG bind failed at mountpoint ");
         // xpath not prefix/namespace independent
         if (xerr && (x = xpath_first(xerr, NULL, "rpc-error/error-message")) != NULL){
             if (netconf_err2cb(h,
@@ -388,14 +389,16 @@ device_state_recv_schema_list(device_handle dh,
                               char         *rpcname,
                               conn_state    conn_state)
 {
-    int    retval = -1;
-    cxobj *xschemas = NULL;
-    cxobj *x;
-    cxobj *x1;
-    cxobj *xyanglib = NULL;
-    int    ret;
+    int           retval = -1;
+    cxobj        *xschemas = NULL;
+    cxobj        *x;
+    cxobj        *x1;
+    cxobj        *xyanglib = NULL;
+    clixon_handle h;
+    int           ret;
 
     clixon_debug(CLIXON_DBG_CTRL | CLIXON_DBG_DETAIL, "");
+    h = device_handle_handle_get(dh);
     if ((ret = rpc_reply_sanity(dh, xmsg, rpcname, conn_state)) < 0)
         goto done;
     if (ret == 0)
@@ -427,11 +430,12 @@ device_state_recv_schema_list(device_handle dh,
     if (xml_tree_prune_flags(xschemas, XML_FLAG_MARK, XML_FLAG_MARK) < 0)
         goto done;
     /* Translate to RFC 8525 */
-    if (schema_list2yang_library(xschemas, &xyanglib) < 0)
+    if (schema_list2yang_library(h, xschemas, device_handle_domain_get(dh), &xyanglib) < 0)
         goto done;
     if (xml_rootchild(xyanglib, 0, &xyanglib) < 0)
         goto done;
-    /* @see controller_connect where initial yangs may be set */
+    /* @see controller_connect where initial yangs may be set
+     */
     if (device_handle_yang_lib_append(dh, xyanglib) < 0) /* xyanglib consumed */
         goto done;
     retval = 1;
@@ -446,6 +450,7 @@ device_state_recv_schema_list(device_handle dh,
 
 /*! Receive RFC 6022 get-schema and write to local yang file
  *
+ * Local dir is CLICON_YANG_DOMAIN_DIR/domain and is created if it does not exist.
  * @param[in] h          Clixon handle.
  * @param[in] dh         Clixon client handle.
  * @param[in] s          Socket where input arrives. Read from this.
@@ -455,6 +460,8 @@ device_state_recv_schema_list(device_handle dh,
  * @retval    1          OK
  * @retval    0          Closed
  * @retval   -1          Error
+ * @see device_send_get_schema_next  Check local/ send a schema request
+ * @see device_schemas_mount_parse   Parse the module after it is found or requested
  */
 int
 device_state_recv_get_schema(device_handle dh,
@@ -473,6 +480,9 @@ device_state_recv_get_schema(device_handle dh,
     size_t        sz;
     char         *dir;
     int           ret;
+    char         *domain;
+    struct stat   st0;
+    struct stat   st1;
 
     clixon_debug(CLIXON_DBG_CTRL, "");
     h = device_handle_handle_get(dh);
@@ -490,20 +500,40 @@ device_state_recv_get_schema(device_handle dh,
     revision = device_handle_schema_rev_get(dh);
     modname = device_handle_schema_name_get(dh);
     /* Write to file */
+    if ((domain = device_handle_domain_get(dh)) == NULL){
+        clixon_err(OE_YANG, 0, "No YANG domain");
+        goto done;
+    }
+    if ((dir = clicon_yang_domain_dir(h)) == NULL){
+        clixon_err(OE_YANG, 0, "CLICON_YANG_DOMAIN_DIR not set");
+        goto done;
+    }
+    if (stat(dir, &st0) < 0){
+        clixon_err(OE_YANG, errno, "%s not found", cbuf_get(cb));
+        goto done;
+    }
+    /* Check top dir  */
+    if (S_ISDIR(st0.st_mode) == 0){
+        clixon_err(OE_YANG, errno, "%s not directory", cbuf_get(cb));
+        goto done;
+    }
     if ((cb = cbuf_new()) == NULL){
         clixon_err(OE_UNIX, errno, "cbuf_new");
         goto done;
     }
-    if ((dir = clicon_option_str(h, "CONTROLLER_YANG_SCHEMA_MOUNT_DIR")) == NULL){
-        clixon_err(OE_YANG, 0, "schema mount dir not set");
-        goto done;
+    cprintf(cb, "%s/%s", dir, domain);
+    dir = cbuf_get(cb);
+    if (stat(dir, &st1) < 0){
+        /* Create domain dir and copy mods from top-dir  */
+        if (mkdir(dir, st0.st_mode) < 0){
+            clixon_err(OE_UNIX, errno, "mkdir %s ", dir);
+            goto done;
+        }
+        if (chown(dir, st0.st_uid, st0.st_gid) < 0){
+            clixon_err(OE_UNIX, errno, "chown %s ", dir);
+            goto done;
+        }
     }
-#ifdef CONTROLLER_YANG_DUMP_DIR
-    cprintf(cb, "%s", CONTROLLER_YANG_DUMP_DIR);
-    cprintf(cb, "/%s", device_handle_name_get(dh));
-#else
-    cprintf(cb, "%s", dir);
-#endif
     cprintf(cb, "/%s", modname);
     if (revision)
         cprintf(cb, "@%s", revision);
@@ -518,28 +548,6 @@ device_state_recv_get_schema(device_handle dh,
         goto done;
     }
     fflush(f);
-#ifdef CONTROLLER_YANG_DUMP_DIR
-    {
-        cbuf *cb2 = NULL;
-
-        /* Check if exists as local file */
-        if ((ret = yang_file_find_match(h, modname, revision, NULL)) < 0)
-            goto done;
-        if (ret == 0) {
-            /* If not exists, copy back to mount-dir */
-            if ((cb2 = cbuf_new()) == NULL){
-                clixon_err(OE_UNIX, errno, "cbuf_new");
-                goto done;
-            }
-            cprintf(cb, "%s", dir);
-            cprintf(cb, "/%s", modname);
-            if (revision)
-                cprintf(cb, "@%s", revision);
-            if (clicon_file_copy(cbuf_get(cb), cbuf_get(cb2)) < 0)
-                goto done;
-        }
-    }
-#endif
     retval = 1;
  done:
     if (f)

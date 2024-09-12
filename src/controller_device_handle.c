@@ -93,6 +93,7 @@ struct controller_device_handle{
     char              *cdh_schema_name; /* Pending schema name */
     char              *cdh_schema_rev;  /* Pending schema revision */
     char              *cdh_logmsg;      /* Error log message / reason of failed open */
+    char              *cdh_domain;      /* YANG domain (for isolation) */
     cbuf              *cdh_outmsg1;     /* Pending outgoing netconf message #1 for delayed output */
     cbuf              *cdh_outmsg2;     /* Pending outgoing netconf message #2 for delayed output */
 };
@@ -134,6 +135,8 @@ device_handle_free1(struct controller_device_handle *cdh)
         free(cdh->cdh_schema_name);
     if (cdh->cdh_schema_rev)
         free(cdh->cdh_schema_rev);
+    if (cdh->cdh_domain)
+        free(cdh->cdh_domain);
     if (cdh->cdh_outmsg1)
         cbuf_free(cdh->cdh_outmsg1);
     if (cdh->cdh_outmsg2)
@@ -992,6 +995,37 @@ device_handle_logmsg_set(device_handle dh,
     return 0;
 }
 
+/*! Get YANG domain name
+ *
+ * @param[in]  dh     Device handle
+ * @retval     domain
+ * @retval     NULL
+ */
+char*
+device_handle_domain_get(device_handle dh)
+{
+    struct controller_device_handle *cdh = devhandle(dh);
+
+    return cdh->cdh_domain;
+}
+
+/*! Set YANG domain name
+ *
+ * @param[in]  dh     Device handle
+ * @param[in]  domain YANG domain name
+ */
+int
+device_handle_domain_set(device_handle dh,
+                         char         *domain)
+{
+    struct controller_device_handle *cdh = devhandle(dh);
+
+    if (cdh->cdh_domain)
+        free(cdh->cdh_domain);
+    cdh->cdh_domain = strdup(domain);
+    return 0;
+}
+
 /*! Get pending netconf outmsg
  *
  * @param[in]  dh     Device handle
@@ -1048,5 +1082,3 @@ device_handle_outmsg_set(device_handle dh,
     }
     return 0;
 }
-
-

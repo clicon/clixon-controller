@@ -72,16 +72,6 @@
  */
 #undef CONTROLLER_EXTRA_PUSH_SYNC
 
-/*! Dump all schemas in disc from devices regardless of local file cache, debug option
- *
- * Save all files under ${CONTROLLER_YANG_DUMP_DIR}/${devname}/
- * Since this disables the local store cache, all yang files from all devices will be fetched
- * which may result in slower and more disk-space.
- * NOTE: all devname dirs must be created a priori, they are not created automatically
- */
-#undef CONTROLLER_YANG_DUMP_DIR
-// #define CONTROLLER_YANG_DUMP_DIR "/usr/local/share/clixon/controller/dump"
-
 #define ACTION_PROCESS "Action process"
 
 /*! Controller debug levels

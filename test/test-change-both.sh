@@ -17,7 +17,8 @@ set -u
 dir=/var/tmp/$0
 CFG=$dir/controller.xml
 CFD=$dir/conf.d
-mntdir=$dir/mounts
+mntdir0=$dir/mounts
+mntdir=$mntdir0/default
 test -d $CFD || mkdir -p $CFD
 test -d $mntdir || mkdir -p $mntdir
 fyang=$mntdir/clixon-ext@2023-11-01.yang
@@ -29,9 +30,11 @@ cat<<EOF > $CFG
   <CLICON_CONFIG_EXTEND>clixon-controller-config</CLICON_CONFIG_EXTEND>
   <CLICON_FEATURE>ietf-netconf:startup</CLICON_FEATURE>
   <CLICON_FEATURE>clixon-restconf:allow-auth-none</CLICON_FEATURE>
-  <CLICON_YANG_DIR>${YANG_INSTALLDIR}</CLICON_YANG_DIR>
+  <CLICON_YANG_DIR>${DATADIR}/clixon</CLICON_YANG_DIR>
   <CLICON_YANG_DIR>$dir</CLICON_YANG_DIR>
-  <CLICON_YANG_MAIN_DIR>${YANG_INSTALLDIR}/controller/main</CLICON_YANG_MAIN_DIR>
+  <CLICON_YANG_DIR>${DATADIR}/controller/common</CLICON_YANG_DIR>
+  <CLICON_YANG_MAIN_DIR>${DATADIR}/controller/main</CLICON_YANG_MAIN_DIR>
+  <CLICON_YANG_DOMAIN_DIR>$mntdir0</CLICON_YANG_DOMAIN_DIR>
   <CLICON_CLI_MODE>operation</CLICON_CLI_MODE>
   <CLICON_CLI_DIR>${LIBDIR}/controller/cli</CLICON_CLI_DIR>
   <CLICON_CLISPEC_DIR>${LIBDIR}/controller/clispec</CLICON_CLISPEC_DIR>
@@ -54,7 +57,6 @@ cat<<EOF > $CFG
   <CLICON_YANG_SCHEMA_MOUNT>true</CLICON_YANG_SCHEMA_MOUNT>
   <CLICON_YANG_SCHEMA_MOUNT_SHARE>true</CLICON_YANG_SCHEMA_MOUNT_SHARE>
   <CLICON_BACKEND_USER>${CLICON_USER}</CLICON_BACKEND_USER>
-  <CONTROLLER_YANG_SCHEMA_MOUNT_DIR xmlns="http://clicon.org/controller-config">$mntdir</CONTROLLER_YANG_SCHEMA_MOUNT_DIR>
 </clixon-config>
 EOF
 

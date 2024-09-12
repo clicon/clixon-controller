@@ -522,8 +522,10 @@ controller_cli_yang_mount(clixon_handle   h,
         goto ok;
     cprintf(cb, "%s", str);
     recursion++;
-    /* First xpath is on mount-point (to get config) */
-    /* XXX: why not use /yanglib:yang-library directly ?*/
+    /* xpath to mount-point (to get config) */
+    /* XXX: why not use /yanglib:yang-library directly ?
+     * A: because you cannot get state-only (across mount-point?)
+     */
     if (clicon_rpc_get2(h, cbuf_get(cb), nsc, CONTENT_ALL, -1, "explicit", 0, &xt) < 0){
         recursion--;
         goto done;
@@ -533,17 +535,17 @@ controller_cli_yang_mount(clixon_handle   h,
         clixon_err_netconf(h, OE_XML, 0, xerr, "clicon_rpc_get");
         goto done;
     }
-    /* Second xpath is specific on module-set */
+    /* xpath to module-set */
     if (xml_nsctx_add(nsc, "yanglib", "urn:ietf:params:xml:ns:yang:ietf-yang-library") < 0)
         goto done;
-    cprintf(cb, "/yanglib:yang-library/yanglib:module-set[yanglib:name='mount']");
+    cprintf(cb, "/yanglib:yang-library/yanglib:module-set");
     if ((xmodset = xpath_first(xt, nsc, "%s", cbuf_get(cb))) == NULL)
         goto ok;
-    cbuf_reset(cb);
-    cprintf(cb, "<yang-library xmlns=\"urn:ietf:params:xml:ns:yang:ietf-yang-library\"/>");
-    if (clixon_xml_parse_string(cbuf_get(cb), YB_NONE, NULL, yanglib, NULL) < 0)
+    if (clixon_xml_parse_string("<yang-library xmlns=\"urn:ietf:params:xml:ns:yang:ietf-yang-library\"/>", YB_NONE, NULL, yanglib, NULL) < 0)
         goto done;
     if (xml_addsub(*yanglib, xmodset) < 0)
+        goto done;
+    if (controller_yang_library_bind(h, *yanglib) < 0)
         goto done;
  ok:
     retval = 0;

@@ -648,7 +648,6 @@ ac_subst_vars='LTLIBOBJS
 LIBOBJS
 CLICON_GROUP
 CLICON_USER
-YANG_INSTALLDIR
 SSH_BIN
 CPP
 SYSCONFDIR
@@ -733,7 +732,6 @@ enable_option_checking
 enable_debug
 with_cligen
 with_clixon
-with_yang_installdir
 enable_nls
 with_clicon_user
 with_clicon_group
@@ -1378,7 +1376,6 @@ Optional Packages:
   --without-PACKAGE       do not use PACKAGE (same as --with-PACKAGE=no)
   --with-cligen=dir       Use CLIGEN here
   --with-clixon=dir       Use Clixon here
-  --with-yang-installdir=DIR  Install yang files here (default: ${prefix}/share/clixon)
   --with-clicon-user=user Run as this user in configuration files
   --with-clicon-group=group
                           Run as this group in configuration files
@@ -4841,21 +4838,6 @@ else $as_nop
   as_fn_error $? "Clixon missing. Try: git clone https://github.com/clicon/clixon.git" "$LINENO" 5
 fi
 
-
-# This is where local yangs are installed
-
-# Check whether --with-yang-installdir was given.
-if test ${with_yang_installdir+y}
-then :
-  withval=$with_yang_installdir; YANG_INSTALLDIR="$withval"
-else $as_nop
-  YANG_INSTALLDIR="${prefix}/share/clixon"
-
-fi
-
-
-{ printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: Clixon yang files are installed in ${YANG_INSTALLDIR}" >&5
-printf "%s\n" "Clixon yang files are installed in ${YANG_INSTALLDIR}" >&6; }
 
 # Dummy to disable native language support (nls) to remove warnings in buildroot
 # Check whether --enable-nls was given.

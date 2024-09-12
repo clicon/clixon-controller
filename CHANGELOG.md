@@ -5,9 +5,28 @@ Expected: October 2024
 
 ### New features
 
+* Added yang domains for mount-point isolation
 * New CLI commands:
   * show device yang
   * show device capability
+
+### API changes on existing protocol/config features
+
+* Removed `--with yang-installdir` from configure
+  * Use `DATADIR` instead
+* New `clixon-controller@2024-08-01.yang` revision
+  * Added `device-domains`
+* New `clixon-controller-config@2024-08-01.yang` revision
+  * Removed defaults for `CONTROLLER_PYAPI_MODULE_PATH`
+  * Obsoleted `CONTROLLER_YANG_SCHEMA_MOUNT_DIR* 
+* Re-arranged directories
+  * Put Controller YANG under `$DATADIR/controller`, typically /usr/local/share/controller.
+  * Removed `YANG_INSTALLDIR`
+  * Mountpoint dirs moved to sub-levels under `/usr/local/share/controller/mounts`
+    * Example: `/usr/local/share/controller/mounts/default`
+    * For isolated domains
+  * Put controller YANG root in `/usr/local/share/controller`
+    * Moved from `/usr/local/share/clixon/controller`
 
 ### Corrected Bugs
 

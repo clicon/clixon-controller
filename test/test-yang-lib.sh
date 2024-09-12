@@ -54,11 +54,10 @@ if [ -n "$match" ]; then
     exit 1
 fi
 new "match mount"
-expected='<schema-mounts xmlns="urn:ietf:params:xml:ns:yang:ietf-yang-schema-mount"><mount-point><module>clixon-controller</module><label>root</label><config>true</config><inline/></mount-point></schema-mounts>'
+expected='<schema-mounts xmlns="urn:ietf:params:xml:ns:yang:ietf-yang-schema-mount"><mount-point><module>clixon-controller</module><label>device</label><config>true</config><inline/></mount-point></schema-mounts>'
 match=$(echo $ret | grep --null -Eo "$expected") || true
 if [ -z "$match" ]; then
-    echo "netconf unexpected schema-mount"
-    exit 1
+    err "$expected" "$ret"
 fi
 
 new "per-device yanglibs"
@@ -90,20 +89,15 @@ EOF
 #echo "ret:$ret"
 match=$(echo $ret | grep --null -Eo "<rpc-error>") || true
 if [ -n "$match" ]; then
-    echo "netconf rpc-error detected"
-    echo "$ret"
-    exit 1
+    err "not rpc-error" "$ret"
 fi
 
 new "match yanglib"
-
-expected='<devices xmlns="http://clicon.org/controller"><device><config><yang-library xmlns="urn:ietf:params:xml:ns:yang:ietf-yang-library"><module-set><name>mount</name><module><name>clixon-lib</name>'
+expected='<devices xmlns="http://clicon.org/controller"><device><config><yang-library xmlns="urn:ietf:params:xml:ns:yang:ietf-yang-library"><module-set><name>default</name><module><name>clixon-lib</name>'
 
 match=$(echo $ret | grep --null -Eo "$expected") || true
 if [ -z "$match" ]; then
-    echo "netconf expected yang-library"
-    echo "$ret"
-    exit 1
+    err "$expected" "$ret"
 fi
 
 new "match openconfig-acl"
@@ -111,9 +105,7 @@ expected='<module><name>openconfig-acl</name><revision>2023-02-06</revision><nam
 
 match=$(echo $ret | grep --null -Eo "$expected") || true
 if [ -z "$match" ]; then
-    echo "netconf expected openconfig-acl"
-    echo "$ret"
-    exit 1
+    err "openconfig-acl" "$ret"
 fi
 
 

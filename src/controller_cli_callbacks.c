@@ -217,7 +217,7 @@ rpc_get_yanglib_mount_match(clixon_handle h,
         while ((xdev = xml_child_each(xdevs, xdev, CX_ELMNT)) != NULL) {
             if ((devname = xml_find_body(xdev, "name")) == NULL ||
                 fnmatch(pattern, devname, 0) == 0){ /* Match */
-                if (yanglib && // 485
+                if (yanglib &&
                     (xy = xpath_first(xdev, 0, "config/yang-library")) != NULL){
                     xml_flag_set(xml_find(xdev, "name"), XML_FLAG_MARK);
                     xml_flag_set(xy, XML_FLAG_MARK);
@@ -232,7 +232,7 @@ rpc_get_yanglib_mount_match(clixon_handle h,
         /* Populate XML with Yang spec. Binding is done in clicon_rpc_netconf of RPC only
          * where <data> is ANYDATA
          */
-        if ((ret = xml_bind_yang0(h, xdevs, YB_MODULE, yspec, &xerr)) < 0) // <-  here leaks
+        if ((ret = xml_bind_yang0(h, xdevs, YB_MODULE, yspec, &xerr)) < 0)
             goto done;
         if (ret == 0){
             clixon_err_netconf(h, OE_XML, 0, xerr, "Get devices config");

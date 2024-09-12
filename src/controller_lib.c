@@ -244,16 +244,85 @@ schema_check_location_netconf(cxobj *xd)
     return retval;
 }
 
+/*! Given a yang-library/module-set, bind it to yang
+ *
+ * The yang-library has several different sources with different XML structure,
+ * (top-level is different)
+ * in order to bind yang to it, the following must be done (if not already done):
+ * - Bind top-level XML to yang-library
+ * - Add yang-library namespace to top-lvel
+ * @param[in]  h       Clixon handle
+ * @param[in]  xylib   yanglib/module-set lib in XML
+ * @retval     0       OK
+ * @retval    -1       Error
+ * @note  the YANG binding and namespace settings are side-effects, should maybe be removed
+ * after use, since they could potentially affect other code
+ */
+int
+controller_yang_library_bind(clixon_handle h,
+                             cxobj        *xylib)
+{
+    int        retval = -1;
+    yang_stmt *yspec;
+    yang_stmt *ylib = NULL;
+    cxobj     *xmodset;
+    cxobj     *xerr = NULL;
+    char      *namespace = NULL;
+    cbuf      *cberr = NULL;
+    int        ret;
+
+    yspec = clicon_dbspec_yang(h);
+    if ((xmodset = xml_find(xylib, "module-set")) == NULL){
+        clixon_err(OE_YANG, 0, "No module-set");
+        goto done;
+    }
+    if (xml_spec(xylib) == NULL){
+        if (yang_abs_schema_nodeid(yspec, "/yanglib:yang-library", &ylib) < 0)
+            goto done;
+        if (ylib == NULL){
+            clixon_err(OE_YANG, 0, "No yang-library spec");
+            goto done;
+        }
+        xml_spec_set(xylib, ylib);
+    }
+    if (xml2ns(xylib, NULL, &namespace) < 0)
+        goto done;
+    if (namespace == NULL)
+        xmlns_set(xylib, NULL, "urn:ietf:params:xml:ns:yang:ietf-yang-library");
+    if ((ret = xml_bind_yang0(h, xmodset, YB_PARENT, NULL, &xerr)) < 0)
+        goto done;
+    if (ret == 0){
+        if ((cberr = cbuf_new()) == NULL){
+            clixon_err(OE_UNIX, errno, "cbuf_new");
+            goto done;
+        }
+        if (netconf_err2cb(h, xml_find(xerr, "rpc-error"), cberr) < 0)
+            goto done;
+        clixon_err(OE_YANG, 0, "Bind failed: %s", cbuf_get(cberr));
+        goto done;
+    }
+    retval = 0;
+ done:
+    if (cberr)
+        cbuf_free(cberr);
+    if (xerr)
+        xml_free(xerr);
+    return retval;
+}
+
 /*! Translate from RFC 6022 schemalist to RFC8525 yang-library
  *
  * @param[in]  xschemas On the form: <schemas><schema><identifier>clixon-autocli</identifier>...
+ * @param[in]  domain   Device domain, used as module-set name
  * @param[out] xyanglib Allocated, xml_free:d by caller
  * @retval     0        OK
  * @retval    -1        Error
  */
 int
-schema_list2yang_library(cxobj  *xschemas,
-                         cxobj **xyanglib)
+schema_list2yang_library(clixon_handle h,
+                         cxobj        *xschemas,
+                         char         *domain,
+                         cxobj       **xyanglib)
 {
     int    retval = -1;
     cbuf  *cb = NULL;
@@ -269,7 +338,7 @@ schema_list2yang_library(cxobj  *xschemas,
     }
     cprintf(cb, "<yang-library xmlns=\"urn:ietf:params:xml:ns:yang:ietf-yang-library\">");
     cprintf(cb, "<module-set>");
-    cprintf(cb, "<name>mount</name>");
+    cprintf(cb, "<name>%s</name>", domain);
     x = NULL;
     while ((x = xml_child_each(xschemas, x, CX_ELMNT)) != NULL) {
         if (strcmp(xml_name(x), "schema") != 0)
@@ -294,6 +363,8 @@ schema_list2yang_library(cxobj  *xschemas,
     cprintf(cb, "</yang-library>");
     /* Need yspec to make YB_MODULE */
     if (clixon_xml_parse_string(cbuf_get(cb), YB_NONE, NULL, xyanglib, NULL) < 0)
+        goto done;
+    if (controller_yang_library_bind(h, xml_find(*xyanglib, "yang-library")) <0)
         goto done;
     retval = 0;
  done:

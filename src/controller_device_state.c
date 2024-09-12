@@ -410,6 +410,7 @@ device_state_mount_point_get(char      *devicename,
  * @retval    1        OK
  * @retval    0        Fail, parse or other error, device is closed
  * @retval   -1        Error
+ * @see device_send_get_schema_next  Check local/ send a schema request
  */
 static int
 device_schemas_mount_parse(clixon_handle h,
@@ -418,6 +419,7 @@ device_schemas_mount_parse(clixon_handle h,
 {
     int        retval = -1;
     yang_stmt *yspec1;
+    char      *domain;
     int        ret;
 
     clixon_debug(CLIXON_DBG_CTRL | CLIXON_DBG_DETAIL, "");
@@ -436,8 +438,12 @@ device_schemas_mount_parse(clixon_handle h,
     }
     if (yang_parse_optimize_uses(h, yspec1) < 0)
         goto done;
+    if ((domain = device_handle_domain_get(dh)) == NULL){
+        clixon_err(OE_YANG, 0, "No YANG domain");
+        goto done;
+    }
     /* Given yang-lib, actual parsing of all modules into yspec */
-    if ((ret = yang_lib2yspec(h, xyanglib, device_handle_name_get(dh), yspec1)) < 0)
+    if ((ret = yang_lib2yspec(h, xyanglib, device_handle_name_get(dh), domain, yspec1)) < 0)
         goto done;
     if (ret == 0){
         device_close_connection(dh, "%s", clixon_err_reason());
@@ -478,7 +484,12 @@ device_schemas_local_check(clixon_handle h,
     char   *name;
     char   *revision;
     cvec   *nsc = NULL;
+    char   *domain = NULL;
 
+    if ((domain = device_handle_domain_get(dh)) == NULL){
+        clixon_err(OE_YANG, 0, "No YANG domain");
+        goto done;
+    }
     if (xpath_vec(xyanglib, nsc, "module-set/module", &vec, &veclen) < 0)
         goto done;
     for (i=0; i<veclen; i++){
@@ -486,7 +497,7 @@ device_schemas_local_check(clixon_handle h,
         if ((name = xml_find_body(xi, "name")) == NULL)
             continue;
         revision = xml_find_body(xi, "revision");
-        if ((ret = yang_file_find_match(h, name, revision, NULL)) < 0)
+        if ((ret = yang_file_find_match(h, name, revision, domain, NULL)) < 0)
             goto done;
         if (ret == 0){
             if (device_close_connection(dh, "Yang \"%s\" not found in the list of CLICON_YANG_DIRs", name) < 0)
@@ -1084,6 +1095,7 @@ device_state_handler(clixon_handle h,
     char       *name;
     conn_state  conn_state;
     yang_stmt  *yspec0;
+    yang_stmt  *yspec_orig = NULL;
     yang_stmt  *yspec1 = NULL;
     int         nr;
     int         ret;
@@ -1092,7 +1104,6 @@ device_state_handler(clixon_handle h,
     cbuf       *cberr = NULL;
     cbuf       *cbmsg;
     cxobj      *xyanglib;
-    int         yspec_shared = 0;
 
     rpcname = xml_name(xmsg);
     conn_state = device_handle_conn_state_get(dh);
@@ -1145,33 +1156,26 @@ device_state_handler(clixon_handle h,
                 break;
             }
             /* Check if there is another equivalent xyanglib */
+            yspec_orig = NULL;
             yspec1 = NULL;
             if (controller_mount_yspec_get(h, name, &yspec1) < 0)
                 goto done;
-            // XXX why two NULL checks?
-            if (yspec1 == NULL){
+            if (yspec1 == NULL){ /* It may already exist? */
                 cbuf *cbxpath = NULL;
-                if (device_shared_yspec(h, dh, xyanglib, &yspec1) < 0)
-                    goto done;
+
                 if (controller_mount_xpath_get(name, &cbxpath) < 0)
                     goto done;
-                if (yspec1 == NULL){
-                    if ((yspec1 = yspec_new(h, cbuf_get(cbxpath))) == NULL)
-                        goto done;
-                    yang_flag_set(yspec1, YANG_FLAG_SPEC_MOUNT);
-                }
-                else{ /* XXX: use unified shared function */
-                    yspec_shared++;
-                    if (yang_cvec_add(yspec1, CGV_STRING, cbuf_get(cbxpath)) < 0)
-                        goto done;
-                }
+                if (device_shared_yspec(h, dh, xyanglib, &yspec_orig) < 0)
+                    goto done;
+                if ((yspec1 = yspec_new_shared(h, cbuf_get(cbxpath), yspec_orig)) == NULL)
+                    goto done;
                 if (cbxpath)
                     cbuf_free(cbxpath);
                 if (controller_mount_yspec_set(h, name, yspec1) < 0)
                     goto done;
             }
             /* All schemas ready, parse them (may do device_close) */
-            if (yspec_shared == 0){
+            if (yspec_orig == NULL){
                 if ((ret = device_schemas_mount_parse(h, dh, xyanglib)) < 0)
                     goto done;
                 if (ret == 0){
@@ -1197,7 +1201,7 @@ device_state_handler(clixon_handle h,
     case CS_SCHEMA_LIST:
         if (device_state_check_sanity(dh, tid, ct, name, conn_state, rpcname) == 0)
             break;
-        /* Receive netconf-state schema list from device */
+        /* Receive netconf-state schema list from device, append schemas to device xyanglib */
         if ((ret = device_state_recv_schema_list(dh, xmsg, rpcname, conn_state)) < 0)
             goto done;
         if (ret == 0){ /* closed */
@@ -1217,37 +1221,29 @@ device_state_handler(clixon_handle h,
         }
         /* Check if there is another equivalent xyanglib
          */
+        yspec_orig = NULL;
         yspec1 = NULL;
         if (controller_mount_yspec_get(h, name, &yspec1) < 0)
             goto done;
         if (yspec1 == NULL){
-            // XXX subroutine
             cbuf *cbxpath = NULL;
 
             if (controller_mount_xpath_get(name, &cbxpath) < 0)
                 goto done;
-            if (device_shared_yspec(h, dh, xyanglib, &yspec1) < 0)
+            if (device_shared_yspec(h, dh, xyanglib, &yspec_orig) < 0)
                 goto done;
-            if (yspec1 == NULL){
-                if ((yspec1 = yspec_new(h, cbuf_get(cbxpath))) == NULL)
-                    goto done;
-                yang_flag_set(yspec1, YANG_FLAG_SPEC_MOUNT);
-            }
-            else { /* XXX: use unified shared function */
-                yspec_shared++;
-                if (yang_cvec_add(yspec1, CGV_STRING, cbuf_get(cbxpath)) < 0)
-                    goto done;
-            }
-            if (controller_mount_yspec_set(h, name, yspec1) < 0)
+            if ((yspec1 = yspec_new_shared(h, cbuf_get(cbxpath), yspec_orig)) == NULL)
                 goto done;
             if (cbxpath)
                 cbuf_free(cbxpath);
+            if (controller_mount_yspec_set(h, name, yspec1) < 0)
+                goto done;
         }
         nr = 0;
         if ((ret = device_send_get_schema_next(h, dh, s, &nr)) < 0)
             goto done;
         if (ret == 0){ /* None found */
-            if (yspec_shared == 0){
+            if (yspec_orig == NULL){
                 /* All schemas ready, parse them */
                 if ((ret = device_schemas_mount_parse(h, dh, xyanglib)) < 0)
                     goto done;

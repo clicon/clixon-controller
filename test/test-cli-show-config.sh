@@ -22,8 +22,10 @@ cat<<EOF > $CFG
   <CLICON_CONFIG_EXTEND>clixon-controller-config</CLICON_CONFIG_EXTEND>
   <CLICON_FEATURE>ietf-netconf:startup</CLICON_FEATURE>
   <CLICON_FEATURE>clixon-restconf:allow-auth-none</CLICON_FEATURE>
-  <CLICON_YANG_DIR>${YANG_INSTALLDIR}</CLICON_YANG_DIR>
-  <CLICON_YANG_MAIN_DIR>${YANG_INSTALLDIR}/controller/main</CLICON_YANG_MAIN_DIR>
+  <CLICON_YANG_DIR>${DATADIR}/clixon</CLICON_YANG_DIR>
+  <CLICON_YANG_DIR>${DATADIR}/controller/common</CLICON_YANG_DIR>
+  <CLICON_YANG_MAIN_DIR>${DATADIR}/controller/main</CLICON_YANG_MAIN_DIR>
+  <CLICON_YANG_DOMAIN_DIR>$dir</CLICON_YANG_DOMAIN_DIR>
   <CLICON_CLI_MODE>operation</CLICON_CLI_MODE>
   <CLICON_CLI_DIR>${LIBDIR}/controller/cli</CLICON_CLI_DIR>
   <CLICON_CLISPEC_DIR>${dir}</CLICON_CLISPEC_DIR>
@@ -274,7 +276,7 @@ show-sub-glob "show" configure
 
 # Special cases
 new "show state xml"
-expectpart "$($clixon_cli -1 -f $CFG show state)" 0  "<capabilities><capability>urn:ietf:params:netconf:base:1.0</capability>" "<sync-timestamp>" "<yang-library xmlns=\"urn:ietf:params:xml:ns:yang:ietf-yang-library\"><module-set><name>mount</name><module>" "<name>clixon-lib</name>"
+expectpart "$($clixon_cli -1 -f $CFG show state)" 0  "<capabilities><capability>urn:ietf:params:netconf:base:1.0</capability>" "<sync-timestamp>" "<yang-library xmlns=\"urn:ietf:params:xml:ns:yang:ietf-yang-library\"><module-set><name>default</name><module>" "<name>clixon-lib</name>"
 
 new "show config xml device *"
 expectpart "$($clixon_cli -1 -f $CFG show config xml devices device ${IMG}*)" 0 "${IMG}1:" "${IMG}2:" "<device><name>${IMG}1</name><enabled>true</enabled><description>Clixon example container</description><user>${USER}</user><conn-type>NETCONF_SSH</conn-type><yang-config>VALIDATE</yang-config>" "</config></device>" "<device><name>${IMG}2</name><enabled>true</enabled><description>Clixon example container</description><user>${USER}</user><conn-type>NETCONF_SSH</conn-type>" "<interfaces xmlns=\"http://openconfig.net/yang/interfaces\"><interface><name>x</name><config><name>x</name><type xmlns:ianaift=\"urn:ietf:params:xml:ns:yang:iana-if-type\">ianaift:ethernetCsmacd</type></config></interface>"
