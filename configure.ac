@@ -142,15 +142,6 @@ AC_CHECK_HEADERS(clixon/clixon.h,, AC_MSG_ERROR(Clixon missing. Try: git clone h
 #include <cligen/cligen.h>]])
 AC_CHECK_LIB(clixon, clixon_log_init,, AC_MSG_ERROR([Clixon missing. Try: git clone https://github.com/clicon/clixon.git]),)
 
-# This is where local yangs are installed
-AC_ARG_WITH(yang-installdir,
-            [  --with-yang-installdir=DIR  Install yang files here (default: ${prefix}/share/clixon) ],
-	    [YANG_INSTALLDIR="$withval"],
-    	    [YANG_INSTALLDIR="${prefix}/share/clixon"]		
-	    )
-AC_SUBST(YANG_INSTALLDIR)
-AC_MSG_RESULT(Clixon yang files are installed in ${YANG_INSTALLDIR})	
-
 # Dummy to disable native language support (nls) to remove warnings in buildroot
 AC_ARG_ENABLE(nls)
 

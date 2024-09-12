@@ -7,6 +7,13 @@ module clixon-controller-config {
     }
     description
         "Clixon controller config extending regular clixon-config";
+    revision 2024-08-01 {
+        description
+            "Moved default directories from clixon/controller to controller
+             Removed defaults for CONTROLLER_PYAPI_MODULE_PATH
+             Obsoleted CONTROLLER_YANG_SCHEMA_MOUNT_DIR
+             Released in 1.2.0";
+    }
     revision 2023-11-01 {
         description
             "Added CONTROLLER_YANG_SCHEMA_MOUNT_DIR
@@ -25,7 +32,9 @@ module clixon-controller-config {
             default "/usr/local/bin/clixon_server.py";
         }
         leaf CONTROLLER_PYAPI_MODULE_PATH{
-            default "/usr/local/share/clixon/controller/modules/";
+            description
+                "Directory where pyapi looks for python files.
+                 Typically in /usr/local/share/controller/modules";
             type string;
         }
         leaf CONTROLLER_PYAPI_MODULE_FILTER{
@@ -38,7 +47,9 @@ module clixon-controller-config {
         }
         leaf CONTROLLER_YANG_SCHEMA_MOUNT_DIR{
             description
-                "Directory where device YANGs are stored locally.
+                "This option is obsolete. Use CLICON_YANG_DOMAIN_DIR + domain instead
+
+                 Directory where device YANGs are stored locally.
                  This is both from RFC 6022 dynamic get-schema retrieval as well as
                  local module-set YANGs.
                  For get-schema, the controller looks in this dir before requesting the 
@@ -50,10 +61,9 @@ module clixon-controller-config {
                   1. It serves as a cache for performance if multiple devices or restart of
                      the controller requests the same YANG.
                   2. A local YANG can override the YANG from a device for debugging or patch.
-                  3. It serves as storage for locally defined YANGs.
-                 NOTE: This dir must be accessible via the controllers YANG_DIR search part.";
+                  3. It serves as storage for locally defined YANGs.";
             type string;
-            default "/usr/local/share/clixon/controller/mounts";
+            status obsolete;
         }
     }
 }

@@ -207,6 +207,14 @@ controller_connect(clixon_handle           h,
         goto failed;
     }
     device_handle_yang_config_set(dh, yfstr); /* Cache yang config */
+    if ((xb = xml_find_type(xn, NULL, "device-domain", CX_ELMNT)) == NULL ||
+        xml_flag(xb, XML_FLAG_DEFAULT)){
+        if (xdevprofile)
+            xb = xml_find_type(xdevprofile, NULL, "device-domain", CX_ELMNT);
+    }
+    if (xb && (str = xml_body(xb)) != NULL)
+        if (device_handle_domain_set(dh, str) < 0)
+            goto done;
     /* Parse and save local methods into RFC 8525 yang-lib module-set/module */
     if ((xmod = xml_find_type(xn, NULL, "module-set", CX_ELMNT)) == NULL)
         xmod = xml_find_type(xdevprofile, NULL, "module-set", CX_ELMNT);

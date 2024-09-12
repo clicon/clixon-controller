@@ -7,11 +7,13 @@
   <CLICON_FEATURE>ietf-netconf:startup</CLICON_FEATURE>
   <CLICON_FEATURE>clixon-restconf:allow-auth-none</CLICON_FEATURE>
   <!-- Clixon-generic yangs -->
-  <CLICON_YANG_DIR>@YANG_INSTALLDIR@</CLICON_YANG_DIR>
+  <CLICON_YANG_DIR>@DATADIR@/clixon</CLICON_YANG_DIR>
   <!-- Controller-specific yangs -->
-  <CLICON_YANG_DIR>@YANG_INSTALLDIR@/controller</CLICON_YANG_DIR>
-  <!-- Include all files in the following dir -->
-  <CLICON_YANG_MAIN_DIR>@YANG_INSTALLDIR@/controller/main</CLICON_YANG_MAIN_DIR>
+  <CLICON_YANG_DIR>@DATADIR@/controller/common</CLICON_YANG_DIR>
+  <!-- Controller loads all YANGs in the following dir -->
+  <CLICON_YANG_MAIN_DIR>@DATADIR@/controller/main</CLICON_YANG_MAIN_DIR>
+  <!-- Device mount-point YANGs are placed in the following dir + domain -->
+  <CLICON_YANG_DOMAIN_DIR>@DATADIR@/controller/mounts</CLICON_YANG_DOMAIN_DIR>
   <CLICON_CLI_MODE>operation</CLICON_CLI_MODE>
   <CLICON_CLI_DIR>@LIBDIR@/controller/cli</CLICON_CLI_DIR>
   <CLICON_CLISPEC_DIR>@LIBDIR@/controller/clispec</CLICON_CLISPEC_DIR>
@@ -52,7 +54,7 @@
   <!-- Disable duplicate check in NETCONF messages. Temporary pyapi issue-->
   <CLICON_NETCONF_DUPLICATE_ALLOW>true</CLICON_NETCONF_DUPLICATE_ALLOW>
   <CONTROLLER_ACTION_COMMAND xmlns="http://clicon.org/controller-config">@BINDIR@/clixon_server.py -f @SYSCONFDIR@/clixon/controller.xml -F</CONTROLLER_ACTION_COMMAND>
-  <CONTROLLER_PYAPI_MODULE_PATH xmlns="http://clicon.org/controller-config">@YANG_INSTALLDIR@/controller/modules</CONTROLLER_PYAPI_MODULE_PATH>
+  <CONTROLLER_PYAPI_MODULE_PATH xmlns="http://clicon.org/controller-config">@DATADIR@/controller/modules</CONTROLLER_PYAPI_MODULE_PATH>
   <CONTROLLER_PYAPI_MODULE_FILTER xmlns="http://clicon.org/controller-config"></CONTROLLER_PYAPI_MODULE_FILTER>
   <CONTROLLER_PYAPI_PIDFILE xmlns="http://clicon.org/controller-config">/tmp/clixon_pyapi.pid</CONTROLLER_PYAPI_PIDFILE>
 </clixon-config>

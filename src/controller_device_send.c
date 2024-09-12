@@ -171,7 +171,7 @@ device_get_schema_sendit(clixon_handle h,
 
     name = device_handle_name_get(dh);
     if ((cb = cbuf_new()) == NULL){
-        clixon_err(OE_PLUGIN, errno, "cbuf_new");
+        clixon_err(OE_UNIX, errno, "cbuf_new");
         goto done;
     }
     seq = device_handle_msg_id_getinc(dh);
@@ -196,8 +196,9 @@ device_get_schema_sendit(clixon_handle h,
     return retval;
 }
 
-/*! Send next get-schema requests to a device
+/*! Find next schema in list, check if already loaded, or exists locally,
  *
+ * If not send request to device
  * @param[in]     h   Clixon handle
  * @param[in]     dh  Clixon client handle
  * @param[in]     s   Socket
@@ -205,6 +206,8 @@ device_get_schema_sendit(clixon_handle h,
  * @retval        1   Sent a get-schema, nr updated
  * @retval        0   No schema sent, either because all are sent or they are none
  * @retval       -1   Error
+ * @see device_state_recv_get_schema  Receive a schema request
+ * @see device_schemas_mount_parse   Parse the module after if already found or received
  */
 int
 device_send_get_schema_next(clixon_handle h,
@@ -219,16 +222,26 @@ device_send_get_schema_next(clixon_handle h,
     char      *name;
     char      *revision;
     yang_stmt *yspec = NULL;
-    cxobj     **vec = NULL;
-    size_t      veclen;
-    cvec     *nsc = NULL;
+    cxobj    **vec = NULL;
+    size_t     veclen;
+    cvec      *nsc = NULL;
     int        i;
+    cbuf      *cb = NULL;
+    char      *domain;
 
     clixon_debug(CLIXON_DBG_CTRL|CLIXON_DBG_DETAIL, "%d", *nr);
     if (controller_mount_yspec_get(h, device_handle_name_get(dh), &yspec) < 0)
         goto done;
     if (yspec == NULL){
         clixon_err(OE_YANG, 0, "No yang spec");
+        goto done;
+    }
+    if ((cb = cbuf_new()) == NULL){
+        clixon_err(OE_UNIX, errno, "cbuf_new");
+        goto done;
+    }
+    if ((domain = device_handle_domain_get(dh)) == NULL){
+        clixon_err(OE_YANG, 0, "No YANG domain");
         goto done;
     }
     xylib = device_handle_yang_lib_get(dh);
@@ -242,16 +255,14 @@ device_send_get_schema_next(clixon_handle h,
         name = xml_find_body(x, "name");
         revision = xml_find_body(x, "revision");
         (*nr)++;
-#ifndef CONTROLLER_YANG_DUMP_DIR
         /* Check if already loaded */
         if (yang_find_module_by_name_revision(yspec, name, revision) != NULL)
             continue;
         /* Check if exists as local file */
-        if ((ret = yang_file_find_match(h, name, revision, NULL)) < 0)
+        if ((ret = yang_file_find_match(h, name, revision, domain, NULL)) < 0)
             goto done;
         if (ret == 1)
             continue;
-#endif
         /* May be some concurrency here if several devices requests same yang simultaneously
          * To avoid that one needs to keep track if another request has been sent.
          */
@@ -266,6 +277,8 @@ device_send_get_schema_next(clixon_handle h,
     else
         retval = 0;
  done:
+    if (cb)
+        cbuf_free(cb);
     if (vec)
         free(vec);
     return retval;

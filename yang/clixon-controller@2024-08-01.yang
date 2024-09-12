@@ -31,6 +31,12 @@ module clixon-controller {
     }
     description
         "Clixon controller";
+    revision 2024-08-01 {
+        description
+             "Added device-domains
+              Changed mount-point label to device
+              Released in 1.2.0";
+    }
     revision 2024-04-01 {
         description
              "Added NACM
@@ -351,6 +357,13 @@ module clixon-controller {
                 }
             }
         }
+        leaf device-domain {
+            description
+                "Isolated yang domain for YANGs in mountpoint.
+                 Yang files will be in ${CLICON_YANG_DOMAIN_DIR}/${device-domain}";
+            type string;
+            default "default";
+        }
     }
     container processes {
         description "Process configuration";
@@ -495,7 +508,6 @@ module clixon-controller {
                      vendor, version etc could be added";
                 type string;
             }
-
             leaf addr{
                 description
                     "DNS name or ip address of device for connection setup (see also user)";
@@ -538,7 +550,7 @@ module clixon-controller {
                 presence "Otherwise root is not visible";
                 description
                     "Mount-point for device configs";
-                yangmnt:mount-point "root"{
+                yangmnt:mount-point "device"{
                     description
                        "Root for yang models retrieved from device via get-schema";
                 }
