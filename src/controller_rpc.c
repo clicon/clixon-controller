@@ -932,7 +932,8 @@ controller_commit_actions(clixon_handle           h,
                           controller_transaction *ct,
                           actions_type            actions,
                           transaction_data_t     *td,
-                          char                   *service_instance
+                          char                   *service_instance,
+			  int                    diff
                           )
 {
     int     retval = -1;
@@ -974,6 +975,10 @@ controller_commit_actions(clixon_handle           h,
         cprintf(notifycb, "<tid>%" PRIu64"</tid>", ct->ct_id);
         cprintf(notifycb, "<source>actions</source>");
         cprintf(notifycb, "<target>actions</target>");
+
+	if (diff)
+	    cprintf(notifycb, "<diff>true</diff>");
+
         while ((cv = cvec_each(cvv, cv)) != NULL){
             cprintf(notifycb, "<service>");
             xml_chardata_cbuf_append(notifycb, 0, cv_name_get(cv));
@@ -1328,6 +1333,7 @@ rpc_controller_commit(clixon_handle h,
     device_handle           changed = NULL;
     transaction_data_t     *td = NULL;
     char                   *service_instance = NULL;
+    int                    diff = 0;
 
     clixon_debug(CLIXON_DBG_CTRL, "");
     device = xml_find_body(xe, "device");
@@ -1445,8 +1451,12 @@ rpc_controller_commit(clixon_handle h,
                 goto done;
             goto ok;
         }
+
+	if (pusht == PT_NONE)
+	    diff = 1;
+
         /* Compute diff of candidate + commit and trigger service-commit notify */
-        if (controller_commit_actions(h, ct, actions, td, service_instance) < 0)
+        if (controller_commit_actions(h, ct, actions, td, service_instance, diff) < 0)
             goto done;
         break;
     }
