@@ -382,6 +382,7 @@ schema_list2yang_library(clixon_handle h,
  */
 int
 xdev2yang_library(cxobj  *xmodset,
+                  char   *domain,
                   cxobj **xyanglib)
 {
     int    retval = -1;
@@ -391,13 +392,17 @@ xdev2yang_library(cxobj  *xmodset,
     char  *revision;
     char  *namespace;
 
+    if (domain == NULL){
+        clixon_err(OE_YANG, 0, "domain is NULL");
+        goto done;
+    }
     if ((cb = cbuf_new()) == NULL){
         clixon_err(OE_UNIX, errno, "cbuf_new");
         goto done;
     }
     cprintf(cb, "<yang-library xmlns=\"urn:ietf:params:xml:ns:yang:ietf-yang-library\">");
     cprintf(cb, "<module-set>");
-    cprintf(cb, "<name>mount</name>");
+    cprintf(cb, "<name>%s</name>", domain);
     x = NULL;
     while ((x = xml_child_each(xmodset, x, CX_ELMNT)) != NULL) {
         if (strcmp(xml_name(x), "module") != 0)

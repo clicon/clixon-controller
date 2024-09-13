@@ -139,6 +139,7 @@ controller_connect(clixon_handle           h,
     cxobj        *xmod = NULL;
     cxobj        *xyanglib = NULL;
     int           ssh_stricthostkey = 1;
+    char         *domain = NULL;
 
     clixon_debug(CLIXON_DBG_CTRL, "");
     if ((name = xml_find_body(xn, "name")) == NULL)
@@ -212,14 +213,14 @@ controller_connect(clixon_handle           h,
         if (xdevprofile)
             xb = xml_find_type(xdevprofile, NULL, "device-domain", CX_ELMNT);
     }
-    if (xb && (str = xml_body(xb)) != NULL)
-        if (device_handle_domain_set(dh, str) < 0)
+    if (xb && (domain = xml_body(xb)) != NULL)
+        if (device_handle_domain_set(dh, domain) < 0)
             goto done;
     /* Parse and save local methods into RFC 8525 yang-lib module-set/module */
     if ((xmod = xml_find_type(xn, NULL, "module-set", CX_ELMNT)) == NULL)
         xmod = xml_find_type(xdevprofile, NULL, "module-set", CX_ELMNT);
     if (xmod){
-        if (xdev2yang_library(xmod, &xyanglib) < 0)
+        if (xdev2yang_library(xmod, domain, &xyanglib) < 0)
             goto done;
         if (xyanglib){
             if (xml_rootchild(xyanglib, 0, &xyanglib) < 0)
