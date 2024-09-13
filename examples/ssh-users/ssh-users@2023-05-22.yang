@@ -1,0 +1,30 @@
+module ssh-users {
+    namespace "http://clicon.org/ssh-users";
+    prefix ssh-users;
+    import clixon-controller { prefix ctrl; }
+    revision 2023-05-22 {
+       description "Initial prototype";
+    }
+    augment "/ctrl:services" {
+       list ssh-users {
+          uses ctrl:created-by-service;
+          key instance;
+          leaf instance {
+             type string;
+          }
+          description "SSH users service";
+          list username {
+             key name;
+             leaf name {
+                type string;
+             }
+             leaf ssh-key {
+                type string;
+             }
+             leaf role {
+                type string;
+             }
+          }
+       }
+    }
+}
