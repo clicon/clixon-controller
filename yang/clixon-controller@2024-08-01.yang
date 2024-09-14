@@ -635,6 +635,11 @@ module clixon-controller {
                    - <service>   applies to all instances ina  service";
             type string;
         }
+	leaf diff {
+	    description "Diff of the services configuration";
+	    type boolean;
+	    default false;
+	}
     }
     notification controller-transaction {
         description "A transaction has been completed.";
