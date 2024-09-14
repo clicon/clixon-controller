@@ -43,7 +43,7 @@ module clixon-controller-config {
         }
         leaf CONTROLLER_PYAPI_PIDFILE{
             type string;
-            default "/tmp/clixon_pyapi.pid";
+            default "/usr/local/var/run/controller/clixon_pyapi.pid";
         }
         leaf CONTROLLER_YANG_SCHEMA_MOUNT_DIR{
             description
