@@ -6,6 +6,7 @@ Expected: October 2024
 ### New features
 
 * Added yang domains for mount-point isolation
+  * See [Support isolated YANG domains](https://github.com/clicon/clixon-controller/issues/134)
 * New CLI commands:
   * show device yang
   * show device capability
@@ -30,6 +31,7 @@ Expected: October 2024
 
 ### Corrected Bugs
 
+* Fixed: (Controller doesn't properly identify ietf-netconf-monitoring in hello statement on FS switch)[https://github.com/clicon/clixon-controller/issues/137]
 * Fixed: commit fail in transaction caused assertion
 
 ## 1.1.0

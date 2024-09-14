@@ -712,7 +712,7 @@ device_handle_capabilities_set(device_handle dh,
     return 0;
 }
 
-/*! Query if capabaility exists on device
+/*! Query if capabaility exists on device, match uri
  *
  * @param[in]  dh    Device handle
  * @param[in]  name  Capability name
@@ -724,13 +724,21 @@ device_handle_capabilities_find(clixon_handle dh,
                                 const char   *name)
 {
     struct controller_device_handle *cdh = devhandle(dh);
-    cxobj                        *xcaps = NULL;
-    cxobj                        *x = NULL;
+    cxobj                           *xcaps = NULL;
+    cxobj                           *x = NULL;
+    char                            *b;
+    char                            *bi;
 
     xcaps = cdh->cdh_xcaps;
     while ((x = xml_child_each(xcaps, x, -1)) != NULL) {
-        if (strcmp(name, xml_body(x)) == 0)
-            break;
+        b = xml_body(x);
+        if ((bi = index(b, '?')) != NULL){
+            if (strncmp(name, b, bi-b) == 0)
+                break;
+        }
+        else
+            if (strcmp(name, b) == 0)
+                break;
     }
     return x?1:0;
 }
