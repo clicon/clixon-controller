@@ -52,7 +52,6 @@
 #include <syslog.h>
 #include <fcntl.h>
 #include <fnmatch.h>
-#include <assert.h>
 #include <sys/time.h>
 
 /* clicon */
@@ -1142,7 +1141,7 @@ device_state_handler(clixon_handle h,
                 break;
             }
         }
-        if (!device_handle_capabilities_find(dh, "urn:ietf:params:xml:ns:yang:ietf-netconf-monitoring")){
+        if (!device_handle_capabilities_find(dh, NETCONF_MONITORING_NAMESPACE)){
             clixon_debug(CLIXON_DBG_CTRL, "Device %s: Netconf monitoring capability not announced", name);
             if (xyanglib == NULL){
                 if (controller_transaction_failed(h, tid, ct, dh, TR_FAILED_DEV_CLOSE, name, "No YANG device lib") < 0)
