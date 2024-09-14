@@ -18,10 +18,10 @@
   <CLICON_CLI_DIR>@LIBDIR@/controller/cli</CLICON_CLI_DIR>
   <CLICON_CLISPEC_DIR>@LIBDIR@/controller/clispec</CLICON_CLISPEC_DIR>
   <CLICON_BACKEND_DIR>@LIBDIR@/controller/backend</CLICON_BACKEND_DIR>
-  <CLICON_SOCK>@LOCALSTATEDIR@/run/controller.sock</CLICON_SOCK>
+  <CLICON_SOCK>@LOCALSTATEDIR@/run/controller/controller.sock</CLICON_SOCK>
   <!-- NB Backend socket prioritixed over SB devices -->
   <CLICON_SOCK_PRIO>true</CLICON_SOCK_PRIO>
-  <CLICON_BACKEND_PIDFILE>@LOCALSTATEDIR@/run/controller.pid</CLICON_BACKEND_PIDFILE>
+  <CLICON_BACKEND_PIDFILE>@LOCALSTATEDIR@/run/controller/controller.pid</CLICON_BACKEND_PIDFILE>
   <CLICON_XMLDB_DIR>@LOCALSTATEDIR@/controller</CLICON_XMLDB_DIR>
   <!-- Split datsatores into multiple files -->
   <CLICON_XMLDB_MULTI>true</CLICON_XMLDB_MULTI>

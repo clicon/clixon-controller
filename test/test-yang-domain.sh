@@ -46,10 +46,10 @@ cat<<EOF > $CFG
   <CLICON_CLI_DIR>/usr/local/lib/controller/cli</CLICON_CLI_DIR>
   <CLICON_CLISPEC_DIR>/usr/local/lib/controller/clispec</CLICON_CLISPEC_DIR>
   <CLICON_BACKEND_DIR>/usr/local/lib/controller/backend</CLICON_BACKEND_DIR>
-  <CLICON_SOCK>/usr/local/var/run/controller.sock</CLICON_SOCK>
+  <CLICON_SOCK>/usr/local/var/run/controller/controller.sock</CLICON_SOCK>
   <!-- NB Backend socket prioritixed over SB devices -->
   <CLICON_SOCK_PRIO>true</CLICON_SOCK_PRIO>
-  <CLICON_BACKEND_PIDFILE>/usr/local/var/run/controller.pid</CLICON_BACKEND_PIDFILE>
+  <CLICON_BACKEND_PIDFILE>/usr/local/var/run/controller/controller.pid</CLICON_BACKEND_PIDFILE>
   <CLICON_XMLDB_DIR>/usr/local/var/controller</CLICON_XMLDB_DIR>
   <!-- Split datsatores into multiple files -->
   <CLICON_XMLDB_MULTI>true</CLICON_XMLDB_MULTI>
