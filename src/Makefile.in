@@ -28,6 +28,7 @@ includedir	= @includedir@
 datarootdir     = @datarootdir@
 sysconfdir      = @sysconfdir@
 localstatedir   = @localstatedir@
+runstatedir     = @runstatedir@
 libdir          = @exec_prefix@/lib
 version         = @CONTROLLER_VERSION@
 
@@ -124,7 +125,7 @@ install: $(CLISPECS) $(PLUGINS) $(APPNAME).xml autocli.xml
 	install -d -m 0755 $(DESTDIR)$(localstatedir)/$(APPNAME)
 	install -m 0644 $(INSTALLFLAGS) $(BE_PLUGIN) $(DESTDIR)$(libdir)/$(APPNAME)/backend
 	install -m 0644 $(INSTALLFLAGS) $(CLI_PLUGIN) $(DESTDIR)$(libdir)/$(APPNAME)/cli
-	install -d -m 0755 -o @CLICON_USER@ -g @CLICON_GROUP@ $(DESTDIR)$(localstatedir)/run/controller
+	install -d -m 0755 -o @CLICON_USER@ -g @CLICON_GROUP@ $(DESTDIR)$(runstatedir)/controller
 
 uninstall:
 	rm -f $(DESTDIR)$(sysconfdir)/clixon/$(APPNAME).xml

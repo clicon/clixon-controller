@@ -78,6 +78,7 @@ AC_SUBST(INCLUDEDIR)
 AC_SUBST(LIBDIR)
 AC_SUBST(LIBEXECDIR)
 AC_SUBST(LOCALSTATEDIR)
+AC_SUBST(RUNSTATEDIR)
 AC_SUBST(SBINDIR)
 AC_SUBST(SYSCONFDIR)
 
@@ -174,6 +175,7 @@ INCLUDEDIR=`eval echo $includedir`
 LIBDIR=`eval echo \`eval echo $libdir\``
 LIBEXECDIR=`eval echo $libexecdir`
 LOCALSTATEDIR=`eval echo $localstatedir`
+RUNSTATEDIR=`eval echo $runstatedir`
 
 AC_CONFIG_FILES([Makefile
           	 src/Makefile
