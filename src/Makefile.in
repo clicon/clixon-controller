@@ -28,7 +28,7 @@ includedir	= @includedir@
 datarootdir     = @datarootdir@
 sysconfdir      = @sysconfdir@
 localstatedir   = @localstatedir@
-libdir          = @exec_prefix@/lib
+libdir          = @libdir@
 version         = @CONTROLLER_VERSION@
 
 APPNAME	        = controller
