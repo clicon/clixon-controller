@@ -29,7 +29,7 @@ datarootdir     = @datarootdir@
 sysconfdir      = @sysconfdir@
 localstatedir   = @localstatedir@
 runstatedir     = @runstatedir@
-libdir          = @exec_prefix@/lib
+libdir          = @libdir@
 version         = @CONTROLLER_VERSION@
 
 APPNAME	        = controller

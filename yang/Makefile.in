@@ -26,7 +26,7 @@ includedir	= @includedir@
 datarootdir     = @datarootdir@
 sysconfdir      = @sysconfdir@
 localstatedir   = @localstatedir@
-libdir          = @exec_prefix@/lib
+libdir          = @libdir@
 
 INSTALLFLAGS  	= @INSTALLFLAGS@ 
 
