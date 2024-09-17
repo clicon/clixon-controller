@@ -652,6 +652,7 @@ SSH_BIN
 CPP
 SYSCONFDIR
 SBINDIR
+RUNSTATEDIR
 LOCALSTATEDIR
 LIBEXECDIR
 LIBDIR
@@ -3710,6 +3711,7 @@ test -z "$INSTALL_DATA" && INSTALL_DATA='${INSTALL} -m 644'
 
 
 
+
 #
 ac_ext=c
 ac_cpp='$CPP $CPPFLAGS'
@@ -4888,6 +4890,7 @@ INCLUDEDIR=`eval echo $includedir`
 LIBDIR=`eval echo \`eval echo $libdir\``
 LIBEXECDIR=`eval echo $libexecdir`
 LOCALSTATEDIR=`eval echo $localstatedir`
+RUNSTATEDIR=`eval echo \`eval echo $runstatedir\``
 
 ac_config_files="$ac_config_files Makefile src/Makefile src/controller.xml yang/Makefile util/Makefile docker/Makefile test/config.sh doc/Makefile"
 

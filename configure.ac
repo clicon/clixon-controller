@@ -175,7 +175,7 @@ INCLUDEDIR=`eval echo $includedir`
 LIBDIR=`eval echo \`eval echo $libdir\``
 LIBEXECDIR=`eval echo $libexecdir`
 LOCALSTATEDIR=`eval echo $localstatedir`
-RUNSTATEDIR=`eval echo $runstatedir`
+RUNSTATEDIR=`eval echo \`eval echo $runstatedir\``
 
 AC_CONFIG_FILES([Makefile
           	 src/Makefile
