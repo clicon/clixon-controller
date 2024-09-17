@@ -36,7 +36,7 @@ function init_device_config()
     ip=$2
 
     new "reset-controller: Init device $NAME edit-config"
-    ret=$(${clixon_netconf} -qe0 -f $CFG <<EOF
+    ret=$(${clixon_netconf} -qe0 -f $CFG -E $CFD <<EOF
 <rpc xmlns="urn:ietf:params:xml:ns:netconf:base:1.0"
   xmlns:nc="urn:ietf:params:xml:ns:netconf:base:1.0"
   message-id="42">
@@ -68,7 +68,7 @@ EOF
 
 if $delete ; then
     new "reset-controller: Delete device config"
-    ret=$(${clixon_netconf} -qe0 -f $CFG <<EOF
+    ret=$(${clixon_netconf} -qe0 -f $CFG -E $CFD <<EOF
 <rpc xmlns="urn:ietf:params:xml:ns:netconf:base:1.0"
   xmlns:nc="urn:ietf:params:xml:ns:netconf:base:1.0"
   message-id="42">
@@ -115,7 +115,7 @@ for ip in $CONTAINERS; do
 done
 
 new "reset-controller: Controller commit"
-ret=$(${clixon_netconf} -q0 -f $CFG <<EOF
+ret=$(${clixon_netconf} -q0 -f $CFG -E $CFD <<EOF
 <rpc xmlns="urn:ietf:params:xml:ns:netconf:base:1.0" message-id="43">
   <commit/>
 </rpc>]]>]]>
@@ -129,7 +129,7 @@ if [ -n "$match" ]; then
 fi
 
 new "reset-controller: Send rpc connection-change OPEN"
-ret=$(${clixon_netconf} -q0 -f $CFG <<EOF
+ret=$(${clixon_netconf} -q0 -f $CFG -E $CFD <<EOF
 <rpc xmlns="urn:ietf:params:xml:ns:netconf:base:1.0" message-id="43">
    <connection-change xmlns="http://clicon.org/controller">
       <devname>*</devname>
@@ -148,7 +148,7 @@ sleep $sleep
 jmax=5
 for j in $(seq 1 $jmax); do
     new "reset-controller: Verify open devices 1"
-    ret=$(${clixon_netconf} -q0 -f $CFG <<EOF
+    ret=$(${clixon_netconf} -q0 -f $CFG -E $CFD <<EOF
 <rpc xmlns="urn:ietf:params:xml:ns:netconf:base:1.0" xmlns:nc="urn:ietf:params:xml:ns:netconf:base:1.0" message-id="43">
    <get cl:content="all" xmlns:cl="http://clicon.org/lib">
       <nc:filter nc:type="xpath" nc:select="co:devices/co:device/co:conn-state" xmlns:co="http://clicon.org/controller"/>
@@ -175,7 +175,7 @@ if [ $j -eq $jmax ]; then
 fi
 
 new "reset-controller: Netconf pull"
-ret=$(${clixon_netconf} -q0 -f $CFG <<EOF
+ret=$(${clixon_netconf} -q0 -f $CFG -E $CFD <<EOF
 <rpc xmlns="urn:ietf:params:xml:ns:netconf:base:1.0" message-id="43">
 	<config-pull xmlns="http://clicon.org/controller">
 	 <devname>*</devname>
@@ -190,7 +190,7 @@ if [ -n "$match" ]; then
 fi
 
 new "reset-controller: Verify open devices 2"
-ret=$(${clixon_netconf} -q0 -f $CFG <<EOF
+ret=$(${clixon_netconf} -q0 -f $CFG -E $CFD <<EOF
 <rpc xmlns="urn:ietf:params:xml:ns:netconf:base:1.0" xmlns:nc="urn:ietf:params:xml:ns:netconf:base:1.0" message-id="43">
    <get cl:content="all" xmlns:cl="http://clicon.org/lib">
       <nc:filter nc:type="xpath" nc:select="co:devices/co:device/co:conn-state" xmlns:co="http://clicon.org/controller"/>
@@ -220,7 +220,7 @@ i=1
 for ip in $CONTAINERS; do
     new "reset-controller: Check config on device$i"
     NAME=$IMG$i
-    ret=$(${clixon_netconf} -qe0 -f $CFG <<EOF
+    ret=$(${clixon_netconf} -qe0 -f $CFG -E $CFD <<EOF
 <rpc xmlns="urn:ietf:params:xml:ns:netconf:base:1.0"
   xmlns:nc="urn:ietf:params:xml:ns:netconf:base:1.0"
   message-id="42">

@@ -14,10 +14,10 @@ if [[ ! -v CONTAINERS ]]; then
     err1 "CONTAINERS variable set" "not set"
 fi
 
+CFG=${SYSCONFDIR}/clixon/controller.xml
 dir=/var/tmp/$0
-rm -rf $dir
+test -d $dir || mkdir -p $dir
 mkdir -p $dir
-CFG=$dir/controller.xml
 CFD=$dir/conf.d
 test -d $CFD || mkdir -p $CFD
 fyang=$dir/clixon-test@2023-03-22.yang
@@ -25,42 +25,19 @@ fyang=$dir/clixon-test@2023-03-22.yang
 # Common NACM scripts
 . ./nacm.sh
 
-cat<<EOF > $CFG
+# Specialize controller.xml
+cat<<EOF > $CFD/diff.xml
+<?xml version="1.0" encoding="utf-8"?>
 <clixon-config xmlns="http://clicon.org/config">
-  <CLICON_CONFIGFILE>$CFG</CLICON_CONFIGFILE>
   <CLICON_CONFIGDIR>$CFD</CLICON_CONFIGDIR>
-  <CLICON_CONFIG_EXTEND>clixon-controller-config</CLICON_CONFIG_EXTEND>
-  <CLICON_FEATURE>ietf-netconf:startup</CLICON_FEATURE>
-  <CLICON_FEATURE>clixon-restconf:allow-auth-none</CLICON_FEATURE>
-  <CLICON_YANG_DIR>${DATADIR}/clixon</CLICON_YANG_DIR>
-  <CLICON_YANG_DIR>${DATADIR}/controller/common</CLICON_YANG_DIR>
   <CLICON_YANG_DIR>${DATADIR}/controller/main</CLICON_YANG_DIR>
   <CLICON_YANG_MAIN_DIR>$dir</CLICON_YANG_MAIN_DIR>
   <CLICON_YANG_DOMAIN_DIR>$dir</CLICON_YANG_DOMAIN_DIR>
-  <CLICON_CLI_MODE>operation</CLICON_CLI_MODE>
-  <CLICON_CLI_DIR>${LIBDIR}/controller/cli</CLICON_CLI_DIR>
   <CLICON_CLISPEC_DIR>$dir</CLICON_CLISPEC_DIR>
-  <CLICON_BACKEND_DIR>${LIBDIR}/controller/backend</CLICON_BACKEND_DIR>
-  <CLICON_SOCK>${LOCALSTATEDIR}/run/controller.sock</CLICON_SOCK>
-  <CLICON_BACKEND_PIDFILE>${LOCALSTATEDIR}/run/controller.pid</CLICON_BACKEND_PIDFILE>
   <CLICON_XMLDB_DIR>$dir</CLICON_XMLDB_DIR>
-  <CLICON_XMLDB_MULTI>true</CLICON_XMLDB_MULTI>
-  <CLICON_STARTUP_MODE>init</CLICON_STARTUP_MODE>
-  <CLICON_SOCK_GROUP>${CLICON_GROUP}</CLICON_SOCK_GROUP>
-  <CLICON_SOCK_PRIO>true</CLICON_SOCK_PRIO>
-  <CLICON_STREAM_DISCOVERY_RFC5277>true</CLICON_STREAM_DISCOVERY_RFC5277>
-  <CLICON_RESTCONF_USER>${CLICON_USER}</CLICON_RESTCONF_USER>
-  <CLICON_RESTCONF_PRIVILEGES>drop_perm</CLICON_RESTCONF_PRIVILEGES>
-  <CLICON_RESTCONF_INSTALLDIR>${SBINDIR}</CLICON_RESTCONF_INSTALLDIR>
   <CLICON_VALIDATE_STATE_XML>true</CLICON_VALIDATE_STATE_XML>
-  <CLICON_CLI_HELPSTRING_TRUNCATE>true</CLICON_CLI_HELPSTRING_TRUNCATE>
-  <CLICON_CLI_HELPSTRING_LINES>1</CLICON_CLI_HELPSTRING_LINES>
   <CLICON_CLI_OUTPUT_FORMAT>text</CLICON_CLI_OUTPUT_FORMAT>
-  <CLICON_YANG_SCHEMA_MOUNT>true</CLICON_YANG_SCHEMA_MOUNT>
-  <CLICON_YANG_SCHEMA_MOUNT_SHARE>true</CLICON_YANG_SCHEMA_MOUNT_SHARE>
-  <CLICON_NACM_MODE>internal</CLICON_NACM_MODE>
   <CLICON_NACM_CREDENTIALS>none</CLICON_NACM_CREDENTIALS>
-  <CLICON_NACM_DISABLED_ON_EMPTY>true</CLICON_NACM_DISABLED_ON_EMPTY>
 </clixon-config>
 EOF
 
@@ -216,8 +193,8 @@ if $BE; then
     new "Kill old backend"
     sudo clixon_backend -s init -f $CFG -z
 
-    new "Start new backend -s init -f $CFG"
-    start_backend -s init -f $CFG
+    new "Start new backend -s init -f $CFG -E $CFD"
+    start_backend -s init -f $CFG -E $CFD
 fi
 
 new "Wait backend"
@@ -227,7 +204,7 @@ wait_backend
 . ./reset-controller.sh
 
 new "auth set authentication config and enable"
-ret=$(${clixon_netconf} -0 -f $CFG <<EOF
+ret=$(${clixon_netconf} -0 -f $CFG -E $CFD <<EOF
 <?xml version="1.0" encoding="UTF-8"?>
 <hello xmlns="urn:ietf:params:xml:ns:netconf:base:1.0">
    <capabilities>
@@ -254,34 +231,34 @@ if [ -n "$match" ]; then
     exit 1
 fi
 
-new "commit"
-expectpart "$($clixon_cli -1 -f $CFG -m configure commit)" 0 ""
+new "commit 1"
+expectpart "$($clixon_cli -1 -f $CFG -E $CFD -m configure commit)" 0 ""
 
 NACMUSER=andy
 new "cli show conf as admin"
-expectpart "$($clixon_cli -1 -U $NACMUSER -f $CFG show conf devices device openconfig1 config interfaces)" 0 "<interface><name>x</name>" "<interface><name>y</name>"
+expectpart "$($clixon_cli -1 -U $NACMUSER -f $CFG -E $CFD show conf devices device openconfig1 config interfaces)" 0 "<interface><name>x</name>" "<interface><name>y</name>"
 
 new "cli set as admin"
-expectpart "$($clixon_cli -1 -U $NACMUSER -f $CFG -m configure set devices device openconfig1 config interfaces interface x config mtu 1500)" 0 "^$"
+expectpart "$($clixon_cli -1 -U $NACMUSER -f $CFG -E $CFD -m configure set devices device openconfig1 config interfaces interface x config mtu 1500)" 0 "^$"
 
-new "commit"
-expectpart "$($clixon_cli -1f $CFG -m configure commit 2>&1)" 0 "^$"
+new "commit 2"
+expectpart "$($clixon_cli -1f $CFG -E $CFD -m configure commit 2>&1)" 0 "^$"
 
 new "cli show check mtu"
-expectpart "$($clixon_cli -1 -U andy -f $CFG show conf devices device openconfig1 config interfaces)" 0 "<interface><name>x</name><config><name>x</name><type xmlns:ianaift=\"urn:ietf:params:xml:ns:yang:iana-if-type\">ianaift:ethernetCsmacd</type><mtu>1500</mtu>"
+expectpart "$($clixon_cli -1 -U andy -f $CFG -E $CFD show conf devices device openconfig1 config interfaces)" 0 "<interface><name>x</name><config><name>x</name><type xmlns:ianaift=\"urn:ietf:params:xml:ns:yang:iana-if-type\">ianaift:ethernetCsmacd</type><mtu>1500</mtu>"
 
 # XXX show config does not work in mountpoint
 NACMUSER=wilma
 new "cli show conf as limited"
-expectpart "$($clixon_cli -1 -U $NACMUSER -f $CFG show conf devices device openconfig1 config)" 0 "<interface><name>x</name>" --not-- "<interface><name>y</name>"
-# expectpart "$($clixon_cli -1 -U $NACMUSER -f $CFG show conf devices device openconfig1 config interfaces)" 0 "<interface><name>x</name>" --not-- "<interface><name>y</name>"
+expectpart "$($clixon_cli -1 -U $NACMUSER -f $CFG -E $CFD show conf devices device openconfig1 config)" 0 "<interface><name>x</name>" --not-- "<interface><name>y</name>"
+# expectpart "$($clixon_cli -1 -U $NACMUSER -f $CFG -E $CFD show conf devices device openconfig1 config interfaces)" 0 "<interface><name>x</name>" --not-- "<interface><name>y</name>"
 
 if false; then
 new "cli set as limited"
-expectpart "$($clixon_cli -1 -U $NACMUSER -f $CFG -m configure set devices device openconfig1 config interfaces interface x config mtu 1600)" 0 "^$"
+expectpart "$($clixon_cli -1 -U $NACMUSER -f $CFG -E $CFD -m configure set devices device openconfig1 config interfaces interface x config mtu 1600)" 0 "^$"
 else # XXX workaround with load
     new "workaround using xml instead of cli set as limited"
-    ret=$(${clixon_cli} -1 -U $NACMUSER -f $CFG -m configure load merge xml 2>&1 <<'EOF'
+    ret=$(${clixon_cli} -1 -U $NACMUSER -f $CFG -E $CFD -m configure load merge xml 2>&1 <<'EOF'
       <config>
          <devices xmlns="http://clicon.org/controller">
            <device>
@@ -310,18 +287,18 @@ fi
 fi # workaround
 
 new "commit"
-expectpart "$($clixon_cli -1 -U $NACMUSER -f $CFG -m configure commit local 2>&1)" 0 "^$"
+expectpart "$($clixon_cli -1 -U $NACMUSER -f $CFG -E $CFD -m configure commit local 2>&1)" 0 "^$"
 
 new "cli show check mtu"
-expectpart "$($clixon_cli -1 -U andy -f $CFG show conf devices device openconfig1 config interfaces)" 0 "<interface><name>x</name><config><name>x</name><type xmlns:ianaift=\"urn:ietf:params:xml:ns:yang:iana-if-type\">ianaift:ethernetCsmacd</type><mtu>1600</mtu>"
+expectpart "$($clixon_cli -1 -U andy -f $CFG -E $CFD show conf devices device openconfig1 config interfaces)" 0 "<interface><name>x</name><config><name>x</name><type xmlns:ianaift=\"urn:ietf:params:xml:ns:yang:iana-if-type\">ianaift:ethernetCsmacd</type><mtu>1600</mtu>"
 
 NACMUSER=guest
 new "cli show conf as guest"
-expectpart "$($clixon_cli -1 -U $NACMUSER -f $CFG show conf devices device openconfig1 config)" 0 --not-- "<interface><name>x</name>" "<interface><name>y</name>"
+expectpart "$($clixon_cli -1 -U $NACMUSER -f $CFG -E $CFD show conf devices device openconfig1 config)" 0 --not-- "<interface><name>x</name>" "<interface><name>y</name>"
 
 if $BE; then
     new "Kill old backend"
-    stop_backend -f $CFG
+    stop_backend -f $CFG -E $CFD
 fi
 
 endtest

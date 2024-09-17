@@ -28,8 +28,8 @@ exit 0
 # Default container name, postfixed with 1,2,..,<nr>
 : ${IMG:=clixon-example}
 
+CFG=${SYSCONFDIR}/clixon/controller.xml
 dir=/var/tmp/$0
-CFG=$dir/controller.xml
 CFD=$dir/conf.d
 test -d $dir || mkdir -p $dir
 test -d $CFD || mkdir -p $CFD
@@ -37,39 +37,17 @@ fyang=$dir/clixon-test@2023-03-22.yang
 # openconfig devices have noc user
 : ${USER:=noc}
 
-cat<<EOF > $CFG
+# Specialize controller.xml
+cat<<EOF > $CFD/diff.xml
+<?xml version="1.0" encoding="utf-8"?>
 <clixon-config xmlns="http://clicon.org/config">
-  <CLICON_CONFIGFILE>$CFG</CLICON_CONFIGFILE>
   <CLICON_CONFIGDIR>$CFD</CLICON_CONFIGDIR>
-  <CLICON_CONFIG_EXTEND>clixon-controller-config</CLICON_CONFIG_EXTEND>
-  <CLICON_FEATURE>ietf-netconf:startup</CLICON_FEATURE>
-  <CLICON_FEATURE>clixon-restconf:allow-auth-none</CLICON_FEATURE>
-  <CLICON_YANG_DIR>${DATADIR}/clixon</CLICON_YANG_DIR>
-  <CLICON_YANG_DIR>${DATADIR}/controller/common</CLICON_YANG_DIR>
   <CLICON_YANG_DIR>${DATADIR}/controller/main</CLICON_YANG_DIR>
   <CLICON_YANG_MAIN_DIR>$dir</CLICON_YANG_MAIN_DIR>
   <CLICON_YANG_DOMAIN_DIR>$dir</CLICON_YANG_DOMAIN_DIR>
-  <CLICON_CLI_MODE>operation</CLICON_CLI_MODE>
-  <CLICON_CLI_DIR>${LIBDIR}/controller/cli</CLICON_CLI_DIR>
-  <CLICON_CLISPEC_DIR>${LIBDIR}/controller/clispec</CLICON_CLISPEC_DIR>
-  <CLICON_BACKEND_DIR>${LIBDIR}/controller/backend</CLICON_BACKEND_DIR>
-  <CLICON_SOCK>${LOCALSTATEDIR}/run/controller.sock</CLICON_SOCK>
-  <CLICON_SOCK_GROUP>${CLICON_GROUP}</CLICON_SOCK_GROUP>
-  <CLICON_SOCK_PRIO>true</CLICON_SOCK_PRIO>
-  <CLICON_BACKEND_PIDFILE>${LOCALSTATEDIR}/run/controller.pid</CLICON_BACKEND_PIDFILE>
   <CLICON_XMLDB_DIR>$dir</CLICON_XMLDB_DIR>
-  <CLICON_XMLDB_MULTI>true</CLICON_XMLDB_MULTI>
-  <CLICON_STARTUP_MODE>init</CLICON_STARTUP_MODE>
-  <CLICON_STREAM_DISCOVERY_RFC5277>true</CLICON_STREAM_DISCOVERY_RFC5277>
-  <CLICON_RESTCONF_USER>${CLICON_USER}</CLICON_RESTCONF_USER>
-  <CLICON_RESTCONF_PRIVILEGES>drop_perm</CLICON_RESTCONF_PRIVILEGES>
-  <CLICON_RESTCONF_INSTALLDIR>${SBINDIR}</CLICON_RESTCONF_INSTALLDIR>
   <CLICON_VALIDATE_STATE_XML>true</CLICON_VALIDATE_STATE_XML>
-  <CLICON_CLI_HELPSTRING_TRUNCATE>true</CLICON_CLI_HELPSTRING_TRUNCATE>
-  <CLICON_CLI_HELPSTRING_LINES>1</CLICON_CLI_HELPSTRING_LINES>
   <CLICON_CLI_OUTPUT_FORMAT>text</CLICON_CLI_OUTPUT_FORMAT>
-  <CLICON_YANG_SCHEMA_MOUNT>true</CLICON_YANG_SCHEMA_MOUNT>
-  <CLICON_YANG_SCHEMA_MOUNT_SHARE>true</CLICON_YANG_SCHEMA_MOUNT_SHARE>
 </clixon-config>
 EOF
 
@@ -148,8 +126,8 @@ if $BE; then
     new "Kill old backend"
     sudo clixon_backend -f $CFG -z
 
-    new "Start new backend -s startup -f $CFG"
-    start_backend -s startup -f $CFG
+    new "Start new backend -s startup -f $CFG -E $CFD"
+    start_backend -s startup -f $CFG -E $CFD
 fi
 
 new "Wait backend"
@@ -161,35 +139,35 @@ for ip in $CONTAINERS; do
     NAME="$IMG$ii"
     cmd="set devices device $NAME device-profile myprofile"
     new "$cmd"
-    expectpart "$($clixon_cli -1 -m configure -f $CFG $cmd)" 0 "^$"
+    expectpart "$($clixon_cli -1 -m configure -f $CFG -E $CFD $cmd)" 0 "^$"
     
     cmd="set devices device $NAME enabled true"
     new "$cmd"
-    expectpart "$($clixon_cli -1 -m configure -f $CFG $cmd)" 0 "^$"
+    expectpart "$($clixon_cli -1 -m configure -f $CFG -E $CFD $cmd)" 0 "^$"
 
     cmd="set devices device $NAME addr $ip"
     new "$cmd"
-    expectpart "$($clixon_cli -1 -m configure -f $CFG $cmd)" 0 "^$"
+    expectpart "$($clixon_cli -1 -m configure -f $CFG -E $CFD $cmd)" 0 "^$"
 done
 
 new "commit local 1"
-expectpart "$($clixon_cli -1 -m configure -f $CFG commit local)" 0 "^$"
+expectpart "$($clixon_cli -1 -m configure -f $CFG -E $CFD commit local)" 0 "^$"
 
 new "connection open"
-expectpart "$($clixon_cli -1 -f $CFG connection open)" 0 "^$"
+expectpart "$($clixon_cli -1 -f $CFG -E $CFD connection open)" 0 "^$"
 
 sleep $sleep
 
 # Not complete YANG
 new "Verify controller: all closed"
-res=$(${clixon_cli} -1f $CFG show connections | grep CLOSED | wc -l)
+res=$(${clixon_cli} -1f $CFG -E $CFD show connections | grep CLOSED | wc -l)
 
 if [ "$res" != "$ii" ]; then
     err1 "$ii closed devices" "$res"
 fi
 
 new "Verify reason: YANG bind failed"
-res=$(${clixon_cli} -1f $CFG show connections | grep "YANG bind failed" | wc -l)
+res=$(${clixon_cli} -1f $CFG -E $CFD show connections | grep "YANG bind failed" | wc -l)
 if [ "$res" != "$ii" ]; then
     err1 "$ii bind failed" "$res"
 fi
@@ -197,29 +175,29 @@ fi
 # 2. YANG file not found
 cmd="delete devices device-profile myprofile module-set"
 new "$cmd"
-expectpart "$($clixon_cli -1 -m configure -f $CFG $cmd)" 0 "^$"
+expectpart "$($clixon_cli -1 -m configure -f $CFG -E $CFD $cmd)" 0 "^$"
 
 cmd="set devices device-profile myprofile module-set module openconfig-xxx namespace xxx:uri"
 new "$cmd"
-expectpart "$($clixon_cli -1 -m configure -f $CFG $cmd)" 0 "^$"
+expectpart "$($clixon_cli -1 -m configure -f $CFG -E $CFD $cmd)" 0 "^$"
 
 new "commit local 2"
-expectpart "$($clixon_cli -1 -m configure -f $CFG commit local)" 0 "^$"
+expectpart "$($clixon_cli -1 -m configure -f $CFG -E $CFD commit local)" 0 "^$"
     
 new "connection open"
-expectpart "$($clixon_cli -1 -f $CFG connection open)" 0 "^$"
+expectpart "$($clixon_cli -1 -f $CFG -E $CFD connection open)" 0 "^$"
 
 sleep $sleep
 
 new "Verify controller: all closed"
-res=$(${clixon_cli} -1f $CFG show connections | grep CLOSED | wc -l)
+res=$(${clixon_cli} -1f $CFG -E $CFD show connections | grep CLOSED | wc -l)
 
 if [ "$res" != "$ii" ]; then
     err1 "$ii closed devices" "$res"
 fi
 
 new "Verify reason: No yang files found"
-res=$(${clixon_cli} -1f $CFG show state xml | grep "<logmsg>Yang \"openconfig-xxx\" not found in the list of CLICON_YANG_DIRs</logmsg>" | wc -l)
+res=$(${clixon_cli} -1f $CFG -E $CFD show state xml | grep "<logmsg>Yang \"openconfig-xxx\" not found in the list of CLICON_YANG_DIRs</logmsg>" | wc -l)
 if [ "$res" != "$ii" ]; then
    err "$ii" "$res"
 fi
@@ -227,22 +205,22 @@ fi
 # Add proper yang
 cmd="delete devices device-profile myprofile module-set"
 new "$cmd"
-expectpart "$($clixon_cli -1 -m configure -f $CFG $cmd)" 0 "^$"
+expectpart "$($clixon_cli -1 -m configure -f $CFG -E $CFD $cmd)" 0 "^$"
 
 cmd="set devices device-profile myprofile module-set module openconfig-system namespace http://openconfig.net/yang/system"
 new "$cmd"
-expectpart "$($clixon_cli -1 -m configure -f $CFG $cmd)" 0 "^$"
+expectpart "$($clixon_cli -1 -m configure -f $CFG -E $CFD $cmd)" 0 "^$"
 
 new "commit local 3"
-expectpart "$($clixon_cli -1 -m configure -f $CFG commit local)" 0 "^$"
+expectpart "$($clixon_cli -1 -m configure -f $CFG -E $CFD commit local)" 0 "^$"
 
 new "connection open"
-expectpart "$($clixon_cli -1 -f $CFG connection open)" 0 "^$"
+expectpart "$($clixon_cli -1 -f $CFG -E $CFD connection open)" 0 "^$"
 
 sleep $sleep
 
 new "Verify controller: all open"
-res=$(${clixon_cli} -1f $CFG show connections | grep OPEN | wc -l)
+res=$(${clixon_cli} -1f $CFG -E $CFD show connections | grep OPEN | wc -l)
 
 if [ "$res" != "$ii" ]; then
     err1 "$ii open devices" "$res"
@@ -250,7 +228,7 @@ fi
 
 if $BE; then
     new "Kill old backend"
-    stop_backend -f $CFG
+    stop_backend -f $CFG -E $CFD
 fi
 
 unset NAME

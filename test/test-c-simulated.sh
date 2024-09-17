@@ -14,8 +14,8 @@ if [ $nr -lt 2 ]; then
     if [ "$s" = $0 ]; then exit 0; else return 0; fi
 fi
 
+CFG=${SYSCONFDIR}/clixon/controller.xml
 dir=/var/tmp/$0
-CFG=$dir/controller.xml
 CFD=$dir/confdir
 test -d $dir || mkdir -p $dir
 test -d $CFD || mkdir -p $CFD
@@ -30,43 +30,17 @@ fyang=$dir/myyang.yang
 # Common NACM scripts
 . ./nacm.sh
 
-cat<<EOF > $CFG
+# Specialize controller.xml
+cat<<EOF > $CFD/diff.xml
+<?xml version="1.0" encoding="utf-8"?>
 <clixon-config xmlns="http://clicon.org/config">
-  <CLICON_CONFIGFILE>$CFG</CLICON_CONFIGFILE>
   <CLICON_CONFIGDIR>$CFD</CLICON_CONFIGDIR>
-  <CLICON_FEATURE>ietf-netconf:startup</CLICON_FEATURE>
-  <CLICON_FEATURE>clixon-restconf:allow-auth-none</CLICON_FEATURE>
-  <CLICON_CONFIG_EXTEND>clixon-controller-config</CLICON_CONFIG_EXTEND>
-  <CLICON_YANG_DIR>${DATADIR}/clixon</CLICON_YANG_DIR>
-  <CLICON_YANG_DIR>${DATADIR}/controller/common</CLICON_YANG_DIR>
   <CLICON_YANG_DIR>${DATADIR}/controller/main</CLICON_YANG_DIR>
   <CLICON_YANG_MAIN_DIR>$dir</CLICON_YANG_MAIN_DIR>
   <CLICON_YANG_DOMAIN_DIR>$dir</CLICON_YANG_DOMAIN_DIR>
-  <CLICON_CLI_MODE>operation</CLICON_CLI_MODE>
-  <CLICON_CLI_DIR>${LIBDIR}/controller/cli</CLICON_CLI_DIR>
-  <CLICON_CLISPEC_DIR>${LIBDIR}/controller/clispec</CLICON_CLISPEC_DIR>
-  <CLICON_BACKEND_DIR>${LIBDIR}/controller/backend</CLICON_BACKEND_DIR>
-  <CLICON_SOCK>${LOCALSTATEDIR}/run/controller.sock</CLICON_SOCK>
-  <CLICON_SOCK_GROUP>${CLICON_GROUP}</CLICON_SOCK_GROUP>
-  <CLICON_SOCK_PRIO>true</CLICON_SOCK_PRIO>
-  <CLICON_BACKEND_PIDFILE>${LOCALSTATEDIR}/run/controller.pid</CLICON_BACKEND_PIDFILE>
   <CLICON_XMLDB_DIR>$dir</CLICON_XMLDB_DIR>
-  <CLICON_XMLDB_MULTI>true</CLICON_XMLDB_MULTI>
-  <CLICON_STARTUP_MODE>init</CLICON_STARTUP_MODE>
-  <CLICON_STREAM_DISCOVERY_RFC5277>true</CLICON_STREAM_DISCOVERY_RFC5277>
-  <CLICON_RESTCONF_USER>${CLICON_USER}</CLICON_RESTCONF_USER>
-  <CLICON_RESTCONF_PRIVILEGES>drop_perm</CLICON_RESTCONF_PRIVILEGES>
-  <CLICON_RESTCONF_INSTALLDIR>${SBINDIR}</CLICON_RESTCONF_INSTALLDIR>
-  <CLICON_BACKEND_USER>${CLICON_USER}</CLICON_BACKEND_USER>
-  <CLICON_VALIDATE_STATE_XML>true</CLICON_VALIDATE_STATE_XML>
-  <CLICON_CLI_HELPSTRING_TRUNCATE>true</CLICON_CLI_HELPSTRING_TRUNCATE>
-  <CLICON_CLI_HELPSTRING_LINES>1</CLICON_CLI_HELPSTRING_LINES>
   <CLICON_CLI_OUTPUT_FORMAT>text</CLICON_CLI_OUTPUT_FORMAT>
-  <CLICON_YANG_SCHEMA_MOUNT>true</CLICON_YANG_SCHEMA_MOUNT>
-  <CLICON_YANG_SCHEMA_MOUNT_SHARE>true</CLICON_YANG_SCHEMA_MOUNT_SHARE>
-  <CLICON_NACM_CREDENTIALS>exact</CLICON_NACM_CREDENTIALS>
-  <CLICON_NACM_MODE>internal</CLICON_NACM_MODE>
-  <CLICON_NACM_DISABLED_ON_EMPTY>true</CLICON_NACM_DISABLED_ON_EMPTY>
+  <CLICON_VALIDATE_STATE_XML>true</CLICON_VALIDATE_STATE_XML>
 </clixon-config>
 EOF
 
@@ -143,7 +117,7 @@ function check_services()
 {
     status=$1
     new "Query process-control of action process"
-    ret=$(${clixon_netconf} -0 -f $CFG <<EOF
+    ret=$(${clixon_netconf} -0 -f $CFG -E $CFD <<EOF
 <?xml version="1.0" encoding="UTF-8"?>
 <hello xmlns="urn:ietf:params:xml:ns:netconf:base:1.0">
    <capabilities>
@@ -203,7 +177,7 @@ EOF
 # Simulated error
 cat<<EOF > $CFD/action-command.xml
 <clixon-config xmlns="http://clicon.org/config">
-  <CONTROLLER_ACTION_COMMAND xmlns="http://clicon.org/controller-config">${BINDIR}/clixon_controller_service -f $CFG -e</CONTROLLER_ACTION_COMMAND>
+  <CONTROLLER_ACTION_COMMAND xmlns="http://clicon.org/controller-config">${BINDIR}/clixon_controller_service -f $CFG -E $CFD -e</CONTROLLER_ACTION_COMMAND>
 </clixon-config>
 EOF
 
@@ -212,11 +186,11 @@ EOF
 
 if $BE; then
     new "Kill old backend $CFG"
-    sudo clixon_backend -f $CFG -z
+    sudo clixon_backend -f $CFG -E $CFD -z
 fi
 if $BE; then
-    new "Start new backend -s startup -f $CFG -D $DBG"
-    sudo clixon_backend -s startup -f $CFG -D $DBG
+    new "Start new backend -s startup -f $CFG -E $CFD -D $DBG"
+    sudo clixon_backend -s startup -f $CFG -E $CFD -D $DBG
 fi
 
 new "Wait backend 1"
@@ -228,14 +202,14 @@ check_services running
 . ./reset-controller.sh
 
 new "open connections"
-expectpart "$(${clixon_cli} -1f $CFG connect open async)" 0 ""
+expectpart "$(${clixon_cli} -1f $CFG -E $CFD connect open async)" 0 ""
 
 new "Verify open devices"
 sleep $sleep
 
 imax=5
 for i in $(seq 1 $imax); do
-    res=$(${clixon_cli} -1f $CFG show connections | grep OPEN | wc -l)
+    res=$(${clixon_cli} -1f $CFG -E $CFD show connections | grep OPEN | wc -l)
     if [ "$res" = "$nr" ]; then
         break;
     fi
@@ -247,7 +221,7 @@ if [ $i -eq $imax ]; then
 fi
 
 new "edit testA(2)"
-ret=$(${clixon_netconf} -0 -f $CFG <<EOF
+ret=$(${clixon_netconf} -0 -f $CFG -E $CFD <<EOF
 <?xml version="1.0" encoding="UTF-8"?>
 <hello xmlns="urn:ietf:params:xml:ns:netconf:base:1.0">
    <capabilities>
@@ -284,14 +258,14 @@ if [ -n "$match" ]; then
 fi
 
 new "commit"
-expectpart "$(${clixon_cli} -m configure -1f $CFG commit 2>&1)" 0 "simulated error"
+expectpart "$(${clixon_cli} -m configure -1f $CFG -E $CFD commit 2>&1)" 0 "simulated error"
 
 new "commit diff" # not locked
-expectpart "$(${clixon_cli} -m configure -1f $CFG commit diff 2>&1)" 0 "simulated error"
+expectpart "$(${clixon_cli} -m configure -1f $CFG -E $CFD commit diff 2>&1)" 0 "simulated error"
 
 if $BE; then
     new "Kill old backend"
-    stop_backend -f $CFG
+    stop_backend -f $CFG -E $CFD
 fi
 
 sleep 1 # time to make controller-service die
@@ -299,27 +273,27 @@ sleep 1 # time to make controller-service die
 # Simulated duplicate
 cat<<EOF > $CFD/action-command.xml
 <clixon-config xmlns="http://clicon.org/config">
-  <CONTROLLER_ACTION_COMMAND xmlns="http://clicon.org/controller-config">${BINDIR}/clixon_controller_service -f $CFG -d</CONTROLLER_ACTION_COMMAND>
+  <CONTROLLER_ACTION_COMMAND xmlns="http://clicon.org/controller-config">${BINDIR}/clixon_controller_service -f $CFG -E $CFD -d</CONTROLLER_ACTION_COMMAND>
 </clixon-config>
 EOF
 
 if $BE; then
-    new "Start new backend -s running -f $CFG -D $DBG"
-    sudo clixon_backend -s running -f $CFG -D $DBG
+    new "Start new backend -s running -f $CFG -E $CFD -D $DBG"
+    sudo clixon_backend -s running -f $CFG -E $CFD -D $DBG
 fi
 
 new "Wait backend 2"
 wait_backend
 
 new "open connections"
-expectpart "$(${clixon_cli} -1f $CFG connect open async)" 0 ""
+expectpart "$(${clixon_cli} -1f $CFG -E $CFD connect open async)" 0 ""
 
 new "Verify open devices"
 sleep $sleep
 
 imax=5
 for i in $(seq 1 $imax); do
-    res=$(${clixon_cli} -1f $CFG show connections | grep OPEN | wc -l)
+    res=$(${clixon_cli} -1f $CFG -E $CFD show connections | grep OPEN | wc -l)
     if [ "$res" = "$nr" ]; then
         break;
     fi
@@ -332,7 +306,7 @@ if [ $i -eq $imax ]; then
 fi
 
 new "edit testA(2)"
-ret=$(${clixon_netconf} -0 -f $CFG <<EOF
+ret=$(${clixon_netconf} -0 -f $CFG -E $CFD <<EOF
 <?xml version="1.0" encoding="UTF-8"?>
 <hello xmlns="urn:ietf:params:xml:ns:netconf:base:1.0">
    <capabilities>
@@ -369,11 +343,11 @@ if [ -n "$match" ]; then
 fi
 
 new "commit"
-expectpart "$(${clixon_cli} -m configure -1f $CFG commit 2>&1)" 0 "operation-failed" "data-not-unique"
+expectpart "$(${clixon_cli} -m configure -1f $CFG -E $CFD commit 2>&1)" 0 "operation-failed" "data-not-unique"
 
 if $BE; then
     new "Kill old backend"
-    stop_backend -f $CFG
+    stop_backend -f $CFG -E $CFD
 fi
 
 endtest

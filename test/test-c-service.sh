@@ -31,7 +31,7 @@
 #
 # Also, after testA(1) do a pull and a restart to ensure creator attributes are intact
 #
-# For debug start service daemon externally: ${BINDIR}/clixon_controller_service -f $CFG and
+# For debug start service daemon externally: ${BINDIR}/clixon_controller_service -f $CFG -E $CFD and
 # disable CONTROLLER_ACTION_COMMAND
 # May fail if python service runs
 #
@@ -44,8 +44,8 @@ if [ $nr -lt 2 ]; then
     if [ "$s" = $0 ]; then exit 0; else return 0; fi
 fi
 
+CFG=${SYSCONFDIR}/clixon/controller.xml
 dir=/var/tmp/$0
-CFG=$dir/controller.xml
 CFD=$dir/confdir
 test -d $dir || mkdir -p $dir
 test -d $CFD || mkdir -p $CFD
@@ -60,49 +60,23 @@ fyang=$dir/myyang.yang
 # Common NACM scripts
 . ./nacm.sh
 
-cat<<EOF > $CFG
+# Specialize controller.xml
+cat<<EOF > $CFD/diff.xml
+<?xml version="1.0" encoding="utf-8"?>
 <clixon-config xmlns="http://clicon.org/config">
-  <CLICON_CONFIGFILE>$CFG</CLICON_CONFIGFILE>
   <CLICON_CONFIGDIR>$CFD</CLICON_CONFIGDIR>
-  <CLICON_FEATURE>ietf-netconf:startup</CLICON_FEATURE>
-  <CLICON_FEATURE>clixon-restconf:allow-auth-none</CLICON_FEATURE>
-  <CLICON_CONFIG_EXTEND>clixon-controller-config</CLICON_CONFIG_EXTEND>
-  <CLICON_YANG_DIR>${DATADIR}/clixon</CLICON_YANG_DIR>
   <CLICON_YANG_DIR>${DATADIR}/controller/main</CLICON_YANG_DIR>
-  <CLICON_YANG_DIR>${DATADIR}/controller/common</CLICON_YANG_DIR>
   <CLICON_YANG_MAIN_DIR>$dir</CLICON_YANG_MAIN_DIR>
   <CLICON_YANG_DOMAIN_DIR>$dir</CLICON_YANG_DOMAIN_DIR>
-  <CLICON_CLI_MODE>operation</CLICON_CLI_MODE>
-  <CLICON_CLI_DIR>${LIBDIR}/controller/cli</CLICON_CLI_DIR>
-  <CLICON_CLISPEC_DIR>${LIBDIR}/controller/clispec</CLICON_CLISPEC_DIR>
-  <CLICON_BACKEND_DIR>${LIBDIR}/controller/backend</CLICON_BACKEND_DIR>
-  <CLICON_SOCK>${LOCALSTATEDIR}/run/controller.sock</CLICON_SOCK>
-  <CLICON_SOCK_GROUP>${CLICON_GROUP}</CLICON_SOCK_GROUP>
-  <CLICON_SOCK_PRIO>true</CLICON_SOCK_PRIO>
-  <CLICON_BACKEND_PIDFILE>${LOCALSTATEDIR}/run/controller.pid</CLICON_BACKEND_PIDFILE>
   <CLICON_XMLDB_DIR>$dir</CLICON_XMLDB_DIR>
-  <CLICON_XMLDB_MULTI>true</CLICON_XMLDB_MULTI>
-  <CLICON_STARTUP_MODE>init</CLICON_STARTUP_MODE>
-  <CLICON_STREAM_DISCOVERY_RFC5277>true</CLICON_STREAM_DISCOVERY_RFC5277>
-  <CLICON_RESTCONF_USER>${CLICON_USER}</CLICON_RESTCONF_USER>
-  <CLICON_RESTCONF_PRIVILEGES>drop_perm</CLICON_RESTCONF_PRIVILEGES>
-  <CLICON_RESTCONF_INSTALLDIR>${SBINDIR}</CLICON_RESTCONF_INSTALLDIR>
-  <CLICON_BACKEND_USER>${CLICON_USER}</CLICON_BACKEND_USER>
   <CLICON_VALIDATE_STATE_XML>true</CLICON_VALIDATE_STATE_XML>
-  <CLICON_CLI_HELPSTRING_TRUNCATE>true</CLICON_CLI_HELPSTRING_TRUNCATE>
-  <CLICON_CLI_HELPSTRING_LINES>1</CLICON_CLI_HELPSTRING_LINES>
   <CLICON_CLI_OUTPUT_FORMAT>text</CLICON_CLI_OUTPUT_FORMAT>
-  <CLICON_YANG_SCHEMA_MOUNT>true</CLICON_YANG_SCHEMA_MOUNT>
-  <CLICON_YANG_SCHEMA_MOUNT_SHARE>true</CLICON_YANG_SCHEMA_MOUNT_SHARE>
-  <CLICON_NACM_CREDENTIALS>exact</CLICON_NACM_CREDENTIALS>
-  <CLICON_NACM_MODE>internal</CLICON_NACM_MODE>
-  <CLICON_NACM_DISABLED_ON_EMPTY>true</CLICON_NACM_DISABLED_ON_EMPTY>
 </clixon-config>
 EOF
 
 cat<<EOF > $CFD/action-command.xml
 <clixon-config xmlns="http://clicon.org/config">
-  <CONTROLLER_ACTION_COMMAND xmlns="http://clicon.org/controller-config">${BINDIR}/clixon_controller_service -f $CFG</CONTROLLER_ACTION_COMMAND>
+  <CONTROLLER_ACTION_COMMAND xmlns="http://clicon.org/controller-config">${BINDIR}/clixon_controller_service -f $CFG -E $CFD</CONTROLLER_ACTION_COMMAND>
 </clixon-config>
 EOF
 
@@ -179,7 +153,7 @@ function check_services()
 {
     status=$1
     new "Query process-control of action process"
-    ret=$(${clixon_netconf} -0 -f $CFG <<EOF
+    ret=$(${clixon_netconf} -0 -f $CFG -E $CFD <<EOF
 <?xml version="1.0" encoding="UTF-8"?>
 <hello xmlns="urn:ietf:params:xml:ns:netconf:base:1.0">
    <capabilities>
@@ -243,8 +217,8 @@ if $BE; then
     sudo clixon_backend -f $CFG -z
 fi
 if $BE; then
-    new "Start new backend -s startup -f $CFG"
-    start_backend -s startup -f $CFG
+    new "Start new backend -s startup -f $CFG -E $CFD"
+    start_backend -s startup -f $CFG -E $CFD
 fi
 
 new "Wait backend 1"
@@ -254,28 +228,28 @@ check_services stopped
 
 # see https://github.com/clicon/clixon-controller/issues/84
 new "set small timeout"
-expectpart "$(${clixon_cli} -m configure -1f $CFG set devices device-timeout 3)" 0 ""
+expectpart "$(${clixon_cli} -m configure -1f $CFG -E $CFD set devices device-timeout 3)" 0 ""
 
 new "commit local"
-expectpart "$(${clixon_cli} -m configure -1f $CFG commit local)" 0 ""
+expectpart "$(${clixon_cli} -m configure -1f $CFG -E $CFD commit local)" 0 ""
 
 new "edit service"
-expectpart "$(${clixon_cli} -m configure -1f $CFG set services testA foo params Ax)" 0 ""
+expectpart "$(${clixon_cli} -m configure -1f $CFG -E $CFD set services testA foo params Ax)" 0 ""
 
 new "commit diff w timeout nr 1"
-expectpart "$(${clixon_cli} -m configure -1f $CFG commit diff 2>&1)" 0 "Timeout waiting for action daemon"
+expectpart "$(${clixon_cli} -m configure -1f $CFG -E $CFD commit diff 2>&1)" 0 "Timeout waiting for action daemon"
 
 new "commit diff w timeout nr 2"
-expectpart "$(${clixon_cli} -m configure -1f $CFG commit diff 2>&1)" 0 "Timeout waiting for action daemon"
+expectpart "$(${clixon_cli} -m configure -1f $CFG -E $CFD commit diff 2>&1)" 0 "Timeout waiting for action daemon"
 
 new "discard"
-expectpart "$(${clixon_cli} -m configure -1f $CFG discard)" 0 ""
+expectpart "$(${clixon_cli} -m configure -1f $CFG -E $CFD discard)" 0 ""
 
 fi # XXX
 
 if $BE; then
     new "Kill old backend"
-    sudo clixon_backend -s init -f $CFG -z
+    sudo clixon_backend -s init -f $CFG -E $CFD -z
 fi
 
 # Then start from startup which by default should start it
@@ -295,8 +269,8 @@ EOF
 . ./reset-devices.sh
 
 if $BE; then
-    new "Start new backend -s startup -f $CFG -D $DBG"
-    sudo clixon_backend -s startup -f $CFG -D $DBG
+    new "Start new backend -s startup -f $CFG -E $CFD -D $DBG"
+    sudo clixon_backend -s startup -f $CFG -E $CFD -D $DBG
 fi
 
 new "Wait backend 2"
@@ -305,7 +279,7 @@ wait_backend
 check_services running
 
 new "Start service process, expect fail (already started)"
-expectpart "$(clixon_controller_service -f $CFG -1 -l o)" 255 "services-commit client already registered"
+expectpart "$(clixon_controller_service -f $CFG -E $CFD -1 -l o)" 255 "services-commit client already registered"
 
 # Reset controller by initiating with clixon/openconfig devices and a pull
 . ./reset-controller.sh
@@ -344,7 +318,7 @@ DEV0="<config>
       </config>"
 
 new "edit testA(1)"
-ret=$(${clixon_netconf} -0 -f $CFG <<EOF
+ret=$(${clixon_netconf} -0 -f $CFG -E $CFD <<EOF
 <?xml version="1.0" encoding="UTF-8"?>
 <hello xmlns="urn:ietf:params:xml:ns:netconf:base:1.0">
    <capabilities>
@@ -405,34 +379,34 @@ sleep $sleep
 
 new "commit push"
 set +e
-expectpart "$(${clixon_cli} -m configure -1f $CFG commit push 2>&1)" 0 OK --not-- Error
+expectpart "$(${clixon_cli} -m configure -1f $CFG -E $CFD commit push 2>&1)" 0 OK --not-- Error
 
 #edit # push
 
 # see https://github.com/clicon/clixon-controller/issues/70
 new "commit diff 1"
-expectpart "$(${clixon_cli} -m configure -1f $CFG commit diff 2>&1)" 0 OK --not-- "<interface"
+expectpart "$(${clixon_cli} -m configure -1f $CFG -E $CFD commit diff 2>&1)" 0 OK --not-- "<interface"
 
 # exit # commit diff 1
 
 # see https://github.com/clicon/clixon-controller/issues/78
 new "local change"
-expectpart "$(${clixon_cli} -m configure -1f $CFG set devices device openconfig1 config system config login-banner mylogin-banner)" 0 ""
+expectpart "$(${clixon_cli} -m configure -1f $CFG -E $CFD set devices device openconfig1 config system config login-banner mylogin-banner)" 0 ""
 
 # exit # set login-banner
 
 new "commit diff 2"
-expectpart "$(${clixon_cli} -m configure -1f $CFG commit diff 2>&1)" 0 "^+\ *<login-banner>mylogin-banner</login-banner>"
+expectpart "$(${clixon_cli} -m configure -1f $CFG -E $CFD commit diff 2>&1)" 0 "^+\ *<login-banner>mylogin-banner</login-banner>"
 
 # exit # commit diff 2
 
 new "commit"
-expectpart "$(${clixon_cli} -m configure -1f $CFG commit 2>&1)" 0 ""
+expectpart "$(${clixon_cli} -m configure -1f $CFG -E $CFD commit 2>&1)" 0 ""
 
 # exit # commit 2
 
 new "commit diff 3"
-expectpart "$(${clixon_cli} -m configure -1f $CFG commit diff 2>&1)" 0 --not-- "^+\ *<login-banner>mylogin-banner</login-banner>"
+expectpart "$(${clixon_cli} -m configure -1f $CFG -E $CFD commit diff 2>&1)" 0 --not-- "^+\ *<login-banner>mylogin-banner</login-banner>"
 
 # exit # commit diff 3
 
@@ -441,7 +415,7 @@ CREATORSA="<created><path>/devices/device\[name=\"openconfig1\"\]/config/interfa
 CREATORSB="<created><path>/devices/device\[name=\"openconfig1\"\]/config/interfaces/interface\[name=\"A0x\"\]</path><path>/devices/device\[name=\"openconfig1\"\]/config/interfaces/interface\[name=\"A0y\"\]</path><path>/devices/device\[name=\"openconfig1\"\]/config/interfaces/interface\[name=\"ABx\"\]</path><path>/devices/device\[name=\"openconfig1\"\]/config/interfaces/interface\[name=\"ABy\"\]</path><path>/devices/device\[name=\"openconfig1\"\]/config/interfaces/interface\[name=\"ABz\"\]</path><path>/devices/device\[name=\"openconfig1\"\]/config/interfaces/interface\[name=\"Bx\"\]</path><path>/devices/device\[name=\"openconfig2\"\]/config/interfaces/interface\[name=\"A0x\"\]</path><path>/devices/device\[name=\"openconfig2\"\]/config/interfaces/interface\[name=\"A0y\"\]</path><path>/devices/device\[name=\"openconfig2\"\]/config/interfaces/interface\[name=\"ABx\"\]</path><path>/devices/device\[name=\"openconfig2\"\]/config/interfaces/interface\[name=\"ABy\"\]</path><path>/devices/device\[name=\"openconfig2\"\]/config/interfaces/interface\[name=\"ABz\"\]</path><path>/devices/device\[name=\"openconfig2\"\]/config/interfaces/interface\[name=\"Bx\"\]</path></created>"
 
 new "Check creator attributes testA"
-ret=$(${clixon_netconf} -qe0 -f $CFG <<EOF
+ret=$(${clixon_netconf} -qe0 -f $CFG -E $CFD <<EOF
 <rpc xmlns="urn:ietf:params:xml:ns:netconf:base:1.0"
 xmlns:nc="urn:ietf:params:xml:ns:netconf:base:1.0"
 message-id="42">
@@ -471,7 +445,7 @@ if [ -z "$match" ]; then
 fi
 
 new "Check creator attributes testB"
-ret=$(${clixon_netconf} -qe0 -f $CFG <<EOF
+ret=$(${clixon_netconf} -qe0 -f $CFG -E $CFD <<EOF
 <rpc xmlns="urn:ietf:params:xml:ns:netconf:base:1.0"
 xmlns:nc="urn:ietf:params:xml:ns:netconf:base:1.0"
 message-id="42">
@@ -502,11 +476,11 @@ fi
 
 # Pull and ensure attributes remain
 new "Pull"
-expectpart "$(${clixon_cli} -1f $CFG pull)" 0 ""
+expectpart "$(${clixon_cli} -1f $CFG -E $CFD pull)" 0 ""
 #exit # pull
 
 new "Check creator attributes after pull"
-ret=$(${clixon_netconf} -qe0 -f $CFG <<EOF
+ret=$(${clixon_netconf} -qe0 -f $CFG -E $CFD <<EOF
 <rpc xmlns="urn:ietf:params:xml:ns:netconf:base:1.0"
 xmlns:nc="urn:ietf:params:xml:ns:netconf:base:1.0"
 message-id="42">
@@ -540,32 +514,32 @@ fi
 # When pulled configs arrive, they are commited into tmpdev and committed into running
 # Have to draw,...
 
-#exit # XXXXXXXXXXXXXXXXXXXXXXXX
+#exit
 
 # Restart backend and ensure attributes remain
 if $BE; then
     new "Kill old backend $CFG"
-    sudo clixon_backend -f $CFG -z
+    sudo clixon_backend -f $CFG -E $CFD -z
 fi
 
 # Note start from previous running
 if $BE; then
-    new "Start new backend -s running -f $CFG -D $DBG"
-    sudo clixon_backend -s running -f $CFG -D $DBG
+    new "Start new backend -s running -f $CFG -E $CFD -D $DBG"
+    sudo clixon_backend -s running -f $CFG -E $CFD -D $DBG
 fi
 
 new "Wait backend 3"
 wait_backend
 
 new "open connections"
-expectpart "$(${clixon_cli} -1f $CFG connect open async)" 0 ""
+expectpart "$(${clixon_cli} -1f $CFG -E $CFD connect open async)" 0 ""
 
 new "Verify open devices"
 sleep $sleep
 
 imax=5
 for i in $(seq 1 $imax); do
-    res=$(${clixon_cli} -1f $CFG show connections | grep OPEN | wc -l)
+    res=$(${clixon_cli} -1f $CFG -E $CFD show connections | grep OPEN | wc -l)
     if [ "$res" = "$nr" ]; then
         break;
     fi
@@ -577,7 +551,7 @@ if [ $i -eq $imax ]; then
 fi
 
 new "Check creator attributes after restart"
-ret=$(${clixon_netconf} -qe0 -f $CFG <<EOF
+ret=$(${clixon_netconf} -qe0 -f $CFG -E $CFD <<EOF
 <rpc xmlns="urn:ietf:params:xml:ns:netconf:base:1.0"
 xmlns:nc="urn:ietf:params:xml:ns:netconf:base:1.0"
 message-id="42">
@@ -606,7 +580,7 @@ if [ -z "$match" ]; then
 fi
 
 new "edit testA(2)"
-ret=$(${clixon_netconf} -0 -f $CFG <<EOF
+ret=$(${clixon_netconf} -0 -f $CFG -E $CFD <<EOF
 <?xml version="1.0" encoding="UTF-8"?>
 <hello xmlns="urn:ietf:params:xml:ns:netconf:base:1.0">
    <capabilities>
@@ -644,7 +618,7 @@ fi
 
 new "commit diff 4"
 # Ax removed, Az added
-ret=$(${clixon_cli} -m configure -1f $CFG commit diff 2> /dev/null) 
+ret=$(${clixon_cli} -m configure -1f $CFG -E $CFD commit diff 2> /dev/null)
 #echo "ret:$ret"
 match=$(echo $ret | grep --null -Eo '\+ <name>Az</name>') || true
 if [ -z "$match" ]; then
@@ -657,7 +631,7 @@ fi
 
 # Delete testA completely
 new "delete testA(3)"
-ret=$(${clixon_netconf} -0 -f $CFG <<EOF
+ret=$(${clixon_netconf} -0 -f $CFG -E $CFD <<EOF
 <?xml version="1.0" encoding="UTF-8"?>
 <hello xmlns="urn:ietf:params:xml:ns:netconf:base:1.0">
    <capabilities>
@@ -691,11 +665,11 @@ fi
 sleep $sleep
 new "commit push"
 set +e
-expectpart "$(${clixon_cli} -m configure -1f $CFG commit push 2>&1)" 0 OK --not-- Error
+expectpart "$(${clixon_cli} -m configure -1f $CFG -E $CFD commit push 2>&1)" 0 OK --not-- Error
 
 new "get-config check removed Ax"
 NAME=clixon-example1
-ret=$(${clixon_netconf} -qe0 -f $CFG <<EOF
+ret=$(${clixon_netconf} -qe0 -f $CFG -E $CFD <<EOF
 <rpc xmlns="urn:ietf:params:xml:ns:netconf:base:1.0"
 xmlns:nc="urn:ietf:params:xml:ns:netconf:base:1.0"
 message-id="42">
@@ -729,7 +703,7 @@ fi
 
 # Delete testB completely
 new "delete testB(4)"
-ret=$(${clixon_netconf} -0 -f $CFG <<EOF
+ret=$(${clixon_netconf} -0 -f $CFG -E $CFD <<EOF
 <?xml version="1.0" encoding="UTF-8"?>
 <hello xmlns="urn:ietf:params:xml:ns:netconf:base:1.0">
    <capabilities>
@@ -763,11 +737,11 @@ fi
 sleep $sleep
 new "commit push"
 set +e
-expectpart "$(${clixon_cli} -m configure -1f $CFG commit push 2>&1)" 0 OK --not-- Error
+expectpart "$(${clixon_cli} -m configure -1f $CFG -E $CFD commit push 2>&1)" 0 OK --not-- Error
 
 new "get-config check removed Ax"
 NAME=clixon-example1
-ret=$(${clixon_netconf} -qe0 -f $CFG <<EOF
+ret=$(${clixon_netconf} -qe0 -f $CFG -E $CFD <<EOF
 <rpc xmlns="urn:ietf:params:xml:ns:netconf:base:1.0"
 xmlns:nc="urn:ietf:params:xml:ns:netconf:base:1.0"
 message-id="42">
@@ -802,7 +776,7 @@ fi
 # Edit service, pull, check service still in candidate,
 # see https://github.com/clicon/clixon-controller/issues/82
 new "edit testC"
-ret=$(${clixon_netconf} -0 -f $CFG <<EOF
+ret=$(${clixon_netconf} -0 -f $CFG -E $CFD <<EOF
 <?xml version="1.0" encoding="UTF-8"?>
 <hello xmlns="urn:ietf:params:xml:ns:netconf:base:1.0">
    <capabilities>
@@ -834,48 +808,48 @@ if [ -n "$match" ]; then
 fi
 
 new "show compare service"
-expectpart "$($clixon_cli -1 -f $CFG -m configure show compare xml)" 0 "^+\ *<services xmlns=\"http://clicon.org/controller\">" "^+\ *<testA xmlns=\"urn:example:test\">" "^+\ *<a_name>fie</a_name>" "^+\ *<params>ZZ</params>"
+expectpart "$($clixon_cli -1 -f $CFG -E $CFD -m configure show compare xml)" 0 "^+\ *<services xmlns=\"http://clicon.org/controller\">" "^+\ *<testA xmlns=\"urn:example:test\">" "^+\ *<a_name>fie</a_name>" "^+\ *<params>ZZ</params>"
 
 new "discard"
-expectpart "$(${clixon_cli} -1f $CFG -m configure discard)" 0 ""
+expectpart "$(${clixon_cli} -1f $CFG -E $CFD -m configure discard)" 0 ""
 
 new "Pull replace"
-expectpart "$(${clixon_cli} -1f $CFG pull)" 0 ""
+expectpart "$(${clixon_cli} -1f $CFG -E $CFD pull)" 0 ""
 
 new "Rollback hostnames on openconfig*"
-expectpart "$($clixon_cli -1 -f $CFG -m configure rollback)" 0 ""
+expectpart "$($clixon_cli -1 -f $CFG -E $CFD -m configure rollback)" 0 ""
 
 # Negative errors
 new "Create empty testA"
-ret=$(${clixon_cli} -m configure -1f $CFG set services testA foo 2> /dev/null) 
+ret=$(${clixon_cli} -m configure -1f $CFG -E $CFD set services testA foo 2> /dev/null)
 
 new "commit push expect fail"
-expectpart "$(${clixon_cli} -m configure -1f $CFG commit push 2>&1)" 255 too-few-elements
+expectpart "$(${clixon_cli} -m configure -1f $CFG -E $CFD commit push 2>&1)" 255 too-few-elements
 
 if $BE; then
     new "Kill old backend"
-    stop_backend -f $CFG
+    stop_backend -f $CFG -E $CFD
 fi
 
 # Note start from previous running
 # Edit sub-service fields https://github.com/clicon/clixon-controller/issues/89
 if $BE; then
-    new "Start new backend -s running -f $CFG -D $DBG"
-    sudo clixon_backend -s running -f $CFG -D $DBG
+    new "Start new backend -s running -f $CFG -E $CFD -D $DBG"
+    sudo clixon_backend -s running -f $CFG -E $CFD -D $DBG
 fi
 
 new "Wait backend 4"
 wait_backend
 
 new "open connections"
-expectpart "$(${clixon_cli} -1f $CFG connect open async)" 0 ""
+expectpart "$(${clixon_cli} -1f $CFG -E $CFD connect open async)" 0 ""
 
 new "Verify open devices"
 sleep $sleep
 
 imax=5
 for i in $(seq 1 $imax); do
-    res=$(${clixon_cli} -1f $CFG show connections | grep OPEN | wc -l)
+    res=$(${clixon_cli} -1f $CFG -E $CFD show connections | grep OPEN | wc -l)
     if [ "$res" = "$nr" ]; then
         break;
     fi
@@ -887,47 +861,47 @@ if [ $i -eq $imax ]; then
 fi
 
 new "Add Sx"
-expectpart "$(${clixon_cli} -m configure -1f $CFG set services testA foo params Sx)" 0 "^$"
+expectpart "$(${clixon_cli} -m configure -1f $CFG -E $CFD set services testA foo params Sx)" 0 "^$"
 
 new "Add Sy"
-expectpart "$(${clixon_cli} -m configure -1f $CFG set services testA foo params Sy)" 0 "^$"
+expectpart "$(${clixon_cli} -m configure -1f $CFG -E $CFD set services testA foo params Sy)" 0 "^$"
 
 new "commit base"
-expectpart "$(${clixon_cli} -m configure -1f $CFG commit 2>&1)" 0 "OK"
+expectpart "$(${clixon_cli} -m configure -1f $CFG -E $CFD commit 2>&1)" 0 "OK"
 
 new "Check Sy"
-expectpart "$(${clixon_cli} -1f $CFG show configuration devices device openconfig1 config interfaces interface Sy)" 0 "interface Sy {"
+expectpart "$(${clixon_cli} -1f $CFG -E $CFD show configuration devices device openconfig1 config interfaces interface Sy)" 0 "interface Sy {"
 
 new "remove Sy"
-expectpart "$(${clixon_cli} -m configure -1f $CFG delete services testA foo params Sy)" 0 "^$"
+expectpart "$(${clixon_cli} -m configure -1f $CFG -E $CFD delete services testA foo params Sy)" 0 "^$"
 
 new "commit remove"
-expectpart "$(${clixon_cli} -m configure -1f $CFG commit 2>&1)" 0 "OK"
+expectpart "$(${clixon_cli} -m configure -1f $CFG -E $CFD commit 2>&1)" 0 "OK"
 
 new "Check not Sy"
-expectpart "$(${clixon_cli} -1f $CFG show configuration devices device openconfig1 config interfaces interface Sy)" 0 --not-- "interface Sy"
+expectpart "$(${clixon_cli} -1f $CFG -E $CFD show configuration devices device openconfig1 config interfaces interface Sy)" 0 --not-- "interface Sy"
 
 if $BE; then
     new "Kill old backend"
-    stop_backend -f $CFG
+    stop_backend -f $CFG -E $CFD
 fi
 
 # apply services
 # Note start from previous running
 if $BE; then
-    new "Start new backend -s running -f $CFG -D $DBG"
-    sudo clixon_backend -s running -f $CFG -D $DBG
+    new "Start new backend -s running -f $CFG -E $CFD -D $DBG"
+    sudo clixon_backend -s running -f $CFG -E $CFD -D $DBG
 fi
 
 new "Wait backend 5"
 wait_backend
 
 new "open connections"
-expectpart "$(${clixon_cli} -1f $CFG connect open async)" 0 ""
+expectpart "$(${clixon_cli} -1f $CFG -E $CFD connect open async)" 0 ""
 sleep $sleep
 
 new "edit testA(1)"
-ret=$(${clixon_netconf} -0 -f $CFG <<EOF
+ret=$(${clixon_netconf} -0 -f $CFG -E $CFD <<EOF
 <?xml version="1.0" encoding="UTF-8"?>
 <hello xmlns="urn:ietf:params:xml:ns:netconf:base:1.0">
    <capabilities>
@@ -963,21 +937,21 @@ if [ -n "$match" ]; then
 fi
 
 new "commit"
-expectpart "$(${clixon_cli} -m configure -1f $CFG commit 2>&1)" 0 "OK"
+expectpart "$(${clixon_cli} -m configure -1f $CFG -E $CFD commit 2>&1)" 0 "OK"
 
 # XXX: These are not properly tested
 new "apply single services diff"
-expectpart "$(${clixon_cli} -m configure -1f $CFG apply services myyang:testA foo diff 2>&1)" 0 "OK"
+expectpart "$(${clixon_cli} -m configure -1f $CFG -E $CFD apply services myyang:testA foo diff 2>&1)" 0 "OK"
 
 new "apply single services"
-expectpart "$(${clixon_cli} -m configure -1f $CFG apply services myyang:testA foo 2>&1)" 0 "OK"
+expectpart "$(${clixon_cli} -m configure -1f $CFG -E $CFD apply services myyang:testA foo 2>&1)" 0 "OK"
 
 new "apply all services"
-expectpart "$(${clixon_cli} -m configure -1f $CFG apply services 2>&1)" 0 "OK"
+expectpart "$(${clixon_cli} -m configure -1f $CFG -E $CFD apply services 2>&1)" 0 "OK"
 
 if $BE; then
     new "Kill old backend"
-    stop_backend -f $CFG
+    stop_backend -f $CFG -E $CFD
 fi
 
 endtest

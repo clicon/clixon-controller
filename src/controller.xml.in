@@ -1,11 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
 <clixon-config xmlns="http://clicon.org/config">
+  <!-- Controller requires startup datastore -->
+  <CLICON_FEATURE>ietf-netconf:startup</CLICON_FEATURE>
+  <CLICON_FEATURE>clixon-restconf:allow-auth-none</CLICON_FEATURE> <!-- XXX -->
   <!-- See also src/Makefile.in and yang/Makefile.in -->
   <CLICON_CONFIGFILE>@SYSCONFDIR@/clixon/controller.xml</CLICON_CONFIGFILE>
   <CLICON_CONFIGDIR>@SYSCONFDIR@/clixon/controller</CLICON_CONFIGDIR>
   <CLICON_CONFIG_EXTEND>clixon-controller-config</CLICON_CONFIG_EXTEND>
-  <CLICON_FEATURE>ietf-netconf:startup</CLICON_FEATURE>
-  <CLICON_FEATURE>clixon-restconf:allow-auth-none</CLICON_FEATURE>
   <!-- Clixon-generic yangs -->
   <CLICON_YANG_DIR>@DATADIR@/clixon</CLICON_YANG_DIR>
   <!-- Controller-specific yangs -->
@@ -14,45 +15,50 @@
   <CLICON_YANG_MAIN_DIR>@DATADIR@/controller/main</CLICON_YANG_MAIN_DIR>
   <!-- Device mount-point YANGs are placed in the following dir + domain -->
   <CLICON_YANG_DOMAIN_DIR>@DATADIR@/controller/mounts</CLICON_YANG_DOMAIN_DIR>
-  <CLICON_CLI_MODE>operation</CLICON_CLI_MODE>
-  <CLICON_CLI_DIR>@LIBDIR@/controller/cli</CLICON_CLI_DIR>
-  <CLICON_CLISPEC_DIR>@LIBDIR@/controller/clispec</CLICON_CLISPEC_DIR>
-  <CLICON_BACKEND_DIR>@LIBDIR@/controller/backend</CLICON_BACKEND_DIR>
-  <CLICON_SOCK>@RUNSTATEDIR@/controller/controller.sock</CLICON_SOCK>
-  <!-- NB Backend socket prioritixed over SB devices -->
-  <CLICON_SOCK_PRIO>true</CLICON_SOCK_PRIO>
-  <CLICON_BACKEND_PIDFILE>@RUNSTATEDIR@/controller/controller.pid</CLICON_BACKEND_PIDFILE>
-  <CLICON_XMLDB_DIR>@LOCALSTATEDIR@/controller</CLICON_XMLDB_DIR>
-  <!-- Split datsatores into multiple files -->
-  <CLICON_XMLDB_MULTI>true</CLICON_XMLDB_MULTI>
-  <CLICON_STARTUP_MODE>running</CLICON_STARTUP_MODE>
-  <CLICON_SOCK_GROUP>@CLICON_GROUP@</CLICON_SOCK_GROUP>
-  <CLICON_STREAM_DISCOVERY_RFC5277>true</CLICON_STREAM_DISCOVERY_RFC5277>
-  <CLICON_RESTCONF_INSTALLDIR>@SBINDIR@</CLICON_RESTCONF_INSTALLDIR>
-  <CLICON_RESTCONF_USER>@CLICON_USER@</CLICON_RESTCONF_USER>  
-  <CLICON_RESTCONF_PRIVILEGES>drop_perm</CLICON_RESTCONF_PRIVILEGES>
-  <!-- Cannot use drop because XMLDB_MULTI creates new files -->
-  <CLICON_BACKEND_PRIVILEGES>none</CLICON_BACKEND_PRIVILEGES>
-  <CLICON_VALIDATE_STATE_XML>false</CLICON_VALIDATE_STATE_XML>
-  <CLICON_CLI_HELPSTRING_TRUNCATE>true</CLICON_CLI_HELPSTRING_TRUNCATE>
-  <CLICON_CLI_HELPSTRING_LINES>1</CLICON_CLI_HELPSTRING_LINES>
   <!-- Yang schema mount is enabled for controller -->
   <CLICON_YANG_SCHEMA_MOUNT>true</CLICON_YANG_SCHEMA_MOUNT>
-  <!-- Optimization to share YANGs omong schema-mounts -->
+  <!-- Optimization to share YANGs within YANG domain -->
   <CLICON_YANG_SCHEMA_MOUNT_SHARE>true</CLICON_YANG_SCHEMA_MOUNT_SHARE>
+  <!-- Backend -->
+  <CLICON_BACKEND_DIR>@LIBDIR@/controller/backend</CLICON_BACKEND_DIR>
   <CLICON_BACKEND_USER>@CLICON_USER@</CLICON_BACKEND_USER>
-  <!-- Log to syslog and stderr. no log length limitation -->
-  <CLICON_LOG_DESTINATION>syslog stderr</CLICON_LOG_DESTINATION>
-  <CLICON_LOG_STRING_LIMIT>0</CLICON_LOG_STRING_LIMIT>
+  <!-- Cannot use drop because XMLDB_MULTI creates new files -->
+  <CLICON_BACKEND_PRIVILEGES>none</CLICON_BACKEND_PRIVILEGES>
+  <CLICON_BACKEND_PIDFILE>@RUNSTATEDIR@/controller/controller.pid</CLICON_BACKEND_PIDFILE>
+  <!-- Disable duplicate check in NETCONF messages. Temporary pyapi issue-->
+  <CLICON_NETCONF_DUPLICATE_ALLOW>true</CLICON_NETCONF_DUPLICATE_ALLOW>
+  <!-- RESTCONF -->
+  <CLICON_RESTCONF_INSTALLDIR>@SBINDIR@</CLICON_RESTCONF_INSTALLDIR>
+  <CLICON_RESTCONF_USER>@CLICON_USER@</CLICON_RESTCONF_USER>  
+  <!-- CLI/CLISPEC -->
+  <CLICON_CLI_DIR>@LIBDIR@/controller/cli</CLICON_CLI_DIR>
+  <CLICON_CLISPEC_DIR>@LIBDIR@/controller/clispec</CLICON_CLISPEC_DIR>
+  <CLICON_CLI_MODE>operation</CLICON_CLI_MODE>
+  <CLICON_CLI_HELPSTRING_TRUNCATE>true</CLICON_CLI_HELPSTRING_TRUNCATE>
+  <CLICON_CLI_HELPSTRING_LINES>1</CLICON_CLI_HELPSTRING_LINES>
+  <!-- Default output format for show config etc -->
+  <CLICON_CLI_OUTPUT_FORMAT>xml</CLICON_CLI_OUTPUT_FORMAT>
+  <!-- Socket -->
+  <CLICON_SOCK>@RUNSTATEDIR@/controller/controller.sock</CLICON_SOCK>
+  <CLICON_SOCK_GROUP>@CLICON_GROUP@</CLICON_SOCK_GROUP>
+  <!-- Backend socket prioritized over SB devices -->
+  <CLICON_SOCK_PRIO>true</CLICON_SOCK_PRIO>
   <!-- Enable for exclusive lock on edit -->
   <CLICON_AUTOLOCK>false</CLICON_AUTOLOCK>
+  <!-- Datastore -->
+  <CLICON_XMLDB_DIR>@LOCALSTATEDIR@/controller</CLICON_XMLDB_DIR>
+  <!-- Split datastores into multiple files -->
+  <CLICON_XMLDB_MULTI>true</CLICON_XMLDB_MULTI>
+  <CLICON_STARTUP_MODE>running</CLICON_STARTUP_MODE>
   <!-- NACM is inlined in configuration -->
   <CLICON_NACM_MODE>internal</CLICON_NACM_MODE>
   <CLICON_NACM_DISABLED_ON_EMPTY>true</CLICON_NACM_DISABLED_ON_EMPTY>
-  <!-- Default output format for show config etc -->
-  <CLICON_CLI_OUTPUT_FORMAT>xml</CLICON_CLI_OUTPUT_FORMAT>
-  <!-- Disable duplicate check in NETCONF messages. Temporary pyapi issue-->
-  <CLICON_NETCONF_DUPLICATE_ALLOW>true</CLICON_NETCONF_DUPLICATE_ALLOW>
+  <!-- Controller uses notifications -->
+  <CLICON_STREAM_DISCOVERY_RFC5277>true</CLICON_STREAM_DISCOVERY_RFC5277>
+  <!-- Log to syslog and stderr. no log length limitation -->
+  <CLICON_LOG_DESTINATION>syslog stderr</CLICON_LOG_DESTINATION>
+  <CLICON_LOG_STRING_LIMIT>0</CLICON_LOG_STRING_LIMIT>
+  <!-- PYAPI specialization (see CLICON_CONFIG_EXTEND above) -->
   <CONTROLLER_ACTION_COMMAND xmlns="http://clicon.org/controller-config">@BINDIR@/clixon_server.py -f @SYSCONFDIR@/clixon/controller.xml -F</CONTROLLER_ACTION_COMMAND>
   <CONTROLLER_PYAPI_MODULE_PATH xmlns="http://clicon.org/controller-config">@DATADIR@/controller/modules</CONTROLLER_PYAPI_MODULE_PATH>
   <CONTROLLER_PYAPI_MODULE_FILTER xmlns="http://clicon.org/controller-config"></CONTROLLER_PYAPI_MODULE_FILTER>

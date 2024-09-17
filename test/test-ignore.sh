@@ -12,48 +12,22 @@
 # Magic line must be first in script (see README.md)
 s="$_" ; . ./lib.sh || if [ "$s" = $0 ]; then exit 0; else return 0; fi
 
+CFG=${SYSCONFDIR}/clixon/controller.xml
 dir=/var/tmp/$0
-CFG=$dir/controller.xml
 CFD=$dir/conf.d
 mntdir=$dir/mounts
 test -d $CFD || mkdir -p $CFD
 test -d $mntdir || mkdir -p $mntdir
 fyang=$mntdir/clixon-ext@2023-11-01.yang
 
-cat<<EOF > $CFG
+# Specialize controller.xml
+cat<<EOF > $CFD/diff.xml
+<?xml version="1.0" encoding="utf-8"?>
 <clixon-config xmlns="http://clicon.org/config">
-  <CLICON_CONFIGFILE>$CFG</CLICON_CONFIGFILE>
   <CLICON_CONFIGDIR>$CFD</CLICON_CONFIGDIR>
-  <CLICON_CONFIG_EXTEND>clixon-controller-config</CLICON_CONFIG_EXTEND>
-  <CLICON_FEATURE>ietf-netconf:startup</CLICON_FEATURE>
-  <CLICON_FEATURE>clixon-restconf:allow-auth-none</CLICON_FEATURE>
-  <CLICON_YANG_DIR>${DATADIR}/clixon</CLICON_YANG_DIR>
-  <CLICON_YANG_DIR>${DATADIR}/controller/common</CLICON_YANG_DIR>
   <CLICON_YANG_DIR>$dir</CLICON_YANG_DIR>
-  <CLICON_YANG_MAIN_DIR>${DATADIR}/controller/main</CLICON_YANG_MAIN_DIR>
   <CLICON_YANG_DOMAIN_DIR>$mntdir</CLICON_YANG_DOMAIN_DIR>
-  <CLICON_CLI_MODE>operation</CLICON_CLI_MODE>
-  <CLICON_CLI_DIR>${LIBDIR}/controller/cli</CLICON_CLI_DIR>
-  <CLICON_CLISPEC_DIR>${LIBDIR}/controller/clispec</CLICON_CLISPEC_DIR>
-  <CLICON_BACKEND_DIR>${LIBDIR}/controller/backend</CLICON_BACKEND_DIR>
-  <CLICON_SOCK>${LOCALSTATEDIR}/run/controller.sock</CLICON_SOCK>
-  <CLICON_SOCK_GROUP>${CLICON_GROUP}</CLICON_SOCK_GROUP>
-  <CLICON_SOCK_PRIO>true</CLICON_SOCK_PRIO>
-  <CLICON_BACKEND_PIDFILE>${LOCALSTATEDIR}/run/controller.pid</CLICON_BACKEND_PIDFILE>
-  <CLICON_XMLDB_DIR>${LOCALSTATEDIR}/controller</CLICON_XMLDB_DIR>
-  <CLICON_XMLDB_MULTI>true</CLICON_XMLDB_MULTI>
-  <CLICON_STARTUP_MODE>init</CLICON_STARTUP_MODE>
-  <CLICON_STREAM_DISCOVERY_RFC5277>true</CLICON_STREAM_DISCOVERY_RFC5277>
-  <CLICON_RESTCONF_USER>${CLICON_USER}</CLICON_RESTCONF_USER>
-  <CLICON_RESTCONF_PRIVILEGES>drop_perm</CLICON_RESTCONF_PRIVILEGES>
-  <CLICON_RESTCONF_INSTALLDIR>${SBINDIR}</CLICON_RESTCONF_INSTALLDIR>
   <CLICON_VALIDATE_STATE_XML>true</CLICON_VALIDATE_STATE_XML>
-  <CLICON_CLI_HELPSTRING_TRUNCATE>true</CLICON_CLI_HELPSTRING_TRUNCATE>
-  <CLICON_CLI_HELPSTRING_LINES>1</CLICON_CLI_HELPSTRING_LINES>
-  <CLICON_CLI_OUTPUT_FORMAT>xml</CLICON_CLI_OUTPUT_FORMAT>
-  <CLICON_YANG_SCHEMA_MOUNT>true</CLICON_YANG_SCHEMA_MOUNT>
-  <CLICON_YANG_SCHEMA_MOUNT_SHARE>true</CLICON_YANG_SCHEMA_MOUNT_SHARE>
-  <CLICON_BACKEND_USER>${CLICON_USER}</CLICON_BACKEND_USER>
 </clixon-config>
 EOF
 
@@ -103,7 +77,7 @@ function sleep_open()
     jmax=10
     for j in $(seq 1 $jmax); do
         new "cli show connections and check open"
-        ret=$($clixon_cli -1 -f $CFG show connections)
+        ret=$($clixon_cli -1 -f $CFG -E $CFD show connections)
         match1=$(echo "$ret" | grep --null -Eo "openconfig1.*OPEN") || true
         match2=$(echo "$ret" | grep --null -Eo "openconfig2.*OPEN") || true
         if [ -n "$match1" -a -n "$match2" ]; then
@@ -220,10 +194,10 @@ EOF
 
 if $BE; then
     new "Kill old backend"
-    sudo clixon_backend -s init -f $CFG -z
+    sudo clixon_backend -s init -f $CFG -E $CFD -z
 
-    new "Start new backend -s init -f $CFG"
-    start_backend -s init -f $CFG
+    new "Start new backend -s init -f $CFG -E $CFD"
+    start_backend -s init -f $CFG -E $CFD
 fi
 
 new "wait backend"
@@ -237,10 +211,10 @@ new "Sleep and verify devices are open"
 sleep_open
 
 new "pull"
-expectpart "$($clixon_cli -1f $CFG pull 2>&1)" 0 "OK"
+expectpart "$($clixon_cli -1f $CFG -E $CFD pull 2>&1)" 0 "OK"
 
 new "check sync OK 1"
-expectpart "$($clixon_cli -1f $CFG show devices $NAME check 2>&1)" 0 "OK" --not-- "out-of-sync"
+expectpart "$($clixon_cli -1f $CFG -E $CFD show devices $NAME check 2>&1)" 0 "OK" --not-- "out-of-sync"
 
 NAME=${IMG}1
 for ip in $CONTAINERS; do # Just to get first element
@@ -250,24 +224,24 @@ done
 new "1. Add mtu=888 to controller"
 
 new "Edit mtu field on controller"
-expectpart "$($clixon_cli -1f $CFG -m configure set devices device $NAME config interfaces interface y config mtu 888)" 0 "^$"
+expectpart "$($clixon_cli -1f $CFG -E $CFD -m configure set devices device $NAME config interfaces interface y config mtu 888)" 0 "^$"
 
 device_mtu_get $ip ""
 
 new "Commit diff"
-expectpart "$($clixon_cli -1f $CFG -m configure commit diff)" 0 --not-- "^-\ *" "^+\ *"
+expectpart "$($clixon_cli -1f $CFG -E $CFD -m configure commit diff)" 0 --not-- "^-\ *" "^+\ *"
 
 new "Commit local"
-expectpart "$($clixon_cli -1f $CFG -m configure commit local)" 0 "^$"
+expectpart "$($clixon_cli -1f $CFG -E $CFD -m configure commit local)" 0 "^$"
 
 new "check sync OK"
-expectpart "$($clixon_cli -1f $CFG show devices $NAME check 2>&1)" 0 "OK" --not-- "out-of-sync"
+expectpart "$($clixon_cli -1f $CFG -E $CFD show devices $NAME check 2>&1)" 0 "OK" --not-- "out-of-sync"
 
 new "Commit push"
-expectpart "$($clixon_cli -1f $CFG -m configure commit push)" 0 "^$"
+expectpart "$($clixon_cli -1f $CFG -E $CFD -m configure commit push)" 0 "^$"
 
 new "check sync OK"
-expectpart "$($clixon_cli -1f $CFG show devices $NAME check 2>&1)" 0 "OK" --not-- "out-of-sync"
+expectpart "$($clixon_cli -1f $CFG -E $CFD show devices $NAME check 2>&1)" 0 "OK" --not-- "out-of-sync"
 
 device_mtu_get $ip ""
 
@@ -278,74 +252,74 @@ device_mtu_set $ip 999
 device_mtu_get $ip 999
 
 new "Edit mtu field on controller"
-expectpart "$($clixon_cli -1f $CFG -m configure set devices device $NAME config interfaces interface y config mtu 777)" 0 "^$"
+expectpart "$($clixon_cli -1f $CFG -E $CFD -m configure set devices device $NAME config interfaces interface y config mtu 777)" 0 "^$"
 
 new "Commit diff"
-expectpart "$($clixon_cli -1f $CFG -m configure commit diff)" 0 --not-- "^-\ *" "^+\ *"
+expectpart "$($clixon_cli -1f $CFG -E $CFD -m configure commit diff)" 0 --not-- "^-\ *" "^+\ *"
 
 new "Commit local"
-expectpart "$($clixon_cli -1f $CFG -m configure commit local)" 0 "^$"
+expectpart "$($clixon_cli -1f $CFG -E $CFD -m configure commit local)" 0 "^$"
 
 new "check sync OK"
-expectpart "$($clixon_cli -1f $CFG show devices $NAME check 2>&1)" 0 "OK" --not-- "out-of-sync"
+expectpart "$($clixon_cli -1f $CFG -E $CFD show devices $NAME check 2>&1)" 0 "OK" --not-- "out-of-sync"
 
 new "Commit push"
-expectpart "$($clixon_cli -1f $CFG -m configure commit push)" 0 "^$"
+expectpart "$($clixon_cli -1f $CFG -E $CFD -m configure commit push)" 0 "^$"
 
 new "check sync OK"
-expectpart "$($clixon_cli -1f $CFG show devices $NAME check 2>&1)" 0 "OK" --not-- "out-of-sync"
+expectpart "$($clixon_cli -1f $CFG -E $CFD show devices $NAME check 2>&1)" 0 "OK" --not-- "out-of-sync"
 
 device_mtu_get $ip 999
 
 new "Edit description field"
-expectpart "$($clixon_cli -1f $CFG -m configure set devices device $NAME config interfaces interface y config description \"New description\")" 0 "^$"
+expectpart "$($clixon_cli -1f $CFG -E $CFD -m configure set devices device $NAME config interfaces interface y config description \"New description\")" 0 "^$"
 
 new "Commit diff"
-expectpart "$($clixon_cli -1f $CFG -m configure commit diff)" 0 "^+\ *<description>New description</description>" --not-- "^-\ *"
+expectpart "$($clixon_cli -1f $CFG -E $CFD -m configure commit diff)" 0 "^+\ *<description>New description</description>" --not-- "^-\ *"
 
 new "Commit push"
-expectpart "$($clixon_cli -1f $CFG -m configure commit push)" 0 "^$"
+expectpart "$($clixon_cli -1f $CFG -E $CFD -m configure commit push)" 0 "^$"
 
 device_mtu_get $ip 999
 
 new "Check controller is still 777"
-expectpart "$($clixon_cli -1f $CFG show config devices device openconfig1 config interfaces interface y config mtu)" 0 "<mtu>777</mtu>"
+expectpart "$($clixon_cli -1f $CFG -E $CFD show config devices device openconfig1 config interfaces interface y config mtu)" 0 "<mtu>777</mtu>"
 
 new "Pull"
-expectpart "$($clixon_cli -1f $CFG pull)" 0 "^$"
+expectpart "$($clixon_cli -1f $CFG -E $CFD pull)" 0 "^$"
 
 new "Check controller is 999"
-expectpart "$($clixon_cli -1f $CFG show config devices device openconfig1 config interfaces interface y config mtu)" 0 "<mtu>999</mtu>"
+expectpart "$($clixon_cli -1f $CFG -E $CFD show config devices device openconfig1 config interfaces interface y config mtu)" 0 "<mtu>999</mtu>"
 
 device_mtu_get $ip 999
 
 new "3. Remove mtu on controller"
 new "Delete mtu field on controller"
-expectpart "$($clixon_cli -1f $CFG -m configure delete devices device $NAME config interfaces interface y config mtu 999)" 0 "^$"
+expectpart "$($clixon_cli -1f $CFG -E $CFD -m configure delete devices device $NAME config interfaces interface y config mtu 999)" 0 "^$"
 
 new "Commit diff"
-expectpart "$($clixon_cli -1f $CFG -m configure commit diff)" 0 --not-- "^-\ *" "^+\ *"
+expectpart "$($clixon_cli -1f $CFG -E $CFD -m configure commit diff)" 0 --not-- "^-\ *" "^+\ *"
 
 new "Commit local"
-expectpart "$($clixon_cli -1f $CFG -m configure commit local)" 0 "^$"
+expectpart "$($clixon_cli -1f $CFG -E $CFD -m configure commit local)" 0 "^$"
 
 new "Check controller is gone"
-expectpart "$($clixon_cli -1f $CFG show config devices device openconfig1 config interfaces interface y config mtu)" 0 --not-- "<mtu>"
+expectpart "$($clixon_cli -1f $CFG -E $CFD show config devices device openconfig1 config interfaces interface y config mtu)" 0 --not-- "<mtu>"
 
 new "check sync OK"
-expectpart "$($clixon_cli -1f $CFG show devices $NAME check 2>&1)" 0 "OK" --not-- "out-of-sync"
+expectpart "$($clixon_cli -1f $CFG -E $CFD show devices $NAME check 2>&1)" 0 "OK" --not-- "out-of-sync"
 
 new "Commit push"
-expectpart "$($clixon_cli -1f $CFG -m configure commit push)" 0 "^$"
+expectpart "$($clixon_cli -1f $CFG -E $CFD -m configure commit push)" 0 "^$"
 
 new "check sync OK"
-expectpart "$($clixon_cli -1f $CFG show devices $NAME check 2>&1)" 0 "OK" --not-- "out-of-sync"
+expectpart "$($clixon_cli -1f $CFG -E $CFD show devices $NAME check 2>&1)" 0 "OK" --not-- "out-of-sync"
 
 device_mtu_get $ip 999
 
 if $BE; then
     new "Kill old backend"
-    stop_backend -f $CFG
+    stop_backend -f $CFG -E $CFD
 fi
 
 endtest

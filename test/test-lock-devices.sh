@@ -13,8 +13,8 @@ if [ $valgrindtest -ne 0 ]; then
 fi
 set -u
 
+CFG=${SYSCONFDIR}/clixon/controller.xml
 dir=/var/tmp/$0
-CFG=$dir/controller.xml
 CFD=$dir/conf.d
 test -d $dir || mkdir -p $dir
 test -d $CFD || mkdir -p $CFD
@@ -23,39 +23,14 @@ fin=$dir/in
 # source IMG/USER etc
 . ./site.sh
 
-cat<<EOF > $CFG
+# Specialize controller.xml
+cat<<EOF > $CFD/diff.xml
+<?xml version="1.0" encoding="utf-8"?>
 <clixon-config xmlns="http://clicon.org/config">
-  <CLICON_CONFIGFILE>$CFG</CLICON_CONFIGFILE>
   <CLICON_CONFIGDIR>$CFD</CLICON_CONFIGDIR>
-  <CLICON_CONFIG_EXTEND>clixon-controller-config</CLICON_CONFIG_EXTEND>
-  <CLICON_FEATURE>ietf-netconf:startup</CLICON_FEATURE>
-  <CLICON_FEATURE>clixon-restconf:allow-auth-none</CLICON_FEATURE>
-  <CLICON_YANG_DIR>${DATADIR}/clixon</CLICON_YANG_DIR>
-  <CLICON_YANG_DIR>${DATADIR}/controller/common</CLICON_YANG_DIR>
-  <CLICON_YANG_DIR>${DATADIR}/controller/main</CLICON_YANG_DIR>
-  <CLICON_YANG_MAIN_DIR>${DATADIR}/controller/main</CLICON_YANG_MAIN_DIR>
-  <CLICON_YANG_DOMAIN_DIR>${DATADIR}/controller/mounts</CLICON_YANG_DOMAIN_DIR>
-  <CLICON_CLI_MODE>operation</CLICON_CLI_MODE>
-  <CLICON_CLI_DIR>${LIBDIR}/controller/cli</CLICON_CLI_DIR>
   <CLICON_CLISPEC_DIR>${dir}</CLICON_CLISPEC_DIR>
-  <CLICON_BACKEND_DIR>${LIBDIR}/controller/backend</CLICON_BACKEND_DIR>
-  <CLICON_SOCK>${LOCALSTATEDIR}/run/controller.sock</CLICON_SOCK>
-  <CLICON_SOCK_GROUP>${CLICON_GROUP}</CLICON_SOCK_GROUP>
-  <CLICON_SOCK_PRIO>true</CLICON_SOCK_PRIO>
-  <CLICON_BACKEND_PIDFILE>${LOCALSTATEDIR}/run/controller.pid</CLICON_BACKEND_PIDFILE>
-  <CLICON_XMLDB_DIR>${LOCALSTATEDIR}/controller</CLICON_XMLDB_DIR>
-  <CLICON_XMLDB_MULTI>true</CLICON_XMLDB_MULTI>
-  <CLICON_STARTUP_MODE>init</CLICON_STARTUP_MODE>
-  <CLICON_STREAM_DISCOVERY_RFC5277>true</CLICON_STREAM_DISCOVERY_RFC5277>
-  <CLICON_RESTCONF_USER>${CLICON_USER}</CLICON_RESTCONF_USER>
-  <CLICON_RESTCONF_PRIVILEGES>drop_perm</CLICON_RESTCONF_PRIVILEGES>
-  <CLICON_RESTCONF_INSTALLDIR>${SBINDIR}</CLICON_RESTCONF_INSTALLDIR>
-  <CLICON_VALIDATE_STATE_XML>true</CLICON_VALIDATE_STATE_XML>
-  <CLICON_CLI_HELPSTRING_TRUNCATE>true</CLICON_CLI_HELPSTRING_TRUNCATE>
-  <CLICON_CLI_HELPSTRING_LINES>1</CLICON_CLI_HELPSTRING_LINES>
   <CLICON_CLI_OUTPUT_FORMAT>text</CLICON_CLI_OUTPUT_FORMAT>
-  <CLICON_YANG_SCHEMA_MOUNT>true</CLICON_YANG_SCHEMA_MOUNT>
-  <CLICON_YANG_SCHEMA_MOUNT_SHARE>true</CLICON_YANG_SCHEMA_MOUNT_SHARE>
+  <CLICON_VALIDATE_STATE_XML>true</CLICON_VALIDATE_STATE_XML>
 </clixon-config>
 EOF
 
@@ -151,8 +126,8 @@ if $BE; then
     new "Kill old backend"
     sudo clixon_backend -s init -f $CFG -z
 
-    new "Start new backend -s init -f $CFG"
-    start_backend -s init -f $CFG
+    new "Start new backend -s init -f $CFG -E $CFD"
+    start_backend -s init -f $CFG -E $CFD
 fi
 
 new "Wait backend"
@@ -175,10 +150,10 @@ done
 sleep 1
 
 new "Configure hostname on openconfig1"
-expectpart "$($clixon_cli -1 -f $CFG -m configure set devices device openconfig1 config system config hostname c-change)" 0 ""
+expectpart "$($clixon_cli -1 -f $CFG -E $CFD -m configure set devices device openconfig1 config system config hostname c-change)" 0 ""
 
 new "Commit 1"
-expectpart "$($clixon_cli -1 -f $CFG -m configure commit 2>&1)" 0 "Device openconfig1 in state PUSH_LOCK:protocol lock-denied Operation failed, lock is already held" --not-- "OK"
+expectpart "$($clixon_cli -1 -f $CFG -E $CFD -m configure commit 2>&1)" 0 "Device openconfig1 in state PUSH_LOCK:protocol lock-denied Operation failed, lock is already held" --not-- "OK"
 
 kill ${PIDS[0]}                   # kill the while loop above to close STDIN on 1st
 wait
@@ -186,7 +161,7 @@ wait
 jmax=5
 for j in $(seq 1 $jmax); do
     new "Verify open devices 1"
-    ret=$(${clixon_netconf} -q0 -f $CFG <<EOF
+    ret=$(${clixon_netconf} -q0 -f $CFG -E $CFD <<EOF
 <rpc xmlns="urn:ietf:params:xml:ns:netconf:base:1.0" xmlns:nc="urn:ietf:params:xml:ns:netconf:base:1.0" message-id="43">
    <get cl:content="all" xmlns:cl="http://clicon.org/lib">
       <nc:filter nc:type="xpath" nc:select="co:devices/co:device/co:conn-state" xmlns:co="http://clicon.org/controller"/>
@@ -213,11 +188,11 @@ if [ $j -eq $jmax ]; then
 fi
 
 new "Commit 2"
-expectpart "$($clixon_cli -1 -f $CFG -m configure commit 2>&1)" 0 "OK"
+expectpart "$($clixon_cli -1 -f $CFG -E $CFD -m configure commit 2>&1)" 0 "OK"
 
 if $BE; then
     new "Kill old backend"
-    stop_backend -f $CFG
+    stop_backend -f $CFG -E $CFD
 fi
 
 endtest

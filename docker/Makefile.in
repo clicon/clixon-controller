@@ -36,10 +36,10 @@ distclean: clean
 	rm -f Makefile *~ .depend
 
 docker: Dockerfile
-	sudo docker compose build
+	sudo docker compose build --progress plain
 
 docker-test: Dockerfile
-	sudo docker compose -f docker-compose-test.yml build
+	sudo docker compose -f docker-compose-test.yml build --progress plain
 
 push:
 	sudo docker compose push

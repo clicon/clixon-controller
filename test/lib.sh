@@ -36,6 +36,7 @@ fi
 
 # Controller config file
 : ${CFG:=${SYSCONFDIR}/clixon/controller.xml}
+: ${CFD:=${SYSCONFDIR}/clixon/controller}
 
 : ${DBG:=0}
 

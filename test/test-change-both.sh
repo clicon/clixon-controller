@@ -14,8 +14,8 @@ s="$_" ; . ./lib.sh || if [ "$s" = $0 ]; then exit 0; else return 0; fi
 
 set -u
 
+CFG=${SYSCONFDIR}/clixon/controller.xml
 dir=/var/tmp/$0
-CFG=$dir/controller.xml
 CFD=$dir/conf.d
 mntdir0=$dir/mounts
 mntdir=$mntdir0/default
@@ -23,6 +23,20 @@ test -d $CFD || mkdir -p $CFD
 test -d $mntdir || mkdir -p $mntdir
 fyang=$mntdir/clixon-ext@2023-11-01.yang
 
+if false; then
+cat<<EOF > $CFG
+# Specialize controller.xml
+cat<<EOF > $CFD/d
+<?xml version="1.0" encoding="utf-8"?>
+<clixon-config xmlns="http://clicon.org/config">
+  <CLICON_CONFIGDIR>$CFD</CLICON_CONFIGDIR>
+  <CLICON_YANG_DIR>$dir</CLICON_YANG_DIR>
+  <CLICON_YANG_DOMAIN_DIR>$mntdir0</CLICON_YANG_DOMAIN_DIR>
+  <CLICON_VALIDATE_STATE_XML>true</CLICON_VALIDATE_STATE_XML>
+</clixon-config>
+EOF
+else
+CFG=$dir/controller.xml
 cat<<EOF > $CFG
 <clixon-config xmlns="http://clicon.org/config">
   <CLICON_CONFIGFILE>$CFG</CLICON_CONFIGFILE>
@@ -59,6 +73,7 @@ cat<<EOF > $CFG
   <CLICON_BACKEND_USER>${CLICON_USER}</CLICON_BACKEND_USER>
 </clixon-config>
 EOF
+fi
 
 cat <<EOF > $CFD/autocli.xml
 <clixon-config xmlns="http://clicon.org/config">
@@ -110,8 +125,8 @@ if $BE; then
     echo "Kill old backend"
     sudo clixon_backend -s init -f $CFG -z
 
-    new "Start new backend -s init -f $CFG"
-    start_backend -s init -f $CFG
+    new "Start new backend -s init -f $CFG -E $CFD"
+    start_backend -s init -f $CFG -E $CFD
 fi
 
 new "wait backend"
@@ -122,7 +137,7 @@ new "reset controller"
 EXTRA="<module-set><module><name>clixon-ext</name><namespace>http://clicon.org/ext</namespace></module></module-set>" . ./reset-controller.sh
 
 new "check cli shared memory w extension"
-expectpart "$($clixon_cli -1f $CFG show mem cli detail -- -g 2>&1)" 0 "YANG-mount-point-/ctrl:devices/ctrl:device\[ctrl:name='openconfig1'\]/ctrl:config-size: shared"
+expectpart "$($clixon_cli -1f $CFG -E $CFD show mem cli detail -- -g 2>&1)" 0 "YANG-mount-point-/ctrl:devices/ctrl:device\[ctrl:name='openconfig1'\]/ctrl:config-size: shared"
 
 CONFIG='<interfaces xmlns="http://openconfig.net/yang/interfaces"><interface nc:operation="remove"><name>x</name></interface><interface><name>y</name><config><type nc:operation="replace" xmlns:ianaift="urn:ietf:params:xml:ns:yang:iana-if-type">ianaift:v35</type></config></interface><interface nc:operation="merge"><name>z</name><config><name>z</name><type xmlns:ianaift="urn:ietf:params:xml:ns:yang:iana-if-type">ianaift:tunnel</type></config></interface></interfaces>'
 
@@ -131,7 +146,7 @@ i=1
 for ip in $CONTAINERS; do
     NAME=$IMG$i
     new "edit device $NAME directly"
-    ret=$(${clixon_netconf} -0 -f $CFG <<EOF
+    ret=$(${clixon_netconf} -0 -f $CFG -E $CFD <<EOF
 <?xml version="1.0" encoding="UTF-8"?>
 <hello xmlns="urn:ietf:params:xml:ns:netconf:base:1.0">
    <capabilities>
@@ -169,7 +184,7 @@ EOF
 done
 
 new "local commit"
-ret=$(${clixon_netconf} -0 -f $CFG <<EOF
+ret=$(${clixon_netconf} -0 -f $CFG -E $CFD <<EOF
 <?xml version="1.0" encoding="UTF-8"?>
 <hello xmlns="urn:ietf:params:xml:ns:netconf:base:1.0">
    <capabilities>
@@ -238,7 +253,7 @@ done
 # Wanted to remove cli, but it is difficult since we have to wait for notification,
 # rpc-reply is not enough. the cli commands are more convenient
 new "push validate expected ok"
-expectpart "$($clixon_cli -1f $CFG push validate 2>&1)" 0 "OK" --not-- "failed Device"
+expectpart "$($clixon_cli -1f $CFG -E $CFD push validate 2>&1)" 0 "OK" --not-- "failed Device"
 
 # Change device configs on devices (not controller)
 new "change devices"
@@ -247,18 +262,18 @@ new "change devices"
 # Wanted to remove cli, but it is difficult since we have to wait for notification,
 # rpc-reply is not enough. the cli commands are more convenient
 new "push validate expected fail"
-expectpart "$($clixon_cli -1f $CFG push validate 2>&1)" 0 "Transaction [0-9]* failed"
+expectpart "$($clixon_cli -1f $CFG -E $CFD push validate 2>&1)" 0 "Transaction [0-9]* failed"
 
 NAME=${IMG}1
 new "check if in sync (should not be)"
-ret=$(${clixon_cli} -1f $CFG show devices $NAME check 2>&1)
+ret=$(${clixon_cli} -1f $CFG -E $CFD show devices $NAME check 2>&1)
 match=$(echo $ret | grep --null -Eo "out-of-sync") || true
 if [ -z "$match" ]; then
     err1 "out-of-sync"
 fi
 
 new "check device diff"
-ret=$(${clixon_cli} -1f $CFG show devices $NAME diff 2>&1)
+ret=$(${clixon_cli} -1f $CFG -E $CFD show devices $NAME diff 2>&1)
 match=$(echo $ret | grep --null -Eo "+ <type>ianaift:v35</type>") || true
 if [ -z "$match" ]; then
     err "+ <type>ianaift:v35</type>" "$dir"
@@ -270,20 +285,20 @@ fi
 
 # Cannot pull if edits in candidate
 new "edit local candidate"
-expectpart "$($clixon_cli -1f $CFG -m configure delete devices device openconfig1 config interfaces interface z)" 0 "^$"
+expectpart "$($clixon_cli -1f $CFG -E $CFD -m configure delete devices device openconfig1 config interfaces interface z)" 0 "^$"
 
 new "pull dont expect error"
-expectpart "$($clixon_cli -1f $CFG pull replace 2>&1)" 0 "OK"
+expectpart "$($clixon_cli -1f $CFG -E $CFD pull replace 2>&1)" 0 "OK"
 
 new "discard"
-expectpart "$($clixon_cli -1f $CFG -m configure discard)" 0 "^$"
+expectpart "$($clixon_cli -1f $CFG -E $CFD -m configure discard)" 0 "^$"
 
 new "pull again"
-expectpart "$($clixon_cli -1f $CFG pull replace 2>&1)" 0 "OK"
+expectpart "$($clixon_cli -1f $CFG -E $CFD pull replace 2>&1)" 0 "OK"
 
 if $BE; then
     new "Kill old backend"
-    stop_backend -f $CFG
+    stop_backend -f $CFG -E $CFD
 fi
 
 unset push

@@ -3,45 +3,22 @@
 # Magic line must be first in script (see README.md)
 s="$_" ; . ./lib.sh || if [ "$s" = $0 ]; then exit 0; else return 0; fi
 
+CFG=${SYSCONFDIR}/clixon/controller.xml
 dir=/var/tmp/$0
-CFG=$dir/controller.xml
 CFD=$dir/conf.d
 test -d $dir || mkdir -p $dir
 test -d $CFD || mkdir -p $CFD
 fin=$dir/in
 
-cat<<EOF > $CFG
+# Specialize controller.xml
+cat<<EOF > $CFD/diff.xml
+<?xml version="1.0" encoding="utf-8"?>
 <clixon-config xmlns="http://clicon.org/config">
-  <CLICON_CONFIGFILE>$CFG</CLICON_CONFIGFILE>
   <CLICON_CONFIGDIR>$CFD</CLICON_CONFIGDIR>
-  <CLICON_CONFIG_EXTEND>clixon-controller-config</CLICON_CONFIG_EXTEND>
-  <CLICON_FEATURE>ietf-netconf:startup</CLICON_FEATURE>
-  <CLICON_FEATURE>clixon-restconf:allow-auth-none</CLICON_FEATURE>
-  <CLICON_YANG_DIR>${DATADIR}/clixon</CLICON_YANG_DIR>
-  <CLICON_YANG_DIR>${DATADIR}/controller/common</CLICON_YANG_DIR>
-  <CLICON_YANG_MAIN_DIR>${DATADIR}/controller/main</CLICON_YANG_MAIN_DIR>
   <CLICON_YANG_DOMAIN_DIR>$dir</CLICON_YANG_DOMAIN_DIR>
-  <CLICON_CLI_MODE>configure</CLICON_CLI_MODE>
-  <CLICON_CLI_DIR>${LIBDIR}/controller/cli</CLICON_CLI_DIR>
   <CLICON_CLISPEC_DIR>${dir}</CLICON_CLISPEC_DIR>
-  <CLICON_BACKEND_DIR>${LIBDIR}/controller/backend</CLICON_BACKEND_DIR>
-  <CLICON_SOCK>${LOCALSTATEDIR}/run/controller.sock</CLICON_SOCK>
-  <CLICON_BACKEND_PIDFILE>${LOCALSTATEDIR}/run/controller.pid</CLICON_BACKEND_PIDFILE>
-  <CLICON_XMLDB_DIR>${LOCALSTATEDIR}/controller</CLICON_XMLDB_DIR>
-  <CLICON_XMLDB_MULTI>true</CLICON_XMLDB_MULTI>
-  <CLICON_STARTUP_MODE>init</CLICON_STARTUP_MODE>
-  <CLICON_SOCK_GROUP>${CLICON_GROUP}</CLICON_SOCK_GROUP>
-  <CLICON_SOCK_PRIO>true</CLICON_SOCK_PRIO>
-  <CLICON_STREAM_DISCOVERY_RFC5277>true</CLICON_STREAM_DISCOVERY_RFC5277>
-  <CLICON_RESTCONF_USER>${CLICON_USER}</CLICON_RESTCONF_USER>
-  <CLICON_RESTCONF_PRIVILEGES>drop_perm</CLICON_RESTCONF_PRIVILEGES>
-  <CLICON_RESTCONF_INSTALLDIR>${SBINDIR}</CLICON_RESTCONF_INSTALLDIR>
   <CLICON_VALIDATE_STATE_XML>true</CLICON_VALIDATE_STATE_XML>
-  <CLICON_CLI_HELPSTRING_TRUNCATE>true</CLICON_CLI_HELPSTRING_TRUNCATE>
-  <CLICON_CLI_HELPSTRING_LINES>1</CLICON_CLI_HELPSTRING_LINES>
   <CLICON_CLI_OUTPUT_FORMAT>text</CLICON_CLI_OUTPUT_FORMAT>
-  <CLICON_YANG_SCHEMA_MOUNT>true</CLICON_YANG_SCHEMA_MOUNT>
-  <CLICON_YANG_SCHEMA_MOUNT_SHARE>true</CLICON_YANG_SCHEMA_MOUNT_SHARE>
 </clixon-config>
 EOF
 
@@ -121,8 +98,8 @@ if $BE; then
     echo "Kill old backend"
     sudo clixon_backend -s init -f $CFG -z
 
-    new "Start new backend -s init -f $CFG -D $DBG"
-    start_backend -s init -f $CFG
+    new "Start new backend -s init -f $CFG -E $CFD"
+    start_backend -s init -f $CFG -E $CFD
 
 fi
 
@@ -133,35 +110,35 @@ wait_backend
 . ./reset-controller.sh
 
 new "verify no z"
-expectpart "$($clixon_cli -1 -m configure -f $CFG show cli devices device ${IMG}* config interfaces interface z)" 0 "${IMG}1:" "${IMG}2:" --not-- "set interface interface z"
+expectpart "$($clixon_cli -1 -m configure -f $CFG -E $CFD show cli devices device ${IMG}* config interfaces interface z)" 0 "${IMG}1:" "${IMG}2:" --not-- "set interface interface z"
 
 new "set * z"
-expectpart "$($clixon_cli -1 -m configure -f $CFG set devices device ${IMG}* config interfaces interface z config type usb)" 0 "^$"
-#expectpart "$($clixon_cli -1 -m configure -f $CFG set devices device ${IMG}* config interfaces interface z config type ianaift:usb)" 0 "^$" # XXX namespace does not work
+expectpart "$($clixon_cli -1 -m configure -f $CFG -E $CFD set devices device ${IMG}* config interfaces interface z config type usb)" 0 "^$"
+#expectpart "$($clixon_cli -1 -m configure -f $CFG -E $CFD set devices device ${IMG}* config interfaces interface z config type ianaift:usb)" 0 "^$" # XXX namespace does not work
 
 new "verify z usb"
-expectpart "$($clixon_cli -1 -m configure -f $CFG show cli devices device ${IMG}* config interfaces interface z)" 0 "${IMG}1:" "${IMG}2:" "set interface z config type usb"
+expectpart "$($clixon_cli -1 -m configure -f $CFG -E $CFD show cli devices device ${IMG}* config interfaces interface z)" 0 "${IMG}1:" "${IMG}2:" "set interface z config type usb"
 
 new "set *1 z atm"
-expectpart "$($clixon_cli -1 -m configure -f $CFG set devices device ${IMG}1 config interfaces interface z config type atm)" 0 "^$"
+expectpart "$($clixon_cli -1 -m configure -f $CFG -E $CFD set devices device ${IMG}1 config interfaces interface z config type atm)" 0 "^$"
 
 for i in $(seq 2 $nr); do
     new "set *$i z eth"
-    expectpart "$($clixon_cli -1 -m configure -f $CFG set devices device ${IMG}$i config interfaces interface z config type eth)" 0 "^$"
+    expectpart "$($clixon_cli -1 -m configure -f $CFG -E $CFD set devices device ${IMG}$i config interfaces interface z config type eth)" 0 "^$"
 done
 
 new "verify z atm + eth"
-expectpart "$($clixon_cli -1 -m configure -f $CFG show cli devices device ${IMG}* config interfaces interface z)" 0 "set interface z config type atm" "set interface z config type eth" --not-- "set interface z config type usb"
+expectpart "$($clixon_cli -1 -m configure -f $CFG -E $CFD show cli devices device ${IMG}* config interfaces interface z)" 0 "set interface z config type atm" "set interface z config type eth" --not-- "set interface z config type usb"
 
 new "del * z"
-expectpart "$($clixon_cli -1 -m configure -f $CFG del devices device ${IMG}* config interfaces interface z)" 0 "^$"
+expectpart "$($clixon_cli -1 -m configure -f $CFG -E $CFD del devices device ${IMG}* config interfaces interface z)" 0 "^$"
 
 new "verify no z"
-expectpart "$($clixon_cli -1 -m configure -f $CFG show cli devices device ${IMG}* config interface interface z)" 0 "${IMG}1:" "${IMG}2:" --not-- "set interface z"
+expectpart "$($clixon_cli -1 -m configure -f $CFG -E $CFD show cli devices device ${IMG}* config interface interface z)" 0 "${IMG}1:" "${IMG}2:" --not-- "set interface z"
 
 if $BE; then
     new "Kill old backend"
-    stop_backend -f $CFG
+    stop_backend -f $CFG -E $CFD
 fi
 
 endtest
