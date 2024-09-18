@@ -2416,7 +2416,7 @@ show_yang_revisions(clixon_handle h,
         (cvname = cv_string_get(cvec_i(argv, 0))) != NULL) {
         if ((cv = cvec_find(cvv, cvname)) != NULL){
             if ((name = cv_string_get(cv)) == NULL){
-                clixon_err(OE_PLUGIN, EINVAL, "cv %s empty", name);
+                clixon_err(OE_PLUGIN, EINVAL, "cv name is empty");
                 goto done;
             }
         }
@@ -2509,7 +2509,7 @@ show_device_capability(clixon_handle h,
         (cvname = cv_string_get(cvec_i(argv, 0))) != NULL) {
         if ((cv = cvec_find(cvv, cvname)) != NULL){
             if ((name = cv_string_get(cv)) == NULL){
-                clixon_err(OE_PLUGIN, EINVAL, "cv %s empty", name);
+                clixon_err(OE_PLUGIN, EINVAL, "cv name is empty");
                 goto done;
             }
         }
