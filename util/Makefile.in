@@ -20,10 +20,10 @@
 # ***** END LICENSE BLOCK *****
 #
 prefix 		= @prefix@
+exec_prefix 	= @exec_prefix@
 datarootdir	= @datarootdir@
 srcdir  	= @srcdir@
 top_srcdir  	= @top_srcdir@
-exec_prefix 	= @exec_prefix@
 bindir 		= @bindir@
 libdir		= @libdir@
 mandir		= @mandir@

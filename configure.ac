@@ -117,6 +117,18 @@ if test "$exec_prefix" = "NONE"; then
      exec_prefix=${prefix}
 fi
 
+# Expand for easy replacement in example/main/example.xml.in
+# Special case is $libdir, which is composed from $exec_prefix
+BINDIR=`eval echo $bindir`
+SBINDIR=`eval echo $sbindir`
+SYSCONFDIR=`eval echo $sysconfdir`
+DATADIR=`eval echo \`eval echo $datadir\``
+INCLUDEDIR=`eval echo $includedir`
+LIBDIR=`eval echo \`eval echo $libdir\``
+LIBEXECDIR=`eval echo $libexecdir`
+LOCALSTATEDIR=`eval echo $localstatedir`
+RUNSTATEDIR=`eval echo \`eval echo $runstatedir\``
+
 # This is for cligen
 AC_ARG_WITH(cligen,  [  --with-cligen=dir       Use CLIGEN here ] )
 if test "${with_cligen}"; then
@@ -164,18 +176,6 @@ AC_SUBST(CLICON_GROUP)
 if test -n "${CLICON_GROUP}"; then
     echo "Using CLICON_GROUP here: ${CLICON_GROUP}"
 fi
-
-# Expand for easy replacement in example/main/example.xml.in
-# Special case is $libdir, which is composed from $exec_prefix
-BINDIR=`eval echo $bindir`
-SBINDIR=`eval echo $sbindir`
-SYSCONFDIR=`eval echo $sysconfdir`
-DATADIR=`eval echo \`eval echo $datadir\``
-INCLUDEDIR=`eval echo $includedir`
-LIBDIR=`eval echo \`eval echo $libdir\``
-LIBEXECDIR=`eval echo $libexecdir`
-LOCALSTATEDIR=`eval echo $localstatedir`
-RUNSTATEDIR=`eval echo \`eval echo $runstatedir\``
 
 AC_CONFIG_FILES([Makefile
           	 src/Makefile

@@ -31,6 +31,7 @@
 # ***** END LICENSE BLOCK *****
 #
 prefix		= @prefix@
+exec_prefix	= @exec_prefix@
 datarootdir	= @datarootdir@
 docdir		= @docdir@
 pdflatex	= @PDFLATEX@

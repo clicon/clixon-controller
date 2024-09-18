@@ -4663,6 +4663,18 @@ if test "$exec_prefix" = "NONE"; then
      exec_prefix=${prefix}
 fi
 
+# Expand for easy replacement in example/main/example.xml.in
+# Special case is $libdir, which is composed from $exec_prefix
+BINDIR=`eval echo $bindir`
+SBINDIR=`eval echo $sbindir`
+SYSCONFDIR=`eval echo $sysconfdir`
+DATADIR=`eval echo \`eval echo $datadir\``
+INCLUDEDIR=`eval echo $includedir`
+LIBDIR=`eval echo \`eval echo $libdir\``
+LIBEXECDIR=`eval echo $libexecdir`
+LOCALSTATEDIR=`eval echo $localstatedir`
+RUNSTATEDIR=`eval echo \`eval echo $runstatedir\``
+
 # This is for cligen
 
 # Check whether --with-cligen was given.
@@ -4879,18 +4891,6 @@ fi
 if test -n "${CLICON_GROUP}"; then
     echo "Using CLICON_GROUP here: ${CLICON_GROUP}"
 fi
-
-# Expand for easy replacement in example/main/example.xml.in
-# Special case is $libdir, which is composed from $exec_prefix
-BINDIR=`eval echo $bindir`
-SBINDIR=`eval echo $sbindir`
-SYSCONFDIR=`eval echo $sysconfdir`
-DATADIR=`eval echo \`eval echo $datadir\``
-INCLUDEDIR=`eval echo $includedir`
-LIBDIR=`eval echo \`eval echo $libdir\``
-LIBEXECDIR=`eval echo $libexecdir`
-LOCALSTATEDIR=`eval echo $localstatedir`
-RUNSTATEDIR=`eval echo \`eval echo $runstatedir\``
 
 ac_config_files="$ac_config_files Makefile src/Makefile src/controller.xml yang/Makefile util/Makefile docker/Makefile test/config.sh doc/Makefile"
 
