@@ -405,7 +405,7 @@ controller_transaction_done(clixon_handle           h,
     char         *db = "candidate";
     device_handle dh;
 
-    clixon_debug(CLIXON_DBG_CTRL, "%s", transaction_result_int2str(ct->ct_state));
+    clixon_debug(CLIXON_DBG_CTRL, "");
     controller_transaction_state_set(ct, TS_DONE, result);
     iddb = xmldb_islocked(h, db);
     if (iddb == TRANSACTION_CLIENT_ID){

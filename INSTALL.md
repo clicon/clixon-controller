@@ -53,8 +53,8 @@ cd clixon-pyapi
 ### Optional: SystemD service
 ```console
 
-# Copy clixon_controller.service
-cp clixon_controller.service /etc/systemd/network/
+# Copy clixon-controller.service
+cp clixon-controller.service /etc/systemd/network/
 
 # Enable and start the service
 systemctl daemon-reload

@@ -1142,9 +1142,12 @@ device_state_handler(clixon_handle h,
             }
         }
         if (!device_handle_capabilities_find(dh, NETCONF_MONITORING_NAMESPACE)){
-            clixon_debug(CLIXON_DBG_CTRL, "Device %s: Netconf monitoring capability not announced", name);
+            clixon_debug(CLIXON_DBG_CTRL, "Device %s: Netconf monitoring capability %s not announced in hello protocol",
+                         name,
+                         NETCONF_MONITORING_NAMESPACE);
             if (xyanglib == NULL){
-                if (controller_transaction_failed(h, tid, ct, dh, TR_FAILED_DEV_CLOSE, name, "No YANG device lib") < 0)
+                if (controller_transaction_failed(h, tid, ct, dh, TR_FAILED_DEV_CLOSE, name,
+                                                  "Netconf monitoring capability not announced in hello protocol and no local models found") < 0)
                     goto done;
                 break;
             }
@@ -1214,7 +1217,7 @@ device_state_handler(clixon_handle h,
             goto done;
         }
         if ((xyanglib = device_handle_yang_lib_get(dh)) == NULL){
-            if (controller_transaction_failed(h, tid, ct, dh, TR_FAILED_DEV_LEAVE, name, "No YANG device lib") < 0)
+            if (controller_transaction_failed(h, tid, ct, dh, TR_FAILED_DEV_LEAVE, name, "No YANG device lib 1") < 0)
                 goto done;
             break;
         }
@@ -1286,7 +1289,7 @@ device_state_handler(clixon_handle h,
         if (ret == 0){ /* None sent, done */
             /* All schemas ready, parse them */
             if ((xyanglib = device_handle_yang_lib_get(dh)) == NULL){
-                if (controller_transaction_failed(h, tid, ct, dh, TR_FAILED_DEV_CLOSE, name, "No YANG device lib") < 0)
+                if (controller_transaction_failed(h, tid, ct, dh, TR_FAILED_DEV_CLOSE, name, "No YANG device lib 2") < 0)
                     goto done;
                 break;
             }

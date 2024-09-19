@@ -58,7 +58,8 @@
   <!-- Log to syslog and stderr. no log length limitation -->
   <CLICON_LOG_DESTINATION>syslog stderr</CLICON_LOG_DESTINATION>
   <CLICON_LOG_STRING_LIMIT>0</CLICON_LOG_STRING_LIMIT>
-  <!-- PYAPI specialization (see CLICON_CONFIG_EXTEND above) -->
+  <!-- PYAPI specialization (see CLICON_CONFIG_EXTEND above)
+       NOTE, cannot be broken out into separate dir -->
   <CONTROLLER_ACTION_COMMAND xmlns="http://clicon.org/controller-config">@BINDIR@/clixon_server.py -f @SYSCONFDIR@/clixon/controller.xml -F</CONTROLLER_ACTION_COMMAND>
   <CONTROLLER_PYAPI_MODULE_PATH xmlns="http://clicon.org/controller-config">@DATADIR@/controller/modules</CONTROLLER_PYAPI_MODULE_PATH>
   <CONTROLLER_PYAPI_MODULE_FILTER xmlns="http://clicon.org/controller-config"></CONTROLLER_PYAPI_MODULE_FILTER>

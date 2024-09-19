@@ -7,6 +7,7 @@
   * [How to configure JunOS and the Clixon controller?](#how-to-configure-junos-and-the-clixon-controller)
   * [How do I add a device in Clixon?](#how-do-i-add-a-device-in-clixon)
   * [My device symbols do not appear in the CLI?](#my-device-symbols-do-not-appear-in-the-cli)
+  * [My device does not announce models?](#my-device-does-not-announce-models)
   * [What about YANG features?](#what-about-yang-features)
   * [What about the directory structure?](#what-about-the-directory-structure)
   * [Candidate is locked](#candidate-is-locked)
@@ -35,7 +36,7 @@ supports NETCONF, RESTCONF and CLI.
 If a device does not come up and shows something like:
 ```
 cli>show device
-Name                    State      Time                   Logmsg                        
+Name                    State      Time                   Logmsg
 =======================================================================================
 clixon-example1         CLOSED     2023-05-25T11:12:29    Closed by device
 
@@ -94,6 +95,20 @@ Thereafter the device must be explicitly connected:
 ```
 connection open
 ```
+
+## My device does not announce models?
+
+The main mechanism in the controller to get YANGs from devices is the RFC6022 `get-schema` mechanism.
+
+If a device does not support this mechanism, the following error appears:
+```
+  Netconf monitoring capability not announced in hello protocol and no local models found
+```
+If the device does not announce its models in this way, you can declare a local `module-set` which is loaded instead::
+```
+  set devices device test modu
+```
+See the user-guide for details: https://clixon-controller-docs.readthedocs.io/en/latest/yang.html
 
 ## My device symbols do not appear in the CLI?
 
