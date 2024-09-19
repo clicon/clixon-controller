@@ -194,7 +194,7 @@ device_close_connection(device_handle dh,
         if (device_handle_disconnect(dh) < 0) /* close socket, reap sub-processes */
             goto done;
     }
-    //    device_handle_yang_lib_set(dh, NULL); XXX mem-error: caller using xylib
+    device_handle_yang_lib_set(dh, NULL);
     if (device_state_set(dh, CS_CLOSED) < 0)
         goto done;
     if (str){

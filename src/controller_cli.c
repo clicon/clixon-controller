@@ -345,10 +345,8 @@ controller_gentree_one(cligen_handle ch,
             }
             if ((ret = xml_yang_mount_get(h, xdevc, NULL, &yspec1)) < 0)
                 goto done;
-            if (ret == 0 || yspec1 == NULL) {
-                clixon_err(OE_YANG, 0, "%s: not moint-point or not already mounted", devname);
-                goto done;
-            }
+            if (ret == 0 || yspec1 == NULL) /* Skip if not connected or disabled */
+                continue;
             /* Generate auto-cligen tree from the specs */
             if (yang2cli_yspec(h, yspec1, newtree) < 0)
                 goto done;

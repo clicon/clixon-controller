@@ -192,19 +192,37 @@ new "Set banner on openconfig1"
 expectpart "$($clixon_cli -1 -f $CFG -E $CFD -m configure set devices device openconfig1 config system config login-banner xyz)" 0 ""
 
 new "Set banner on openconfig2, expect fail"
-expectpart "$($clixon_cli -1 -f $CFG -E $CFD -m configure set devices device openconfig2 config system config login-banner xyz)" 255 ""
+expectpart "$($clixon_cli -1 -f $CFG -E $CFD -m configure set devices device openconfig2 config system config login-banner xyz 2> /dev/null)" 255 ""
 
 new "Set isolated on openconfig1 expect fail"
-expectpart "$($clixon_cli -1 -f $CFG -E $CFD -m configure set devices device openconfig1 config system config isolated xyz)" 255 ""
+expectpart "$($clixon_cli -1 -f $CFG -E $CFD -m configure set devices device openconfig1 config system config isolated xyz 2> /dev/null)" 255 ""
 
 new "Set isolated on openconfig2"
 expectpart "$($clixon_cli -1 -f $CFG -E $CFD -m configure set devices device openconfig2 config system config isolated xyz)" 0 ""
 
-new "Validate"
+new "Commit local"
 expectpart "$($clixon_cli -1 -f $CFG -E $CFD -m configure commit local)" 0 ""
 
 new "Show config"
 expectpart "$($clixon_cli -1 -f $CFG -E $CFD show config devices device)" 0 "<login-banner>xyz</login-banner>" "<isolated>xyz</isolated>"
+
+new "Remove other domain"
+if [ -d $mounts/other ]; then
+    rm -rf $mounts/other
+fi
+new "Move openconfig2 to other domain"
+expectpart "$($clixon_cli -1 -f $CFG -E $CFD -m configure set devices device openconfig2 device-domain other)" 0 ""
+
+new "Commit local"
+expectpart "$($clixon_cli -1 -f $CFG -E $CFD -m configure commit local)" 0 ""
+
+new "Reconnect connection"
+expectpart "$($clixon_cli -1 -f $CFG -E $CFD connection reconnect openconfig2)" 0 ""
+
+new "Check $mounts/other exists"
+if [ ! -d $mounts/other ]; then
+    err "$mounts/other" "$mounts/other not found"
+fi
 
 if $BE; then
     new "Kill old backend"

@@ -13,6 +13,7 @@ Expected: October 2024
 
 ### API changes on existing protocol/config features
 
+* Edits to device addr, user, domain, etc causes device disconnext
 * Removed `--with yang-installdir` from configure
   * Use `DATADIR` instead
 * New `clixon-controller@2024-08-01.yang` revision

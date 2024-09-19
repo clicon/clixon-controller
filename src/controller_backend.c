@@ -149,11 +149,10 @@ controller_commit_processes(clixon_handle h,
  * @retval    0    OK
  * @retval   -1    Error
  * Logic:
- * 1) if device removed, disconnect
+ * 1)  if device removed, disconnect
  * 2a) if enable changed to false, disconnect
  * 2b) if enable changed to true, connect
- * 2c) if device changed addr,user,type changed, disconnect + connect (NYI)
- * 3) if device added, connect
+ * 2c) if device changed addr,user,conn-type,domain changed, disconnect
  */
 static int
 controller_commit_device(clixon_handle h,
@@ -165,10 +164,13 @@ controller_commit_device(clixon_handle h,
     cxobj   **vec0= NULL;
     cxobj   **vec1 = NULL;
     cxobj   **vec2 = NULL;
+    cxobj   **vec3 = NULL;
     size_t    veclen0;
     size_t    veclen1;
     size_t    veclen2;
+    size_t    veclen3;
     int       i;
+    cxobj    *x;
     char     *body;
     uint32_t  dt;
 
@@ -177,7 +179,8 @@ controller_commit_device(clixon_handle h,
                        &vec0, &veclen0) < 0)
         goto done;
     for (i=0; i<veclen0; i++){
-        if ((body = xml_body(vec0[i])) == NULL)
+        x = vec0[i];
+        if ((body = xml_body(x)) == NULL)
             continue;
         if (parse_uint32(body, &dt, NULL) < 1){
             clixon_err(OE_UNIX, errno, "error parsing limit:%s", body);
@@ -192,7 +195,8 @@ controller_commit_device(clixon_handle h,
                        &vec1, &veclen1) < 0)
         goto done;
     for (i=0; i<veclen1; i++){
-        if (disconnect_device_byxml(h, vec1[i]) < 0)
+        x = vec1[i];
+        if (disconnect_device_byxml(h, x) < 0)
             goto done;
     }
     /* 2a) if enable changed to false, disconnect, to true connect
@@ -202,12 +206,24 @@ controller_commit_device(clixon_handle h,
                        &vec2, &veclen2) < 0)
         goto done;
     for (i=0; i<veclen2; i++){
-        if ((body = xml_body(vec2[i])) != NULL){
+        x = vec2[i];
+        if ((body = xml_body(x)) != NULL){
             if (strcmp(body, "false") == 0){
-                if (disconnect_device_byxml(h, xml_parent(vec2[i])) < 0)
+                if (disconnect_device_byxml(h, xml_parent(x)) < 0)
                     goto done;
             }
         }
+    }
+    /* 2c) if device changed addr,user,conn-type,domain changed, disconnect
+     */
+    if (xpath_vec_flag(target, nsc, "devices/device/user | devices/device/conn-type | devices/device/device-domain | devices/device/addr | devices/device/device-profile",
+                       XML_FLAG_CHANGE,
+                       &vec3, &veclen3) < 0)
+        goto done;
+    for (i=0; i<veclen3; i++){
+        x = vec3[i];
+        if (disconnect_device_byxml(h, xml_parent(x)) < 0)
+            goto done;
     }
     retval = 0;
  done:
@@ -217,7 +233,8 @@ controller_commit_device(clixon_handle h,
         free(vec1);
     if (vec2)
         free(vec2);
-
+    if (vec3)
+        free(vec3);
     return retval;
 }
 
@@ -232,7 +249,7 @@ controller_commit(clixon_handle    h,
     cxobj  *target;
     cvec   *nsc = NULL;
 
-    clixon_debug(CLIXON_DBG_CTRL, "controller commit");
+    clixon_debug(CLIXON_DBG_CTRL, "");
     src = transaction_src(td);    /* existing XML tree */
     target = transaction_target(td); /* wanted XML tree */
     if ((nsc = xml_nsctx_init(NULL, CONTROLLER_NAMESPACE)) == NULL)
@@ -243,6 +260,7 @@ controller_commit(clixon_handle    h,
         goto done;
     retval = 0;
  done:
+    clixon_debug(CLIXON_DBG_CTRL, "retval:%d", retval);
     if (nsc)
         cvec_free(nsc);
     return retval;

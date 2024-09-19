@@ -71,6 +71,7 @@ expectpart "$($clixon_cli -1 -f $CFG -m configure commit 2>&1)" 255 "Device is c
 new "rollback"
 expectpart "$($clixon_cli -1 -f $CFG -m configure rollback)" 0 "^$"
 
+if false; then # disabled off-line editing
 new "edit 2"
 expectpart "$($clixon_cli -1 -f $CFG -m configure set devices device ${IMG}2 config interfaces interface x config description ddd)" 0 "^$" 
 
@@ -79,6 +80,7 @@ expectpart "$($clixon_cli -1 -f $CFG -m configure commit 2>&1)" 255 "Device is c
 
 new "rollback"
 expectpart "$($clixon_cli -1 -f $CFG -m configure rollback)" 0 "^$"
+fi
 
 if $BE; then
     new "Kill old backend"

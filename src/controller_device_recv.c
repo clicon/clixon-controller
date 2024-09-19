@@ -158,7 +158,7 @@ device_state_recv_hello(clixon_handle h,
     else if (device_handle_capabilities_find(dh, NETCONF_BASE_CAPABILITY_1_0))
         version = 0;
     else{
-        device_close_connection(dh, "No base netconf capability found");
+        device_close_connection(dh, "No base netconf capability found in hello protocol");
         goto closed;
     }
     clixon_debug(CLIXON_DBG_CTRL, "version: %d", version);
