@@ -11,7 +11,7 @@
 Clixon controller:
 The Clixon controller is an open-source manager of network devices based on NETCONF and YANG.
 
-See [Install](INSTALL.md), [User guide](https://clixon-controller-docs.readthedocs.io/en/latest), [project page](https://www.clicon.org/#controller) and [FAQ](FAQ.md)
+See [Install](INSTALL.md), [User guide](https://clixon-controller-docs.readthedocs.io/en/latest), [project page](https://www.clicon.org/#controller) and [FAQ](https://clixon-controller-docs.readthedocs.io/en/latest/faq.html)
 
 Clixon interaction is best done posting issues, pull requests, or joining the
 [Matrix clixon forum](https://matrix.to/#/#clixonforum:matrix.org).
