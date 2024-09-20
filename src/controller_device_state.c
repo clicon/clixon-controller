@@ -1244,7 +1244,12 @@ device_state_handler(clixon_handle h,
         nr = 0;
         if ((ret = device_send_get_schema_next(h, dh, s, &nr)) < 0)
             goto done;
-        if (ret == 0){ /* None found */
+        if (ret == 1){ /* Device closed */
+            if (controller_transaction_failed(h, tid, ct, dh, TR_FAILED_DEV_LEAVE, name, NULL) < 0)
+                goto done;
+            break;
+        }
+        else if (ret == 0){ /* None found */
             if (yspec_orig == NULL){
                 /* All schemas ready, parse them */
                 if ((ret = device_schemas_mount_parse(h, dh, xyanglib)) < 0)
@@ -1286,7 +1291,12 @@ device_state_handler(clixon_handle h,
         nr = device_handle_nr_schemas_get(dh);
         if ((ret = device_send_get_schema_next(h, dh, s, &nr)) < 0)
             goto done;
-        if (ret == 0){ /* None sent, done */
+        if (ret == 1){ /* Device closed */
+            if (controller_transaction_failed(h, tid, ct, dh, TR_FAILED_DEV_LEAVE, name, NULL) < 0)
+                goto done;
+            break;
+        }
+        if (ret == 0){ /* None sent */
             /* All schemas ready, parse them */
             if ((xyanglib = device_handle_yang_lib_get(dh)) == NULL){
                 if (controller_transaction_failed(h, tid, ct, dh, TR_FAILED_DEV_CLOSE, name, "No YANG device lib 2") < 0)

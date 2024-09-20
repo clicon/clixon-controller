@@ -203,8 +203,9 @@ device_get_schema_sendit(clixon_handle h,
  * @param[in]     dh  Clixon client handle
  * @param[in]     s   Socket
  * @param[in,out] nr  Last schema index sent
- * @retval        1   Sent a get-schema, nr updated
- * @retval        0   No schema sent, either because all are sent or they are none
+ * @retval        2   Sent a get-schema, nr updated
+ * @retval        1   Error, device closed
+ * @retval        0   No schema sent, either because all are sent or they are none, or cberr set
  * @retval       -1   Error
  * @see device_state_recv_get_schema  Receive a schema request
  * @see device_schemas_mount_parse   Parse the module after if already found or received
@@ -226,18 +227,14 @@ device_send_get_schema_next(clixon_handle h,
     size_t     veclen;
     cvec      *nsc = NULL;
     int        i;
-    cbuf      *cb = NULL;
     char      *domain;
+    char      *location;
 
     clixon_debug(CLIXON_DBG_CTRL|CLIXON_DBG_DETAIL, "%d", *nr);
     if (controller_mount_yspec_get(h, device_handle_name_get(dh), &yspec) < 0)
         goto done;
     if (yspec == NULL){
         clixon_err(OE_YANG, 0, "No yang spec");
-        goto done;
-    }
-    if ((cb = cbuf_new()) == NULL){
-        clixon_err(OE_UNIX, errno, "cbuf_new");
         goto done;
     }
     if ((domain = device_handle_domain_get(dh)) == NULL){
@@ -263,6 +260,12 @@ device_send_get_schema_next(clixon_handle h,
             goto done;
         if (ret == 1)
             continue;
+        location = xml_find_body(x, "location");
+        if (location == NULL || strcmp(location, "NETCONF") != 0){
+            device_close_connection(dh, "Module: %s: Unsupported location:%s", name, location);
+            retval = 1;
+            goto done;
+        }
         /* May be some concurrency here if several devices requests same yang simultaneously
          * To avoid that one needs to keep track if another request has been sent.
          */
@@ -273,12 +276,10 @@ device_send_get_schema_next(clixon_handle h,
         break;
     }
     if (i < veclen)
-        retval = 1;
+        retval = 2;
     else
         retval = 0;
  done:
-    if (cb)
-        cbuf_free(cb);
     if (vec)
         free(vec);
     return retval;

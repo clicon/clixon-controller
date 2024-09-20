@@ -215,35 +215,6 @@ actions_type_str2int(char *str)
     return clicon_str2int(atmap, str);
 }
 
-/*! Check if there is a location=NETCONF in list
- *
- * @param[in]  dh  Clixon client handle
- * @param[in]  xd  XML tree of netconf monitor schema entry
- * @retval     1   OK, location-netconf
- * @retval     0   No location netconf
- * @see ietf-netconf-monitoring@2010-10-04.yang
- */
-static int
-schema_check_location_netconf(cxobj *xd)
-{
-    int      retval = 0;
-    cxobj   *x;
-
-    clixon_debug(CLIXON_DBG_CTRL | CLIXON_DBG_DETAIL, "");
-    x = NULL;
-    while ((x = xml_child_each(xd, x, CX_ELMNT)) != NULL) {
-        if (strcmp("location", xml_name(x)) != 0)
-            continue;
-        if (xml_body(x) && strcmp("NETCONF", xml_body(x)) == 0)
-            break;
-    }
-    if (x == NULL)
-        goto skip;
-    retval = 1;
- skip:
-    return retval;
-}
-
 /*! Given a yang-library/module-set, bind it to yang
  *
  * The yang-library has several different sources with different XML structure,
@@ -331,6 +302,7 @@ schema_list2yang_library(clixon_handle h,
     char  *version;
     char  *format;
     char  *namespace;
+    char  *location;
 
     if ((cb = cbuf_new()) == NULL){
         clixon_err(OE_UNIX, errno, "cbuf_new");
@@ -351,12 +323,14 @@ schema_list2yang_library(clixon_handle h,
             continue;
         if (strcmp(format, "yang") != 0)
             continue;
-        if (schema_check_location_netconf(x) == 0)
-            continue;
+        location = xml_find_body(x, "location");
         cprintf(cb, "<module>");
         cprintf(cb, "<name>%s</name>", identifier);
         cprintf(cb, "<revision>%s</revision>", version);
         cprintf(cb, "<namespace>%s</namespace>", namespace);
+        if (location){
+            cprintf(cb, "<location>%s</location>", location);
+        }
         cprintf(cb, "</module>");
     }
     cprintf(cb, "</module-set>");
