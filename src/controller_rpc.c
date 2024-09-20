@@ -153,13 +153,17 @@ controller_connect(clixon_handle           h,
         device_handle_logmsg_set(dh, strdup("Configured down"));
         goto ok;
     }
-    if (dh != NULL &&
-        device_handle_conn_state_get(dh) != CS_CLOSED)
-        goto ok;
-    /* Find device-profile object if any */
-    if ((xb = xml_find_type(xn, NULL, "device-profile", CX_ELMNT)) != NULL){
-        xdevprofile = xpath_first(xn, NULL, "../device-profile[name='%s']", xml_body(xb));
+    if (dh != NULL) {
+        if (device_handle_conn_state_get(dh) != CS_CLOSED)
+            goto ok;
+        /* Clear yangs for domain changes, upgrade etc
+         * Alt: clear in device_close_connection()
+         */
+        device_handle_yang_lib_set(dh, NULL);
     }
+    /* Find device-profile object if any */
+    if ((xb = xml_find_type(xn, NULL, "device-profile", CX_ELMNT)) != NULL)
+        xdevprofile = xpath_first(xn, NULL, "../device-profile[name='%s']", xml_body(xb));
     if ((xb = xml_find_type(xn, NULL, "conn-type", CX_ELMNT)) == NULL)
         goto ok;
     /* If not explicit value (default value set) AND device-profile set, use that */

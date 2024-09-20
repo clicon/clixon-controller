@@ -194,6 +194,10 @@ device_close_connection(device_handle dh,
         if (device_handle_disconnect(dh) < 0) /* close socket, reap sub-processes */
             goto done;
     }
+    /* Do not clear yangs for domain changes, upgrade etc on close,
+     * Because if you do, you cannot run the CLI on disconnected devices
+     * instead clear in controller_connect()
+     */
     device_handle_yang_lib_set(dh, NULL);
     if (device_state_set(dh, CS_CLOSED) < 0)
         goto done;
