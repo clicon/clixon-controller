@@ -137,6 +137,7 @@ controller_connect(clixon_handle           h,
     cxobj        *xb;
     cxobj        *xdevprofile = NULL;
     cxobj        *xmod = NULL;
+    cxobj        *xconfig = NULL;
     cxobj        *xyanglib = NULL;
     int           ssh_stricthostkey = 1;
     char         *domain = NULL;
@@ -160,6 +161,11 @@ controller_connect(clixon_handle           h,
          * Alt: clear in device_close_connection()
          */
         device_handle_yang_lib_set(dh, NULL);
+
+    }
+    if ((xconfig = xml_find(xn, "config")) != NULL){
+        if (yang_schema_yspec_rm(h, xconfig) < 0)
+            goto done;
     }
     /* Find device-profile object if any */
     if ((xb = xml_find_type(xn, NULL, "device-profile", CX_ELMNT)) != NULL)

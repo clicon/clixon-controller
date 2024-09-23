@@ -1,0 +1,5 @@
+#!/bin/sh
+
+set -e
+
+chown -R clicon:clicon /usr/local/share/controller/
