@@ -1,0 +1,14 @@
+Source: clixon-controller
+Section: devel
+Priority: optional
+Maintainer: olof@hagsand.se
+Build-Depends:
+ debhelper-compat (= 12),
+Standards-Version: 4.5.0
+
+Package: clixon-controller
+Architecture: any
+Multi-Arch: foreign
+Depends: ${misc:Depends},
+         ${shlibs:Depends}
+Description: Clixon controller package
