@@ -63,6 +63,12 @@ jobs:
         run: ./configure
       - name: build controller
         run: make
+      - name: create user
+        run: sudo useradd clicon -N
+      - name: create group
+        run: sudo groupadd clicon
+      - name: add user to group
+        run: sudo usermod -a -G clicon `whoami`
       - name: install controller
         run: sudo make install DESTDIR=${{ github.workspace }}/build
       - name: copy file for build deb packet dev
