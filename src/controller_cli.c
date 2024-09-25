@@ -398,12 +398,8 @@ controller_gentree_one(cligen_handle ch,
     return retval;
 }
 
-/*! CLIgen wrap function for making treeref lookup: generate clispec tree from YANG
+/*! CLIgen wrap function for making device treeref lookup: generate clispec tree from YANG
  *
- * This adds an indirection based on name and context
- * If a yang and specific tree is created, the name of that tree is returned in namep,
- * That tree is called something like mountpoint-<device-name>
- * otherwise the generic name "mountpoint" is used.
  * @param[in]  ch    CLIgen handle
  * @param[in]  name  Base tree name
  * @param[in]  cvt   Tokenized string: vector of tokens
@@ -412,14 +408,13 @@ controller_gentree_one(cligen_handle ch,
  * @retval     1     New malloced name in namep
  * @retval     0     No wrapper, use existing
  * @retval    -1     Error
- * @see yang2cli_container  where @mountpoint is added as a generic treeref causing this call
  */
 static int
-controller_treeref_wrap(cligen_handle ch,
-                        char         *name,
-                        cvec         *cvt,
-                        void         *arg,
-                        char        **namep)
+controller_yang2cli_mount(cligen_handle ch,
+                          char         *name,
+                          cvec         *cvt,
+                          void         *arg,
+                          char        **namep)
 {
     int           retval = -1;
     cg_var       *cv;
@@ -428,13 +423,7 @@ controller_treeref_wrap(cligen_handle ch,
     clixon_handle h;
     cvec         *cvv_edit;
 
-    if (namep == NULL){
-        clixon_err(OE_UNIX, EINVAL, "Missing namep");
-        goto done;
-    }
     h = cligen_userhandle(ch);
-    if (strcmp(name, "mountpoint") != 0)
-        goto ok;
     cvv_edit = clicon_data_cvec_get(h, "cli-edit-cvv");
     /* Ad-hoc: find "name" variable in edit mode cvv, else "device" token */
     if (cvv_edit && (cvdev = cvec_find(cvv_edit, "name")) != NULL)
@@ -463,6 +452,41 @@ controller_treeref_wrap(cligen_handle ch,
  ok:
     retval = 0;
     goto done;
+}
+
+/*! CLIgen wrap function for making treeref lookup: generate clispec tree from YANG
+ *
+ * This adds an indirection based on name and context
+ * If a yang and specific tree is created, the name of that tree is returned in namep,
+ * That tree is called something like mountpoint-<device-name>
+ * otherwise the generic name "mountpoint" is used.
+ * @param[in]  ch    CLIgen handle
+ * @param[in]  name  Base tree name
+ * @param[in]  cvt   Tokenized string: vector of tokens
+ * @param[in]  arg   Argument given when registering wrap function (maybe not needed?)
+ * @param[out] namep New (malloced) name
+ * @retval     1     New malloced name in namep
+ * @retval     0     No wrapper, use existing
+ * @retval    -1     Error
+ * @see yang2cli_container  where @mountpoint is added as a generic treeref causing this call
+ */
+static int
+controller_yang2cli_wrap(cligen_handle ch,
+                         char         *name,
+                         cvec         *cvt,
+                         void         *arg,
+                         char        **namep)
+{
+    if (namep == NULL){
+        clixon_err(OE_UNIX, EINVAL, "Missing namep");
+        return -1;
+    }
+    if (strcmp(name, "mountpoint") == 0)
+        return controller_yang2cli_mount(ch, name, cvt, arg, namep);
+    else if (strncmp(name, "grouping", strlen("grouping")) == 0)
+        return yang2cli_grouping_wrap(ch, name, cvt, arg, namep);
+    else
+        return 0;
 }
 
 /*! YANG schema mount, query backend of yangs
@@ -633,7 +657,7 @@ clixon_plugin_init(clixon_handle h)
         }
     /* Register treeref wrap function */
     if (clicon_option_bool(h, "CLICON_YANG_SCHEMA_MOUNT")){
-        cligen_tree_resolve_wrapper_set(cli_cligen(h), controller_treeref_wrap, NULL);
+        cligen_tree_resolve_wrapper_set(cli_cligen(h), controller_yang2cli_wrap, NULL);
     }
     /* Log CLI commands (note filtering in cli_history_cb to stderr */
     cligen_hist_fn_set(cli_cligen(h), cli_history_cb, h);
