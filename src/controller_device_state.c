@@ -869,52 +869,6 @@ device_config_compare(clixon_handle           h,
     goto done;
 }
 
-/*! Check if there is another equivalent xyanglib and if so reuse that yspec
- *
- * Prereq: schema-list (xyanglib) is completely known.
- * Look for an existing equivalent schema-list among other devices.
- * If found, re-use that YANG-SPEC.
- * @param[in]  h         Clixon handle
- * @param[in]  dh        Clixon device handle.
- * @param[in]  xyanglib0 Yang-lib in XML format
- * @param[out] yspec1    New or shared yang-spec
- * @retval     0         OK
- * @retval    -1         Error
- */
-static int
-device_shared_yspec(clixon_handle h,
-                    device_handle dh0,
-                    cxobj        *xyanglib0,
-                    yang_stmt   **yspec1)
-{
-    int           retval = -1;
-    yang_stmt    *yspec = NULL;
-    device_handle dh1;
-    cxobj        *xyanglib;
-
-    if (clicon_option_bool(h, "CLICON_YANG_SCHEMA_MOUNT_SHARE")) {
-        /* New yspec only on first connect */
-        dh1 = NULL;
-        while ((dh1 = device_handle_each(h, dh1)) != NULL){
-            if (dh1 == dh0)
-                continue;
-            if ((xyanglib = device_handle_yang_lib_get(dh1)) == NULL)
-                continue;
-            if (xml_tree_equal(xyanglib0, xyanglib) == 0)
-                break;
-        }
-        if (dh1 != NULL){
-            if (controller_mount_yspec_get(h, device_handle_name_get(dh1), &yspec) < 0)
-                goto done;
-        }
-    }
-    if (yspec1)
-        *yspec1 = yspec;
-    retval = 0;
- done:
-    return retval;
-}
-
 /*! Helper device_state_handler: check if transaction has ended, if so send [discard;]lock
  *
  * @param[in]  h       Clixon handle
@@ -1170,14 +1124,18 @@ device_state_handler(clixon_handle h,
                 goto done;
             if (yspec1 == NULL){ /* It may already exist? */
                 cbuf *cbxpath = NULL;
+                char *domain;
+                yang_stmt *ymounts;
 
+                domain = device_handle_domain_get(dh);
                 if (controller_mount_xpath_get(name, &cbxpath) < 0)
                     goto done;
-                if (device_shared_yspec(h, dh, xyanglib, &yspec_orig) < 0)
+                if ((ymounts = clixon_yang_mounts_get(h)) == NULL){
+                    clixon_err(OE_YANG, ENOENT, "Top-level yang mounts not found");
                     goto done;
-                if ((yspec1 = yspec_new_shared(h, cbuf_get(cbxpath),
-                                               device_handle_domain_get(dh),
-                                               yspec_orig)) == NULL)
+                }
+                yspec_orig = yang_find(ymounts, Y_SPEC, domain);
+                if ((yspec1 = yspec_new_shared(h, cbuf_get(cbxpath), domain, yspec_orig)) == NULL)
                     goto done;
                 if (cbxpath)
                     cbuf_free(cbxpath);
@@ -1236,15 +1194,19 @@ device_state_handler(clixon_handle h,
         if (controller_mount_yspec_get(h, name, &yspec1) < 0)
             goto done;
         if (yspec1 == NULL){
-            cbuf *cbxpath = NULL;
+            cbuf      *cbxpath = NULL;
+            char      *domain;
+            yang_stmt *ymounts;
 
+            domain =  device_handle_domain_get(dh);
             if (controller_mount_xpath_get(name, &cbxpath) < 0)
                 goto done;
-            if (device_shared_yspec(h, dh, xyanglib, &yspec_orig) < 0)
+            if ((ymounts = clixon_yang_mounts_get(h)) == NULL){
+                clixon_err(OE_YANG, ENOENT, "Top-level yang mounts not found");
                 goto done;
-            if ((yspec1 = yspec_new_shared(h, cbuf_get(cbxpath),
-                                           device_handle_domain_get(dh),
-                                           yspec_orig)) == NULL) // # 1
+            }
+            yspec_orig = yang_find(ymounts, Y_SPEC, domain);
+            if ((yspec1 = yspec_new_shared(h, cbuf_get(cbxpath), domain, yspec_orig)) == NULL) // # 1
                 goto done;
             if (cbxpath)
                 cbuf_free(cbxpath);
