@@ -876,7 +876,7 @@ device_config_compare(clixon_handle           h,
  * If found, re-use that YANG-SPEC.
  * @param[in]  h         Clixon handle
  * @param[in]  dh        Clixon device handle.
- * @param[in]  xyanglib  Yang-lib in XML format
+ * @param[in]  xyanglib0 Yang-lib in XML format
  * @param[out] yspec1    New or shared yang-spec
  * @retval     0         OK
  * @retval    -1         Error
@@ -1175,7 +1175,9 @@ device_state_handler(clixon_handle h,
                     goto done;
                 if (device_shared_yspec(h, dh, xyanglib, &yspec_orig) < 0)
                     goto done;
-                if ((yspec1 = yspec_new_shared(h, cbuf_get(cbxpath), yspec_orig)) == NULL)
+                if ((yspec1 = yspec_new_shared(h, cbuf_get(cbxpath),
+                                               device_handle_domain_get(dh),
+                                               yspec_orig)) == NULL)
                     goto done;
                 if (cbxpath)
                     cbuf_free(cbxpath);
@@ -1240,7 +1242,9 @@ device_state_handler(clixon_handle h,
                 goto done;
             if (device_shared_yspec(h, dh, xyanglib, &yspec_orig) < 0)
                 goto done;
-            if ((yspec1 = yspec_new_shared(h, cbuf_get(cbxpath), yspec_orig)) == NULL)
+            if ((yspec1 = yspec_new_shared(h, cbuf_get(cbxpath),
+                                           device_handle_domain_get(dh),
+                                           yspec_orig)) == NULL) // # 1
                 goto done;
             if (cbxpath)
                 cbuf_free(cbxpath);

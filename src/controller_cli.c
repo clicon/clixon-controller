@@ -240,7 +240,7 @@ controller_gentree_all(cligen_handle ch)
             if ((xdevc = xpath_first(xdevs1, 0, "devices/device[name='%s']/config", devname)) == NULL){
                 continue;
             }
-            if ((ret = xml_yang_mount_get(h, xdevc, NULL, &yspec1)) < 0)
+            if ((ret = xml_yang_mount_get(h, xdevc, NULL, NULL, &yspec1)) < 0)
                 goto done;
             if (ret == 0 || yspec1 == NULL) /* Skip if not connected or disabled */
                 continue;
@@ -343,7 +343,7 @@ controller_gentree_one(cligen_handle ch,
                 failed++;
                 continue;
             }
-            if ((ret = xml_yang_mount_get(h, xdevc, NULL, &yspec1)) < 0)
+            if ((ret = xml_yang_mount_get(h, xdevc, NULL, NULL, &yspec1)) < 0)
                 goto done;
             if (ret == 0 || yspec1 == NULL) /* Skip if not connected or disabled */
                 continue;

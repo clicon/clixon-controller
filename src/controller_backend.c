@@ -152,7 +152,8 @@ controller_commit_processes(clixon_handle h,
  * 1)  if device removed, disconnect
  * 2a) if enable changed to false, disconnect
  * 2b) if enable changed to true, connect
- * 2c) if device changed addr,user,conn-type,domain changed, disconnect
+ * 2c) if device changed addr,user,conn-type: disconnect
+ * 2d) if device changed domain,profile: disconnect, reset xml, yang
  */
 static int
 controller_commit_device(clixon_handle h,
@@ -165,10 +166,12 @@ controller_commit_device(clixon_handle h,
     cxobj   **vec1 = NULL;
     cxobj   **vec2 = NULL;
     cxobj   **vec3 = NULL;
+    cxobj   **vec4 = NULL;
     size_t    veclen0;
     size_t    veclen1;
     size_t    veclen2;
     size_t    veclen3;
+    size_t    veclen4;
     int       i;
     cxobj    *x;
     char     *body;
@@ -214,14 +217,27 @@ controller_commit_device(clixon_handle h,
             }
         }
     }
-    /* 2c) if device changed addr,user,conn-type,domain changed, disconnect
+    /* 2c) if device changed addr,user,conn-type:
+     *   - disconnect device
      */
-    if (xpath_vec_flag(target, nsc, "devices/device/user | devices/device/conn-type | devices/device/device-domain | devices/device/addr | devices/device/device-profile",
+    if (xpath_vec_flag(target, nsc, "devices/device/user | devices/device/conn-type | devices/device/addr",
                        XML_FLAG_CHANGE,
                        &vec3, &veclen3) < 0)
         goto done;
     for (i=0; i<veclen3; i++){
         x = vec3[i];
+        if (disconnect_device_byxml(h, xml_parent(x)) < 0)
+            goto done;
+    }
+    /* 2d) if device changed domain,profile:
+     *   - disconnect device
+     */
+    if (xpath_vec_flag(target, nsc, "devices/device/device-domain | devices/device/device-profile",
+                       XML_FLAG_CHANGE,
+                       &vec4, &veclen4) < 0)
+        goto done;
+    for (i=0; i<veclen4; i++){
+        x = vec4[i];
         if (disconnect_device_byxml(h, xml_parent(x)) < 0)
             goto done;
     }
@@ -235,6 +251,8 @@ controller_commit_device(clixon_handle h,
         free(vec2);
     if (vec3)
         free(vec3);
+    if (vec4)
+        free(vec4);
     return retval;
 }
 
