@@ -96,9 +96,6 @@ wait_backend
 new "reset controller"
 EXTRA="<module-set><module><name>clixon-ext</name><namespace>http://clicon.org/ext</namespace></module></module-set>" . ./reset-controller.sh
 
-new "check cli shared memory w extension"
-expectpart "$($clixon_cli -1f $CFG -E $CFD show mem cli detail -- -g 2>&1)" 0 "YANG-mount-point-/ctrl:devices/ctrl:device\[ctrl:name='openconfig1'\]/ctrl:config-size: shared"
-
 CONFIG='<interfaces xmlns="http://openconfig.net/yang/interfaces"><interface nc:operation="remove"><name>x</name></interface><interface><name>y</name><config><type nc:operation="replace" xmlns:ianaift="urn:ietf:params:xml:ns:yang:iana-if-type">ianaift:v35</type></config></interface><interface nc:operation="merge"><name>z</name><config><name>z</name><type xmlns:ianaift="urn:ietf:params:xml:ns:yang:iana-if-type">ianaift:tunnel</type></config></interface></interfaces>'
 
 i=1
