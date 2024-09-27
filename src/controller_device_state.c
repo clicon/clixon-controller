@@ -315,7 +315,8 @@ device_input_cb(int   s,
             /* Extra data to read, save data and continue on next round */
             break;
         }
-        clixon_debug(CLIXON_DBG_MSG, "Recv [%s]: %s", name, cbuf_get(cbmsg));
+        clixon_debug(CLIXON_DBG_MSG, "Recv [%s] len: %lu", name, cbuf_len(cbmsg));
+        clixon_debug(CLIXON_DBG_MSG | CLIXON_DBG_DETAIL, "Recv [%s]: %s", name, cbuf_get(cbmsg));
         if ((ret = netconf_input_frame2(cbmsg, YB_NONE, NULL, &xtop, &xerr)) < 0)
             goto done;
         cbuf_reset(cbmsg);
@@ -1718,7 +1719,7 @@ device_state_handler(clixon_handle h,
         clixon_debug(CLIXON_DBG_CTRL, "%s: Unexpected msg %s in state %s",
                      name, rpcname,
                      device_state_int2str(conn_state));
-        clixon_debug_xml(CLIXON_DBG_MSG, xmsg, "Message");
+        clixon_debug_xml(CLIXON_DBG_MSG | CLIXON_DBG_DETAIL, xmsg, "Message");
         device_close_connection(dh, "Unexpected msg %s in state %s",
                                 rpcname, device_state_int2str(conn_state));
         if (controller_transaction_failed(h, tid, ct, dh, TR_FAILED_DEV_LEAVE, name, device_handle_logmsg_get(dh)) < 0)

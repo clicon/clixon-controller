@@ -2549,7 +2549,7 @@ rpc_device_template_apply(clixon_handle h,
  * @retval     0         Failed (cbret set)
  * @retval    -1         Error
  * @note as a side.effect the attribute is removed
- * @note slightly modeified from clixon_datastore_write.c
+ * @note slightly modified from clixon_datastore_write.c
  */
 static int
 attr_ns_value(cxobj *x,
@@ -2588,7 +2588,7 @@ attr_ns_value(cxobj *x,
     goto done;
 }
 
-/*! Look for creator attributes in edit-config and create corresponding entry in service instance
+/*! Look for creator attributes in edit-config, remove it and create entry in service instance
  *
  * Callback function type for xml_apply
  * @param[in]  x    XML node
