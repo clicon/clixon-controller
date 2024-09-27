@@ -304,6 +304,7 @@ module clixon-controller {
             description "List of created objects used by services.";
             leaf-list path {
                 description "Path to object";
+                unique true;
                 type string;
             }
         }
