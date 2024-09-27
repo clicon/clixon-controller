@@ -2605,6 +2605,7 @@ creator_applyfn(cxobj *x,
     int        retval = -1;
     cxobj     *xserv = (cxobj*)arg;
     char      *creator = NULL;
+    char      *creator1 = NULL;
     cvec      *nsc = 0;
     char      *xpath = NULL;
     cxobj     *xi;
@@ -2633,6 +2634,7 @@ creator_applyfn(cxobj *x,
                 goto ok;
             if (xpath_first(xc, 0, "path[.='%s']", xpath) != NULL)
                 goto ok; /* duplicate: silently drop */
+            clixon_debug(CLIXON_DBG_CTRL, "Created path: %s %s", xpath, creator);
             if ((ret = clixon_xml_parse_va(YB_PARENT, NULL, &xc, NULL, "<path>%s</path>", xpath)) < 0)
                 goto done;
             if (ret == 0)
@@ -2642,7 +2644,11 @@ creator_applyfn(cxobj *x,
             /* split creator into service and name, assuming creator is on the form:
              * service[name='myname']
              */
-            if ((p = index(creator, '[')) == NULL)
+            if ((creator1 = strdup(creator)) == NULL){
+                clixon_err(OE_UNIX, errno, "strdup");
+                goto done;
+            }
+            if ((p = index(creator1, '[')) == NULL)
                 goto ok;
             *p++ = '\0';
             if ((p = index(p, '=')) == NULL)
@@ -2654,7 +2660,7 @@ creator_applyfn(cxobj *x,
                 goto ok;
             *p = '\0';
             yserv = xml_spec(xserv);
-            if ((yi = yang_find(yserv, Y_LIST, creator)) == NULL)
+            if ((yi = yang_find(yserv, Y_LIST, creator1)) == NULL)
                 goto ok;
             if ((cvk = yang_cvec_get(yi)) == NULL)
                 goto ok;
@@ -2662,17 +2668,18 @@ creator_applyfn(cxobj *x,
                 goto ok;
             if ((ns = yang_find_mynamespace(yi)) == NULL)
                 goto ok;
+            clixon_debug(CLIXON_DBG_CTRL, "Created path: %s %s", xpath, creator);
             if ((ret = clixon_xml_parse_va(YB_PARENT, NULL, &xserv, NULL,
                                            "<%s xmlns=\"%s\"><%s>%s</%s>"
                                            "<created nc:operation=\"merge\">"
                                            "<path>%s</path></created></%s>",
-                                           creator,
+                                           creator1,
                                            ns,
                                            key,
                                            instance,
                                            key,
                                            xpath,
-                                           creator)) < 0)
+                                           creator1)) < 0)
                 goto done;
             if (ret == 0)
                 goto ok;
@@ -2683,6 +2690,8 @@ creator_applyfn(cxobj *x,
  done:
     if (creator)
         free(creator);
+    if (creator1)
+        free(creator1);
     if (xpath)
         free(xpath);
     return retval;
