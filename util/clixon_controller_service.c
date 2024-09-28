@@ -726,6 +726,8 @@ main(int    argc,
     /* Find, read and parse configfile */
     if (clicon_options_main(h) < 0)
         goto done;
+    yang_start(h);
+
     /* Set RFC6022 session parameters that will be sent in first hello,
      * @see clicon_hello_req
      */

@@ -235,6 +235,8 @@ main(int    argc,
     clixon_log_init(h, "xpath", dbg?LOG_DEBUG:LOG_INFO, logdst);
     clixon_debug_init(h, dbg);
     yang_init(h);
+    yang_start(h);
+
     /* Parse yang */
     if (yang_file_dir){
         if ((yspec = yspec_new(h, YANG_DATA_TOP)) == NULL)
