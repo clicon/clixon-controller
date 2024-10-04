@@ -126,7 +126,7 @@ install: $(CLISPECS) $(PLUGINS) $(APPNAME).xml autocli.xml
 	install -d -m 0755 $(DESTDIR)$(localstatedir)/$(APPNAME)
 	install -m 0644 $(INSTALLFLAGS) $(BE_PLUGIN) $(DESTDIR)$(libdir)/$(APPNAME)/backend
 	install -m 0644 $(INSTALLFLAGS) $(CLI_PLUGIN) $(DESTDIR)$(libdir)/$(APPNAME)/cli
-	install -d -m 0755 -o @CLICON_USER@ -g @CLICON_GROUP@ $(DESTDIR)$(runstatedir)/controller
+	install -d -m 0775 -o @CLICON_USER@ -g @CLICON_GROUP@ $(DESTDIR)$(runstatedir)/controller
 
 uninstall:
 	rm -f $(DESTDIR)$(sysconfdir)/clixon/$(APPNAME).xml
