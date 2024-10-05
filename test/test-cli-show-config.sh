@@ -302,6 +302,14 @@ new "edit device config table; show xml"
 expectpart "$(cat $fin | $clixon_cli -f $CFG -E $CFD -m $mode 2>&1)" 0 "<parameter><name>x</name><value>11</value></parameter><parameter><name>y</name><value>22</value></parameter>" --not-- "<name>${IMG}1</name>" "<table xmlns=\"urn:example:clixon\">"
 fi
 
+# See https://github.com/clicon/clixon-controller/issues/145
+cat <<EOF > $fin
+show configuration xml devices device openconfig1 config interfaces interface lo0 subinterfaces
+show configuration xml devices device openconfig2 config interfaces interface lo0 subinterfaces
+EOF
+new "Deep uses/grouping on two devices"
+expectpart "$(cat $fin | $clixon_cli -f $CFG -E $CFD 2>&1)" 0 --not-- "CLI syntax error:" "Unknown command"
+
 if $BE; then
     new "Kill old backend"
     stop_backend -f $CFG -E $CFD

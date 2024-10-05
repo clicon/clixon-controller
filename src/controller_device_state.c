@@ -442,8 +442,6 @@ device_schemas_mount_parse(clixon_handle h,
         clixon_err(OE_YANG, 0, "No yang spec");
         goto done;
     }
-    if (yang_parse_optimize_uses(h, yspec1) < 0)
-        goto done;
     if ((domain = device_handle_domain_get(dh)) == NULL){
         clixon_err(OE_YANG, 0, "No YANG domain");
         goto done;

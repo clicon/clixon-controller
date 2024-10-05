@@ -32,7 +32,8 @@ Expected: October 2024
 
 ### Corrected Bugs
 
-* Fixed: (Controller doesn't properly identify ietf-netconf-monitoring in hello statement on FS switch)[https://github.com/clicon/clixon-controller/issues/137]
+* Fixed: [CLI bug w/ device domains on juniper qfx devices](https://github.com/clicon/clixon-controller/issues/145)
+* Fixed: [Controller doesn't properly identify ietf-netconf-monitoring in hello statement on FS switch](https://github.com/clicon/clixon-controller/issues/137)
 * Fixed: commit fail in transaction caused assertion
 
 ## 1.1.0
