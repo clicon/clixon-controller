@@ -1125,6 +1125,7 @@ device_state_handler(clixon_handle h,
                 cbuf *cbxpath = NULL;
                 char *domain;
                 yang_stmt *ymounts;
+                yang_stmt *ydomain;
 
                 domain = device_handle_domain_get(dh);
                 if (controller_mount_xpath_get(name, &cbxpath) < 0)
@@ -1133,7 +1134,11 @@ device_state_handler(clixon_handle h,
                     clixon_err(OE_YANG, ENOENT, "Top-level yang mounts not found");
                     goto done;
                 }
-                yspec_orig = yang_find(ymounts, Y_SPEC, domain);
+                if ((ydomain = yang_find(ymounts, Y_DOMAIN, domain)) == NULL){
+                    if ((ydomain = ydomain_new(h, domain)) == NULL)
+                        goto done;
+                }
+                yspec_orig = yang_find(ydomain, Y_SPEC, domain);
                 if ((yspec1 = yspec_new_shared(h, cbuf_get(cbxpath), domain, yspec_orig)) == NULL)
                     goto done;
                 if (cbxpath)
@@ -1196,6 +1201,7 @@ device_state_handler(clixon_handle h,
             cbuf      *cbxpath = NULL;
             char      *domain;
             yang_stmt *ymounts;
+            yang_stmt *ydomain;
 
             domain =  device_handle_domain_get(dh);
             if (controller_mount_xpath_get(name, &cbxpath) < 0)
@@ -1204,7 +1210,11 @@ device_state_handler(clixon_handle h,
                 clixon_err(OE_YANG, ENOENT, "Top-level yang mounts not found");
                 goto done;
             }
-            yspec_orig = yang_find(ymounts, Y_SPEC, domain);
+            if ((ydomain = yang_find(ymounts, Y_DOMAIN, domain)) == NULL){
+                if ((ydomain = ydomain_new(h, domain)) == NULL)
+                    goto done;
+            }
+            yspec_orig = yang_find(ydomain, Y_SPEC, domain);
             if ((yspec1 = yspec_new_shared(h, cbuf_get(cbxpath), domain, yspec_orig)) == NULL) // # 1
                 goto done;
             if (cbxpath)

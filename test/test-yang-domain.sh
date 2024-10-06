@@ -139,10 +139,10 @@ if [ ! -f $mounts/default/$yangfile ]; then
 fi
 
 new "check cli memory openconfig1"
-expectpart "$($clixon_cli -1f $CFG -E $CFD show mem cli -- -g 2>&1)" 0 "^config" "^data" "^default" --not-- "^isolated"
+expectpart "$($clixon_cli -1f $CFG -E $CFD show mem cli -- -g 2>&1)" 0 "^top" "^default" --not-- "^isolated"
 
 new "check backend memory openconfig1"
-expectpart "$($clixon_cli -1f $CFG -E $CFD show mem backend 2>&1)" 0 "^config" "^data" "^default" --not-- "^isolated"
+expectpart "$($clixon_cli -1f $CFG -E $CFD show mem backend 2>&1)" 0 "^top" "^default" --not-- "^isolated"
 
 new "Find isolated $yangfile"
 cat <<EOF > $mounts/isolated/$yangfile
@@ -193,10 +193,10 @@ new "Open connection to openconfig2 in isolated domain"
 expectpart "$($clixon_cli -1 -f $CFG -E $CFD connection open openconfig2)" 0 ""
 
 new "check cli memory with isolated"
-expectpart "$($clixon_cli -1f $CFG -E $CFD show mem cli -- -g 2>&1)" 0 "^config" "^data" "^default" "^isolated"
+expectpart "$($clixon_cli -1f $CFG -E $CFD show mem cli -- -g 2>&1)" 0 "^top" "^default" "^isolated"
 
 new "check backend memory openconfig1"
-expectpart "$($clixon_cli -1f $CFG -E $CFD show mem backend 2>&1)" 0 "^config" "^data" "^default" "^isolated"
+expectpart "$($clixon_cli -1f $CFG -E $CFD show mem backend 2>&1)" 0 "^top" "^default" "^isolated"
 
 # 4. Check that yang content is different
 
