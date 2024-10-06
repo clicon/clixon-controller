@@ -17,6 +17,8 @@
   <CLICON_YANG_DOMAIN_DIR>@DATADIR@/controller/mounts</CLICON_YANG_DOMAIN_DIR>
   <!-- Yang schema mount is enabled for controller -->
   <CLICON_YANG_SCHEMA_MOUNT>true</CLICON_YANG_SCHEMA_MOUNT>
+  <!-- Optimization to share YANGs within YANG domain -->
+  <CLICON_YANG_SCHEMA_MOUNT_SHARE>true</CLICON_YANG_SCHEMA_MOUNT_SHARE>
   <!-- Yang mem optimization: augments/uses: use original object -->
   <CLICON_YANG_USE_ORIGINAL>true</CLICON_YANG_USE_ORIGINAL>
   <!-- Backend -->
