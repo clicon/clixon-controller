@@ -1186,7 +1186,7 @@ device_state_handler(clixon_handle h,
                 }
                 if (device_shared_yspec(h, dh, xyanglib, &yspec_orig) < 0)
                     goto done;
-                if ((yspec1 = yspec_new_shared(h, cbuf_get(cbxpath), domain, yspec_orig)) == NULL)
+                if ((yspec1 = yspec_new_shared(h, cbuf_get(cbxpath), domain, name, yspec_orig)) == NULL)
                     goto done;
                 if (cbxpath)
                     cbuf_free(cbxpath);
@@ -1263,7 +1263,7 @@ device_state_handler(clixon_handle h,
             }
             if (device_shared_yspec(h, dh, xyanglib, &yspec_orig) < 0)
                 goto done;
-            if ((yspec1 = yspec_new_shared(h, cbuf_get(cbxpath), domain, yspec_orig)) == NULL) // # 1
+            if ((yspec1 = yspec_new_shared(h, cbuf_get(cbxpath), domain, name, yspec_orig)) == NULL) // # 1
                 goto done;
             if (cbxpath)
                 cbuf_free(cbxpath);
