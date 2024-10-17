@@ -19,8 +19,11 @@ Expected: October 2024
 * New `clixon-controller@2024-08-01.yang` revision
   * Added `device-domains`
 * New `clixon-controller-config@2024-08-01.yang` revision
-  * Removed defaults for `CONTROLLER_PYAPI_MODULE_PATH`
-  * Obsoleted `CONTROLLER_YANG_SCHEMA_MOUNT_DIR* 
+  * Removed defaults for:
+    * `CONTROLLER_ACTION_COMMAND`
+    * `CONTROLLER_PYAPI_MODULE_PATH`
+    * `CONTROLLER_PYAPI_PIDFILE`
+  * Obsoleted `CONTROLLER_YANG_SCHEMA_MOUNT_DIR*
 * Re-arranged directories
   * Put Controller YANG under `$DATADIR/controller`, typically /usr/local/share/controller.
   * Removed `YANG_INSTALLDIR`

@@ -10,7 +10,8 @@ module clixon-controller-config {
     revision 2024-08-01 {
         description
             "Moved default directories from clixon/controller to controller
-             Removed defaults for CONTROLLER_PYAPI_MODULE_PATH
+             Removed defaults for CONTROLLER_ACTION_COMMAND, CONTROLLER_PYAPI_MODULE_PATH,
+                                  and CONTROLLER_PYAPI_PIDFILE
              Obsoleted CONTROLLER_YANG_SCHEMA_MOUNT_DIR
              Released in 1.2.0";
     }
@@ -29,7 +30,6 @@ module clixon-controller-config {
             description
                 "Binary command and arguments of action server";
             type string;
-            default "/usr/local/bin/clixon_server.py";
         }
         leaf CONTROLLER_PYAPI_MODULE_PATH{
             description
@@ -43,7 +43,6 @@ module clixon-controller-config {
         }
         leaf CONTROLLER_PYAPI_PIDFILE{
             type string;
-            default "/usr/local/var/run/controller/clixon_server.pid";
         }
         leaf CONTROLLER_YANG_SCHEMA_MOUNT_DIR{
             description
