@@ -538,7 +538,7 @@ controller_version(clixon_handle h,
 {
     /* Assume clixon version already printed */
     cligen_output(f, "CLIgen: \t%s\n", CLIGEN_VERSION);
-    cligen_output(f, "Controller:\t%s\n", CONTROLLER_GITHASH);
+    cligen_output(f, "Controller:\t%s\n", CONTROLLER_VERSION);
     cligen_output(f, "Build:\t\t%s\n", CONTROLLER_BUILDSTR);
     return 0;
 }

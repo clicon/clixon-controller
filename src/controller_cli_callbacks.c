@@ -2376,8 +2376,8 @@ cli_controller_show_version(clixon_handle h,
                             cvec         *argv)
 {
     cligen_output(stdout, "CLIgen: \t%s\n", CLIGEN_VERSION);
-    cligen_output(stdout, "Clixon: \t%s\n", CLIXON_GITHASH);
-    cligen_output(stdout, "Controller:\t%s\n", CONTROLLER_GITHASH);
+    cligen_output(stdout, "Clixon: \t%s\n", CLIXON_VERSION);
+    cligen_output(stdout, "Controller:\t%s\n", CONTROLLER_VERSION);
     cligen_output(stdout, "Build:\t\t%s\n", CONTROLLER_BUILDSTR);
     return 0;
 }

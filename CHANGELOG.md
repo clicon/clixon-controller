@@ -13,6 +13,7 @@ Expected: October 2024
 
 ### API changes on existing protocol/config features
 
+* New version string on the form: `1.1.0-1+70+gbae59f2`
 * Edits to device addr, user, domain, etc causes device disconnect
 * Removed `--with yang-installdir` from configure
   * Use `DATADIR` instead

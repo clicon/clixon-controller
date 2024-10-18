@@ -95,8 +95,6 @@ DATELEN = $(shell date +"%Y.%m.%d %H:%M by `whoami` on `hostname`XXXX"|wc -c)
 build.c:
 	echo "/* This file is generated from the Controller Makefile */" > $@;
 	date +"const char CONTROLLER_BUILDSTR[$(DATELEN)]=\"%Y.%m.%d %H:%M by `whoami` on `hostname`"\"\; >> $@;
-	echo "const char CONTROLLER_VERSIONSTR[64]=\"$(CONTROLLER_VERSION)\""\; >> $@;
-	echo "const char CONTROLLER_GITHASH[64]=\"$(shell git log --pretty="format:%(describe) %ci" -n1)\""\; >> $@;
 
 CLISPECS  = $(APPNAME)_operation.cli
 CLISPECS += $(APPNAME)_configure.cli
