@@ -17,6 +17,8 @@ src/controller.xml
 src/build.c
 test/config.sh
 
+clixon-controller.service
+
 # purged from history with git filter-repo
 templates-min.gif
 demo-min.gif

@@ -180,9 +180,10 @@ if test -n "${CLICON_GROUP}"; then
 fi
 
 AC_CONFIG_FILES([Makefile
-          	 src/Makefile
+                 clixon-controller.service
+                 src/Makefile
                  src/controller.xml
-	         yang/Makefile
+                 yang/Makefile
                  util/Makefile
                  docker/Makefile
                  test/config.sh

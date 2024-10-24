@@ -2422,11 +2422,6 @@ CONTROLLER_VERSION_MINOR=$(echo ${CONTROLLER_VERSION2} | awk -F. '{print $2}')
 CONTROLLER_VERSION_PATCH=$(echo ${CONTROLLER_VERSION2} | awk -F. '{print $3}')
 
 
-#CONTROLLER_VERSION_MAJOR="1"
-#CONTROLLER_VERSION_MINOR="1"
-#CONTROLLER_VERSION_PATCH="0"
-#CONTROLLER_VERSION="${CONTROLLER_VERSION_MAJOR}.${CONTROLLER_VERSION_MINOR}.${CONTROLLER_VERSION_PATCH}"
-
 
 { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: CONTROLLER version is ${CONTROLLER_VERSION}" >&5
 printf "%s\n" "CONTROLLER version is ${CONTROLLER_VERSION}" >&6; }
@@ -4899,7 +4894,7 @@ if test -n "${CLICON_GROUP}"; then
     echo "Using CLICON_GROUP here: ${CLICON_GROUP}"
 fi
 
-ac_config_files="$ac_config_files Makefile src/Makefile src/controller.xml yang/Makefile util/Makefile docker/Makefile test/config.sh doc/Makefile"
+ac_config_files="$ac_config_files Makefile clixon-controller.service src/Makefile src/controller.xml yang/Makefile util/Makefile docker/Makefile test/config.sh doc/Makefile"
 
 cat >confcache <<\_ACEOF
 # This file is a shell script that caches the results of configure
@@ -5603,6 +5598,7 @@ for ac_config_target in $ac_config_targets
 do
   case $ac_config_target in
     "Makefile") CONFIG_FILES="$CONFIG_FILES Makefile" ;;
+    "clixon-controller.service") CONFIG_FILES="$CONFIG_FILES clixon-controller.service" ;;
     "src/Makefile") CONFIG_FILES="$CONFIG_FILES src/Makefile" ;;
     "src/controller.xml") CONFIG_FILES="$CONFIG_FILES src/controller.xml" ;;
     "yang/Makefile") CONFIG_FILES="$CONFIG_FILES yang/Makefile" ;;
