@@ -4,7 +4,8 @@
 Expected: October 2024
 
 ### New features
-
+* Added configurable port for NETCONF over SSH
+  * See [make netconf ssh port to devices configurable](https://github.com/clicon/clixon-controller/issues/152)
 * Added yang domains for mount-point isolation
   * See [Support isolated YANG domains](https://github.com/clicon/clixon-controller/issues/134)
 * New CLI commands:
@@ -19,6 +20,7 @@ Expected: October 2024
   * Use `DATADIR` instead
 * New `clixon-controller@2024-08-01.yang` revision
   * Added `device-domains`
+  * Added `port` to device-common
 * New `clixon-controller-config@2024-08-01.yang` revision
   * Removed defaults for:
     * `CONTROLLER_ACTION_COMMAND`

@@ -56,8 +56,8 @@ int    device_handle_free(device_handle dh);
 int    device_handle_free_all(clixon_handle h);
 device_handle device_handle_find(clixon_handle h, const char *name);
 device_handle device_handle_each(clixon_handle h, device_handle dhprev);
-int    device_handle_connect(device_handle dh, clixon_client_type socktype, const char *dest,
-                             int stricthostkey);
+int    device_handle_connect(device_handle dh, clixon_client_type socktype,
+                             const char *dest, const char *port, int stricthostkey);
 int    device_handle_disconnect(device_handle dh);
 
 /* Accessor functions */

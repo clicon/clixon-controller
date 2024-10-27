@@ -117,6 +117,7 @@ clixon_client_connect_netconf(clixon_handle  h,
  *
  * @param[in]  h             Clixon  handle
  * @param[in]  dest          SSH destination
+ * @param[in]  port          SSH port
  * @param[in]  stricthostkey If set ensure strict hostkey checking. Only for ssh connections
  * @param[out] pid           Sub-process-id
  * @param[out] sock          Stdin/stdout socket
@@ -127,6 +128,7 @@ clixon_client_connect_netconf(clixon_handle  h,
 int
 clixon_client_connect_ssh(clixon_handle h,
                           const char   *dest,
+                          const char   *port,
                           int           stricthostkey,
                           pid_t        *pid,
                           int          *sock,
@@ -140,7 +142,7 @@ clixon_client_connect_ssh(clixon_handle h,
     struct stat st = {0,};
 
     clixon_debug(CLIXON_DBG_MSG | CLIXON_DBG_DETAIL, "%s", dest);
-    nr = 12;  /* NOTE this is hardcoded */
+    nr = 14;  /* NOTE this is hardcoded */
     if ((argv = calloc(nr, sizeof(char *))) == NULL){
         clixon_err(OE_UNIX, errno, "calloc");
         goto done;
@@ -152,6 +154,8 @@ clixon_client_connect_ssh(clixon_handle h,
     }
     argv[i++] = ssh_bin;
     argv[i++] = (char*)dest;
+    argv[i++] = "-p"; /* Disable pseudo-terminal allocation. */
+    argv[i++] = (char*)port;
     argv[i++] = "-T"; /* Disable pseudo-terminal allocation. */
     argv[i++] = "-o";
     if (stricthostkey)

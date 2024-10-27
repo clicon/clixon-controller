@@ -302,6 +302,7 @@ int
 device_handle_connect(device_handle      dh,
                       clixon_client_type socktype,
                       const char        *dest,
+                      const char        *port,
                       int                stricthostkey)
 {
     int                              retval = -1;
@@ -326,7 +327,7 @@ device_handle_connect(device_handle      dh,
         break;
 #ifdef SSH_BIN
     case CLIXON_CLIENT_SSH:
-        if (clixon_client_connect_ssh(h, dest, stricthostkey, &cdh->cdh_pid, &cdh->cdh_socket, &cdh->cdh_sockerr) < 0)
+        if (clixon_client_connect_ssh(h, dest, port, stricthostkey, &cdh->cdh_pid, &cdh->cdh_socket, &cdh->cdh_sockerr) < 0)
             goto err;
 #else
         clixon_err(OE_UNIX, 0, "No ssh bin");

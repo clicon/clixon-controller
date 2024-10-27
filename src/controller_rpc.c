@@ -61,6 +61,7 @@
  * @param[in]  dh            Device handle, either NULL or in closed state
  * @param[in]  user          Username for ssh login
  * @param[in]  addr          Address for ssh to connect to
+ * @param[in]  port          Port for ssh to connect to
  * @param[in]  stricthostkey If set ensure strict hostkey checking. Only for ssh
  * @retval     0    OK
  * @retval    -1    Error
@@ -70,6 +71,7 @@ connect_netconf_ssh(clixon_handle h,
                     device_handle dh,
                     char         *user,
                     char         *addr,
+                    const char   *port,
                     int           stricthostkey)
 {
     int   retval = -1;
@@ -91,7 +93,7 @@ connect_netconf_ssh(clixon_handle h,
     if (user)
         cprintf(cb, "%s@", user);
     cprintf(cb, "%s", addr);
-    if (device_handle_connect(dh, CLIXON_CLIENT_SSH, cbuf_get(cb), stricthostkey) < 0)
+    if (device_handle_connect(dh, CLIXON_CLIENT_SSH, cbuf_get(cb), port, stricthostkey) < 0)
         goto done;
     if (device_state_set(dh, CS_CONNECTING) < 0)
         goto done;
@@ -130,6 +132,7 @@ controller_connect(clixon_handle           h,
     device_handle dh;
     char         *type;
     char         *addr;
+    char         *port = "22";
     char         *user = NULL;
     char         *enablestr;
     char         *yfstr;
@@ -201,6 +204,14 @@ controller_connect(clixon_handle           h,
     }
     if (xb && (str = xml_body(xb)) != NULL)
         ssh_stricthostkey = strcmp(str, "true") == 0;
+    if ((xb = xml_find_type(xn, NULL, "port", CX_ELMNT)) == NULL ||
+        xml_flag(xb, XML_FLAG_DEFAULT)){
+        if (xdevprofile)
+            xb = xml_find_type(xdevprofile, NULL, "port", CX_ELMNT);
+    }
+    if (xb && (str = xml_body(xb)) != NULL)
+        port = str;
+
     /* Now dh is either NULL or in closed state and with correct type
      * First create it if still NULL
      */
@@ -242,7 +253,7 @@ controller_connect(clixon_handle           h,
     }
     /* Point of no return: assume errors handled in device_input_cb */
     device_handle_tid_set(dh, ct->ct_id);
-    if (connect_netconf_ssh(h, dh, user, addr, ssh_stricthostkey) < 0) /* match */
+    if (connect_netconf_ssh(h, dh, user, addr, port, ssh_stricthostkey) < 0) /* match */
         goto done;
  ok:
     retval = 1;

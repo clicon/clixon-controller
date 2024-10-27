@@ -34,6 +34,7 @@ module clixon-controller {
     revision 2024-08-01 {
         description
              "Added device-domains
+              Added port to device-common
               Changed mount-point label to device
               Released in 1.2.0";
     }
@@ -333,6 +334,14 @@ module clixon-controller {
                  Only for ssh connections";
             type boolean;
             default true;
+        }
+        leaf port {
+            description
+                "Transport port, typically for SSH.
+                 RFC6242 stipulates a netconf subsystem over port 830, but in
+                 practice many devices defaults to a netconf subsystem over port 22";
+            type uint32;
+            default 22;
         }
         leaf yang-config{
             description "How to bind device configuration to YANG.";
