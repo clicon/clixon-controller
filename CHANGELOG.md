@@ -1,7 +1,7 @@
 # Clixon Controller Changelog
 
 ## 1.2.0
-Expected: October 2024
+28 October 2024
 
 ### New features
 * Added configurable port for NETCONF over SSH
@@ -26,7 +26,7 @@ Expected: October 2024
     * `CONTROLLER_ACTION_COMMAND`
     * `CONTROLLER_PYAPI_MODULE_PATH`
     * `CONTROLLER_PYAPI_PIDFILE`
-  * Obsoleted `CONTROLLER_YANG_SCHEMA_MOUNT_DIR*
+  * Obsoleted `CONTROLLER_YANG_SCHEMA_MOUNT_DIR`
 * Re-arranged directories
   * Put Controller YANG under `$DATADIR/controller`, typically /usr/local/share/controller.
   * Removed `YANG_INSTALLDIR`
