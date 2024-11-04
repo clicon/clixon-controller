@@ -4,6 +4,9 @@ Description=Starts and stops Clixon controller
 [Service]
 Type=forking
 User=root
+Group=@CLICON_GROUP@
+RuntimeDirectory=controller
+RuntimeDirectoryMode=0775
 RestartSec=60
 Restart=on-failure
 ExecStart=@SBINDIR@/clixon_backend -s running -f @SYSCONFDIR@/clixon/controller.xml
