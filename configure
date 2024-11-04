@@ -652,6 +652,7 @@ SSH_BIN
 CPP
 SYSCONFDIR
 SBINDIR
+RUNTIME_DIRECTORY
 RUNSTATEDIR
 LOCALSTATEDIR
 LIBEXECDIR
@@ -2435,6 +2436,12 @@ else
 	CLIXON_PREFIX="$prefix"
 fi
 
+if test "${runstatedir##*/}" = "run"; then
+	runtime_directory=
+else
+	runtime_directory=`eval basename $runstatedir`
+fi
+
 
 
 
@@ -3714,6 +3721,7 @@ test -z "$INSTALL_DATA" && INSTALL_DATA='${INSTALL} -m 644'
 
 
 
+
 #
 ac_ext=c
 ac_cpp='$CPP $CPPFLAGS'
@@ -4676,6 +4684,7 @@ LIBDIR=`eval echo \`eval echo $libdir\``
 LIBEXECDIR=`eval echo $libexecdir`
 LOCALSTATEDIR=`eval echo $localstatedir`
 RUNSTATEDIR=`eval echo \`eval echo $runstatedir\``
+RUNTIME_DIRECTORY=`eval echo $runtime_directory`
 
 # This is for cligen
 
