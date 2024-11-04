@@ -53,6 +53,12 @@ else
 	CLIXON_PREFIX="$prefix"
 fi
 
+if test "${runstatedir##*/}" = "run"; then
+	runtime_directory=
+else
+	runtime_directory=`eval basename $runstatedir`
+fi
+
 AC_CHECK_LIB(m, main)
 
 # AC_SUBST(var) makes @var@ appear in makefiles.
@@ -81,6 +87,7 @@ AC_SUBST(LIBDIR)
 AC_SUBST(LIBEXECDIR)
 AC_SUBST(LOCALSTATEDIR)
 AC_SUBST(RUNSTATEDIR)
+AC_SUBST(RUNTIME_DIRECTORY)
 AC_SUBST(SBINDIR)
 AC_SUBST(SYSCONFDIR)
 
@@ -130,6 +137,7 @@ LIBDIR=`eval echo \`eval echo $libdir\``
 LIBEXECDIR=`eval echo $libexecdir`
 LOCALSTATEDIR=`eval echo $localstatedir`
 RUNSTATEDIR=`eval echo \`eval echo $runstatedir\``
+RUNTIME_DIRECTORY=`eval echo $runtime_directory`
 
 # This is for cligen
 AC_ARG_WITH(cligen,  [  --with-cligen=dir       Use CLIGEN here ] )
