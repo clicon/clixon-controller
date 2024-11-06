@@ -27,9 +27,11 @@ mounts=$dir/mounts
 test -d $mounts || mkdir $mounts
 test -d $mounts/default || mkdir $mounts/default
 test -d $mounts/isolated || mkdir $mounts/isolated
+# Openconfig system revision. This may need to be updated now and then
+REVISION="2024-09-24"
 
 # Use this file and modify it for the isolated case
-yangfile=openconfig-system@2023-06-16.yang
+yangfile=openconfig-system@${REVISION}.yang
 
 # Specialize controller.xml
 cat<<EOF > $CFD/diff.xml
@@ -133,7 +135,7 @@ new "Open connection to openconfig1"
 expectpart "$($clixon_cli -1 -f $CFG -E $CFD connection open openconfig1)" 0 ""
 
 new "Find original $yangfile"
-# Find openconfig-system@2023-06-16.yang
+# Find openconfig-system@${REVISION}.yang
 if [ ! -f $mounts/default/$yangfile ]; then
     err "$yangfile" "Not found"
 fi
@@ -150,7 +152,7 @@ module openconfig-system {
    yang-version "1";
    namespace "http://openconfig.net/yang/system";
    prefix "oc-sys";
-   revision "2023-06-16" {
+   revision "${REVISION}" {
       description
          "Reordered imports to be alphabetical.";
       reference "0.17.1";
