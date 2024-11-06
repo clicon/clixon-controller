@@ -48,7 +48,7 @@ save("Save candidate configuration to XML file") <filename:string>("Filename (lo
 }
 load("Load configuration from file to candidate") <operation:string choice:replace|merge|create>("Write operation on candidate") <format:string choice:xml|json>("File format") [filename <filename:string>("Filename (local filename)")], cli_auto_load_devs(); 
 # {    @datamodel, cli_auto_load_devs(); }
-apply("Apply template on devices") {
+apply("Apply template or service") {
     template("Apply a template on devices")
              <templ:string expand_dbvar("running","/clixon-controller:devices/template/name")>("template to apply")
              (<devs:string>("device pattern")|
