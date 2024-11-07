@@ -91,5 +91,9 @@ distclean:
 	for i in $(SUBDIRS) doc util docker; \
 	do (cd $$i && $(MAKE) $(MFLAGS) $@); done
 
+systemd:
+	${INSTALL} clixon-controller.service /usr/lib/systemd/system/
+	@echo "systemd service installed, run systemctl enable clixon-controller.service to enable it"
+
 TAGS:
 	find $(srcdir) -not \( -type d \( -path './.git' -o -path './docker' -o -path './doc' \) -prune \) -name '*.[ch]' -type f | grep -v \.tab\.[ch] | grep -v lex.*.c | grep -v .yy.c | xargs etags
