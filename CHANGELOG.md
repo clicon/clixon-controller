@@ -1,5 +1,18 @@
 # Clixon Controller Changelog
 
+## 1.3.0
+Expected: January 2025
+
+### New features
+
+* Preliminary version of generic RPC API
+  * see [Execute arbitrary RPC commands](https://github.com/clicon/clixon-controller/issues/45)
+
+### API changes on existing protocol/config features
+
+* New `clixon-controller-config@2024-11-01.yang` revision
+  * Added device-generic-rpc
+
 ## 1.2.0
 28 October 2024
 

@@ -31,6 +31,11 @@ module clixon-controller {
     }
     description
         "Clixon controller";
+    revision 2024-11-01 {
+        description
+             "Added device-generic-rpc
+              Released in 1.3.0";
+    }
     revision 2024-08-01 {
         description
              "Added device-domains
@@ -969,6 +974,31 @@ module clixon-controller {
                }
            }
        }
+    }
+    rpc device-generic-rpc {
+        description
+            "Send generic rpc to device";
+        input {
+           leaf devname {
+               description
+                   "Name of device or pattern of devices to send rpc to.";
+               mandatory true;
+               type string;
+           }
+           anyxml rpc-data {
+               description
+                   "RPC body, including name and namespace, on the form:
+                    <myrpc xmlns='mynamespace'>...</myrpc>";
+           }
+        }
+        output {
+            leaf ok {
+              type empty;
+            }
+            anyxml output {
+                description "RPC output data";
+            }
+        }
     }
 }
 

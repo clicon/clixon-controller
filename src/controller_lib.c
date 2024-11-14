@@ -512,7 +512,7 @@ controller_mount_yspec_set(clixon_handle h,
     if (controller_mount_xpath_get(devname, &cbxpath) < 0)
         goto done;
     /* Low-level function */
-    if (yang_mount_set(yu, cbuf_get(cbxpath), yspec1) < 0)
+    if (yang_mount_set(yu) < 0)
         goto done;
     retval = 0;
  done:

@@ -57,6 +57,7 @@ int device_create_edit_config_diff(clixon_handle h, device_handle dh,
 int device_send_validate(clixon_handle h, device_handle dh);
 int device_send_commit(clixon_handle h, device_handle dh);
 int device_send_discard_changes(clixon_handle h, device_handle dh);
+int device_send_generic_rpc(clixon_handle h, device_handle dh, cxobj *rpc_data);
 
 #ifdef __cplusplus
 }

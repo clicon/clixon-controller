@@ -69,12 +69,16 @@ typedef void *device_handle; // duplicated from controller_device_handle.h
  */
 enum conn_state_t {
     CS_CLOSED = 0,    /* Closed, also "closed" if handle non-existent but then no state */
+    CS_OPEN,          /* Connection established and Hello sent to device. */
+
+    /* Connect state machine */
     CS_CONNECTING,    /* Connect() called, expect to receive hello from device
                          May fail due to (1) connect fails or (2) hello not receivd */
     CS_SCHEMA_LIST,   /* Get ietf-netconf-monitor schema state */
     CS_SCHEMA_ONE,    /* Connection established and Hello sent to device (nr substate) */
     CS_DEVICE_SYNC,   /* Get all config (transient+merge are sub-state parameters) */
-    CS_OPEN,          /* Connection established and Hello sent to device. */
+
+    /* Push state machine */
     CS_PUSH_LOCK,     /* Lock device candidate */
     CS_PUSH_CHECK,    /* sync device transient to check if device is unchanged */
     CS_PUSH_EDIT,     /* First edit-config sent (if any) waiting for reply */
@@ -86,6 +90,9 @@ enum conn_state_t {
                      controller (only used if CONTROLLER_EXTRA_PUSH_SYNC */
     CS_PUSH_DISCARD,  /* discard sent, waiting for reply ok */
     CS_PUSH_UNLOCK,   /* Unlock device candidate */
+
+    /* Generic RPC state machine */
+    CS_RPC_GENERIC,   /* Sent a generic RPC to device, wait for reply */
 };
 typedef enum conn_state_t conn_state;
 

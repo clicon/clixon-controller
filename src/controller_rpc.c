@@ -2542,6 +2542,84 @@ rpc_device_template_apply(clixon_handle h,
         xml_free(xroot);
     if (vec)
         free(vec);
+    if (nsc)
+        cvec_free(nsc);
+    return retval;
+}
+
+/*! Send generic rpc to device
+ *
+ * @param[in]  h       Clixon handle
+ * @param[in]  xn      Request: <rpc><xn></rpc>
+ * @param[out] cbret   Return xml tree, eg <rpc-reply>..., <rpc-error..
+ * @param[in]  arg     Domain specific arg, ec client-entry or FCGX_Request
+ * @param[in]  regarg  User argument given at rpc_callback_register()
+ * @retval     0       OK
+ * @retval    -1       Error
+ */
+int
+rpc_device_generic_rpc(clixon_handle h,
+                      cxobj        *xe,
+                      cbuf         *cbret,
+                      void         *arg,
+                      void         *regarg)
+{
+    int           retval = -1;
+    cxobj        *xret = NULL;
+    cvec         *nsc = NULL;
+    char         *pattern;
+    cxobj        *rpc_data;
+    cxobj       **vec = NULL;
+    size_t        veclen;
+    cxobj        *xd;
+    char         *devname;
+    device_handle dh;
+    int           i;
+
+    clixon_debug(CLIXON_DBG_CTRL, "");
+    if ((pattern = xml_find_body(xe, "devname")) == NULL){
+        if (netconf_operation_failed(cbret, "application", "No devname")< 0)
+            goto done;
+        goto ok;
+    }
+    if ((rpc_data = xml_find(xe, "rpc-data")) == NULL){
+        if (netconf_operation_failed(cbret, "application", "No rpc-data")< 0)
+            goto done;
+        goto ok;
+    }
+    if (xmldb_get0(h, "running", YB_MODULE, nsc, "devices", 1, WITHDEFAULTS_EXPLICIT, &xret, NULL, NULL) < 0)
+        goto done;
+    if (xpath_vec(xret, nsc, "devices/device", &vec, &veclen) < 0)
+        goto done;
+    /* Apply xtempl on all matching devices */
+    for (i=0; i<veclen; i++){
+        xd = vec[i];
+        if ((devname = xml_find_body(xd, "name")) == NULL)
+            continue;
+        if (pattern != NULL && fnmatch(pattern, devname, 0) != 0)
+            continue;
+        if ((dh = device_handle_find(h, devname)) == NULL)
+            continue;
+        if (device_handle_conn_state_get(dh) != CS_OPEN)
+            continue;
+        if (device_send_generic_rpc(h, dh, rpc_data) < 0)
+            goto done;
+        if (device_state_set(dh, CS_RPC_GENERIC) < 0)
+            goto done;
+    }
+    /* Just send OK, possibly enhance with RPC reply but requires transaction */
+    cprintf(cbret, "<rpc-reply xmlns=\"%s\">", NETCONF_BASE_NAMESPACE);
+    cprintf(cbret, "<ok/>");
+    cprintf(cbret, "</rpc-reply>");
+ ok:
+    retval = 0;
+ done:
+    if (xret)
+        xml_free(xret);
+    if (nsc)
+        cvec_free(nsc);
+    if (vec)
+        free(vec);
     return retval;
 }
 
@@ -2846,6 +2924,12 @@ controller_rpc_init(clixon_handle h)
                               NULL,
                               CONTROLLER_NAMESPACE,
                               "device-template-apply"
+                              ) < 0)
+        goto done;
+    if (rpc_callback_register(h, rpc_device_generic_rpc,
+                              NULL,
+                              CONTROLLER_NAMESPACE,
+                              "device-generic-rpc"
                               ) < 0)
         goto done;
     /* Check that services subscriptions is just done once */

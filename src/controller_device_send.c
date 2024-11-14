@@ -574,3 +574,39 @@ device_send_discard_changes(clixon_handle h,
 {
     return device_send_rpc(h, dh, "<discard-changes/>");
 }
+
+/*! Send generic RPC to device
+ *
+ * @param[in]  h       Clixon handle
+ * @param[in]  dh      Device handle
+ * @param[in]  rpc
+ * @param[in]  input
+ * @retval     0       OK
+ * @retval    -1       Error
+ */
+int
+device_send_generic_rpc(clixon_handle h,
+                        device_handle dh,
+                        cxobj        *rpc_data)
+{
+    int    retval = -1;
+    cbuf  *cb = NULL;
+
+    if (rpc_data == NULL){
+        clixon_err(OE_UNIX, EINVAL, "rpc_data is NULL");
+        goto done;
+    }
+    if ((cb = cbuf_new()) == NULL){
+        clixon_err(OE_UNIX, errno, "cbuf_new");
+        goto done;
+    }
+    if (clixon_xml2cbuf(cb, rpc_data, 0, 0, NULL, -1, 1) < 0)
+        goto done;
+    if (device_send_rpc(h, dh, cbuf_get(cb)) < 0)
+        goto done;
+    retval = 0;
+ done:
+    if (cb)
+        cbuf_get(cb);
+    return retval;
+}

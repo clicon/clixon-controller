@@ -140,10 +140,22 @@ connection("Change connection state of one or several devices") {
       }
    }
 }
+rpc("Send generic rpc to devices") {
+      (<devname:string>("device pattern")|
+       <devname:string expand_dbvar("running","/clixon-controller:devices/device/name")>("device pattern"))
+           {
+             (<rpcname:string>("rpc name")|
+              <rpcname:string expand_device_rpc("devname")>("rpc name")), cli_generic_rpc_call("devname", "rpcname");{
+                 yang("Show rpc YANG definition"), cli_generic_rpc_show("devname", "rpcname");{
+                    @|pipe_show, cli_generic_rpc_show("devname", "rpcname");
+                 }
+                 <input:rest>("RPC input arguments"), cli_generic_rpc_call("devname", "rpcname", "input");
+             }
+        }
+}
 session("Client sessions") {
     kill("Kill client session") {
            <session:uint32 choice:1677721>("Transaction number"), cli_kill_session("session");
            <session:uint32>("Client session number"), cli_kill_session("session");
     }
 }
-

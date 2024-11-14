@@ -79,11 +79,13 @@
  */
 static const map_str2int csmap[] = {
     {"CLOSED",           CS_CLOSED},
+    {"OPEN",             CS_OPEN},
+    /* Connect state machine */
     {"CONNECTING",       CS_CONNECTING},
     {"SCHEMA-LIST",      CS_SCHEMA_LIST},
     {"SCHEMA-ONE",       CS_SCHEMA_ONE}, /* substate is schema-nr */
     {"DEVICE-SYNC",      CS_DEVICE_SYNC},
-    {"OPEN",             CS_OPEN},
+    /* Push state machine */
     {"PUSH_LOCK",        CS_PUSH_LOCK},
     {"PUSH-CHECK",       CS_PUSH_CHECK},
     {"PUSH-EDIT",        CS_PUSH_EDIT},
@@ -94,6 +96,8 @@ static const map_str2int csmap[] = {
     {"PUSH-COMMIT-SYNC", CS_PUSH_COMMIT_SYNC},
     {"PUSH-DISCARD",     CS_PUSH_DISCARD},
     {"PUSH_UNLOCK",      CS_PUSH_UNLOCK},
+    /* Generic RPC state machine */
+    {"RPC_GENERIC",      CS_RPC_GENERIC},
     {NULL,              -1}
 };
 
@@ -337,8 +341,11 @@ device_input_cb(int   s,
             goto ok;
         }
         xmsg = xml_child_i_type(xtop, 0, CX_ELMNT);
-        if (xmsg && device_state_handler(h, dh, s, xmsg) < 0)
-            goto done;
+        if ((xmsg = xml_child_i_type(xtop, 0, CX_ELMNT)) != NULL) {
+            /* Main state machine for controller transactions+devices */
+            if (device_state_handler(h, dh, s, xmsg) < 0)
+                goto done;
+        }
     } /* while */
     device_handle_frame_state_set(dh, frame_state);
     device_handle_frame_size_set(dh, frame_size);
@@ -1768,6 +1775,10 @@ device_state_handler(clixon_handle h,
         if (device_state_check_ok(h, dh, ct) < 0)
             goto done;
         break;
+    case CS_RPC_GENERIC: /* Just accept any reply, and go to open */
+        if (device_state_set(dh, CS_OPEN) < 0)
+            goto done;
+        break;
     case CS_PUSH_WAIT:
     case CS_CLOSED:
     case CS_OPEN:
@@ -1775,11 +1786,12 @@ device_state_handler(clixon_handle h,
         clixon_debug(CLIXON_DBG_CTRL, "%s: Unexpected msg %s in state %s",
                      name, rpcname,
                      device_state_int2str(conn_state));
-        clixon_debug_xml(CLIXON_DBG_MSG | CLIXON_DBG_DETAIL, xmsg, "Message");
         device_close_connection(dh, "Unexpected msg %s in state %s",
                                 rpcname, device_state_int2str(conn_state));
-        if (controller_transaction_failed(h, tid, ct, dh, TR_FAILED_DEV_LEAVE, name, device_handle_logmsg_get(dh)) < 0)
-            goto done;
+        if (ct != NULL){
+            if (controller_transaction_failed(h, tid, ct, dh, TR_FAILED_DEV_LEAVE, name, device_handle_logmsg_get(dh)) < 0)
+                goto done;
+        }
         break;
     }
     retval = 0;

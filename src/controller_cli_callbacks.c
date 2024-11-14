@@ -37,7 +37,7 @@
 #include <sys/param.h>
 #include <netinet/in.h>
 
-/* clicon */
+/* Clixon */
 #include <cligen/cligen.h>
 #include <clixon/clixon.h>
 #include <clixon/clixon_cli.h>
@@ -2632,5 +2632,339 @@ cli_apply_device_template(clixon_handle h,
         xml_free(xret);
     if (xtop)
         xml_free(xtop);
+    return retval;
+}
+
+/*! Completion callback for device rpc:s
+ *
+ * @param[in]   h        Clixon handle
+ * @param[in]   name     Name of this function
+ * @param[in]   cvv      The command so far. Eg: cvec [0]:"a 5 b"; [1]: x=5;
+ * @param[in]   argv     Arguments given at the callback:
+ *                       name  Name of cv containing device name
+ * @param[out]  commands vector of function pointers to callback functions
+ * @param[out]  helptxt  vector of pointers to helptexts
+ * @retval      0        OK
+ * @retval     -1        Error
+ */
+int
+expand_device_rpc(void   *h,
+                  char   *name,
+                  cvec   *cvv,
+                  cvec   *argv,
+                  cvec   *commands,
+                  cvec   *helptexts)
+{
+    int        retval = -1;
+    cbuf      *cb = NULL;
+    char      *cvname = NULL;
+    cg_var    *cv;
+    char      *devname = NULL;
+    cxobj     *xdevs = NULL;
+    cxobj     *xdevc;
+    yang_stmt *yspec1;
+    yang_stmt *ymod;
+    yang_stmt *yrpc;
+    yang_stmt *ydesc;
+    int        inext;
+    int        inext1;
+    int        ret;
+
+    if (argv == NULL || cvec_len(argv) < 1 || cvec_len(argv) > 1){
+        clixon_err(OE_PLUGIN, EINVAL, "requires arguments: <name>");
+        goto done;
+    }
+    if (cvec_len(argv) > 0 &&
+        (cvname = cv_string_get(cvec_i(argv, 0))) != NULL) {
+        if ((cv = cvec_find(cvv, cvname)) != NULL){
+            if ((devname = cv_string_get(cv)) == NULL){
+                clixon_err(OE_PLUGIN, EINVAL, "cv name is empty");
+                goto done;
+            }
+        }
+    }
+    if ((cb = cbuf_new()) == NULL){
+        clixon_err(OE_UNIX, errno, "cbuf_new");
+        goto done;
+    }
+    if (rpc_get_yanglib_mount_match(h, devname, 1, 1, &xdevs) < 0)
+        goto done;
+    if (xdevs != NULL &&
+        (xdevc = xpath_first(xdevs, 0, "devices/device[name='%s']/config", devname)) != NULL){
+        if ((ret = xml_yang_mount_get(h, xdevc, NULL, NULL, &yspec1)) < 0)
+            goto done;
+        inext = 0;
+        while ((ymod = yn_iter(yspec1, &inext)) != NULL) {
+            if (yang_keyword_get(ymod) != Y_MODULE &&
+                yang_keyword_get(ymod) != Y_SUBMODULE)
+                continue;
+            inext1 = 0;
+            while ((yrpc = yn_iter(ymod, &inext1)) != NULL) {
+                if (yang_keyword_get(yrpc) != Y_RPC)
+                    continue;
+                cbuf_reset(cb);
+                cprintf(cb, "%s:%s", yang_argument_get(ymod), yang_argument_get(yrpc));
+                cvec_add_string(commands, NULL, cbuf_get(cb));
+                if ((ydesc = yang_find(yrpc, Y_DESCRIPTION, NULL)) != NULL)
+                    cvec_add_string(helptexts, NULL, yang_argument_get(ydesc));
+                else
+                    cvec_add_string(helptexts, NULL, "RPC");
+            }
+        }
+    }
+    retval = 0;
+ done:
+    if (cb)
+        cbuf_free(cb);
+    return retval;
+}
+
+/*! Show generic rpc YANG signature
+ *
+ * @param[in]   h        Clixon handle
+ * @param[in]   cvv      The command so far. Eg: cvec [0]:"a 5 b"; [1]: x=5;
+ * @param[in]   argv     Arguments given at the callback:
+ *                       name     Name of cv containing device name
+ *                       rpcname  Name of cv containing module/rpc
+ */
+int
+cli_generic_rpc_show(clixon_handle h,
+                     cvec         *cvv,
+                     cvec         *argv)
+{
+    int        retval = -1;
+    char      *cvname = NULL;
+    char      *devname = NULL;
+    char      *rpcname = NULL;
+    cg_var    *cv;
+    char      *module = NULL;
+    char      *rpc = NULL;
+    yang_stmt *yspec1;
+    yang_stmt *ymod;
+    yang_stmt *yrpc;
+    cxobj     *xdevs;
+    cxobj     *xdevc;
+    int        ret;
+
+    if (cvec_len(argv) > 0){
+        if ((cvname = cv_string_get(cvec_i(argv, 0))) != NULL) {
+            if ((cv = cvec_find(cvv, cvname)) != NULL){
+                if ((devname = cv_string_get(cv)) == NULL){
+                    clixon_err(OE_PLUGIN, EINVAL, "cv name is empty");
+                    goto done;
+                }
+            }
+        }
+        if ((cvname = cv_string_get(cvec_i(argv, 1))) != NULL) {
+            if ((cv = cvec_find(cvv, cvname)) != NULL){
+                if ((rpcname = cv_string_get(cv)) == NULL){
+                    clixon_err(OE_PLUGIN, EINVAL, "cv name is empty");
+                    goto done;
+                }
+            }
+        }
+    }
+    if (devname && rpcname){
+        if (nodeid_split(rpcname, &module, &rpc) < 0)
+            goto done;
+        if (module && rpc){
+            if (rpc_get_yanglib_mount_match(h, devname, 1, 1, &xdevs) < 0)
+                goto done;
+            if (xdevs != NULL &&
+                (xdevc = xpath_first(xdevs, 0, "devices/device[name='%s']/config", devname)) != NULL){
+                if ((ret = xml_yang_mount_get(h, xdevc, NULL, NULL, &yspec1)) < 0)
+                    goto done;
+                if ((ymod = yang_find(yspec1, Y_MODULE, module)) != NULL ||
+                    (ymod = yang_find(yspec1, Y_SUBMODULE, module)) != NULL){
+                    if ((yrpc = yang_find(ymod, Y_RPC, rpc)) != NULL){
+                        yang_print(stdout, yrpc);
+                    }
+                }
+            }
+        }
+    }
+    retval = 0;
+ done:
+    if (module)
+        free(module);
+    if (rpc)
+        free(rpc);
+    return retval;
+}
+
+/*! Send generic rpc to controller to relay to device
+ *
+ * @param[in]  h         Clixon handle
+ * @param[in]  devname   Device name
+ * @param[in]  rpc       Name of RPC
+ * @param[in]  namespace RPC namespace
+ * @param[in]  input     RPC input parameters
+ */
+static int
+cli_send_generic_rpc(clixon_handle h,
+                     char         *devname,
+                     char         *rpc,
+                     char         *namespace,
+                     char         *input)
+{
+    int     retval = -1;
+    cbuf   *cb = NULL;
+    cxobj  *xtop = NULL;
+    cxobj  *xret = NULL;
+    cxobj  *xrpc;
+    cxobj  *xreply;
+    cxobj  *xerr;
+
+    if ((cb = cbuf_new()) == NULL){
+        clixon_err(OE_PLUGIN, errno, "cbuf_new");
+        goto done;
+    }
+    cprintf(cb, "<rpc xmlns=\"%s\" username=\"%s\" %s>",
+            NETCONF_BASE_NAMESPACE,
+            clicon_username_get(h),
+            NETCONF_MESSAGE_ID_ATTR);
+    cprintf(cb, "<device-generic-rpc xmlns=\"%s\">", CONTROLLER_NAMESPACE);
+    cprintf(cb, "<devname>%s</devname>", devname);
+    cprintf(cb, "<rpc-data>");
+    cprintf(cb, "<%s xmlns=\"%s\">", rpc, namespace);
+    if (input)
+        cprintf(cb, "%s", input);
+    cprintf(cb, "</%s>", rpc);
+    cprintf(cb, "</rpc-data>");
+    cprintf(cb, "</device-generic-rpc>");
+    cprintf(cb, "</rpc>");
+    if (clixon_xml_parse_string(cbuf_get(cb), YB_NONE, NULL, &xtop, NULL) < 0)
+        goto done;
+    /* Skip top-level */
+    xrpc = xml_child_i(xtop, 0);
+    /* Send to backend */
+    if (clicon_rpc_netconf_xml(h, xrpc, &xret, NULL) < 0)
+        goto done;
+    if ((xreply = xpath_first(xret, NULL, "rpc-reply")) == NULL){
+        clixon_err(OE_CFG, 0, "Malformed rpc reply");
+        goto done;
+    }
+    if ((xerr = xpath_first(xreply, NULL, "rpc-error")) != NULL){
+        clixon_err_netconf(h, OE_XML, 0, xerr, "Get configuration");
+        goto done;
+    }
+    retval = 0;
+ done:
+    if (cb)
+        cbuf_free(cb);
+    if (xret)
+        xml_free(xret);
+    if (xtop)
+        xml_free(xtop);
+    return retval;
+}
+
+/*! Call generic rpc on devices via controller
+ *
+ * @param[in]   h        Clixon handle
+ * @param[in]   cvv      The command so far. Eg: cvec [0]:"a 5 b"; [1]: x=5;
+ * @param[in]   argv     Arguments given at the callback:
+ *                       devname  Name of cv containing device name
+ *                       rpcname  Name of cv containing module/rpc
+ *                       input  Name of cv containing module/rpc
+ */
+int
+cli_generic_rpc_call(clixon_handle h,
+                     cvec         *cvv,
+                     cvec         *argv)
+{
+    int        retval = -1;
+    char      *cvname = NULL;
+    char      *pattern = NULL;
+    char      *devname;
+    char      *rpcname = NULL;
+    char      *input = NULL;
+    cg_var    *cv;
+    char      *module = NULL;
+    char      *rpc = NULL;
+    yang_stmt *yspec1;
+    yang_stmt *ymod;
+    yang_stmt *yrpc;
+    cxobj     *xdevs0 = NULL;
+    cxobj     *xdevs1 = NULL;
+    cxobj     *xdev0;
+    cxobj     *xdevc;
+    int        ret;
+
+    if (cvec_len(argv) != 2 && cvec_len(argv) != 3){
+        clixon_err(OE_PLUGIN, EINVAL, "requires arguments: <devname> <rpcname> [<inputname>]");
+        goto done;
+    }
+    if (cvec_len(argv) > 0){
+        if ((cvname = cv_string_get(cvec_i(argv, 0))) != NULL) {
+            if ((cv = cvec_find(cvv, cvname)) != NULL){
+                if ((pattern = cv_string_get(cv)) == NULL){
+                    clixon_err(OE_PLUGIN, EINVAL, "cv name is empty");
+                    goto done;
+                }
+            }
+        }
+        if ((cvname = cv_string_get(cvec_i(argv, 1))) != NULL) {
+            if ((cv = cvec_find(cvv, cvname)) != NULL){
+                if ((rpcname = cv_string_get(cv)) == NULL){
+                    clixon_err(OE_PLUGIN, EINVAL, "cv name is empty");
+                    goto done;
+                }
+            }
+        }
+        if (cvec_len(argv) > 2 &&
+            (cvname = cv_string_get(cvec_i(argv, 2))) != NULL) {
+            if ((cv = cvec_find(cvv, cvname)) != NULL){
+                if ((input = cv_string_get(cv)) == NULL){
+                    clixon_err(OE_PLUGIN, EINVAL, "cv name is empty");
+                    goto done;
+                }
+            }
+        }
+    }
+    if (pattern && rpcname){
+        if (nodeid_split(rpcname, &module, &rpc) < 0)
+            goto done;
+        if (module && rpc){
+            if (rpc_get_yanglib_mount_match(h, pattern, 0, 0, &xdevs0) < 0)
+                goto done;
+            /* Loop through all matching devices
+             * But only for first match
+             */
+            xdev0 = NULL;
+            while ((xdev0 = xml_child_each(xml_find(xdevs0, "devices"), xdev0, CX_ELMNT)) != NULL) {
+                if ((devname = xml_find_body(xdev0, "name")) == NULL)
+                    continue;
+                if (pattern != NULL && fnmatch(pattern, devname, 0) != 0)
+                    continue;
+                if (rpc_get_yanglib_mount_match(h, devname, 0, 1, &xdevs1) < 0)
+                    goto done;
+                if (xdevs1 != NULL &&
+                    (xdevc = xpath_first(xdevs1, 0, "devices/device[name='%s']/config", devname)) != NULL){
+                    if ((ret = xml_yang_mount_get(h, xdevc, NULL, NULL, &yspec1)) < 0)
+                        goto done;
+                    if ((ymod = yang_find(yspec1, Y_MODULE, module)) != NULL ||
+                        (ymod = yang_find(yspec1, Y_SUBMODULE, module)) != NULL){
+                        if ((yrpc = yang_find(ymod, Y_RPC, rpc)) != NULL){
+                            if (cli_send_generic_rpc(h, pattern, rpc,
+                                                     yang_find_mynamespace(yrpc), input) < 0)
+                                goto done;
+                        }
+                    }
+                    break;
+                }
+            }
+        }
+    }
+    retval = 0;
+ done:
+    if (module)
+        free(module);
+    if (rpc)
+        free(rpc);
+    if (xdevs0)
+        xml_free(xdevs0);
+    if (xdevs1)
+        xml_free(xdevs1);
     return retval;
 }
