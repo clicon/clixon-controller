@@ -70,8 +70,8 @@
 #include "controller_device_state.h"
 #include "controller_device_handle.h"
 #include "controller_device_send.h"
-#include "controller_device_recv.h"
 #include "controller_transaction.h"
+#include "controller_device_recv.h"
 
 /*! Mapping between enum conn_state and yang connection-state
  *
@@ -319,7 +319,7 @@ device_input_cb(int   s,
             /* Extra data to read, save data and continue on next round */
             break;
         }
-        if (clixon_debug_isset(CLIXON_DBG_DETAIL))
+        if (clixon_debug_detail())
             clixon_debug(CLIXON_DBG_MSG | CLIXON_DBG_DETAIL, "Recv [%s]: %s", name, cbuf_get(cbmsg));
         else
             clixon_debug(CLIXON_DBG_MSG, "Recv [%s] len: %lu", name, cbuf_len(cbmsg));
@@ -1777,8 +1777,25 @@ device_state_handler(clixon_handle h,
         if (device_state_check_ok(h, dh, ct) < 0)
             goto done;
         break;
-    case CS_RPC_GENERIC: /* Just accept any reply, and go to open */
-        if (device_state_set(dh, CS_OPEN) < 0)
+    case CS_RPC_GENERIC: /* Accept rpc reply, store, and go to open */
+        if (device_state_check_sanity(dh, tid, ct, name, conn_state, rpcname) == 0)
+            break;
+        /* Receive RPC data from device and store
+           XXX: Retval: 2 OK, 1 Closed, 0 Failed, -1 Error */
+        if ((ret = device_state_recv_rpc(h, dh, ct, xmsg, rpcname, conn_state, &cberr)) < 0)
+            goto done;
+        if (ret == 0){      /* 1. The device has failed: received rpc-error/not <ok>  */
+            if (controller_transaction_failed(h, tid, ct, dh, TR_FAILED_DEV_CLOSE, name, cbuf_get(cberr)) < 0)
+                goto done;
+            break;
+        }
+        else if (ret == 1){ /* 1. The device has failed and is closed */
+            if (controller_transaction_failed(h, tid, ct, dh, TR_FAILED_DEV_LEAVE, name, NULL) < 0)
+                goto done;
+            break;
+        }
+        /* The device is OK */
+        if (device_state_check_ok(h, dh, ct) < 0)
             goto done;
         break;
     case CS_PUSH_WAIT:

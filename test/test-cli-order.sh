@@ -99,8 +99,7 @@ expectpart "$($clixon_cli -1  -m configure -f $CFG set devices device openconfig
 new "commit diff a"
 expectpart "$($clixon_cli -1  -m configure -f $CFG commit diff)" 0 "\+\ *<address>1.1.1.1" --not-- "2.2.2.2" "\-\ *"
 
-new "commit push xxx"
-echo "$clixon_cli -1  -m configure -f $CFG commit push"
+new "commit push"
 expectpart "$($clixon_cli -1  -m configure -f $CFG commit push)" 0 "^$"
 
 # Here device and controller have different orders
@@ -108,7 +107,6 @@ new "set anything"
 expectpart "$($clixon_cli -1  -m configure -f $CFG set devices device openconfig1 config system config login-banner kalle)" 0 "^$"
 
 new "commit fail"
-echo "$clixon_cli -1  -m configure -f $CFG commit push"
 expectpart "$($clixon_cli -1  -m configure -f $CFG commit push 2>&1)" 0 "^OK$"
 
 if $BE; then

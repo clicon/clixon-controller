@@ -156,6 +156,69 @@ controller_transaction_state_set(controller_transaction *ct,
     return 0;
 }
 
+/*! Add device data from one device
+ *
+ * Add a new device element and children of devdata
+ * see notification/device-data
+ * @param[in]  ct      Controller transaction
+ * @param[in]  name    Device name
+ * @param[in]  xmsg    XML tree, copied
+ * @retval     0       OK
+ * @retval    -1       Error
+ */
+int
+transaction_devdata_add(clixon_handle           h,
+                        controller_transaction *ct,
+                        char                   *name,
+                        cxobj                  *xmsg)
+{
+    int        retval = -1;
+    cxobj     *xdata;
+    cxobj     *xc;
+    cxobj     *xc1;
+    yang_stmt *yspec0;
+    yang_stmt *ydevs;
+    cxobj     *xerr = NULL;
+    int        ret;
+
+    if (ct->ct_devdata == NULL){
+        if ((ct->ct_devdata = xml_new("devices", NULL, CX_ELMNT)) == NULL)
+            goto done;
+        if ((yspec0 = clicon_dbspec_yang(h)) == NULL){
+            clixon_err(OE_FATAL, 0, "No DB_SPEC");
+            goto done;
+        }
+        if (yang_abs_schema_nodeid(yspec0, "/ctrl:controller-transaction/devices", &ydevs) < 0)
+            goto done;
+        xml_spec_set(ct->ct_devdata, ydevs);
+    }
+    if ((ret = clixon_xml_parse_va(YB_PARENT, NULL, &ct->ct_devdata, &xerr,
+                                   "<devdata xmlns=\"%s\"><name>%s</name><data/></devdata>",
+                                   CONTROLLER_NAMESPACE, name)) < 0)
+        goto done;
+    if (ret == 0){
+        clixon_err(OE_YANG, 0, "xml parse fail");
+        goto done;
+    }
+    if ((xdata = xpath_first(ct->ct_devdata, NULL, "devdata[name='%s']/data", name)) == NULL){
+        clixon_err(OE_XML, 0, "devdata not found");
+        goto done;
+    }
+    xc = NULL;
+    while ((xc = xml_child_each(xmsg, xc, CX_ELMNT)) != NULL) {
+        if ((xc1 = xml_dup(xc)) == NULL)
+            goto done;
+        if ((xml_addsub(xdata, xc1)) < 0)
+            goto done;
+
+    }
+    retval = 0;
+ done:
+    if (xerr)
+        xml_free(xerr);
+    return retval;
+}
+
 /*! A transaction has been completed
  *
  * @param[in]  h      Clixon handle
@@ -190,6 +253,13 @@ controller_transaction_notify(clixon_handle           h,
         if (xml_chardata_cbuf_append(cb, 0, ct->ct_reason) < 0)
             goto done;
         cprintf(cb, "</reason>");
+    }
+    /* Check if any devdata, if so add and free */
+    if (ct->ct_devdata){
+        cprintf(cb, "<devices>");
+        if (clixon_xml2cbuf1(cb, ct->ct_devdata, 0, 0, NULL, -1, 1, 0) < 0)
+            goto done;
+        cprintf(cb, "</devices>");
     }
     cprintf(cb, "</controller-transaction>");
     if (stream_notify(h, "controller-transaction", "%s", cbuf_get(cb)) < 0)
@@ -349,6 +419,8 @@ controller_transaction_free1(controller_transaction *ct)
         free(ct->ct_warning);
     if (ct->ct_sourcedb)
         free(ct->ct_sourcedb);
+    if (ct->ct_devdata)
+        xml_free(ct->ct_devdata);
     free(ct);
     return 0;
 }
@@ -426,6 +498,10 @@ controller_transaction_done(clixon_handle           h,
     /* This should be the only place */
     if (controller_transaction_notify(h, ct) < 0)
         goto done;
+    if (ct->ct_devdata){
+        xml_free(ct->ct_devdata); // XXX free at close?
+        ct->ct_devdata = NULL;
+    }
     retval = 0;
  done:
     return retval;

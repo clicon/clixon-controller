@@ -392,7 +392,7 @@ push_device_one(clixon_handle           h,
 /*! Incoming rpc handler to sync from one or several devices
  *
  * @param[in]  h       Clixon handle
- * @param[in]  xe      Request: <rpc><xn></rpc>
+ * @param[in]  dh      Device handle
  * @param[in]  tid     Transaction id
  * @param[out] cbret   Return xml tree, eg <rpc-reply>..., <rpc-error.. if retval = 0
  * @retval     1       OK
@@ -2370,16 +2370,17 @@ xvars2cvv(cxobj  *xvars,
     return retval;
 }
 
-/*! Action callback, see clixon-controller.yang: devices/template/apply
+/*! Apply config template callback, see clixon-controller.yang: devices/template/apply
  *
  * @param[in]  h       Clixon handle
  * @param[in]  xn      Request: <rpc><xn></rpc>
  * @param[out] cbret   Return xml tree, eg <rpc-reply>..., <rpc-error..
- * @param[in]  arg     Domain specific arg, ec client-entry or FCGX_Request
+ * @param[in]  arg     Domain specific arg, eg client-entry or FCGX_Request
  * @param[in]  regarg  User argument given at rpc_callback_register()
  * @retval     0       OK
  * @retval    -1       Error
- */
+  * @see rpc_device_rpc_template_apply  RPC template
+*/
 int
 rpc_device_template_apply(clixon_handle h,
                           cxobj        *xe,
@@ -2403,8 +2404,6 @@ rpc_device_template_apply(clixon_handle h,
     char         *devname;
     char         *pattern;
     int           matching;
-    int           i;
-    int           ret;
     cxobj        *xerr = NULL;
     cxobj        *xtc = NULL;
     cxobj        *xroot = NULL;
@@ -2414,6 +2413,8 @@ rpc_device_template_apply(clixon_handle h,
     device_handle dh;
     yang_stmt    *yspec0;
     yang_stmt    *yspec1;
+    int           i;
+    int           ret;
 
     clixon_debug(CLIXON_DBG_CTRL, "");
     yspec0 = clicon_dbspec_yang(h);
@@ -2547,51 +2548,140 @@ rpc_device_template_apply(clixon_handle h,
     return retval;
 }
 
-/*! Send generic rpc to device
+/*! Send generic RPC to device within rpc transaction
+ *
+ * @param[in]  h        Clixon handle
+ * @param[in]  dh       Device handle
+ * @param[in]  tid      Transaction id
+ * @param[in]  rpc_data Input RPC data
+ * @param[out] cbret    Return xml tree, eg <rpc-reply>..., <rpc-error.. if retval = 0
+ * @retval     1        OK
+ * @retval     0        Fail, cbret set
+ * @retval    -1        Error
+ * @see device_send_generic_rpc
+ * @see pull_device_one XXX
+ */
+static int
+device_send_rpc_one(clixon_handle h,
+                    device_handle dh,
+                    uint64_t      tid,
+                    cxobj        *rpc_data,
+                    cbuf         *cbret)
+{
+    int  retval = -1;
+
+    clixon_debug(CLIXON_DBG_CTRL, "");
+    if (device_send_generic_rpc(h, dh, rpc_data) < 0)
+        goto done;
+    if (device_state_set(dh, CS_RPC_GENERIC) < 0)
+        goto done;
+    device_handle_tid_set(dh, tid);
+    retval = 1;
+ done:
+    return retval;
+}
+
+/*! Apply rpc-template callback, see clixon-controller.yang: devices/rpc-template/apply
  *
  * @param[in]  h       Clixon handle
  * @param[in]  xn      Request: <rpc><xn></rpc>
  * @param[out] cbret   Return xml tree, eg <rpc-reply>..., <rpc-error..
- * @param[in]  arg     Domain specific arg, ec client-entry or FCGX_Request
+ * @param[in]  arg     Domain specific arg, eg client-entry or FCGX_Request
  * @param[in]  regarg  User argument given at rpc_callback_register()
  * @retval     0       OK
  * @retval    -1       Error
+ * @see rpc_device_template_apply  Config template
  */
 int
-rpc_device_generic_rpc(clixon_handle h,
-                      cxobj        *xe,
-                      cbuf         *cbret,
-                      void         *arg,
-                      void         *regarg)
+rpc_device_rpc_template_apply(clixon_handle h,
+                              cxobj        *xe,
+                              cbuf         *cbret,
+                              void         *arg,
+                              void         *regarg)
 {
-    int           retval = -1;
-    cxobj        *xret = NULL;
-    cvec         *nsc = NULL;
-    char         *pattern;
-    cxobj        *rpc_data;
-    cxobj       **vec = NULL;
-    size_t        veclen;
-    cxobj        *xd;
-    char         *devname;
-    device_handle dh;
-    int           i;
+    client_entry           *ce = (client_entry *)arg;
+    int                     retval = -1;
+    cxobj                  *xret = NULL;
+    cvec                   *nsc = NULL;
+    controller_transaction *ct = NULL;
+    cbuf                   *cberr = NULL;
+    cxobj                 **vec = NULL;
+    size_t                  veclen;
+    char                   *tmplname;
+    cxobj                  *xinput;
+    cxobj                  *xvars;
+    cxobj                  *xvars0;
+    cvec                   *cvv = NULL;
+    cxobj                  *xv;
+    char                   *varname;
+    cxobj                  *xd;
+    char                   *devname;
+    char                   *pattern;
+    device_handle           dh;
+    int                     i;
+    int                     ret;
 
     clixon_debug(CLIXON_DBG_CTRL, "");
+    /* get template and device names */
+    if (xmldb_get0(h, "running", YB_MODULE, nsc, "devices", 1, WITHDEFAULTS_EXPLICIT, &xret, NULL, NULL) < 0)
+        goto done;
+    if ((tmplname = xml_find_body(xe, "template")) == NULL){
+        if (netconf_operation_failed(cbret, "application", "No template in rpc")< 0)
+            goto done;
+        goto ok;
+    }
+    if ((xinput = xpath_first(xret, nsc, "devices/rpc-template[name='%s']/input", tmplname)) == NULL){
+        if (netconf_operation_failed(cbret, "application", "Template not found")< 0)
+            goto done;
+        goto ok;
+    }
     if ((pattern = xml_find_body(xe, "devname")) == NULL){
         if (netconf_operation_failed(cbret, "application", "No devname")< 0)
             goto done;
         goto ok;
     }
-    if ((rpc_data = xml_find(xe, "rpc-data")) == NULL){
-        if (netconf_operation_failed(cbret, "application", "No rpc-data")< 0)
+    xvars = xml_find_type(xe, NULL, "variables", CX_ELMNT);
+    xvars0 = xpath_first(xret, nsc, "devices/rpc-template[name='%s']/variables", tmplname);
+    /* Match actual parameters in xvars with formal paremeters in xvars0 */
+    xv = NULL;
+    while ((xv = xml_child_each(xvars, xv, CX_ELMNT)) != NULL) {
+        varname = xml_find_body(xv, "name");
+        if (xpath_first(xvars0, nsc, "variable[name='%s']", varname) == NULL){
+            if (netconf_unknown_element(cbret, "application", varname, "No such template variable")< 0)
+                goto done;
+            goto ok;
+        }
+    }
+    xv = NULL;
+    while ((xv = xml_child_each(xvars0, xv, CX_ELMNT)) != NULL) {
+        varname = xml_find_body(xv, "name");
+        if (xpath_first(xvars, nsc, "variable[name='%s']", varname) == NULL){
+            if (netconf_missing_element(cbret, "application", varname, "Template variable")< 0)
+                goto done;
+            goto ok;
+        }
+    }
+    if (xvars2cvv(xvars, &cvv) < 0)
+        goto done;
+    /* Destructively substitute variables in xtempl
+     * Maybe work on a copy instead?
+     */
+    if (cvv && xml_apply(xinput, CX_ELMNT, xml_template_apply, cvv) < 0)
+        goto done;
+    if (xml_sort_recurse(xinput) < 0)
+        goto done;
+    /* Get devices from config */
+    if (xpath_vec(xret, nsc, "devices/device", &vec, &veclen) < 0)
+        goto done;
+    /* Initiate new transaction */
+    if ((ret = controller_transaction_new(h, ce->ce_id, "rpc", &ct, &cberr)) < 0)
+        goto done;
+    if (ret == 0){
+        if (netconf_operation_failed(cbret, "application", cbuf_get(cberr))< 0)
             goto done;
         goto ok;
     }
-    if (xmldb_get0(h, "running", YB_MODULE, nsc, "devices", 1, WITHDEFAULTS_EXPLICIT, &xret, NULL, NULL) < 0)
-        goto done;
-    if (xpath_vec(xret, nsc, "devices/device", &vec, &veclen) < 0)
-        goto done;
-    /* Apply xtempl on all matching devices */
+    /* Apply rpc input args on all matching devices */
     for (i=0; i<veclen; i++){
         xd = vec[i];
         if ((devname = xml_find_body(xd, "name")) == NULL)
@@ -2602,24 +2692,32 @@ rpc_device_generic_rpc(clixon_handle h,
             continue;
         if (device_handle_conn_state_get(dh) != CS_OPEN)
             continue;
-        if (device_send_generic_rpc(h, dh, rpc_data) < 0)
+        if ((ret = device_send_rpc_one(h, dh, ct->ct_id, xinput, cbret)) < 0)
             goto done;
-        if (device_state_set(dh, CS_RPC_GENERIC) < 0)
+        if (ret == 0)  /* Failed but cbret set */
+            goto ok;
+    }
+    cprintf(cbret, "<rpc-reply xmlns=\"%s\">", NETCONF_BASE_NAMESPACE);
+    cprintf(cbret, "<tid xmlns=\"%s\">%" PRIu64"</tid>", CONTROLLER_NAMESPACE, ct->ct_id);
+    cprintf(cbret, "</rpc-reply>");
+    /* No device started, close transaction */
+    if (controller_transaction_nr_devices(h, ct->ct_id) == 0){
+        if (controller_transaction_done(h, ct, TR_SUCCESS) < 0)
             goto done;
     }
-    /* Just send OK, possibly enhance with RPC reply but requires transaction */
-    cprintf(cbret, "<rpc-reply xmlns=\"%s\">", NETCONF_BASE_NAMESPACE);
-    cprintf(cbret, "<ok/>");
-    cprintf(cbret, "</rpc-reply>");
  ok:
     retval = 0;
  done:
+    if (cberr)
+        cbuf_free(cberr);
+    if (cvv)
+        cvec_free(cvv);
     if (xret)
         xml_free(xret);
-    if (nsc)
-        cvec_free(nsc);
     if (vec)
         free(vec);
+    if (nsc)
+        cvec_free(nsc);
     return retval;
 }
 
@@ -2926,10 +3024,10 @@ controller_rpc_init(clixon_handle h)
                               "device-template-apply"
                               ) < 0)
         goto done;
-    if (rpc_callback_register(h, rpc_device_generic_rpc,
+    if (rpc_callback_register(h, rpc_device_rpc_template_apply,
                               NULL,
                               CONTROLLER_NAMESPACE,
-                              "device-generic-rpc"
+                              "device-rpc-template-apply"
                               ) < 0)
         goto done;
     /* Check that services subscriptions is just done once */

@@ -583,8 +583,7 @@ device_send_discard_changes(clixon_handle h,
  *
  * @param[in]  h       Clixon handle
  * @param[in]  dh      Device handle
- * @param[in]  rpc
- * @param[in]  input
+ * @param[in]  rpc_data
  * @retval     0       OK
  * @retval    -1       Error
  */

@@ -54,6 +54,7 @@
 #include "controller_device_handle.h"
 #include "controller_transaction.h"
 #include "controller_device_recv.h"
+#include "controller_transaction.h"
 
 /*! Check sanity of a rpc-reply
  *
@@ -75,6 +76,7 @@ rpc_reply_sanity(device_handle dh,
     cvec *nsc = NULL;
     char *rpcprefix;
     char *namespace;
+
 
     if (strcmp(rpcname, "rpc-reply") != 0){
         device_close_connection(dh, "Unexpected msg %s in state %s",
@@ -562,39 +564,30 @@ device_state_recv_get_schema(device_handle dh,
     goto done;
 }
 
-/*! Controller input wresp to open state handling, read rpc-reply
+/*! Loop through all replies, if error stop, if only warning continue
  *
  * @param[in]  h          Clixon handle.
  * @param[in]  dh         Clixon client handle.
- * @param[in]  xmsg       XML tree of incoming message
- * @param[in]  yspec      Yang top-level spec
- * @param[in]  rpcname    Name of RPC, only "rpc-reply" expected here
- * @param[in]  conn_state Device connection state
  * @param[out] cberr      Error, free with cbuf_err (retval = 0)
- * @retval     2          OK
- * @retval     1          Closed
- * @retval     0          Failed: received rpc-error or not <ok> (not closed)
+ * @retval     1          OK
+ * @retval     0          Failed
  * @retval    -1          Error
  */
-int
-device_state_recv_ok(clixon_handle h,
-                     device_handle dh,
-                     cxobj        *xmsg,
-                     char         *rpcname,
-                     conn_state    conn_state,
-                     cbuf        **cberr)
+static int
+device_recv_check_errors(clixon_handle h,
+                         device_handle dh,
+                         cxobj        *xmsg,
+                         conn_state    conn_state,
+                         cbuf        **cberr)
 {
-    int    retval = -1;
-    int    ret;
-    cxobj *xerr;
-    char  *b;
-    cxobj *x;
-    cbuf  *cb = NULL;
+    int                      retval = -1;
+    cxobj                   *xerr;
+    cxobj                   *x;
+    char                    *b;
+    uint64_t                tid;
+    cbuf                   *cb = NULL;
+    controller_transaction *ct;
 
-    if ((ret = rpc_reply_sanity(dh, xmsg, rpcname, conn_state)) < 0)
-        goto done;
-    if (ret == 0)
-        goto closed;
     /* Loop through all replies, if error stop, if only warning continue */
     xerr = NULL;
     while ((xerr = xml_child_each(xmsg, xerr, CX_ELMNT)) != NULL) {
@@ -602,8 +595,6 @@ device_state_recv_ok(clixon_handle h,
             if ((x = xml_find_type(xerr, NULL, "error-severity", CX_ELMNT)) != NULL &&
                 (b = xml_body(x)) != NULL &&
                 strcmp(b, "warning") == 0){
-                uint64_t                tid;
-                controller_transaction *ct;
                 if ((tid = device_handle_tid_get(dh)) != 0 &&
                     (ct = controller_transaction_find(h, tid)) != NULL &&
                     ct->ct_warning == NULL){
@@ -643,8 +634,51 @@ device_state_recv_ok(clixon_handle h,
             }
         }
     }
+    retval = 1;
+ done:
+    if (cb)
+        cbuf_free(cb);
+    return retval;
+ failed:
+    retval = 0;
+    goto done;
+}
+
+/*! Controller input wresp to open state handling, read rpc-reply
+ *
+ * @param[in]  h          Clixon handle.
+ * @param[in]  dh         Clixon client handle.
+ * @param[in]  xmsg       XML tree of incoming message
+ * @param[in]  yspec      Yang top-level spec
+ * @param[in]  rpcname    Name of RPC, only "rpc-reply" expected here
+ * @param[in]  conn_state Device connection state
+ * @param[out] cberr      Error, free with cbuf_err (retval = 0)
+ * @retval     2          OK
+ * @retval     1          Closed
+ * @retval     0          Failed: received rpc-error or not <ok> (not closed)
+ * @retval    -1          Error
+ */
+int
+device_state_recv_ok(clixon_handle h,
+                     device_handle dh,
+                     cxobj        *xmsg,
+                     char         *rpcname,
+                     conn_state    conn_state,
+                     cbuf        **cberr)
+{
+    int    retval = -1;
+    int    ret;
+    cbuf  *cb = NULL;
+
+    if ((ret = rpc_reply_sanity(dh, xmsg, rpcname, conn_state)) < 0)
+        goto done;
+    if (ret == 0)
+        goto closed;
+    if ((ret = device_recv_check_errors(h, dh, xmsg, conn_state, cberr)) < 0)
+        goto done;
+    if (ret == 0)
+        goto failed;
     if (xml_find_type(xmsg, NULL, "ok", CX_ELMNT) == NULL){
-        h = device_handle_handle_get(dh);
         if ((cb = cbuf_new()) == NULL){
             clixon_err(OE_UNIX, errno, "cbuf_new");
             goto done;
@@ -674,3 +708,54 @@ device_state_recv_ok(clixon_handle h,
     goto done;
 }
 
+/*! Controller input rpc reply
+ *
+ * @param[in]  h          Clixon handle.
+ * @param[in]  dh         Clixon client handle.
+ * @param[in]  ct         Controller transaction
+ * @param[in]  xmsg       XML tree of incoming message
+ * @param[in]  yspec      Yang top-level spec
+ * @param[in]  rpcname    Name of RPC, only "rpc-reply" expected here
+ * @param[in]  conn_state Device connection state
+ * @param[out] cberr      Error, free with cbuf_err (retval = 0)
+ * @retval     2          OK
+ * @retval     1          Closed
+ * @retval     0          Failed: received rpc-error or not <ok> (not closed)
+ * @retval    -1          Error
+ * XXX check msgid?
+ */
+int
+device_state_recv_rpc(clixon_handle           h,
+                      device_handle           dh,
+                      controller_transaction *ct,
+                      cxobj                  *xmsg,
+                      char                   *rpcname,
+                      conn_state              conn_state,
+                      cbuf                  **cberr)
+{
+    int   retval = -1;
+    int   ret;
+    cbuf *cb = NULL;
+
+    if ((ret = rpc_reply_sanity(dh, xmsg, rpcname, conn_state)) < 0)
+        goto done;
+    if (ret == 0)
+        goto closed;
+    if ((ret = device_recv_check_errors(h, dh, xmsg, conn_state, cberr)) < 0)
+        goto done;
+    if (ret == 0)
+        goto failed;
+    if (transaction_devdata_add(h, ct, device_handle_name_get(dh), xmsg) < 0)
+        goto done;
+    retval = 2;
+ done:
+    if (cb)
+        cbuf_free(cb);
+    return retval;
+ failed:
+    retval = 0;
+    goto done;
+ closed:
+    retval = 1;
+    goto done;
+}

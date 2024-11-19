@@ -34,6 +34,9 @@ module clixon-controller {
     revision 2024-11-01 {
         description
              "Added device-generic-rpc
+              Added rpc-template
+              Added rpc device-rpc-template-apply
+              Added devices field to controller-transaction notification
               Changed default device-common/port to 830
               Released in 1.3.0";
     }
@@ -83,7 +86,7 @@ module clixon-controller {
         base ncm:transport;
         description
             "Services endpoint";
-    }    
+    }
     augment '/nc:get-config/input/source/config-source' {
         description
             "The actions datastore is used by service actions";
@@ -116,7 +119,7 @@ module clixon-controller {
         type enumeration{
             enum NONE {
                 description
-                  "Do not bind YANG to config 
+                  "Do not bind YANG to config
                    XXX not currently supported / required";
             }
             enum BIND {
@@ -131,7 +134,7 @@ module clixon-controller {
     }
     typedef connection-state{
         description
-            "Device connection state. 
+            "Device connection state.
              The controller holds this connection state per device.";
         type enumeration{
             enum CLOSED {
@@ -194,7 +197,7 @@ module clixon-controller {
     }
     typedef connection-operation{
         description
-            "Device connection state. 
+            "Device connection state.
              The controller holds this connection state per device.";
         type enumeration{
             enum CLOSE {
@@ -265,7 +268,7 @@ module clixon-controller {
             }
             enum TRANSIENT {
                 description
-                   "The current configuration of the remote device. 
+                   "The current configuration of the remote device.
                     Not saved on controller and only valid to the next device edit.";
             }
         }
@@ -392,7 +395,7 @@ module clixon-controller {
     }
     container services {
         description
-            "Placeholder for services. 
+            "Placeholder for services.
              This is typically augmented by an application, such as:
                import clixon-controller { prefix ctrl; }
                augment '/ctrl:services' {
@@ -465,7 +468,7 @@ module clixon-controller {
                 type string;
             }
             description
-                "Device templates provide a simple meschanism to apply a pre-set configuration
+                "Device config templates provide a simple mechanism to apply a pre-set configuration
                  part with a simple mechanism using variable substitution.
                  A template is like a macro with shell-like ${var} variables.";
            container variables {
@@ -487,15 +490,59 @@ module clixon-controller {
             }
             anydata config{
                 description
-                    "This parameter contains template data with variable substitutions on the
-                     form ${var}. 
+                    "Configuration template data with variable substitutions on the form ${var}.
                      The config is supposed to be applied to a device/config mount-point.
                      The yang is unknown until applied";
             }
         }
+        list rpc-template {
+            key name;
+            leaf name{
+                type string;
+            }
+            description
+                "Device RPC templates provide a simple mechanism to send an RPC to devices
+                 using a configured input template with variable substitution.
+                 A template is like a macro with shell-like ${var} variables.";
+           container variables {
+               description "Formal variable input declarations";
+               list variable{
+                   description
+                       "Formal variable template declaration.
+                        Should match all instance of ${VAR} in the anydata config part.
+                        Actual parameters are bound at apply time.
+                        All variables are of type strings";
+                   key name;
+                   leaf name{
+                       type string;
+                   }
+                   leaf description{
+                       type string;
+                   }
+               }
+            }
+           container rpc {
+               description "Name and namespace of RPC";
+               leaf module { // XXX or namespace or module-name ?
+                   type string; // inet:uri
+                   mandatory true;
+               }
+               leaf name{
+                   type string;
+                   mandatory true;
+               }
+           }
+           anydata input{
+               description
+                   "Input template data with variable substitutions on the form ${var}.
+                     This input is supposed to be applied to a devicepattern.
+                     The yang is unknown until applied";
+           }
+        }
         list device{
             key name;
             leaf name{
+                description "device name";
                 type string;
             }
             leaf enabled {
@@ -518,7 +565,7 @@ module clixon-controller {
             uses device-common;
             leaf device-type{
                 description
-                    "General-purpose field to characterize a device. 
+                    "General-purpose field to characterize a device.
                      This is a freetext field for manual editing  where info such as
                      vendor, version etc could be added";
                 type string;
@@ -645,7 +692,7 @@ module clixon-controller {
                 "Names of service/instance that have changed configuration.
                 Or should be reapplied.
                 None means all (eg reapply unconditionally)
-                Two formats: 
+                Two formats:
                    - <service>/<instance>
                    - <service>   applies to all instances ina  service";
             type string;
@@ -672,6 +719,20 @@ module clixon-controller {
             description "Reason for terminating transaction (if ok=false)";
             type string;
         }
+        container devices {
+            list devdata {
+                description
+                    "Replies from device, can be rpc reply for rpc-template transaction";
+                key name;
+                leaf name{
+                    description "device name, should be one of /devices/device/name";
+                    type string;
+                }
+                anydata data {
+                    description "Device reply data";
+                }
+            }
+        }
     }
     rpc config-pull {
         description
@@ -689,7 +750,7 @@ module clixon-controller {
                 description
                     "If false, replace the local device configuration with the
                      remote (actual) device config.
-                     If true, merge the remote device configuration with the local 
+                     If true, merge the remote device configuration with the local
                      device configuration.";
                 type boolean;
                 default false;
@@ -720,7 +781,7 @@ module clixon-controller {
              1) If no devices are selected UNLESS no remote validate/commit is made
                 You may want to dryrun a service for example even if no devices are present
              2) If local device fields are changed (except device mount-point - 'config')
-                These may potentially effect the device connection and should be made 
+                These may potentially effect the device connection and should be made
                 using regular netconf local commit followed by rpc connection-change.
              3) A device is CLOSED UNLESS no remote validate/commit is made
                 which means you can do local operations (like diff) even when devices are down
@@ -774,10 +835,10 @@ module clixon-controller {
             leaf push {
                 description
                     "How to push configuration diffs to devices.
-                     Diffs are computed from the last SYNCED device datastore. 
+                     Diffs are computed from the last SYNCED device datastore.
                      If actions is enabled the source datastore of push is action-db
                      Otherwise the source is the value of datastore.
-                     If push is COMMIT and the push is successful, 
+                     If push is COMMIT and the push is successful,
                      a local controller commit is made as follows:
                      - if actions, commit is made from action-db
                      - otherwise if datastore is candidate, commit is made from candidate
@@ -795,7 +856,7 @@ module clixon-controller {
         }
         output {
             leaf tid {
-                description "Id of allocated transaction, can be used for notification";
+                description "Id of allocated transaction, use for notification";
                 type uint64;
             }
         }
@@ -818,7 +879,7 @@ module clixon-controller {
         }
         output {
             leaf tid {
-                description "Id of allocated transaction, can be used for notification";
+                description "Id of allocated transaction, use for notification";
                 type uint64;
             }
         }
@@ -893,7 +954,7 @@ module clixon-controller {
     rpc datastore-diff {
         description
             "Compare two data-stores by returning a diff-list in XML.
-             There are two variants: 
+             There are two variants:
              1) Regular datastore references, such as running/candidate according to
                 ietf-datastores YANG
              2) Clixon-controller specific device datastores";
@@ -976,28 +1037,39 @@ module clixon-controller {
            }
        }
     }
-    rpc device-generic-rpc {
-        description
-            "Send generic rpc to device";
+    rpc device-rpc-template-apply {
+        description "Apply device templates on device configure";
         input {
            leaf devname {
                description
-                   "Name of device or pattern of devices to send rpc to.";
-               mandatory true;
+                   "Name of device or pattern of devices to apply on.";
                type string;
            }
-           anyxml rpc-data {
+           leaf template {
                description
-                   "RPC body, including name and namespace, on the form:
-                    <myrpc xmlns='mynamespace'>...</myrpc>";
+                   "Name of device template.";
+               type leafref {
+                   path "/devices/rpc-template/name";
+                   require-instance false;
+               }
+           }
+           container variables {
+               description "variable bindings";
+               list variable {
+                   key name;
+                   leaf name {
+                       type string;
+                   }
+                   leaf value {
+                       type string;
+                   }
+               }
            }
         }
         output {
-            leaf ok {
-              type empty;
-            }
-            anyxml output {
-                description "RPC output data";
+            leaf tid {
+                description "Id of allocated transaction, use for notification";
+                type uint64;
             }
         }
     }

@@ -131,7 +131,7 @@ expectpart "$($clixon_cli -1 -f $CFG -m configure delete devices template interf
 new "commit"
 expectpart "$($clixon_cli -1 -f $CFG -m configure commit)" 0 "^$"
 
-new "CLI load template"
+new "CLI load template xml"
 # quote EOFfor $NAME
 ret=$(${clixon_cli} -1f $CFG -m configure load merge xml <<'EOF'
       <config>
@@ -159,6 +159,7 @@ ret=$(${clixon_cli} -1f $CFG -m configure load merge xml <<'EOF'
       </config>
 EOF
 )
+
 #echo "ret:$ret"
 
 if [ -n "$ret" ]; then

@@ -1,0 +1,7 @@
+CLICON_MODE="rpc_template_vars";
+CLICON_PROMPT="%U@%H[%W]# ";
+CLICON_PLUGIN="controller_cli";
+
+<var:string expand_dbvar("candidate","/clixon-controller:devices/rpc-template=%s/variables/variable/name")>("Formal variable") <val:string>("Substituted Value"), cli_apply_device_rpc_template();{
+   @rpc_template_vars;
+   }

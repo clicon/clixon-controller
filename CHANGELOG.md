@@ -5,8 +5,9 @@ Expected: January 2025
 
 ### New features
 
-* Preliminary version of generic RPC API
-  * see [Execute arbitrary RPC commands](https://github.com/clicon/clixon-controller/issues/45)
+* Execute arbitrary device RPCs using templates
+  * see: [Execute arbitrary RPC commands](https://github.com/clicon/clixon-controller/issues/45)
+  * docs: https://clixon-controller-docs.readthedocs.io/en/latest/cli.html#rpc-templates
 
 ### API changes on existing protocol/config features
 
@@ -23,6 +24,7 @@ Expected: January 2025
 28 October 2024
 
 ### New features
+
 * Added configurable port for NETCONF over SSH
   * See [make netconf ssh port to devices configurable](https://github.com/clicon/clixon-controller/issues/152)
 * Added yang domains for mount-point isolation
