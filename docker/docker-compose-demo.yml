@@ -5,7 +5,7 @@ services:
     image: clixon/demo-controller:latest
     build:
       context: ../
-      dockerfile: docker/Dockerfile
+      dockerfile: docker/Dockerfile-demo
     environment:
       - CONTAINERS="r1 r2"
       - USE_STARTUPDB="yes"
