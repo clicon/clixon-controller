@@ -73,8 +73,8 @@ RUN pip3 install -r clixon-pyapi/requirements.txt --break-system-packages
 RUN cp /usr/local/etc/clixon/controller.xml /usr/local/etc/clixon/clixon.xml
 RUN cp /usr/local/etc/clixon/controller.xml /usr/local/etc/clixon.xml
 
-COPY docker/ssh-users.yang /usr/local/share/controller/modules/
-COPY docker/ssh_users.py /usr/local/share/controller/main/
+COPY docker/ssh-users.yang /usr/local/share/controller/main/
+COPY docker/ssh_users.py /usr/local/share/controller/modules/
 
 COPY docker/startsystem.sh /usr/local/bin/
 
