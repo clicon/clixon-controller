@@ -37,12 +37,14 @@ RUN useradd -m -d /home/clicon clicon
 RUN ls -l /home
 
 WORKDIR /clixon/cligen
+RUN git checkout 68a0b407f5c4e1fd81191ad1eb8be5fe640ad03d
 RUN ./configure
 RUN make
 RUN make install
 RUN ldconfig
 
 WORKDIR /clixon/clixon
+RUN git checkout 947128339ce5f53c33915042f9d2163d0a73cbc9
 RUN ./configure
 RUN make
 RUN make install
@@ -52,6 +54,7 @@ RUN ldconfig
 RUN mkdir /clixon/clixon-controller
 WORKDIR /clixon/clixon-controller
 COPY . .
+RUN git checkout 41097e7ee69232b78469a0362aa5bbc3df7c4956
 RUN ./configure
 RUN make
 RUN make install
