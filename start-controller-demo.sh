@@ -18,4 +18,4 @@ docker exec -t demo-controller bash -c "cat /root/.ssh/id_rsa.pub"
 # Echo the CLI command to the console
 echo ""
 echo "To start Controller CLI run:"
-echo "docker exec -it controller-demo clixon_cli -f /usr/local/etc/clixon/controller.xml"
+echo "docker exec -it demo-controller clixon_cli -f /usr/local/etc/clixon/controller.xml"

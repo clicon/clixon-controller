@@ -3,7 +3,6 @@ services:
   demo-controller:
     container_name: demo-controller
     image: clixon/demo-controller:latest
-    image: clixon/controller:${TAG}
     build:
       context: ../
       dockerfile: docker/Dockerfile
