@@ -319,8 +319,10 @@ device_input_cb(int   s,
             /* Extra data to read, save data and continue on next round */
             break;
         }
-        clixon_debug(CLIXON_DBG_MSG, "Recv [%s] len: %lu", name, cbuf_len(cbmsg));
-        clixon_debug(CLIXON_DBG_MSG | CLIXON_DBG_DETAIL, "Recv [%s]: %s", name, cbuf_get(cbmsg));
+        if (clixon_debug_isset(CLIXON_DBG_DETAIL))
+            clixon_debug(CLIXON_DBG_MSG | CLIXON_DBG_DETAIL, "Recv [%s]: %s", name, cbuf_get(cbmsg));
+        else
+            clixon_debug(CLIXON_DBG_MSG, "Recv [%s] len: %lu", name, cbuf_len(cbmsg));
         if ((ret = netconf_input_frame2(cbmsg, YB_NONE, NULL, &xtop, &xerr)) < 0)
             goto done;
         cbuf_reset(cbmsg);
@@ -1026,7 +1028,7 @@ device_state_check_sanity(device_handle           dh,
                           char                   *rpcname)
 {
     if (tid == 0 || ct == NULL){
-        device_close_connection(dh, "Unexped rpc %s from device %s in state %s: device is not part of any transaction",
+        device_close_connection(dh, "Unexpected rpc %s from device %s in state %s: device is not part of any transaction",
                                 rpcname, name, device_state_int2str(conn_state));
         return 0;
     }
