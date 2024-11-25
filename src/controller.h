@@ -72,6 +72,10 @@
  */
 #undef CONTROLLER_EXTRA_PUSH_SYNC
 
+/*! netopeer/infix needs an extra namespace declaration in netconf lock/unlock
+ */
+#undef NETCONF_LOCK_EXTRA_NAMESPACE
+
 #define ACTION_PROCESS "Action process"
 
 /*! Controller debug levels

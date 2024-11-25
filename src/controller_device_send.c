@@ -83,9 +83,13 @@ device_send_lock(clixon_handle h,
     cprintf(cb, "<rpc xmlns=\"%s\" message-id=\"%" PRIu64 "\">",
             NETCONF_BASE_NAMESPACE,
             device_handle_msg_id_getinc(dh));
-    cprintf(cb, "<%s>", lock==0?"unlock":"lock");
+#ifdef NETCONF_LOCK_EXTRA_NAMESPACE
+    cprintf(cb, "<%slock xmlns=\"%s\">", lock==0?"un":"", NETCONF_BASE_NAMESPACE);
+#else
+    cprintf(cb, "<%slock>", lock==0?"un":"");
+#endif
     cprintf(cb, "<target><candidate/></target>");
-    cprintf(cb, "</%s>", lock==0?"unlock":"lock");
+    cprintf(cb, "</%slock>", lock==0?"un":"");
     cprintf(cb, "</rpc>");
     encap = device_handle_framing_type_get(dh);
     if (netconf_output_encap(encap, cb) < 0)
