@@ -188,6 +188,7 @@ if $BE; then
     new "Kill old backend $CFG"
     sudo clixon_backend -f $CFG -E $CFD -z
 fi
+
 if $BE; then
     new "Start new backend -s startup -f $CFG -E $CFD -D $DBG"
     sudo clixon_backend -s startup -f $CFG -E $CFD -D $DBG
@@ -271,6 +272,9 @@ fi
 sleep 1 # time to make controller-service die
 
 # Simulated duplicate
+# The service generates duplicates both for openconfig1 and openconfig2
+# This is accepted by the controller CLICON_NETCONF_DUPLICATE_ALLOW=true
+# and duplicates removed
 cat<<EOF > $CFD/action-command.xml
 <clixon-config xmlns="http://clicon.org/config">
   <CONTROLLER_ACTION_COMMAND xmlns="http://clicon.org/controller-config">${BINDIR}/clixon_controller_service -f $CFG -E $CFD -d</CONTROLLER_ACTION_COMMAND>
@@ -279,7 +283,7 @@ EOF
 
 if $BE; then
     new "Start new backend -s running -f $CFG -E $CFD -D $DBG"
-    sudo clixon_backend -s running -f $CFG -E $CFD -D $DBG
+    sudo clixon_backend -s running -f $CFG -E $CFD -D $DBG -o CLICON_NETCONF_DUPLICATE_ALLOW=true
 fi
 
 new "Wait backend 2"
@@ -342,8 +346,10 @@ if [ -n "$match" ]; then
     err "<ok/>" "$ret"
 fi
 
+# A0y is duplicated
 new "commit"
-expectpart "$(${clixon_cli} -m configure -1f $CFG -E $CFD commit 2>&1)" 0 "operation-failed" "data-not-unique"
+# Issue 161
+expectpart "$(${clixon_cli} -m configure -1f $CFG -E $CFD commit 2>&1)" 0 "" --not-- "operation-failed"
 
 if $BE; then
     new "Kill old backend"

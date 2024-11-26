@@ -13,6 +13,10 @@ Expected: January 2025
 * New `clixon-controller-config@2024-11-01.yang` revision
   * Added device-generic-rpc
 
+### Corrected Bugs
+
+* Fixed: [Commit without changes results in weird diff](https://github.com/clicon/clixon-controller/issues/161)
+
 ## 1.2.0
 28 October 2024
 

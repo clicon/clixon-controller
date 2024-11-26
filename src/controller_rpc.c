@@ -336,7 +336,7 @@ push_device_one(clixon_handle           h,
             clixon_err(OE_UNIX, errno, "cbuf_new");
             goto done;
         }
-        cprintf(*cberr, "No YANGs in device");
+        cprintf(*cberr, "No YANGs exists for device %s, is device connected? (set enabled=false)", name);
         goto failed;
     }
     /* What to push to device? diff between synced and actionsdb */
@@ -1425,7 +1425,7 @@ rpc_controller_commit(clixon_handle h,
     /* Start local commit/diff transaction */
     if ((td = transaction_new()) == NULL)
         goto done;
-    /* Diff candidate/running and fill in a diff transaction structure td for future use 
+    /* Diff candidate/running and fill in a diff transaction structure td for future use
      */
     if (devices_diff(h, ct, td, &closed) < 0)
         goto done;
@@ -1924,13 +1924,13 @@ datastore_diff_dsref(clixon_handle    h,
     cxobj  *x1;
     cxobj  *x2;
 
-    if (xmldb_get0(h, db1, YB_NONE, NULL, xpath, 1, WITHDEFAULTS_EXPLICIT, &xt1, NULL, NULL) < 0)
+    if (xmldb_get0(h, db1, YB_MODULE, NULL, xpath, 1, WITHDEFAULTS_EXPLICIT, &xt1, NULL, NULL) < 0)
         goto done;
     if (xpath)
         x1 = xpath_first(xt1, NULL, "%s", xpath);
     else
         x1 = xt1;
-    if (xmldb_get0(h, db2, YB_NONE, NULL, xpath, 1, WITHDEFAULTS_EXPLICIT, &xt2, NULL, NULL) < 0)
+    if (xmldb_get0(h, db2, YB_MODULE, NULL, xpath, 1, WITHDEFAULTS_EXPLICIT, &xt2, NULL, NULL) < 0)
         goto done;
     if (xpath)
         x2 = xpath_first(xt2, NULL, "%s", xpath);
