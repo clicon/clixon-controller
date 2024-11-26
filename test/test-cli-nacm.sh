@@ -41,11 +41,28 @@ cat<<EOF > $CFD/diff.xml
 </clixon-config>
 EOF
 
+# Specialize autocli.xml for openconfig vs ietf interfaces
+cat <<EOF > $CFD/autocli.xml
+<clixon-config xmlns="http://clicon.org/config">
+  <autocli>
+     <module-default>true</module-default>
+     <list-keyword-default>kw-nokey</list-keyword-default>
+     <treeref-state-default>true</treeref-state-default>
+     <grouping-treeref>true</grouping-treeref>
+     <rule>
+       <name>exclude ietf interfaces</name>
+       <module-name>ietf-interfaces</module-name>
+       <operation>disable</operation>
+     </rule>
+  </autocli>
+</clixon-config>
+EOF
+
 cat <<EOF > $fyang
 module clixon-test {
     namespace "http://clicon.org/test";
     prefix test;
-    import clixon-controller { 
+    import clixon-controller {
        prefix ctrl; 
     }
     import ietf-netconf-acm {
