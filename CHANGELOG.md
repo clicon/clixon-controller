@@ -11,10 +11,12 @@ Expected: January 2025
 ### API changes on existing protocol/config features
 
 * New `clixon-controller-config@2024-11-01.yang` revision
+  * Changed default device-common/port to 830
   * Added device-generic-rpc
 
 ### Corrected Bugs
 
+* Fixed: [Generalize default autocli.xml file](https://github.com/clicon/clixon-controller/issues/163)
 * Fixed: [Commit without changes results in weird diff](https://github.com/clicon/clixon-controller/issues/161)
 
 ## 1.2.0
@@ -55,6 +57,7 @@ Expected: January 2025
 
 ### Corrected Bugs
 
+* Fixed: [Change default NETCONF ssh port to 830](https://github.com/clicon/clixon-controller/issues/164)
 * Fixed: [CLI bug w/ device domains on juniper qfx devices](https://github.com/clicon/clixon-controller/issues/145)
 * Fixed: [Controller doesn't properly identify ietf-netconf-monitoring in hello statement on FS switch](https://github.com/clicon/clixon-controller/issues/137)
 * Fixed: commit fail in transaction caused assertion

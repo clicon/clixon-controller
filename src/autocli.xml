@@ -4,10 +4,5 @@
      <list-keyword-default>kw-nokey</list-keyword-default>
      <treeref-state-default>true</treeref-state-default>
      <grouping-treeref>true</grouping-treeref>
-     <rule>
-       <name>exclude ietf</name>
-       <module-name>ietf-*</module-name>
-       <operation>disable</operation>
-     </rule>
   </autocli>
 </clixon-config>

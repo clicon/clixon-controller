@@ -71,28 +71,6 @@ cat <<EOF > $CFG
 </clixon-config>
 EOF
 
-cat <<EOF > $CFD/autocli.xml
-<clixon-config xmlns="http://clicon.org/config">
-  <autocli>
-     <module-default>false</module-default>
-     <list-keyword-default>kw-nokey</list-keyword-default>
-     <treeref-state-default>true</treeref-state-default>
-     <grouping-treeref>true</grouping-treeref>
-     <rule>
-       <name>include controller</name>
-       <module-name>clixon-controller</module-name>
-       <operation>enable</operation>
-     </rule>
-     <rule>
-       <name>include openconfig</name>
-       <module-name>openconfig*</module-name>
-       <operation>enable</operation>
-     </rule>
-     <!-- there are many more arista/openconfig top-level modules -->
-  </autocli>
-</clixon-config>
-EOF
-
 cat <<EOF > $fyang
 module ssh-users {
     namespace "http://clicon.org/ssh-users";

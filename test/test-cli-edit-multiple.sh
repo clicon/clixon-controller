@@ -22,27 +22,6 @@ cat<<EOF > $CFD/diff.xml
 </clixon-config>
 EOF
 
-cat <<EOF > $CFD/autocli.xml
-<clixon-config xmlns="http://clicon.org/config">
-  <autocli>
-     <module-default>false</module-default>
-     <list-keyword-default>kw-nokey</list-keyword-default>
-     <treeref-state-default>true</treeref-state-default>
-     <grouping-treeref>true</grouping-treeref>
-     <rule>
-       <name>include controller</name>
-       <module-name>clixon-controller</module-name>
-       <operation>enable</operation>
-     </rule>
-     <rule>
-       <name>include example</name>
-       <module-name>openconfig*</module-name>
-       <operation>enable</operation>
-     </rule>
-  </autocli>
-</clixon-config>
-EOF
-
 cat<<EOF > $dir/controller_configure.cli
 CLICON_MODE="configure";
 CLICON_PROMPT="%U@%H[%W]# ";

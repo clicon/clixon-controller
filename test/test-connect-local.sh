@@ -22,7 +22,7 @@ if [ -z "$dockerbin" ]; then
     echo "Skip test since inside docker"
     exit 0
 fi
-# SKIP TEXT SINCE UNCLEAR AND DONT WORK WITH ISOLATED DOMAINS
+# XXX: SKIP TEST SINCE UNCLEAR AND DONT WORK WITH ISOLATED DOMAINS
 exit 0
 
 # Default container name, postfixed with 1,2,..,<nr>
@@ -48,22 +48,6 @@ cat<<EOF > $CFD/diff.xml
   <CLICON_XMLDB_DIR>$dir</CLICON_XMLDB_DIR>
   <CLICON_VALIDATE_STATE_XML>true</CLICON_VALIDATE_STATE_XML>
   <CLICON_CLI_OUTPUT_FORMAT>text</CLICON_CLI_OUTPUT_FORMAT>
-</clixon-config>
-EOF
-
-cat <<EOF > $CFD/autocli.xml
-<clixon-config xmlns="http://clicon.org/config">
-  <autocli>
-     <module-default>false</module-default>
-     <list-keyword-default>kw-nokey</list-keyword-default>
-     <treeref-state-default>true</treeref-state-default>
-     <grouping-treeref>true</grouping-treeref>
-     <rule>
-       <name>include controller</name>
-       <module-name>clixon-controller</module-name>
-       <operation>enable</operation>
-     </rule>
-  </autocli>
 </clixon-config>
 EOF
 
