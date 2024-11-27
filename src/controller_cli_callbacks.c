@@ -2648,6 +2648,7 @@ cli_apply_device_template(clixon_handle h,
  * @retval    0    OK
  * @retval   -1    Error
  * @see cli_generic_rpc_list  list device rpc:s
+ * XXX need a level of indirection for cv:s
  */
 int
 cli_apply_device_rpc_template(clixon_handle h,
@@ -2679,7 +2680,7 @@ cli_apply_device_rpc_template(clixon_handle h,
         goto done;
     }
     templ = cv_string_get(cv);
-    if ((cv = cvec_find(cvv, "devs")) != NULL)
+    if ((cv = cvec_find(cvv, "devname")) != NULL)
         devs = cv_string_get(cv);
     if ((cb = cbuf_new()) == NULL){
         clixon_err(OE_PLUGIN, errno, "cbuf_new");

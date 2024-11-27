@@ -2609,6 +2609,7 @@ rpc_device_rpc_template_apply(clixon_handle h,
     size_t                  veclen;
     char                   *tmplname;
     cxobj                  *xinput;
+    cxobj                  *xtempl;
     cxobj                  *xvars;
     cxobj                  *xvars0;
     cvec                   *cvv = NULL;
@@ -2630,11 +2631,12 @@ rpc_device_rpc_template_apply(clixon_handle h,
             goto done;
         goto ok;
     }
-    if ((xinput = xpath_first(xret, nsc, "devices/rpc-template[name='%s']/input", tmplname)) == NULL){
+    if ((xtempl = xpath_first(xret, nsc, "devices/rpc-template[name='%s']", tmplname)) == NULL){
         if (netconf_operation_failed(cbret, "application", "Template not found")< 0)
             goto done;
         goto ok;
     }
+    xinput = xml_find(xtempl, "input");
     if ((pattern = xml_find_body(xe, "devname")) == NULL){
         if (netconf_operation_failed(cbret, "application", "No devname")< 0)
             goto done;
@@ -2666,10 +2668,12 @@ rpc_device_rpc_template_apply(clixon_handle h,
     /* Destructively substitute variables in xtempl
      * Maybe work on a copy instead?
      */
-    if (cvv && xml_apply(xinput, CX_ELMNT, xml_template_apply, cvv) < 0)
-        goto done;
-    if (xml_sort_recurse(xinput) < 0)
-        goto done;
+    if (cvv && xinput){
+        if (xml_apply(xinput, CX_ELMNT, xml_template_apply, cvv) < 0)
+            goto done;
+        if (xml_sort_recurse(xinput) < 0)
+            goto done;
+    }
     /* Get devices from config */
     if (xpath_vec(xret, nsc, "devices/device", &vec, &veclen) < 0)
         goto done;

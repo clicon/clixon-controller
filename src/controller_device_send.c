@@ -538,7 +538,8 @@ device_send_rpc(clixon_handle h,
     cprintf(cb, "<rpc xmlns=\"%s\" message-id=\"%" PRIu64 "\">",
             NETCONF_BASE_NAMESPACE,
             device_handle_msg_id_getinc(dh));
-    cprintf(cb, "%s", msgbody);
+    if (msgbody)
+        cprintf(cb, "%s", msgbody);
     cprintf(cb, "</rpc>");
     encap = device_handle_framing_type_get(dh);
     if (netconf_output_encap(encap, cb) < 0)
@@ -595,18 +596,20 @@ device_send_generic_rpc(clixon_handle h,
     int    retval = -1;
     cbuf  *cb = NULL;
 
-    if (rpc_data == NULL){
-        clixon_err(OE_UNIX, EINVAL, "rpc_data is NULL");
-        goto done;
+    if (rpc_data){
+        if ((cb = cbuf_new()) == NULL){
+            clixon_err(OE_UNIX, errno, "cbuf_new");
+            goto done;
+        }
+        if (clixon_xml2cbuf(cb, rpc_data, 0, 0, NULL, -1, 1) < 0)
+            goto done;
+        if (device_send_rpc(h, dh, cbuf_get(cb)) < 0)
+            goto done;
     }
-    if ((cb = cbuf_new()) == NULL){
-        clixon_err(OE_UNIX, errno, "cbuf_new");
-        goto done;
+    else {
+        if (device_send_rpc(h, dh, NULL) < 0)
+            goto done;
     }
-    if (clixon_xml2cbuf(cb, rpc_data, 0, 0, NULL, -1, 1) < 0)
-        goto done;
-    if (device_send_rpc(h, dh, cbuf_get(cb)) < 0)
-        goto done;
     retval = 0;
  done:
     if (cb)
