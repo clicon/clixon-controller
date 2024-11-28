@@ -2645,9 +2645,8 @@ rpc_device_rpc_template_apply(clixon_handle h,
     while ((xv = xml_child_each(xvars0, xv, CX_ELMNT)) != NULL) {
         varname = xml_find_body(xv, "name");
         if (xpath_first(xvars, nsc, "variable[name='%s']", varname) == NULL){
-            if (netconf_missing_element(cbret, "application", varname, "Template variable")< 0)
+            if (clixon_xml_parse_va(YB_NONE, NULL, &xvars, NULL, "<variable><name>%s</name><value></value></variable>", varname) < 0)
                 goto done;
-            goto ok;
         }
     }
     if (xvars2cvv(xvars, &cvv) < 0)

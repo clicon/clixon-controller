@@ -749,8 +749,10 @@ device_state_recv_rpc(clixon_handle           h,
         goto done;
     if (ret == 0)
         goto failed;
-    if (transaction_devdata_add(h, ct, device_handle_name_get(dh), xmsg) < 0)
+    if ((ret = transaction_devdata_add(h, ct, device_handle_name_get(dh), xmsg, cberr)) < 0)
         goto done;
+    if (ret == 0)
+        goto failed;
     retval = 2;
  done:
     if (cb)

@@ -636,10 +636,16 @@ transaction_exist(clixon_handle h,
     cxobj *xerr;
     cxobj *xt;
     cvec  *nsc = NULL;
+    cbuf  *cb = NULL;
 
     if ((nsc = xml_nsctx_init("co", CONTROLLER_NAMESPACE)) == NULL)
         goto done;
-    if (clicon_rpc_get(h, "co:transactions", nsc, CONTENT_ALL, -1, "report-all", &xn) < 0)
+    if ((cb = cbuf_new()) == NULL){
+        clixon_err(OE_PLUGIN, errno, "cbuf_new");
+        goto done;
+    }
+    cprintf(cb, "co:transactions/co:transaction[co:tid='%s']", tidstr);
+    if (clicon_rpc_get(h, cbuf_get(cb), nsc, CONTENT_ALL, -1, "report-all", &xn) < 0)
         goto done;
     if ((xerr = xpath_first(xn, NULL, "/rpc-error")) != NULL){
         clixon_err_netconf(h, OE_XML, 0, xerr, "Get transactions");
@@ -651,6 +657,8 @@ transaction_exist(clixon_handle h,
     }
     retval = 0;
  done:
+    if (cb)
+        cbuf_free(cb);
     if (nsc)
         cvec_free(nsc);
     if (xn)

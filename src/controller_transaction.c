@@ -163,14 +163,18 @@ controller_transaction_state_set(controller_transaction *ct,
  * @param[in]  ct      Controller transaction
  * @param[in]  name    Device name
  * @param[in]  xmsg    XML tree, copied
- * @retval     0       OK
+ * @param[out] cberr   Error, free with cbuf_err (retval = 0)
+ * @retval     1       OK
+ * @retval     0       Failed: error in cberr
  * @retval    -1       Error
+ * @see  controller_transaction_notify where devdata is sent
  */
 int
 transaction_devdata_add(clixon_handle           h,
                         controller_transaction *ct,
                         char                   *name,
-                        cxobj                  *xmsg)
+                        cxobj                  *xmsg,
+                        cbuf                  **cberr)
 {
     int        retval = -1;
     cxobj     *xdata;
@@ -179,6 +183,7 @@ transaction_devdata_add(clixon_handle           h,
     yang_stmt *yspec0;
     yang_stmt *ydevs;
     cxobj     *xerr = NULL;
+    cbuf      *cb = NULL;
     int        ret;
 
     if (ct->ct_devdata == NULL){
@@ -190,6 +195,18 @@ transaction_devdata_add(clixon_handle           h,
         }
         if (yang_abs_schema_nodeid(yspec0, "/ctrl:controller-transaction/devices", &ydevs) < 0)
             goto done;
+        if (ydevs == NULL){
+            if ((cb = cbuf_new()) == NULL){
+                clixon_err(OE_UNIX, errno, "cbuf_new");
+                goto done;
+            }
+            cprintf(cb, "No YANG found in rpc controller-transaction/devices");
+            if (cberr){
+                *cberr = cb;
+                cb = NULL;
+            }
+            goto failed;
+        }
         xml_spec_set(ct->ct_devdata, ydevs);
     }
     if ((ret = clixon_xml_parse_va(YB_PARENT, NULL, &ct->ct_devdata, &xerr,
@@ -197,8 +214,17 @@ transaction_devdata_add(clixon_handle           h,
                                    CONTROLLER_NAMESPACE, name)) < 0)
         goto done;
     if (ret == 0){
-        clixon_err(OE_YANG, 0, "xml parse fail");
-        goto done;
+        if ((cb = cbuf_new()) == NULL){
+            clixon_err(OE_UNIX, errno, "cbuf_new");
+            goto done;
+        }
+        if (netconf_err2cb(h, xml_find_type(xerr, NULL, "rpc-error", CX_ELMNT), cb) < 0)
+            goto done;
+        if (cberr){
+            *cberr = cb;
+            cb = NULL;
+        }
+        goto failed;
     }
     if ((xdata = xpath_first(ct->ct_devdata, NULL, "devdata[name='%s']/data", name)) == NULL){
         clixon_err(OE_XML, 0, "devdata not found");
@@ -210,13 +236,17 @@ transaction_devdata_add(clixon_handle           h,
             goto done;
         if ((xml_addsub(xdata, xc1)) < 0)
             goto done;
-
     }
-    retval = 0;
+    retval = 1;
  done:
+    if (cb)
+        cbuf_free(cb);
     if (xerr)
         xml_free(xerr);
     return retval;
+ failed:
+    retval = 0;
+    goto done;
 }
 
 /*! A transaction has been completed
