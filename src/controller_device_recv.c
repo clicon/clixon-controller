@@ -477,7 +477,7 @@ device_state_recv_get_schema(device_handle dh,
     char         *ydec = NULL;
     char         *modname;
     char         *revision = NULL;
-    cbuf         *cb = cbuf_new();
+    cbuf         *cb;
     FILE         *f = NULL;
     size_t        sz;
     char         *dir;
@@ -487,6 +487,10 @@ device_state_recv_get_schema(device_handle dh,
     struct stat   st1;
 
     clixon_debug(CLIXON_DBG_CTRL, "");
+    if ((cb = cbuf_new()) == NULL){
+        clixon_err(OE_UNIX, errno, "cbuf_new");
+        goto done;
+    }
     h = device_handle_handle_get(dh);
     if ((ret = rpc_reply_sanity(dh, xmsg, rpcname, conn_state)) < 0)
         goto done;

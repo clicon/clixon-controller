@@ -55,6 +55,7 @@ show("Show a particular state of the system"){
        rpc("Show device RPC"), cli_generic_rpc_match("name");  {
                     (<rpcname:string>("rpc name")|
                      <rpcname:string expand_device_rpc("name")>("rpc name")), cli_generic_rpc_match("name", "rpcname"); {
+             list("List matching device RPCs"), cli_generic_rpc_match("name", "rpcname");
              yang("Show rpc YANG definition"), cli_generic_rpc_match("name", "rpcname", "yang");{
                 @|pipe_show, cli_generic_rpc_match("name", "rpcname", "yang");
              }
@@ -148,14 +149,12 @@ connection("Change connection state of one or several devices") {
       }
    }
 }
-apply("Apply template") {
-    rpc-template("Apply rpc template on devices")
-       <templ:string expand_dbvar("running","/clixon-controller:devices/rpc-template/name")>("RPC template to apply")
-          (<devname:string>("device pattern")|
-           <devname:string expand_dbvar("running","/clixon-controller:devices/device/name")>("device pattern")), cli_apply_device_rpc_template();{
-               variables @rpc_template_vars, cli_apply_device_rpc_template();
-               }
-}
+rpc("Send RPC to devices")
+   <templ:string expand_dbvar("running","/clixon-controller:devices/rpc-template/name")>("RPC template to apply")
+      (<devname:string>("device pattern")|
+       <devname:string expand_dbvar("running","/clixon-controller:devices/device/name")>("device pattern")), cli_device_rpc_template("templ", "devname");{
+          variables @rpc_template_vars; # see controller_rpc_template_vars.cli
+       }
 session("Client sessions") {
     kill("Kill client session") {
            <session:uint32 choice:1677721>("Transaction number"), cli_kill_session("session");

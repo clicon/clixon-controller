@@ -58,15 +58,11 @@ ret=$(${clixon_netconf} -0 -f $CFG <<'EOF'
                <variables>
                  <variable><name>MODULES</name></variable>
                </variables>
-               <rpc>
-                 <module>clixon-lib</module>
-                 <name>stats</name>
-               </rpc>
-               <input>
+               <config>
                   <stats xmlns="http://clicon.org/lib">
                      <modules>${MODULES}</modules>
                   </stats>
-               </input>
+               </config>
             </rpc-template>
          </devices>
       </config>
@@ -96,7 +92,8 @@ ret=$(${clixon_netconf} -0 -f $CFG <<EOF
 <rpc xmlns="urn:ietf:params:xml:ns:netconf:base:1.0"
      xmlns:nc="urn:ietf:params:xml:ns:netconf:base:1.0"
      message-id="42">
-   <device-rpc-template-apply xmlns="http://clicon.org/controller">
+   <device-template-apply xmlns="http://clicon.org/controller">
+      <type>RPC</type>
       <devname>openconfig*</devname>
       <template>stats</template>
       <variables>
@@ -105,7 +102,7 @@ ret=$(${clixon_netconf} -0 -f $CFG <<EOF
             <value>true</value>
          </variable>
       </variables>
-   </device-rpc-template-apply>
+   </device-template-apply>
 </rpc>]]>]]>
 EOF
 )
@@ -128,7 +125,7 @@ expectpart "$($clixon_cli -1 -f $CFG -m configure delete devices rpc-template st
 new "commit"
 expectpart "$($clixon_cli -1 -f $CFG -m configure commit local)" 0 "^$"
 
-new "CLI load template xml"
+new "CLI load template stats"
 # quote EOFfor $NAME
 ret=$(${clixon_cli} -1f $CFG -m configure load merge xml <<'EOF'
       <config>
@@ -138,15 +135,11 @@ ret=$(${clixon_cli} -1f $CFG -m configure load merge xml <<'EOF'
                <variables>
                  <variable><name>MODULES</name></variable>
                </variables>
-               <rpc>
-                 <module>clixon-lib</module>
-                 <name>stats</name>
-               </rpc>
-               <input>
+               <config>
                   <stats xmlns="http://clicon.org/lib">
                      <modules>${MODULES}</modules>
                   </stats>
-               </input>
+               </config>
             </rpc-template>
          </devices>
       </config>
@@ -163,8 +156,45 @@ fi
 new "commit template local 2"
 expectpart "$($clixon_cli -1f $CFG -m configure commit local 2>&1)" 0 "^$"
 
-new "Apply template CLI 1"
-expectpart "$($clixon_cli -1 -f $CFG apply rpc-template stats openconfig* variables MODULES false)" 0 "<name>openconfig1</name>" "<name>openconfig2</name>" '<module-sets xmlns="http://clicon.org/lib">'
+new "Send stats rpc"
+expectpart "$($clixon_cli -1 -f $CFG rpc stats openconfig* variables MODULES false)" 0 "<name>openconfig1</name>" "<name>openconfig2</name>" '<module-sets xmlns="http://clicon.org/lib">'
+
+new "CLI load template ping"
+# quote EOFfor $NAME
+ret=$(${clixon_cli} -1f $CFG -m configure load merge xml <<'EOF'
+      <config>
+         <devices xmlns="http://clicon.org/controller">
+            <rpc-template nc:operation="replace">
+               <name>ping</name>
+               <config>
+                  <ping xmlns="http://clicon.org/lib"/>
+               </config>
+            </rpc-template>
+         </devices>
+      </config>
+EOF
+)
+#echo "ret:$ret"
+
+if [ -n "$ret" ]; then
+    err1 "$ret"
+    exit 1
+fi
+
+new "commit template local 3"
+expectpart "$($clixon_cli -1f $CFG -m configure commit local 2>&1)" 0 "^$"
+
+new "ping to all"
+expectpart "$($clixon_cli -1 -f $CFG rpc ping openconfig*)" 0 "<name>openconfig1</name>" "<name>openconfig2</name>" "<ok/>"
+
+new "ping to openconfig1"
+expectpart "$($clixon_cli -1 -f $CFG rpc ping openconfig1)" 0 "<name>openconfig1</name>" "<ok/>" --not-- "<name>openconfig2</name>"
+
+new "close one"
+expectpart "$($clixon_cli -1 -f $CFG connect close openconfig1)" 0 ""
+
+new "ping expect fail"
+expectpart "$($clixon_cli -1 -f $CFG rpc ping openconfig1 2>&1)" 0 "No device connected" --not-- "<name>openconfig1</name>"
 
 if $BE; then
     new "Kill old backend"

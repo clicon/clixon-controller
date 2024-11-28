@@ -2370,23 +2370,12 @@ xvars2cvv(cxobj  *xvars,
     return retval;
 }
 
-/*! Apply config template callback, see clixon-controller.yang: devices/template/apply
- *
- * @param[in]  h       Clixon handle
- * @param[in]  xn      Request: <rpc><xn></rpc>
- * @param[out] cbret   Return xml tree, eg <rpc-reply>..., <rpc-error..
- * @param[in]  arg     Domain specific arg, eg client-entry or FCGX_Request
- * @param[in]  regarg  User argument given at rpc_callback_register()
- * @retval     0       OK
- * @retval    -1       Error
-  * @see rpc_device_rpc_template_apply  RPC template
-*/
-int
-rpc_device_template_apply(clixon_handle h,
-                          cxobj        *xe,
-                          cbuf         *cbret,
-                          void         *arg,
-                          void         *regarg)
+static int
+rpc_device_config_template_apply(clixon_handle h,
+                                 cxobj        *xe,
+                                 cbuf         *cbret,
+                                 void         *arg,
+                                 void         *regarg)
 {
     int           retval = -1;
     cxobj        *xret = NULL;
@@ -2553,7 +2542,7 @@ rpc_device_template_apply(clixon_handle h,
  * @param[in]  h        Clixon handle
  * @param[in]  dh       Device handle
  * @param[in]  tid      Transaction id
- * @param[in]  rpc_data Input RPC data
+ * @param[in]  xconfig  RPC xml body
  * @param[out] cbret    Return xml tree, eg <rpc-reply>..., <rpc-error.. if retval = 0
  * @retval     1        OK
  * @retval     0        Fail, cbret set
@@ -2565,13 +2554,13 @@ static int
 device_send_rpc_one(clixon_handle h,
                     device_handle dh,
                     uint64_t      tid,
-                    cxobj        *rpc_data,
+                    cxobj        *xconfig,
                     cbuf         *cbret)
 {
     int  retval = -1;
 
     clixon_debug(CLIXON_DBG_CTRL, "");
-    if (device_send_generic_rpc(h, dh, rpc_data) < 0)
+    if (device_send_generic_rpc(h, dh, xconfig) < 0)
         goto done;
     if (device_state_set(dh, CS_RPC_GENERIC) < 0)
         goto done;
@@ -2592,7 +2581,7 @@ device_send_rpc_one(clixon_handle h,
  * @retval    -1       Error
  * @see rpc_device_template_apply  Config template
  */
-int
+static int
 rpc_device_rpc_template_apply(clixon_handle h,
                               cxobj        *xe,
                               cbuf         *cbret,
@@ -2608,8 +2597,7 @@ rpc_device_rpc_template_apply(clixon_handle h,
     cxobj                 **vec = NULL;
     size_t                  veclen;
     char                   *tmplname;
-    cxobj                  *xinput;
-    cxobj                  *xtempl;
+    cxobj                  *xconfig;
     cxobj                  *xvars;
     cxobj                  *xvars0;
     cvec                   *cvv = NULL;
@@ -2631,12 +2619,11 @@ rpc_device_rpc_template_apply(clixon_handle h,
             goto done;
         goto ok;
     }
-    if ((xtempl = xpath_first(xret, nsc, "devices/rpc-template[name='%s']", tmplname)) == NULL){
-        if (netconf_operation_failed(cbret, "application", "Template not found")< 0)
+    if ((xconfig = xpath_first(xret, nsc, "devices/rpc-template[name='%s']/config", tmplname)) == NULL){
+        if (netconf_operation_failed(cbret, "application", "RPC body not found")< 0)
             goto done;
         goto ok;
     }
-    xinput = xml_find(xtempl, "input");
     if ((pattern = xml_find_body(xe, "devname")) == NULL){
         if (netconf_operation_failed(cbret, "application", "No devname")< 0)
             goto done;
@@ -2668,10 +2655,10 @@ rpc_device_rpc_template_apply(clixon_handle h,
     /* Destructively substitute variables in xtempl
      * Maybe work on a copy instead?
      */
-    if (cvv && xinput){
-        if (xml_apply(xinput, CX_ELMNT, xml_template_apply, cvv) < 0)
+    if (cvv){
+        if (xml_apply(xconfig, CX_ELMNT, xml_template_apply, cvv) < 0)
             goto done;
-        if (xml_sort_recurse(xinput) < 0)
+        if (xml_sort_recurse(xconfig) < 0)
             goto done;
     }
     /* Get devices from config */
@@ -2696,7 +2683,7 @@ rpc_device_rpc_template_apply(clixon_handle h,
             continue;
         if (device_handle_conn_state_get(dh) != CS_OPEN)
             continue;
-        if ((ret = device_send_rpc_one(h, dh, ct->ct_id, xinput, cbret)) < 0)
+        if ((ret = device_send_rpc_one(h, dh, ct->ct_id, xconfig, cbret)) < 0)
             goto done;
         if (ret == 0)  /* Failed but cbret set */
             goto ok;
@@ -2704,9 +2691,12 @@ rpc_device_rpc_template_apply(clixon_handle h,
     cprintf(cbret, "<rpc-reply xmlns=\"%s\">", NETCONF_BASE_NAMESPACE);
     cprintf(cbret, "<tid xmlns=\"%s\">%" PRIu64"</tid>", CONTROLLER_NAMESPACE, ct->ct_id);
     cprintf(cbret, "</rpc-reply>");
+
     /* No device started, close transaction */
     if (controller_transaction_nr_devices(h, ct->ct_id) == 0){
-        if (controller_transaction_done(h, ct, TR_SUCCESS) < 0)
+        if (controller_transaction_failed(h, ct->ct_id, ct, NULL, TR_FAILED_DEV_IGNORE, "backend", "No device connected") < 0)
+            goto done;
+        if (controller_transaction_done(h, ct, TR_FAILED) < 0)
             goto done;
     }
  ok:
@@ -2722,6 +2712,49 @@ rpc_device_rpc_template_apply(clixon_handle h,
         free(vec);
     if (nsc)
         cvec_free(nsc);
+    return retval;
+}
+
+/*! Apply device template callback, see clixon-controller.yang: devices/template/apply
+ *
+ * @param[in]  h       Clixon handle
+ * @param[in]  xn      Request: <rpc><xn></rpc>
+ * @param[out] cbret   Return xml tree, eg <rpc-reply>..., <rpc-error..
+ * @param[in]  arg     Domain specific arg, eg client-entry or FCGX_Request
+ * @param[in]  regarg  User argument given at rpc_callback_register()
+ * @retval     0       OK
+ * @retval    -1       Error
+ * @see rpc_device_rpc_template_apply  RPC template
+ */
+int
+rpc_device_template_apply(clixon_handle h,
+                          cxobj        *xe,
+                          cbuf         *cbret,
+                          void         *arg,
+                          void         *regarg)
+{
+    int   retval = -1;
+    char *type;
+
+    clixon_debug(CLIXON_DBG_CTRL, "");
+    if ((type = xml_find_body(xe, "type")) == NULL){
+        if (netconf_operation_failed(cbret, "application", "No type in rpc")< 0)
+            goto done;
+    }
+    else if (strcmp(type, "CONFIG") == 0){
+        if (rpc_device_config_template_apply(h, xe, cbret, arg, regarg) < 0)
+            goto done;
+    }
+    else if (strcmp(type, "RPC") == 0){
+        if (rpc_device_rpc_template_apply(h, xe, cbret, arg, regarg) < 0)
+            goto done;
+    }
+    else {
+        if (netconf_operation_failed(cbret, "application", "Invalid type in RPC")< 0)
+            goto done;
+    }
+    retval = 0;
+ done:
     return retval;
 }
 
@@ -3026,12 +3059,6 @@ controller_rpc_init(clixon_handle h)
                               NULL,
                               CONTROLLER_NAMESPACE,
                               "device-template-apply"
-                              ) < 0)
-        goto done;
-    if (rpc_callback_register(h, rpc_device_rpc_template_apply,
-                              NULL,
-                              CONTROLLER_NAMESPACE,
-                              "device-rpc-template-apply"
                               ) < 0)
         goto done;
     /* Check that services subscriptions is just done once */

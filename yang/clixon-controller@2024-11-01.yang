@@ -319,7 +319,8 @@ module clixon-controller {
         }
     }
     grouping device-common {
-        description "Common fields for devices and device-profiles";
+        description
+            "Common fields for devices and device-profiles";
         leaf description{
             description
                 "Description of device";
@@ -381,6 +382,40 @@ module clixon-controller {
                  Yang files will be in ${CLICON_YANG_DOMAIN_DIR}/${device-domain}";
             type string;
             default "default";
+        }
+    }
+    grouping device-template {
+        description
+            "Device templates provide a simple mechanism to apply a pre-set configuration
+             part with a simple mechanism using variable substitution.
+             A template is like a macro with shell-like ${var} variables.
+             There are two uses: config and rpc.";
+        leaf name{
+            type string;
+        }
+        container variables {
+            description "Formal variable declarations";
+            list variable{
+                description
+                    "Formal variable template declaration.
+                     Should match all instance of ${VAR} in the anydata config part.
+                     Actual parameters are bound at apply time.
+                     All variables are of type strings";
+                key name;
+                leaf name{
+                    type string;
+                }
+                leaf description{
+                    type string;
+                }
+            }
+        }
+        anydata config{
+            description
+                "Configuration template data with variable substitutions on the form ${var}.
+                 For config templates, the template is supposed to be applied to a device/config mount-point.
+                 For rpc templates, the first element is the rpc with its namespace.
+                 The yang is unknown until applied";
         }
     }
     container processes {
@@ -463,81 +498,16 @@ module clixon-controller {
             uses device-common;
         }
         list template {
-            key name;
-            leaf name{
-                type string;
-            }
             description
-                "Device config templates provide a simple mechanism to apply a pre-set configuration
-                 part with a simple mechanism using variable substitution.
-                 A template is like a macro with shell-like ${var} variables.";
-           container variables {
-               description "Formal variable declarations";
-               list variable{
-                   description
-                       "Formal variable template declaration.
-                        Should match all instance of ${VAR} in the anydata config part.
-                        Actual parameters are bound at apply time.
-                        All variables are of type strings";
-                   key name;
-                   leaf name{
-                       type string;
-                   }
-                   leaf description{
-                       type string;
-                   }
-               }
-            }
-            anydata config{
-                description
-                    "Configuration template data with variable substitutions on the form ${var}.
-                     The config is supposed to be applied to a device/config mount-point.
-                     The yang is unknown until applied";
-            }
+                "Configuration template";
+            key name;
+            uses device-template;
         }
         list rpc-template {
-            key name;
-            leaf name{
-                type string;
-            }
             description
-                "Device RPC templates provide a simple mechanism to send an RPC to devices
-                 using a configured input template with variable substitution.
-                 A template is like a macro with shell-like ${var} variables.";
-           container variables {
-               description "Formal variable input declarations";
-               list variable{
-                   description
-                       "Formal variable template declaration.
-                        Should match all instance of ${VAR} in the anydata config part.
-                        Actual parameters are bound at apply time.
-                        All variables are of type strings";
-                   key name;
-                   leaf name{
-                       type string;
-                   }
-                   leaf description{
-                       type string;
-                   }
-               }
-            }
-           container rpc {
-               description "Name and namespace of RPC";
-               leaf module { // XXX or namespace or module-name ?
-                   type string; // inet:uri
-                   mandatory true;
-               }
-               leaf name{
-                   type string;
-                   mandatory true;
-               }
-           }
-           anydata input{
-               description
-                   "Input template data with variable substitutions on the form ${var}.
-                     This input is supposed to be applied to a devicepattern.
-                     The yang is unknown until applied";
-           }
+                "RPC template";
+            key name;
+            uses device-template;
         }
         list device{
             key name;
@@ -1010,68 +980,62 @@ module clixon-controller {
     rpc device-template-apply {
         description "Apply device templates on device configure";
         input {
-           leaf devname {
-               description
-                   "Name of device or pattern of devices to apply on.";
-               type string;
-           }
-           leaf template {
-               description
-                   "Name of device template.";
-               type leafref {
-                   path "/devices/template/name";
-                   require-instance false;
-               }
-           }
-           container variables {
-               description "variable bindings";
-               list variable {
-                   key name;
-                   leaf name {
-                       type string;
-                   }
-                   leaf value {
-                       type string;
-                   }
-               }
-           }
-       }
-    }
-    rpc device-rpc-template-apply {
-        description "Apply device templates on device configure";
-        input {
-           leaf devname {
-               description
-                   "Name of device or pattern of devices to apply on.";
-               type string;
-           }
-           leaf template {
-               description
-                   "Name of device template.";
-               type leafref {
-                   path "/devices/rpc-template/name";
-                   require-instance false;
-               }
-           }
-           container variables {
-               description "variable bindings";
-               list variable {
-                   key name;
-                   leaf name {
-                       type string;
-                   }
-                   leaf value {
-                       type string;
-                   }
-               }
-           }
+            leaf type {
+                description
+                    "Device template type";
+                type enumeration{
+                    enum CONFIG{
+                        description
+                        "Device configuration template";
+                    }
+                    enum RPC{
+                        description
+                        "Device RPC template";
+                    }
+                }
+                default CONFIG;
+            }
+            leaf devname {
+                description
+                    "Name of device or pattern of devices to apply on.";
+                type string;
+            }
+            leaf template {
+                description
+                    "Name of device template.";
+                type leafref {
+                    path "/devices/template/name";
+                    require-instance false;
+                }
+            }
+            container variables {
+                description "variable bindings";
+                list variable {
+                    key name;
+                    leaf name {
+                        type string;
+                    }
+                    leaf value {
+                        type string;
+                    }
+                }
+            }
         }
         output {
-            leaf tid {
-                description "Id of allocated transaction, use for notification";
-                type uint64;
+            choice template-reply {
+                description
+                    "Different replies depending on template type";
+                leaf tid {
+                    description
+                        "Id of allocated transaction, for RPC templates";
+                    type uint64;
+                }
+                leaf ok {
+                    description
+                        "Direct reply";
+                    type empty;
+                }
             }
         }
     }
 }
-
