@@ -261,7 +261,17 @@ rpc_get_yanglib_mount_match(clixon_handle h,
  *
  * @param[in]  h    Clixon handle
  * @param[in]  cvv  Vector of cli string and instantiated variables
- * @param[in]  argv Vector of function arguments
+ * @param[in]  argv Vector of function arguments:
+ *   <api_path_fmt>  Generated API PATH (this is added implicitly, not actually given in argv)
+ *   <dbname>        Name of datastore, such as "running"
+ * -- from here optional:
+ *   <format>        text|xml|json|cli|netconf|default (see format_enum), default: xml
+ *   <pretty>        true|false: pretty-print or not
+ *   <state>         true|false: also print state
+ *   <default>       Retrieval mode: report-all, trim, explicit, report-all-tagged,
+ *                   NULL, report-all-tagged-default, report-all-tagged-strip (extended)
+ *   <prepend>       CLI prefix: prepend before cli syntax output
+ *   <fromroot>      true|false: Show from root
  * @retval     0    OK
  * @retval    -1    Error
  * @see cli_show_auto  Original function for description, arguments etc
@@ -353,7 +363,7 @@ cli_show_auto_devs(clixon_handle h,
         if (cli_show_option_bool(argv, argc++, &fromroot) < 0)
             goto done;
     }
-    /* ad-hoc if devices device <name> is selected */
+    /* Dependent on yang devices/device/<name> is selected */
     if (devices && (cv = cvec_find(cvv, "name")) != NULL){
         pattern = cv_string_get(cv);
         if (rpc_get_yanglib_mount_match(h, pattern, 0, 0, &xdevs) < 0)
@@ -2651,8 +2661,8 @@ cli_apply_device_template(clixon_handle h,
 
 /*! Apply rpc template on devices
  *
- * @param[in] h
- * @param[in] cvv  templ, devs
+ * @param[in] h      Clixon handle
+ * @param[in] cvv    templ, devs
  * @param[in]  argv  Arguments given at the callback:
  *                     templ      Name of cv containing rpc template name
  *                     devpattern Name of cv containing device name pattern
@@ -2969,5 +2979,112 @@ cli_generic_rpc_match(clixon_handle h,
         xml_free(xdevs1);
     if (cb)
         cbuf_free(cb);
+    return retval;
+}
+
+/*! Show device-state using rpc-template for get state
+ *
+ * @param[in]  h     Clixon handle
+ * @param[in]  cvv   devs
+ * @param[in]  argv  Arguments given at the callback:
+ *                     devpattern Name of cv containing device name pattern
+ * @retval    0    OK
+ * @retval   -1    Error
+ * @see cli_device_rpc_template
+ */
+int
+cli_show_device_state(clixon_handle h,
+                      cvec         *cvv,
+                      cvec         *argv)
+{
+    int                retval = -1;
+    cg_var            *cv;
+    char              *cvname;
+    cxobj             *xtop = NULL;
+    cxobj             *xrpc;
+    cxobj             *xret = NULL;
+    cxobj             *xreply;
+    cxobj             *xerr;
+    cbuf              *cb = NULL;
+    char              *devpattern = "*";
+    cxobj             *xid;
+    char              *tidstr;
+    int                exists = 0;
+    transaction_result result = 0;
+
+    if (argv == NULL || cvec_len(argv) < 0 || cvec_len(argv) > 1){
+        clixon_err(OE_PLUGIN, EINVAL, "requires arguments: [<devpattern>]");
+        cvec_print(stderr, argv);
+        goto done;
+    }
+    if (cvec_len(argv) > 0){
+        if ((cvname = cv_string_get(cvec_i(argv, 1))) != NULL) {
+            if ((cv = cvec_find(cvv, cvname)) != NULL){
+                if ((devpattern = cv_string_get(cv)) == NULL){
+                    clixon_err(OE_PLUGIN, EINVAL, "cv name is empty");
+                    goto done;
+                }
+            }
+        }
+    }
+    if ((cb = cbuf_new()) == NULL){
+        clixon_err(OE_PLUGIN, errno, "cbuf_new");
+        goto done;
+    }
+    cprintf(cb, "<rpc xmlns=\"%s\" username=\"%s\" %s>",
+            NETCONF_BASE_NAMESPACE,
+            clicon_username_get(h),
+            NETCONF_MESSAGE_ID_ATTR);
+    cprintf(cb, "<device-template-apply xmlns=\"%s\">", CONTROLLER_NAMESPACE);
+    cprintf(cb, "<type>RPC</type>");
+    cprintf(cb, "<devname>%s</devname>", devpattern);
+    cprintf(cb, "<inline>");
+    cprintf(cb, "<config>");
+    cprintf(cb, "<get xmlns=\"%s\">", NETCONF_BASE_NAMESPACE);
+#ifdef NOTYET
+    cprintf(cb, "<filter type=\"xpath\" select=\"%s\" xmlns:%s=\"%s\" />",
+            xpath, cv_name_get(cv), cv_string_get(cv));
+#endif
+    cprintf(cb, "</get>");
+    cprintf(cb, "</config>");
+    cprintf(cb, "</inline>");
+    cprintf(cb, "</device-template-apply>");
+    cprintf(cb, "</rpc>");
+    if (clixon_xml_parse_string(cbuf_get(cb), YB_NONE, NULL, &xtop, NULL) < 0)
+        goto done;
+    /* Skip top-level */
+    xrpc = xml_child_i(xtop, 0);
+    /* Send to backend */
+    if (clicon_rpc_netconf_xml(h, xrpc, &xret, NULL) < 0)
+        goto done;
+    if ((xreply = xpath_first(xret, NULL, "rpc-reply")) == NULL){
+        clixon_err(OE_CFG, 0, "Malformed rpc reply");
+        goto done;
+    }
+    if ((xerr = xpath_first(xreply, NULL, "rpc-error")) != NULL){
+        clixon_err_netconf(h, OE_XML, 0, xerr, "Get configuration");
+        goto done;
+    }
+    if ((xid = xpath_first(xreply, NULL, "tid")) == NULL){
+        clixon_err(OE_CFG, 0, "No returned id");
+        goto done;
+    }
+    tidstr = xml_body(xid);
+    if (transaction_exist(h, tidstr, &exists) < 0)
+        goto done;
+    if (exists){
+        if (transaction_notification_poll(h, tidstr, &result) < 0)
+            goto done;
+        if (result != TR_SUCCESS)
+            cligen_output(stderr, "OK\n");
+    }
+    retval = 0;
+ done:
+    if (cb)
+        cbuf_free(cb);
+    if (xret)
+        xml_free(xret);
+    if (xtop)
+        xml_free(xtop);
     return retval;
 }

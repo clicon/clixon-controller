@@ -1131,7 +1131,7 @@ device_state_handler(clixon_handle h,
         if (device_state_check_sanity(dh, tid, ct, name, conn_state, rpcname) == 0)
             break;
         /* Receive hello from device, send hello */
-        if ((ret = device_state_recv_hello(h, dh, s, xmsg, rpcname, conn_state)) < 0)
+        if ((ret = device_recv_hello(h, dh, s, xmsg, rpcname, conn_state)) < 0)
             goto done;
         if (ret == 0){ /* closed */
             if (controller_transaction_failed(h, tid, ct, dh, TR_FAILED_DEV_LEAVE, name, device_handle_logmsg_get(dh)) < 0)
@@ -1213,7 +1213,7 @@ device_state_handler(clixon_handle h,
                 }
             }
             /* Unconditionally sync */
-            if (device_send_get_config(h, dh, s) < 0)
+            if (device_send_get(h, dh, s, 0, NULL) < 0)
                 goto done;
             if (device_state_set(dh, CS_DEVICE_SYNC) < 0)
                 goto done;
@@ -1230,7 +1230,7 @@ device_state_handler(clixon_handle h,
         if (device_state_check_sanity(dh, tid, ct, name, conn_state, rpcname) == 0)
             break;
         /* Receive netconf-state schema list from device, append schemas to device xyanglib */
-        if ((ret = device_state_recv_schema_list(dh, xmsg, rpcname, conn_state)) < 0)
+        if ((ret = device_recv_schema_list(dh, xmsg, rpcname, conn_state)) < 0)
             goto done;
         if (ret == 0){ /* closed */
             if (controller_transaction_failed(h, tid, ct, dh, TR_FAILED_DEV_LEAVE, name, device_handle_logmsg_get(dh)) < 0)
@@ -1299,7 +1299,7 @@ device_state_handler(clixon_handle h,
                 }
             }
             /* Unconditionally sync */
-            if (device_send_get_config(h, dh, s) < 0)
+            if (device_send_get(h, dh, s, 0, NULL) < 0)
                 goto done;
             if (device_state_set(dh, CS_DEVICE_SYNC) < 0)
                 goto done;
@@ -1313,7 +1313,7 @@ device_state_handler(clixon_handle h,
         if (device_state_check_sanity(dh, tid, ct, name, conn_state, rpcname) == 0)
             break;
         /* Receive get-schema and write to local yang file */
-        if ((ret = device_state_recv_get_schema(dh, xmsg, rpcname, conn_state)) < 0)
+        if ((ret = device_recv_get_schema(dh, xmsg, rpcname, conn_state)) < 0)
             goto done;
         if (ret == 0){ /* closed */
             if (controller_transaction_failed(h, tid, ct, dh, TR_FAILED_DEV_LEAVE, name, device_handle_logmsg_get(dh)) < 0)
@@ -1349,7 +1349,7 @@ device_state_handler(clixon_handle h,
                 break;
             }
             /* Unconditionally sync */
-            if (device_send_get_config(h, dh, s) < 0)
+            if (device_send_get(h, dh, s, 0, NULL) < 0)
                 goto done;
             if (device_state_set(dh, CS_DEVICE_SYNC) < 0)
                 goto done;
@@ -1366,7 +1366,7 @@ device_state_handler(clixon_handle h,
         if (device_state_check_sanity(dh, tid, ct, name, conn_state, rpcname) == 0)
             break;
         /* Receive config data from device and add config to mount-point */
-        if ((ret = device_state_recv_config(h, dh, xmsg, yspec0, rpcname, conn_state, 0, 0)) < 0)
+        if ((ret = device_recv_config(h, dh, xmsg, yspec0, rpcname, conn_state, 0, 0)) < 0)
             goto done;
         if (ret == 0){ /* closed */
             if (controller_transaction_failed(h, tid, ct, dh, TR_FAILED_DEV_LEAVE, name, device_handle_logmsg_get(dh)) < 0)
@@ -1375,7 +1375,7 @@ device_state_handler(clixon_handle h,
         }
         if (controller_transaction_nr_devices(h, tid) == 1 &&
             !ct->ct_pull_transient) {
-            /* See puts from each device in device_state_recv_config() */
+            /* See puts from each device in device_recv_config() */
             if ((ret = device_commit_when_done(h, dh, ct, "tmpdev")) < 0)
                 goto done;
             if (ret == 0)
@@ -1390,7 +1390,7 @@ device_state_handler(clixon_handle h,
         if (device_state_check_sanity(dh, tid, ct, name, conn_state, rpcname) == 0)
             break;
         /* Retval: 2 OK, 1 Closed, 0 Failed, -1 Error */
-        if ((ret = device_state_recv_ok(h, dh, xmsg, rpcname, conn_state, &cberr)) < 0)
+        if ((ret = device_recv_ok(h, dh, xmsg, rpcname, conn_state, &cberr)) < 0)
             goto done;
         if (ret == 0){      /* 1. The device has failed: received rpc-error/not <ok>  */
             if (controller_transaction_failed(h, tid, ct, dh, TR_FAILED_DEV_LEAVE, name, cbuf_get(cberr)) < 0)
@@ -1408,7 +1408,7 @@ device_state_handler(clixon_handle h,
         /* The device is OK */
         if ((ret = device_state_check_fail(h, dh, ct, 0)) < 0)
             goto done;
-        if (device_send_get_config(h, dh, s) < 0)
+        if (device_send_get(h, dh, s, 0, NULL) < 0)
             goto done;
         device_handle_tid_set(dh, ct->ct_id);
         if (device_state_set(dh, CS_PUSH_CHECK) < 0)
@@ -1419,7 +1419,7 @@ device_state_handler(clixon_handle h,
         if (device_state_check_sanity(dh, tid, ct, name, conn_state, rpcname) == 0)
             break;
         /* Receive config data, force transient, ie do not commit */
-        if ((ret = device_state_recv_config(h, dh, xmsg, yspec0, rpcname, conn_state, 1, 0)) < 0)
+        if ((ret = device_recv_config(h, dh, xmsg, yspec0, rpcname, conn_state, 1, 0)) < 0)
             goto done;
         /* Compare transient with last sync 0: closed, 1: unequal, 2: is equal */
         if (ret && (ret = device_config_compare(h, dh, name, ct, &cberr)) < 0)
@@ -1468,7 +1468,7 @@ device_state_handler(clixon_handle h,
         if (device_state_check_sanity(dh, tid, ct, name, conn_state, rpcname) == 0)
             break;
         /* Retval: 2 OK, 1 Closed, 0 Failed, -1 Error */
-        if ((ret = device_state_recv_ok(h, dh, xmsg, rpcname, conn_state, &cberr)) < 0)
+        if ((ret = device_recv_ok(h, dh, xmsg, rpcname, conn_state, &cberr)) < 0)
             goto done;
         if (ret == 0){      /* 1. The device has failed: received rpc-error/not <ok>  */
             if (controller_transaction_failed(h, tid, ct, dh, TR_FAILED_DEV_IGNORE, name, cbuf_get(cberr)) < 0)
@@ -1509,7 +1509,7 @@ device_state_handler(clixon_handle h,
         if (device_state_check_sanity(dh, tid, ct, name, conn_state, rpcname) == 0)
             break;
         /* Retval: 2 OK, 1 Closed, 0 Failed, -1 Error */
-        if ((ret = device_state_recv_ok(h, dh, xmsg, rpcname, conn_state, &cberr)) < 0)
+        if ((ret = device_recv_ok(h, dh, xmsg, rpcname, conn_state, &cberr)) < 0)
             goto done;
         if (ret == 0){      /* 1. The device has failed: received rpc-error/not <ok>  */
             if (controller_transaction_failed(h, tid, ct, dh, TR_FAILED_DEV_IGNORE, name, cbuf_get(cberr)) < 0)
@@ -1543,7 +1543,7 @@ device_state_handler(clixon_handle h,
         if (device_state_check_sanity(dh, tid, ct, name, conn_state, rpcname) == 0)
             break;
         /* Retval: 2 OK, 1 Closed, 0 Failed, -1 Error */
-        if ((ret = device_state_recv_ok(h, dh, xmsg, rpcname, conn_state, &cberr)) < 0)
+        if ((ret = device_recv_ok(h, dh, xmsg, rpcname, conn_state, &cberr)) < 0)
             goto done;
         if (ret == 0){      /* 1. The device has failed: received rpc-error/not <ok>  */
             if (controller_transaction_failed(h, tid, ct, dh, TR_FAILED_DEV_IGNORE, name, cbuf_get(cberr)) < 0)
@@ -1632,7 +1632,7 @@ device_state_handler(clixon_handle h,
         if (device_state_check_sanity(dh, tid, ct, name, conn_state, rpcname) == 0)
             break;
         /* Retval: 2 OK, 1 Closed, 0 Failed, -1 Error */
-        if ((ret = device_state_recv_ok(h, dh, xmsg, rpcname, conn_state, &cberr)) < 0)
+        if ((ret = device_recv_ok(h, dh, xmsg, rpcname, conn_state, &cberr)) < 0)
             goto done;
         if (ret == 0){      /* 1. The device has failed: received rpc-error/not <ok>  */
             if (controller_transaction_failed(h, tid, ct, dh, TR_FAILED_DEV_CLOSE, name, cbuf_get(cberr)) < 0)
@@ -1651,7 +1651,7 @@ device_state_handler(clixon_handle h,
             break;
 #ifdef CONTROLLER_EXTRA_PUSH_SYNC
         /* Pull for commited db in the case the device changes it post-commit */
-        if (device_send_get_config(h, dh, s) < 0)
+        if (device_send_get(h, dh, s, 0, NULL) < 0)
             goto done;
         if (device_state_set(dh, CS_PUSH_COMMIT_SYNC) < 0)
             goto done;
@@ -1703,7 +1703,7 @@ device_state_handler(clixon_handle h,
         if (device_state_check_sanity(dh, tid, ct, name, conn_state, rpcname) == 0)
             break;
         /* Retval: 2 OK, 1 Closed, 0 Failed, -1 Error */
-        if ((ret = device_state_recv_ok(h, dh, xmsg, rpcname, conn_state, &cberr)) < 0)
+        if ((ret = device_recv_ok(h, dh, xmsg, rpcname, conn_state, &cberr)) < 0)
             goto done;
         if (ret == 0){      /* 1. The device has failed: received rpc-error/not <ok>  */
             if (controller_transaction_failed(h, tid, ct, dh, TR_FAILED_DEV_CLOSE, name, cbuf_get(cberr)) < 0)
@@ -1737,7 +1737,7 @@ device_state_handler(clixon_handle h,
         if (device_state_check_sanity(dh, tid, ct, name, conn_state, rpcname) == 0)
             break;
         /* Receive config data from device and add config to mount-point */
-        if ((ret = device_state_recv_config(h, dh, xmsg, yspec0, rpcname, conn_state, 0, 1)) < 0)
+        if ((ret = device_recv_get(h, dh, xmsg, yspec0, rpcname, conn_state, 0, 1, 0)) < 0)
             goto done;
         if (ret == 0){ /* closed */
             if (controller_transaction_failed(h, tid, ct, dh, TR_FAILED_DEV_LEAVE, name, device_handle_logmsg_get(dh)) < 0)
@@ -1761,7 +1761,7 @@ device_state_handler(clixon_handle h,
         if (device_state_check_sanity(dh, tid, ct, name, conn_state, rpcname) == 0)
             break;
         /* Retval: 2 OK, 1 Closed, 0 Failed, -1 Error */
-        if ((ret = device_state_recv_ok(h, dh, xmsg, rpcname, conn_state, &cberr)) < 0)
+        if ((ret = device_recv_ok(h, dh, xmsg, rpcname, conn_state, &cberr)) < 0)
             goto done;
         if (ret == 0){      /* 1. The device has failed: received rpc-error/not <ok>  */
             if (controller_transaction_failed(h, tid, ct, dh, TR_FAILED_DEV_CLOSE, name, cbuf_get(cberr)) < 0)
@@ -1782,7 +1782,7 @@ device_state_handler(clixon_handle h,
             break;
         /* Receive RPC data from device and store
            XXX: Retval: 2 OK, 1 Closed, 0 Failed, -1 Error */
-        if ((ret = device_state_recv_rpc(h, dh, ct, xmsg, rpcname, conn_state, &cberr)) < 0)
+        if ((ret = device_recv_generic_rpc(h, dh, ct, xmsg, rpcname, conn_state, &cberr)) < 0)
             goto done;
         if (ret == 0){      /* 1. The device has failed: received rpc-error/not <ok>  */
             if (controller_transaction_failed(h, tid, ct, dh, TR_FAILED_DEV_CLOSE, name, cbuf_get(cberr)) < 0)

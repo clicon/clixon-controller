@@ -64,6 +64,7 @@ int    device_handle_disconnect(device_handle dh);
 char  *device_handle_name_get(device_handle dh);
 int    device_handle_socket_get(device_handle dh);
 int    device_handle_sockerr_get(device_handle dh);
+uint64_t device_handle_msg_id_get(device_handle dh);
 uint64_t device_handle_msg_id_getinc(device_handle dh);
 uint64_t device_handle_tid_get(device_handle dh);
 int      device_handle_tid_set(device_handle dh, uint64_t tid);

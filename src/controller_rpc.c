@@ -246,7 +246,7 @@ controller_connect(clixon_handle           h,
         if (xyanglib){
             if (xml_rootchild(xyanglib, 0, &xyanglib) < 0)
                 goto done;
-            /* see device_state_recv_schema_list */
+            /* see device_recv_schema_list */
             if (device_handle_yang_lib_set(dh, xyanglib) < 0)
                 goto done;
         }
@@ -394,6 +394,8 @@ push_device_one(clixon_handle           h,
  * @param[in]  h       Clixon handle
  * @param[in]  dh      Device handle
  * @param[in]  tid     Transaction id
+ * @param[in]  state   0: config, 1: config+state
+ * @param[in]  xpath   XPath (experimental, unclear semantics)
  * @param[out] cbret   Return xml tree, eg <rpc-reply>..., <rpc-error.. if retval = 0
  * @retval     1       OK
  * @retval     0       Fail, cbret set
@@ -403,6 +405,8 @@ static int
 pull_device_one(clixon_handle h,
                 device_handle dh,
                 uint64_t      tid,
+                int           state,
+                char         *xpath,
                 cbuf         *cbret)
 {
     int  retval = -1;
@@ -410,7 +414,7 @@ pull_device_one(clixon_handle h,
 
     clixon_debug(CLIXON_DBG_CTRL, "");
     s = device_handle_socket_get(dh);
-    if (device_send_get_config(h, dh, s) < 0)
+    if (device_send_get(h, dh, s, state, xpath) < 0)
         goto done;
     if (device_state_set(dh, CS_DEVICE_SYNC) < 0)
         goto done;
@@ -487,7 +491,7 @@ rpc_config_pull(clixon_handle h,
             continue;
         if (device_handle_conn_state_get(dh) != CS_OPEN) /* maybe this is an error? */
             continue;
-        if ((ret = pull_device_one(h, dh, ct->ct_id, cbret)) < 0)
+        if ((ret = pull_device_one(h, dh, ct->ct_id, 0, NULL, cbret)) < 0)
             goto done;
         if (ret == 0)  /* Failed but cbret set */
             goto ok;
@@ -2548,7 +2552,6 @@ rpc_device_config_template_apply(clixon_handle h,
  * @retval     0        Fail, cbret set
  * @retval    -1        Error
  * @see device_send_generic_rpc
- * @see pull_device_one XXX
  */
 static int
 device_send_rpc_one(clixon_handle h,
@@ -2597,6 +2600,7 @@ rpc_device_rpc_template_apply(clixon_handle h,
     cxobj                 **vec = NULL;
     size_t                  veclen;
     char                   *tmplname;
+    cxobj                  *xinline;
     cxobj                  *xconfig;
     cxobj                  *xvars;
     cxobj                  *xvars0;
@@ -2614,13 +2618,24 @@ rpc_device_rpc_template_apply(clixon_handle h,
     /* get template and device names */
     if (xmldb_get0(h, "running", YB_MODULE, nsc, "devices", 1, WITHDEFAULTS_EXPLICIT, &xret, NULL, NULL) < 0)
         goto done;
-    if ((tmplname = xml_find_body(xe, "template")) == NULL){
-        if (netconf_operation_failed(cbret, "application", "No template in rpc")< 0)
-            goto done;
-        goto ok;
+    if ((tmplname = xml_find_body(xe, "template")) != NULL){
+        if ((xconfig = xpath_first(xret, nsc, "devices/rpc-template[name='%s']/config", tmplname)) == NULL){
+            if (netconf_operation_failed(cbret, "application", "Template config not found")< 0)
+                goto done;
+            goto ok;
+        }
+        xvars0 = xpath_first(xret, nsc, "devices/rpc-template[name='%s']/variables", tmplname);
     }
-    if ((xconfig = xpath_first(xret, nsc, "devices/rpc-template[name='%s']/config", tmplname)) == NULL){
-        if (netconf_operation_failed(cbret, "application", "RPC body not found")< 0)
+    else if ((xinline = xml_find_type(xe, NULL, "inline", CX_ELMNT)) != NULL) {
+        if ((xconfig = xml_find_type(xinline, NULL, "config", CX_ELMNT)) == NULL) {
+            if (netconf_operation_failed(cbret, "application", "Inline template config not found")< 0)
+                goto done;
+            goto ok;
+        }
+        xvars0 = xml_find_type(xinline, NULL, "variables", CX_ELMNT);
+    }
+    else{
+        if (netconf_operation_failed(cbret, "application", "No template in rpc")< 0)
             goto done;
         goto ok;
     }
@@ -2630,7 +2645,7 @@ rpc_device_rpc_template_apply(clixon_handle h,
         goto ok;
     }
     xvars = xml_find_type(xe, NULL, "variables", CX_ELMNT);
-    xvars0 = xpath_first(xret, nsc, "devices/rpc-template[name='%s']/variables", tmplname);
+
     /* Match actual parameters in xvars with formal paremeters in xvars0 */
     xv = NULL;
     while ((xv = xml_child_each(xvars, xv, CX_ELMNT)) != NULL) {
@@ -2655,7 +2670,7 @@ rpc_device_rpc_template_apply(clixon_handle h,
      * Maybe work on a copy instead?
      */
     if (cvv){
-        if (xml_apply(xconfig, CX_ELMNT, xml_template_apply, cvv) < 0)
+        if (xml_apply(xconfig, -1, xml_template_apply, cvv) < 0)
             goto done;
         if (xml_sort_recurse(xconfig) < 0)
             goto done;
@@ -3061,8 +3076,7 @@ controller_rpc_init(clixon_handle h)
                               ) < 0)
         goto done;
     /* Check that services subscriptions is just done once */
-    if (rpc_callback_register(h,
-                              check_services_commit_subscription,
+    if (rpc_callback_register(h, check_services_commit_subscription,
                               NULL,
                               EVENT_RFC5277_NAMESPACE, "create-subscription") < 0)
         goto done;

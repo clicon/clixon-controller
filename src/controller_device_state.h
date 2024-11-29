@@ -122,7 +122,7 @@ conn_state   device_state_str2int(char *str);
 yang_config_t  yang_config_str2int(char *str);
 int          device_close_connection(device_handle ch, const char *format, ...) __attribute__ ((format (printf, 2, 3)));
 int          device_input_cb(int s, void *arg);
-int          device_send_get_config(clixon_handle h, device_handle ch, int s);
+int          device_send_get(clixon_handle h, device_handle ch, int s, int state, char *xpath);
 int          device_state_mount_point_get(char *devicename, yang_stmt *yspec,
                                           cxobj **xtp, cxobj **xrootp);
 int          device_state_timeout_register(device_handle ch);

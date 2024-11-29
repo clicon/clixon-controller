@@ -303,7 +303,7 @@ controller_commit(clixon_handle    h,
  * @retval     0       OK
  * @retval    -1       Error
  * @see RFC 8528 (schema-mount) and RFC 8525 (yang-lib)
- * @see device_state_recv_schema_list  where yang-lib is received from device
+ * @see device_recv_schema_list  where yang-lib is received from device
  * @see controller_connect  where yang-lib is iniated from local yangs
  */
 int

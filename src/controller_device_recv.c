@@ -114,12 +114,12 @@ rpc_reply_sanity(device_handle dh,
  * @retval   -1          Error
  */
 int
-device_state_recv_hello(clixon_handle h,
-                        device_handle dh,
-                        int           s,
-                        cxobj        *xmsg,
-                        char         *rpcname,
-                        conn_state    conn_state)
+device_recv_hello(clixon_handle h,
+                  device_handle dh,
+                  int           s,
+                  cxobj        *xmsg,
+                  char         *rpcname,
+                  conn_state    conn_state)
 {
     int                  retval = -1;
     char                *rpcprefix;
@@ -194,14 +194,14 @@ device_state_recv_hello(clixon_handle h,
  * @retval   -1          Error
  */
 int
-device_state_recv_config(clixon_handle h,
-                         device_handle dh,
-                         cxobj        *xmsg,
-                         yang_stmt    *yspec0,
-                         char         *rpcname,
-                         conn_state    conn_state,
-                         int           force_transient,
-                         int           force_merge)
+device_recv_config(clixon_handle h,
+                   device_handle dh,
+                   cxobj        *xmsg,
+                   yang_stmt    *yspec0,
+                   char         *rpcname,
+                   conn_state    conn_state,
+                   int           force_transient,
+                   int           force_merge)
 {
     int                     retval = -1;
     cxobj                  *xdata;
@@ -386,10 +386,10 @@ device_state_recv_config(clixon_handle h,
  * @see device_send_get_schema_list  where the request is sent
  */
 int
-device_state_recv_schema_list(device_handle dh,
-                              cxobj        *xmsg,
-                              char         *rpcname,
-                              conn_state    conn_state)
+device_recv_schema_list(device_handle dh,
+                        cxobj        *xmsg,
+                        char         *rpcname,
+                        conn_state    conn_state)
 {
     int           retval = -1;
     cxobj        *xschemas = NULL;
@@ -466,10 +466,10 @@ device_state_recv_schema_list(device_handle dh,
  * @see device_schemas_mount_parse   Parse the module after it is found or requested
  */
 int
-device_state_recv_get_schema(device_handle dh,
-                             cxobj        *xmsg,
-                             char         *rpcname,
-                             conn_state    conn_state)
+device_recv_get_schema(device_handle dh,
+                       cxobj        *xmsg,
+                       char         *rpcname,
+                       conn_state    conn_state)
 {
     int           retval = -1;
     clixon_handle h;
@@ -663,12 +663,12 @@ device_recv_check_errors(clixon_handle h,
  * @retval    -1          Error
  */
 int
-device_state_recv_ok(clixon_handle h,
-                     device_handle dh,
-                     cxobj        *xmsg,
-                     char         *rpcname,
-                     conn_state    conn_state,
-                     cbuf        **cberr)
+device_recv_ok(clixon_handle h,
+               device_handle dh,
+               cxobj        *xmsg,
+               char         *rpcname,
+               conn_state    conn_state,
+               cbuf        **cberr)
 {
     int    retval = -1;
     int    ret;
@@ -712,7 +712,7 @@ device_state_recv_ok(clixon_handle h,
     goto done;
 }
 
-/*! Controller input rpc reply
+/*! Controller input rpc reply of generic(any) rpc
  *
  * @param[in]  h          Clixon handle.
  * @param[in]  dh         Clixon client handle.
@@ -726,16 +726,16 @@ device_state_recv_ok(clixon_handle h,
  * @retval     1          Closed
  * @retval     0          Failed: received rpc-error or not <ok> (not closed)
  * @retval    -1          Error
- * XXX check msgid?
+ * @see device_send_generic_rpc
  */
 int
-device_state_recv_rpc(clixon_handle           h,
-                      device_handle           dh,
-                      controller_transaction *ct,
-                      cxobj                  *xmsg,
-                      char                   *rpcname,
-                      conn_state              conn_state,
-                      cbuf                  **cberr)
+device_recv_generic_rpc(clixon_handle           h,
+                        device_handle           dh,
+                        controller_transaction *ct,
+                        cxobj                  *xmsg,
+                        char                   *rpcname,
+                        conn_state              conn_state,
+                        cbuf                  **cberr)
 {
     int   retval = -1;
     int   ret;

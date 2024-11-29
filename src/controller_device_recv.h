@@ -44,19 +44,19 @@
 extern "C" {
 #endif
 
-int device_state_recv_hello(clixon_handle h, device_handle dh, int s, cxobj *xmsg,
-                            char *rpcname, conn_state  conn_state);
-int device_state_recv_config(clixon_handle h, device_handle dh, cxobj *xmsg,
-                             yang_stmt *yspec0, char *rpcname, conn_state conn_state,
-                             int force_transient, int force_merge);
-int device_state_recv_schema_list(device_handle dh, cxobj *xmsg, char *rpcname,
-                                  conn_state conn_state);
-int device_state_recv_get_schema(device_handle dh, cxobj *xmsg, char *rpcname,
-                                 conn_state conn_state);
-int device_state_recv_ok(clixon_handle h, device_handle dh, cxobj *xmsg, char *rpcname,
-                         conn_state conn_state, cbuf **cberr);
-int device_state_recv_rpc(clixon_handle h, device_handle dh, controller_transaction *ct, cxobj *xmsg,
-                          char *rpcname, conn_state conn_state, cbuf **cberr);
+int device_recv_hello(clixon_handle h, device_handle dh, int s, cxobj *xmsg,
+                      char *rpcname, conn_state  conn_state);
+int device_recv_config(clixon_handle h, device_handle dh, cxobj *xmsg,
+                       yang_stmt *yspec0, char *rpcname, conn_state conn_state,
+                       int force_transient, int force_merge);
+int device_recv_schema_list(device_handle dh, cxobj *xmsg, char *rpcname,
+                            conn_state conn_state);
+int device_recv_get_schema(device_handle dh, cxobj *xmsg, char *rpcname,
+                           conn_state conn_state);
+int device_recv_ok(clixon_handle h, device_handle dh, cxobj *xmsg, char *rpcname,
+                   conn_state conn_state, cbuf **cberr);
+int device_recv_generic_rpc(clixon_handle h, device_handle dh, controller_transaction *ct, cxobj *xmsg,
+                            char *rpcname, conn_state conn_state, cbuf **cberr);
 
 #ifdef __cplusplus
 }

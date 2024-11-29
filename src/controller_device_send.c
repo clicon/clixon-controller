@@ -108,13 +108,17 @@ device_send_lock(clixon_handle h,
  * @param[in]  h   Clixon handle
  * @param[in]  dh  Clixon client handle
  * @param[in]  s   Socket
+ * @param[in]  state   0: config, 1: config+state
+ * @param[in]  xpath   XPath (experimental, unclear semantics)
  * @retval     0   OK
  * @retval    -1   Error
  */
 int
-device_send_get_config(clixon_handle h,
-                       device_handle dh,
-                       int           s)
+device_send_get(clixon_handle h,
+                device_handle dh,
+                int           s,
+                int           state,
+                char         *xpath)
 {
     int   retval = -1;
     cbuf *cb = NULL;
@@ -127,14 +131,16 @@ device_send_get_config(clixon_handle h,
     cprintf(cb, "<rpc xmlns=\"%s\" message-id=\"%" PRIu64 "\">",
             NETCONF_BASE_NAMESPACE,
             device_handle_msg_id_getinc(dh));
-    if (1) { // get-config
+    if (state) {
+        cprintf(cb, "<get>");
+        if (xpath)
+            cprintf(cb, "<filter type=\"xpath\" select=\"%s\"/>", xpath); // XXX xmlns
+        cprintf(cb, "</get>");
+    }
+    else {
         cprintf(cb, "<get-config>");
         cprintf(cb, "<source><running/></source>");
         cprintf(cb, "</get-config>");
-    }
-    else { // get
-        cprintf(cb, "<get>");
-        cprintf(cb, "</get>");
     }
     cprintf(cb, "</rpc>");
     encap = device_handle_framing_type_get(dh);
@@ -211,7 +217,7 @@ device_get_schema_sendit(clixon_handle h,
  * @retval        1   Error, device closed
  * @retval        0   No schema sent, either because all are sent or they are none, or cberr set
  * @retval       -1   Error
- * @see device_state_recv_get_schema  Receive a schema request
+ * @see device_recv_get_schema  Receive a schema request
  * @see device_schemas_mount_parse   Parse the module after if already found or received
  */
 int
@@ -297,7 +303,7 @@ device_send_get_schema_next(clixon_handle h,
  * @retval    -1      Error
  * @note this could be part of the generic sync, but juniper seems to need
  * an explicit to target the schemas (and only that)
- * @see device_state_recv_schema_list  where the reply is received
+ * @see device_recv_schema_list  where the reply is received
  */
 int
 device_send_get_schema_list(clixon_handle h,
@@ -587,6 +593,7 @@ device_send_discard_changes(clixon_handle h,
  * @param[in]  xconfig RPC xml body
  * @retval     0       OK
  * @retval    -1       Error
+ * @see device_recv_generic_rpc
  */
 int
 device_send_generic_rpc(clixon_handle h,

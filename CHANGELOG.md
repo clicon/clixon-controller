@@ -5,6 +5,9 @@ Expected: January 2025
 
 ### New features
 
+* Show device state
+  * New CLI show device state command
+  * See [CLI show state does not return device state (config false) data](https://github.com/clicon/clixon-controller/issues/143)
 * Execute arbitrary device RPCs using templates
   * see: [Execute arbitrary RPC commands](https://github.com/clicon/clixon-controller/issues/45)
   * docs: https://clixon-controller-docs.readthedocs.io/en/latest/cli.html#rpc-templates

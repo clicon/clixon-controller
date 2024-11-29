@@ -1000,12 +1000,17 @@ module clixon-controller {
                     "Name of device or pattern of devices to apply on.";
                 type string;
             }
-            leaf template {
-                description
-                    "Name of device template.";
-                type leafref {
-                    path "/devices/template/name";
-                    require-instance false;
+            choice template {
+                leaf template {
+                    description
+                        "Name of device template.";
+                    type leafref {
+                        path "/devices/template/name";
+                        require-instance false;
+                    }
+                }
+                container inline {
+                    uses device-template;
                 }
             }
             container variables {

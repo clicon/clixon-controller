@@ -50,7 +50,7 @@ show("Show a particular state of the system"){
        check("Check if device is in sync"), check_device_db("default");
        diff("Compare remote device config with local"), compare_device_db_dev("default");
        capability("Show device capbilities"), show_device_capability("name"); {
-                    @|pipe_show, show_device_capability("name");
+          @|pipe_show, show_device_capability("name");
        }
        rpc("Show device RPC"), cli_generic_rpc_match("name");  {
                     (<rpcname:string>("rpc name")|
@@ -60,6 +60,9 @@ show("Show a particular state of the system"){
                 @|pipe_show, cli_generic_rpc_match("name", "rpcname", "yang");
              }
           }
+       }
+       state("Show device state"), cli_show_device_state("name");{
+          @|pipe_show, cli_show_device_state("name");
        }
        yang("Show yang revisions"), show_yang_revisions("name"); {
                     @|pipe_show, show_yang_revisions("name");
@@ -74,18 +77,9 @@ show("Show a particular state of the system"){
     sessions("Show client sessions"), cli_show_sessions();{
          detail("Show sessions detailed state"), cli_show_sessions("detail");
     }
-    state("Show configuration and state"), cli_show_auto_mode("running", "default", true, true); {
-        @|pipe_show, cli_show_auto_mode("running", "default", true, true);
-        xml("Show configuration and state as XML"), cli_show_auto_mode("running", "xml", true, true);{
-	    default("With-default mode"){
-                  report-all, cli_show_auto_mode("running", "default", true, true, "report-all");
-		  trim, cli_show_auto_mode("running", "default", true, true, "trim");
-		  explicit, cli_show_auto_mode("running", "default", true, true, "explicit");
-		  report-all-tagged, cli_show_auto_mode("running", "default", true, true, "report-all-tagged");
-		  report-all-tagged-default, cli_show_auto_mode("running", "default", true, true, "report-all-tagged-default");
-		  report-all-tagged-strip, cli_show_auto_mode("running", "default", true, true, "report-all-tagged-strip");
-	    }
-        }
+    state("Show configuration and state"), cli_show_auto_mode("running", "default", true, true);{
+       @|pipe_show, cli_show_auto_mode("running", "xml", true, true);
+       @datamodelstate, cli_show_auto_devs("running", "default", true, true, "explicit", "set ", true);
     }
     memory("Show memory usage"), cli_show_statistics("all");{
        cli, cli_show_statistics("cli");{

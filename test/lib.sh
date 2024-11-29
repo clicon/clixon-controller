@@ -52,6 +52,9 @@ DEFAULTONLY="xmlns=\"$BASENS\""
 # Default netconf namespace + message-id, ie for <rpc xmlns="" message-id="", but NOT for hello
 DEFAULTNS="$DEFAULTONLY message-id=\"42\""
 
+# Minimal hello message as a prelude to netconf rpcs
+DEFAULTHELLO="<?xml version=\"1.0\" encoding=\"UTF-8\"?><hello $DEFAULTONLY><capabilities><capability>urn:ietf:params:netconf:base:1.0</capability><capability>urn:ietf:params:netconf:base:1.1</capability></capabilities></hello>]]>]]>"
+
 # Multiplication factor to sleep less than whole seconds
 DEMSLEEP=1
 
@@ -104,13 +107,13 @@ function checkvalgrind(){
         if [ -n "$res" ]; then
             >&2 cat $valgrindfile
             sudo rm -f $valgrindfile
-            exit -1         
+            exit -1
         fi
         res=$(cat $valgrindfile | grep -e "reachable" -e "lost:"| awk '{print  $4}' | grep -v '^0$')
         if [ -n "$res" ]; then
             >&2 cat $valgrindfile
             sudo rm -f $valgrindfile
-            exit -1         
+            exit -1
         fi
         sudo rm -f $valgrindfile
     fi
@@ -171,7 +174,7 @@ function start_backend(){
         sudo $clixon_backend -D $DBG $*
     fi
     if [ $? -ne 0 ]; then
-        err1 backend 
+        err1 backend
     fi
 }
 
@@ -183,7 +186,7 @@ function stop_backend(){
     if [ $? -ne 0 ]; then
         err "kill backend"
     fi
-    if [ $valgrindtest -eq 2 ]; then 
+    if [ $valgrindtest -eq 2 ]; then
         sleep 5         # This is to give valgrind time to dump log file
         checkvalgrind
     fi
@@ -195,7 +198,7 @@ function endtest()
     # Commented from now, it is unclear what destroys the tty, if something does the original
     # problem should be fixed at the origin.
     #    stty $STTYSETTINGS >/dev/null
-    if [ $valgrindtest -eq 1 ]; then 
+    if [ $valgrindtest -eq 1 ]; then
         checkvalgrind
     fi
     >&2 echo "End $testfile"

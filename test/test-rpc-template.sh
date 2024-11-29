@@ -111,9 +111,7 @@ EOF
 new "Check no errors of apply"
 match=$(echo $ret | grep --null -Eo "<rpc-error>") || true
 if [ -n "$match" ]; then
-    echo "netconf rpc-error detected"
-    err1 "$ret"
-    exit 1
+    err "ok" "$ret"
 fi
 
 # Its complicated to wait for notify w netconf, skip that and do that for cli instead

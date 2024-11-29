@@ -504,7 +504,7 @@ controller_yang2cli_wrap(cligen_handle ch,
  * @retval     0       OK
  * @retval    -1       Error
  * @see RFC 8528 (schema-mount) and RFC 8525 (yang-lib)
- * @see device_send_get_schema_list/device_state_recv_schema_list Backend fns for send/rcv
+ * @see device_send_get_schema_list/device_recv_schema_list Backend fns for send/rcv
  * XXX 1. Recursion in clicon_rpc_get
  * XXX 2. Cache somewhere?
  */

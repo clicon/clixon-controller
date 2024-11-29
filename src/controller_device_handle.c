@@ -429,6 +429,19 @@ device_handle_sockerr_get(device_handle dh)
     return cdh->cdh_sockerr;
 }
 
+/*! Get msg-id of latest request sent to this device
+ *
+ * @param[in]  dh     Device handle
+ * @retval     msgid
+ */
+uint64_t
+device_handle_msg_id_get(device_handle dh)
+{
+    struct controller_device_handle *cdh = devhandle(dh);
+
+    return cdh->cdh_msg_id;
+}
+
 /*! Get msg-id and increment
  *
  * @param[in]  dh     Device handle
