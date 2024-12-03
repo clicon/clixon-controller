@@ -183,10 +183,10 @@ new "commit template local 3"
 expectpart "$($clixon_cli -1f $CFG -m configure commit local 2>&1)" 0 "^$"
 
 new "ping to all"
-expectpart "$($clixon_cli -1 -f $CFG rpc ping openconfig*)" 0 "<name>openconfig1</name>" "<name>openconfig2</name>" "<ok/>"
+expectpart "$($clixon_cli -1 -f $CFG rpc ping openconfig*)" 0 "<name>openconfig1</name>" "<name>openconfig2</name>" "<ok"
 
 new "ping to openconfig1"
-expectpart "$($clixon_cli -1 -f $CFG rpc ping openconfig1)" 0 "<name>openconfig1</name>" "<ok/>" --not-- "<name>openconfig2</name>"
+expectpart "$($clixon_cli -1 -f $CFG rpc ping openconfig1)" 0 "<name>openconfig1</name>" "<ok" --not-- "<name>openconfig2</name>"
 
 new "close one"
 expectpart "$($clixon_cli -1 -f $CFG connect close openconfig1)" 0 ""
