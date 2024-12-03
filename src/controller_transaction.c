@@ -184,6 +184,7 @@ transaction_devdata_add(clixon_handle           h,
     yang_stmt *ydevs;
     cxobj     *xerr = NULL;
     cbuf      *cb = NULL;
+    cvec      *nsc = NULL;
     int        ret;
 
     if (ct->ct_devdata == NULL){
@@ -232,13 +233,24 @@ transaction_devdata_add(clixon_handle           h,
     }
     xc = NULL;
     while ((xc = xml_child_each(xmsg, xc, CX_ELMNT)) != NULL) {
+        /* get all inherited namespaces and add them after dup and add to new parent */
+        if (xml_nsctx_node(xc, &nsc) < 0)
+            goto done;
         if ((xc1 = xml_dup(xc)) == NULL)
             goto done;
         if ((xml_addsub(xdata, xc1)) < 0)
             goto done;
+        if (xmlns_set_all(xc1, nsc) < 0)
+            goto done;
+        if (nsc){
+            cvec_free(nsc);
+            nsc = NULL;
+        }
     }
     retval = 1;
  done:
+    if (nsc)
+        cvec_free(nsc);
     if (cb)
         cbuf_free(cb);
     if (xerr)
