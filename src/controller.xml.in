@@ -60,6 +60,8 @@
   <!-- Log to syslog and stderr. no log length limitation -->
   <CLICON_LOG_DESTINATION>syslog stderr</CLICON_LOG_DESTINATION>
   <CLICON_LOG_STRING_LIMIT>0</CLICON_LOG_STRING_LIMIT>
+  <!-- Dir to store pipe scripts -->
+  <CLICON_CLI_PIPE_DIR>@DATADIR@/controller/pipe/</CLICON_CLI_PIPE_DIR>
   <!-- PYAPI specialization (see CLICON_CONFIG_EXTEND above)
        NOTE, cannot be broken out into separate dir -->
   <CONTROLLER_ACTION_COMMAND xmlns="http://clicon.org/controller-config">@BINDIR@/clixon_server.py -f @SYSCONFDIR@/clixon/controller.xml</CONTROLLER_ACTION_COMMAND>
