@@ -899,14 +899,18 @@ device_shared_yspec(clixon_handle h,
     yang_stmt    *yspec = NULL;
     device_handle dh1;
     cxobj        *xyanglib;
+    char         *domain0;
 
     if (clicon_option_bool(h, "CLICON_YANG_SCHEMA_MOUNT_SHARE")) {
+        domain0 = device_handle_domain_get(dh0);
         /* New yspec only on first connect */
         dh1 = NULL;
         while ((dh1 = device_handle_each(h, dh1)) != NULL){
             if (dh1 == dh0)
                 continue;
             if ((xyanglib = device_handle_yang_lib_get(dh1)) == NULL)
+                continue;
+            if (strcmp(domain0, device_handle_domain_get(dh1)) != 0)
                 continue;
             if (xml_tree_equal(xyanglib0, xyanglib) == 0)
                 break;

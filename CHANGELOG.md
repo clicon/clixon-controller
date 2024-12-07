@@ -20,6 +20,7 @@ Expected: January 2025
 
 ### Corrected Bugs
 
+* Fixed: [YANG domains: issues if devices in different domains have identical schemas](https://github.com/clicon/clixon-controller/issues/170)
 * Fixed: [Generalize default autocli.xml file](https://github.com/clicon/clixon-controller/issues/163)
 * Fixed: [Commit without changes results in weird diff](https://github.com/clicon/clixon-controller/issues/161)
 
