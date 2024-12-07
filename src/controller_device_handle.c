@@ -188,7 +188,6 @@ device_handle_new(clixon_handle h,
     return cdh;
 }
 
-
 /*! Free controller device handle
  *
  * @param[in]  dh   Device handle
@@ -387,7 +386,6 @@ device_handle_disconnect(device_handle dh)
     clixon_debug(CLIXON_DBG_CTRL, "retval:%d", retval);
     return retval;
 }
-
 
 /* Accessor functions ------------------------------
  */

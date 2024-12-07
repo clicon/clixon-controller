@@ -77,7 +77,6 @@ rpc_reply_sanity(device_handle dh,
     char *rpcprefix;
     char *namespace;
 
-
     if (strcmp(rpcname, "rpc-reply") != 0){
         device_close_connection(dh, "Unexpected msg %s in state %s",
                                 rpcname, device_state_int2str(conn_state));

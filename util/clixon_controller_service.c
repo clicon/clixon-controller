@@ -140,7 +140,6 @@ send_transaction_error(clixon_handle h,
     return retval;
 }
 
-
 /*! Read services definition from backend
  *
  * @param[in]  h    Clixon handle
