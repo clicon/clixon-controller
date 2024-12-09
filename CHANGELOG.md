@@ -16,10 +16,12 @@ Expected: January 2025
 
 * New `clixon-controller-config@2024-11-01.yang` revision
   * Changed default device-common/port to 830
+  * Added hide-show extension to created container
   * Added device-generic-rpc
 
 ### Corrected Bugs
 
+* Fixed: [CLI: Don't show <created>...</created> tags by default](https://github.com/clicon/clixon-controller/issues/110)
 * Fixed: [YANG domains: issues if devices in different domains have identical schemas](https://github.com/clicon/clixon-controller/issues/170)
 * Fixed: [Generalize default autocli.xml file](https://github.com/clicon/clixon-controller/issues/163)
 * Fixed: [Commit without changes results in weird diff](https://github.com/clicon/clixon-controller/issues/161)

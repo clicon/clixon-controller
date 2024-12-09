@@ -509,7 +509,7 @@ fi
 # When pulled configs arrive, they are commited into tmpdev and committed into running
 # Have to draw,...
 
-#exit
+exit
 
 # Restart backend and ensure attributes remain
 if $BE; then
