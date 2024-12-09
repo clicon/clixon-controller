@@ -21,6 +21,7 @@ Expected: January 2025
 
 ### Corrected Bugs
 
+* Fixed: [CLI: default format text | display](https://github.com/clicon/clixon-controller/issues/165)
 * Fixed: [CLI: Don't show <created>...</created> tags by default](https://github.com/clicon/clixon-controller/issues/110)
 * Fixed: [YANG domains: issues if devices in different domains have identical schemas](https://github.com/clicon/clixon-controller/issues/170)
 * Fixed: [Generalize default autocli.xml file](https://github.com/clicon/clixon-controller/issues/163)

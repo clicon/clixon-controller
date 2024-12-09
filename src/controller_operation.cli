@@ -35,7 +35,7 @@ show("Show a particular state of the system"){
     }
     configuration("Show configuration"), cli_show_auto_mode("running", "default", true, false);{
        @|pipe_show, cli_show_auto_mode("running", "xml", true, false);
-       @datamodelshow, cli_show_auto_devs("running", "default", true, false, "explicit", "set ", true);
+       @datamodelshow, cli_show_auto_devs("running", "pipe-xml-default", true, false, "explicit", "set ", true);
     }
     connections("Show state of connection to devices")[
                  (<name:string>("device pattern")|
@@ -79,7 +79,7 @@ show("Show a particular state of the system"){
     }
     state("Show configuration and state"), cli_show_auto_mode("running", "default", true, true);{
        @|pipe_show, cli_show_auto_mode("running", "xml", true, true);
-       @datamodelstate, cli_show_auto_devs("running", "default", true, true, "explicit", "set ", true);
+       @datamodelstate, cli_show_auto_devs("running", "pipe-xml-default", true, true, "explicit", "set ", true);
     }
     memory("Show memory usage"), cli_show_statistics("all");{
        cli, cli_show_statistics("cli");{
