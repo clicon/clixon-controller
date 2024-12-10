@@ -19,9 +19,6 @@ debug("Debugging parts of the system") {
 default("Set CLI default values") {
    format("Set default output format") <fmt:string choice:xml|json|text|cli>("CLI output format"), cli_format_set();
 }
-shell("System command"), cli_start_shell("bash");{
-  <source:rest>("Single shell command"), cli_start_shell("bash");
-}
 processes("Process maintenace") services("Service daemon operation") {
     start, cli_process_control("Action process", "start");
     stop, cli_process_control("Action process", "stop");
