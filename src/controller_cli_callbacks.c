@@ -163,7 +163,7 @@ rpc_get_yanglib_mount_match(clixon_handle h,
     yang_stmt *yspec;
     int        ret;
 
-    clixon_debug(CLIXON_DBG_CTRL, "");
+    clixon_debug(CLIXON_DBG_CTRL, "%s", pattern);
     if ((cb = cbuf_new()) == NULL){
         clixon_err(OE_PLUGIN, errno, "cbuf_new");
         goto done;
@@ -229,9 +229,7 @@ rpc_get_yanglib_mount_match(clixon_handle h,
         /* 2. Remove all unmarked nodes, ie non-matching nodes */
         if (xml_tree_prune_flagged_sub(xdevs, XML_FLAG_MARK, 1, NULL) < 0)
             goto done;
-        /* Populate XML with Yang spec. Binding is done in clicon_rpc_netconf of RPC only
-         * where <data> is ANYDATA
-         */
+        /* Populate XML with Yang spec. */
         if ((ret = xml_bind_yang0(h, xdevs, YB_MODULE, yspec, &xerr)) < 0)
             goto done;
         if (ret == 0){
