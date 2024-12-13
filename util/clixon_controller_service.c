@@ -391,6 +391,8 @@ service_loop_devices(clixon_handle h,
 
     xd = NULL;
     while ((xd = xml_child_each(xdevs, xd,  CX_ELMNT)) != NULL){
+        if (strcmp(xml_name(xd), "device") != 0)
+            continue;
         devname = xml_find_body(xd, "name");
         if (do_service(h, s, devname, xs, targetdb, tag, tidstr, send_dupl) < 0)
             goto done;
