@@ -45,8 +45,7 @@ EOF
       )
 match=$(echo $ret | grep --null -Eo "<rpc-error>") || true
 if [ -n "$match" ]; then
-    echo "netconf rpc-error detected"
-    exit 1
+    err1 "netconf rpc-error detected"
 fi
 
 for i in $(seq 1 $nr); do
@@ -64,16 +63,13 @@ EOF
       )
     match=$(echo $ret | grep --null -Eo "<rpc-error>") || true
     if [ -n "$match" ]; then
-        echo "netconf rpc-error detected"
-        exit 1
+        err1 "netconf rpc-error detected"
     fi
     # XXX double <config><config>
     #    match=$(echo $ret | grep --null -Eo "<rpc-reply xmlns=\"urn:ietf:params:xml:ns:netconf:base:1.0\" message-id=\"43\"><config xmlns=\"http://clicon.org/controller\">$CONFIG</config></rpc-reply>") || true
     match=$(echo $ret | grep --null -Eo "$CONFIG") || true
     if [ -z "$match" ]; then
-        echo "netconf rpc get-device-config failed"
-        echo "$ret"
-        exit 1
+        err1 "netconf rpc get-device-config failed"
     fi
 done
 

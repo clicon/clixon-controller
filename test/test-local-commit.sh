@@ -64,7 +64,6 @@ EOF
     match=$(echo "$ret" | grep --null -Eo "<rpc-error>") || true
     if [ -n "$match" ]; then
         err1 "OK reply"
-        exit 1
     fi
 }
 
@@ -112,7 +111,6 @@ echo "ret:$ret"
 match=$(echo $ret | grep --null -Eo "<rpc-error>") || true
 if [ -z "$match" ]; then
     err1 "rpc-error"
-    exit 1
 fi
 
 match=$(echo $ret | grep --null -Eo "local fields are changed") || true

@@ -74,7 +74,6 @@ new "Check ok"
 match=$(echo $ret | grep --null -Eo "<rpc-error>") || true
 if [ -n "$match" ]; then
     err1 "$ret"
-    exit 1
 fi
 
 new "commit template local 1"
@@ -115,7 +114,6 @@ match=$(echo $ret | grep --null -Eo "<rpc-error>") || true
 if [ -n "$match" ]; then
     echo "netconf rpc-error detected"
     err1 "$ret"
-    exit 1
 fi
 
 new "Verify compare 1"
@@ -164,7 +162,6 @@ EOF
 
 if [ -n "$ret" ]; then
     err1 "$ret"
-    exit 1
 fi
 
 new "commit template local 2"
@@ -212,7 +209,6 @@ EOF
 
 if [ -n "$ret" ]; then
     err1 "$ret"
-    exit 1
 fi
 
 new "Check description diff xml"
@@ -263,7 +259,6 @@ EOF
 
 if [ -n "$ret" ]; then
     err1 "$ret"
-    exit 1
 fi
 
 new "commit local"
@@ -364,7 +359,6 @@ EOF
 
 if [ -n "$ret" ]; then
     err1 "$ret"
-    exit 1
 fi
 
 new "commit local"

@@ -50,8 +50,7 @@ EOF
 #echo "ret:$ret"
 match=$(echo $ret | grep --null -Eo "<rpc-error>") || true
 if [ -n "$match" ]; then
-    echo "netconf rpc-error detected"
-    exit 1
+    err1 "netconf rpc-error detected"
 fi
 new "match mount"
 expected='<schema-mounts xmlns="urn:ietf:params:xml:ns:yang:ietf-yang-schema-mount"><mount-point><module>clixon-controller</module><label>device</label><config>true</config><inline/></mount-point></schema-mounts>'

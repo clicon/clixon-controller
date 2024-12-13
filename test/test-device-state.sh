@@ -53,7 +53,6 @@ new "Check open"
 match=$(echo $ret | grep --null -Eo "<device><name>openconfig1</name><conn-state>OPEN</conn-state></device>") || true
 if [ -z "$match" ]; then
     err "openconfig1 OPEN" "$ret"
-    exit 1
 fi
 
 new "NETCONF: get state with inline rpc template"

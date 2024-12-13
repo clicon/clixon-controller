@@ -111,9 +111,7 @@ EOF
           )
     match=$(echo $ret | grep --null -Eo "<rpc-error>") || true
     if [ -n "$match" ]; then
-        echo "netconf rpc-error detected"
-        echo "$ret"
-        exit 1
+        err "netconf rpc-error detected" "$ret"
     fi
 
     i=$((i+1))  
@@ -134,8 +132,7 @@ EOF
 )
 match=$(echo $ret | grep --null -Eo "<rpc-error>") || true
 if [ -n "$match" ]; then
-    echo "netconf rpc-error detected"
-    exit 1
+    err1 "netconf rpc-error detected"
 fi
 
 if ! $push ; then
@@ -179,9 +176,7 @@ EOF
        )
     match=$(echo $ret | grep --null -Eo "<rpc-error>") || true
     if [ -n "$match" ]; then
-        echo "netconf rpc-error detected"
-        echo "$ret"
-        exit 1
+        err1 "netconf rpc-error detected"
     fi
     i=$((i+1))
 done

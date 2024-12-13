@@ -72,8 +72,7 @@ EOF
 	  )
     match=$(echo $ret | grep --null -Eo "<rpc-error>") || true
     if [ -n "$match" ]; then
-	echo "netconf rpc-error detected"
-	exit 1
+	err1 "netconf rpc-error detected"
     fi
 
     i=$((i+1))
@@ -111,8 +110,7 @@ EOF
 #echo "ret:$ret"
 match=$(echo $ret | grep --null -Eo "<rpc-error>") || true
 if [ -n "$match" ]; then
-    echo "netconf rpc-error detected"
-    exit 1
+    err1 "netconf rpc-error detected"
 fi
 
 # XXX get transaction-id from ret and wait for that?
@@ -133,8 +131,7 @@ EOF
 # echo "ret:$ret"
 match=$(echo $ret | grep --null -Eo "<rpc-error>") || true
 if [ -n "$match" ]; then
-    echo "netconf rpc-error detected"
-    exit 1
+    err1 "netconf rpc-error detected"
 fi
 
 if ! $commit ; then
@@ -159,14 +156,12 @@ EOF
 #echo "$ret"
 match=$(echo "$ret" | grep --null -Eo "<rpc-error>") || true
 if [ -n "$match" ]; then
-    echo "Error: $res"
-    exit -1;
+    err1 "$res"
 fi
 res=$(echo "$ret" | sed 's/OPEN/OPEN\n/g' | grep -c "OPEN")
 
 if [ "$res" != "$nr" ]; then
-    echo "Error: $res"
-    exit -1;
+    err1 "$res"
 fi
 
 i=1
@@ -197,14 +192,11 @@ EOF
 #    echo "ret:$ret"
     match=$(echo $ret | grep --null -Eo "<rpc-error>") || true
     if [ -n "$match" ]; then
-	echo "netconf rpc-error detected on $NAME"
-	exit 1
+	err1 "netconf rpc-error detected on $NAME"
     fi
     match=$(echo $ret | grep --null -Eo "<config>${CHECK}</config>") || true
     if [ -z "$match" ]; then
-	echo "netconf rpc get-config $NAME no match"
-        echo "$ret" 
-	exit 1
+	err1 "netconf rpc get-config $NAME no match"
     fi
 
     i=$((i+1))

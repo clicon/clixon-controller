@@ -75,7 +75,6 @@ new "Check ok"
 match=$(echo $ret | grep --null -Eo "<rpc-error>") || true
 if [ -n "$match" ]; then
     err1 "$ret"
-    exit 1
 fi
 
 new "commit rpc template local 1"
@@ -148,7 +147,6 @@ EOF
 
 if [ -n "$ret" ]; then
     err1 "$ret"
-    exit 1
 fi
 
 new "commit template local 2"
@@ -176,7 +174,6 @@ EOF
 
 if [ -n "$ret" ]; then
     err1 "$ret"
-    exit 1
 fi
 
 new "commit template local 3"

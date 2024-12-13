@@ -112,7 +112,6 @@ EOF
     match=$(echo $ret | grep --null -Eo "<rpc-error>") || true
     if [ -n "$match" ]; then
         err1 "$ret"
-        exit 1
     fi
 }
 
@@ -153,7 +152,6 @@ EOF
     match=$(echo $ret | grep --null -Eo "<rpc-error>") || true
     if [ -n "$match" ]; then
         err1 "$ret"
-        exit 1
     fi
     if [ -n "$mtu" ]; then
         match=$(echo "$ret" | grep --null -Eo "<mtu>$mtu</mtu>") || true

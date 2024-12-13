@@ -176,8 +176,7 @@ new "Verify controller 1"
 res=$(${clixon_cli} -1f $CFG -E $CFD show connections | grep OPEN | wc -l)
 
 if [ "$res" != "0" ]; then
-    echo "Error: $res devices open, expected 0"
-    exit -1;
+    err "expected 0" "Error: $res devices open"
 fi
 
 # Create device-profile myprofile
