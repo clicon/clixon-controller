@@ -453,6 +453,10 @@ transaction_notification_handler(clixon_handle       h,
     void              *wh = NULL;
     cbuf              *cb = NULL;
     cxobj             *xdevdata;
+    cvec              *nsc = NULL;
+    cxobj            **vec = NULL;
+    size_t             veclen;
+    int                i;
 
     clixon_debug(CLIXON_DBG_CTRL, "tid:%s", tidstr0);
     /* Need to set "intr" to enable ^C */
@@ -472,17 +476,20 @@ transaction_notification_handler(clixon_handle       h,
     if (clixon_xml_parse_string(cbuf_get(cb), YB_NONE, NULL, &xt, NULL) < 0)
         goto done;
     clixon_debug_xml(CLIXON_DBG_CTRL, xt, "Transaction");
-    if ((xn = xpath_first(xt, 0, "notification/controller-transaction")) == NULL){
-        clixon_err(OE_NETCONF, EFAULT, "Notification malformed");
-        goto done;
-    }
-    reason = xml_find_body(xn, "reason");
-    if ((tidstr = xml_find_body(xn, "tid")) == NULL){
-        clixon_err(OE_NETCONF, EFAULT, "Notification malformed: no tid");
-        goto done;
-    }
-    if (tidstr0 && strcmp(tidstr0, tidstr) == 0 && match)
-        *match = 1;
+   if (xpath_vec(xt, nsc, "notification/controller-transaction", &vec, &veclen) < 0)
+       goto done;
+   for (i=0; i<veclen; i++){
+       xn = vec[i];
+       reason = xml_find_body(xn, "reason");
+       if ((tidstr = xml_find_body(xn, "tid")) == NULL){
+           clixon_err(OE_NETCONF, EFAULT, "Notification malformed: no tid");
+           goto done;
+       }
+       if (tidstr0 && strcmp(tidstr0, tidstr) == 0 && match)
+           break;
+   }
+   if (i < veclen)
+       *match = 1;
     if ((resstr = xml_find_body(xn, "result")) == NULL){
         clixon_err(OE_NETCONF, EFAULT, "Notification malformed: no result");
         goto done;
@@ -504,6 +511,8 @@ transaction_notification_handler(clixon_handle       h,
     retval = 0;
  done:
     clixon_debug(CLIXON_DBG_CTRL, "%d", retval);
+    if (vec)
+        free(vec);
     if (cb)
         cbuf_free(cb);
     if (xt)
