@@ -1789,7 +1789,9 @@ device_state_handler(clixon_handle h,
         if ((ret = device_recv_generic_rpc(h, dh, ct, xmsg, rpcname, conn_state, &cberr)) < 0)
             goto done;
         if (ret == 0){      /* 1. The device has failed: received rpc-error/not <ok>  */
-            if (controller_transaction_failed(h, tid, ct, dh, TR_FAILED_DEV_CLOSE, name, cbuf_get(cberr)) < 0)
+            if (controller_transaction_failed(h, tid, ct, dh, TR_FAILED_DEV_LEAVE, name, cbuf_get(cberr)) < 0)
+                goto done;
+            if (device_state_set(dh, CS_OPEN) < 0)
                 goto done;
             break;
         }

@@ -21,6 +21,7 @@ Expected: January 2025
 
 ### Corrected Bugs
 
+* Fixed: [Running undefined RPC towards a device closes connection](https://github.com/clicon/clixon-controller/issues/173)
 * Fixed: [RPC commit diff problem](https://github.com/clicon/clixon-controller/issues/171)
 * Fixed: [CLI: default format text | display](https://github.com/clicon/clixon-controller/issues/165)
 * Fixed: [CLI: Don't show <created>...</created> tags by default](https://github.com/clicon/clixon-controller/issues/110)

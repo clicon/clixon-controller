@@ -191,6 +191,35 @@ expectpart "$($clixon_cli -1 -f $CFG connect close openconfig1)" 0 ""
 new "ping expect fail"
 expectpart "$($clixon_cli -1 -f $CFG rpc ping openconfig1 2>&1)" 0 "No device connected" --not-- "<name>openconfig1</name>"
 
+# Negative
+new "open all"
+expectpart "$($clixon_cli -1 -f $CFG connect open)" 0 ""
+
+new "CLI load template non-existant"
+# quote EOFfor $NAME
+ret=$(${clixon_cli} -1f $CFG -m configure load merge xml <<'EOF'
+      <config>
+         <devices xmlns="http://clicon.org/controller">
+            <rpc-template nc:operation="replace">
+               <name>notexist</name>
+               <config>
+                  <notexist xmlns="http://clicon.org/lib"/>
+               </config>
+            </rpc-template>
+         </devices>
+      </config>
+EOF
+)
+
+new "commit template local 4"
+expectpart "$($clixon_cli -1f $CFG -m configure commit local 2>&1)" 0 "^$"
+
+new "notexist to one"
+expectpart "$($clixon_cli -1 -f $CFG rpc notexist openconfig1 2>&1)" 0 "Unrecognized RPC" "<bad-element>notexist</bad-element>" --not-- "<ok"
+
+new "check open"
+expectpart "$($clixon_cli -1 -f $CFG show connect openconfig1)" 0 "OPEN " --not-- CLOSED RPC_GENERIC
+
 if $BE; then
     new "Kill old backend"
     stop_backend -f $CFG
