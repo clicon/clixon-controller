@@ -5,6 +5,8 @@ Expected: January 2025
 
 ### New features
 
+* Optimization [Performance: commit takes long time with many devices](https://github.com/clicon/clixon-controller/issues/154)
+  * Avoid copy in compare/diff
 * Show device state
   * New CLI show device state command
   * See [CLI show state does not return device state (config false) data](https://github.com/clicon/clixon-controller/issues/143)

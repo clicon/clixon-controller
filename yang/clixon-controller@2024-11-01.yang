@@ -862,6 +862,7 @@ module clixon-controller {
     rpc get-device-config {
         description
             "Get configuration db of a single device of name 'device-<devname>-<postfix>.xml'
+             With-default mode is 'explicit'
              Typically this db is retrieved by the pull rpc
              Should probably be replaced by a more generic function.
              Possibly just extend get-config with device dbs?";

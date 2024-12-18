@@ -129,6 +129,7 @@ int          device_state_timeout_register(device_handle ch);
 int          device_state_timeout_unregister(device_handle ch);
 int          device_state_set(device_handle dh, conn_state state);
 int          device_config_read(clixon_handle h, char *devname, char *config_type, cxobj **xrootp, cbuf **cberr);
+int          device_config_read_cache(clixon_handle h, char *devname, char *config_type, cxobj **xrootp, cbuf **cberr);
 int          device_config_write(clixon_handle h, char *name, char *config_type, cxobj *xdata, cbuf *cbret);
 int          device_state_handler(clixon_handle h, device_handle ch, int s, cxobj *xmsg);
 int          devices_statedata(clixon_handle h, cvec *nsc, char *xpath, cxobj *xstate);
