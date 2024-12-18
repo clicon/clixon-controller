@@ -504,13 +504,13 @@ controller_reset(clixon_handle h,
 
     if ((nsc = xml_nsctx_init(NULL, CONTROLLER_NAMESPACE)) == NULL)
         goto done;
-    if ((ret = xmldb_get0(h, "running", YB_MODULE, nsc, xpath, 1, 0, &xtop, NULL, NULL)) < 0)
+    if ((ret = xmldb_get_cache(h, "running", YB_MODULE, &xtop, NULL, NULL)) < 0)
         goto done;
     if (ret == 0){
         clixon_err(OE_DB, 0, "Error when reading from running_db, unknown error");
         goto done;
     }
-    if ((xse = xpath_first(xtop, 0, "processes/services/enabled")) != NULL){
+    if ((xse = xpath_first(xtop, 0, "%s", xpath)) != NULL){
         if (strcmp(xml_body(xse), "true") == 0)
             if (clixon_process_operation(h, ACTION_PROCESS, PROC_OP_START, 0) < 0)
                 goto done;
@@ -519,8 +519,6 @@ controller_reset(clixon_handle h,
  done:
     if (nsc)
         cvec_free(nsc);
-    if (xtop)
-        xml_free(xtop);
     return retval;
 }
 

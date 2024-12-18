@@ -713,7 +713,7 @@ device_config_write(clixon_handle h,
     return retval;
 }
 
-/*! Get local (cached) device datastore
+/*! Get local copy device datastore
  *
  * @param[in]  h           Clixon handle
  * @param[in]  name        Device name
@@ -766,6 +766,63 @@ device_config_read(clixon_handle h,
  done:
     if (xt)
         xml_free(xt);
+    if (cb)
+        cbuf_free(cb);
+    return retval;
+ failed:
+    retval = 0;
+    goto done;
+}
+
+/*! Get local cache device datastore
+ *
+ * @param[in]  h           Clixon handle
+ * @param[in]  name        Device name
+ * @param[in]  config_type Device config tyoe
+ * @param[out] xdatap      Device config XML (if retval=1)
+ * @param[out] cberr       Error message (if retval=0)
+ * @retval     1           OK
+ * @retval     0           Failed (No such device tree)
+ * @retval    -1           Error
+ */
+int
+device_config_read_cache(clixon_handle h,
+                         char         *devname,
+                         char         *config_type,
+                         cxobj       **xdatap,
+                         cbuf        **cberr)
+{
+    int    retval = -1;
+    cbuf  *cb = NULL;
+    char  *db;
+    cxobj *xt = NULL;
+    cxobj *xroot;
+
+    if (devname == NULL || config_type == NULL){
+        clixon_err(OE_UNIX, EINVAL, "devname or config_type is NULL");
+        goto done;
+    }
+    if ((cb = cbuf_new()) == NULL){
+        clixon_err(OE_UNIX, errno, "cbuf_new");
+        goto done;
+    }
+    cprintf(cb, "device-%s-%s", devname, config_type);
+    db = cbuf_get(cb);
+    if (xmldb_get_cache(h, db, YB_MODULE, &xt, NULL, NULL) < 0)
+        goto done;
+    if ((xroot = xpath_first(xt, NULL, "devices/device/config")) == NULL){
+        if ((*cberr = cbuf_new()) == NULL){
+            clixon_err(OE_UNIX, errno, "cbuf_new");
+            goto done;
+        }
+        cprintf(*cberr, "No such device tree");
+        goto failed;
+    }
+    if (xdatap){
+        *xdatap = xroot;
+    }
+    retval = 1;
+ done:
     if (cb)
         cbuf_free(cb);
     return retval;
@@ -843,9 +900,9 @@ device_config_compare(clixon_handle           h,
     int     eq;
     int     ret;
 
-    if ((ret = device_config_read(h, name, "SYNCED", &x0, &cberr)) < 0)
+    if ((ret = device_config_read_cache(h, name, "SYNCED", &x0, &cberr)) < 0)
         goto done;
-    if (ret && (ret = device_config_read(h, name, "TRANSIENT", &x1, &cberr)) < 0)
+    if (ret && (ret = device_config_read_cache(h, name, "TRANSIENT", &x1, &cberr)) < 0)
         goto done;
     if (ret == 0){
         if (device_close_connection(dh, "%s", cbuf_get(cberr)) < 0)
@@ -867,10 +924,6 @@ device_config_compare(clixon_handle           h,
  done:
     if (cberr)
         cbuf_free(cberr);
-    if (x0)
-        xml_free(x0);
-    if (x1)
-        xml_free(x1);
     return retval;
  closed:
     retval = 0;
@@ -1680,6 +1733,7 @@ device_state_handler(clixon_handle h,
                 goto done;
             }
             cprintf(cb, "devices/device[name='%s']/config", name);
+            /* xt is used to put which requires a copy */
             if (ct->ct_actions_type == AT_NONE){
                 if (xmldb_get0(h, ct->ct_sourcedb, YB_MODULE, NULL, cbuf_get(cb), 1, WITHDEFAULTS_EXPLICIT, &xt, NULL, NULL) < 0)
                     goto done;

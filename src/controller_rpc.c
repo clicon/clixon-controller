@@ -306,7 +306,8 @@ push_device_one(clixon_handle           h,
     int        ret;
     cvec      *nsc = NULL;
 
-    /* 1) get previous device synced xml */
+    /* Note x0 and x1 are directly modified in device_create_edit_config_diff, cannot do no-copy
+       1) get previous device synced xml */
     name = device_handle_name_get(dh);
     if ((ret = device_config_read(h, name, "SYNCED", &x0, cberr)) < 0)
         goto done;
@@ -473,7 +474,7 @@ rpc_config_pull(clixon_handle h,
     ct->ct_pull_transient = transient;
     if ((str = xml_find_body(xe, "merge")) != NULL)
         ct->ct_pull_merge = strcmp(str, "true") == 0;
-    if ((ret = xmldb_get0(h, "running", YB_MODULE, nsc, "devices/device", 1, 0, &xret, NULL, NULL)) < 0)
+    if ((ret = xmldb_get_cache(h, "running", YB_MODULE, &xret, NULL, NULL)) < 0)
         goto done;
     if (ret == 0){
         clixon_err(OE_DB, 0, "Error when reading from running_db, unknown error");
@@ -515,8 +516,6 @@ rpc_config_pull(clixon_handle h,
         cbuf_free(cberr);
     if (vec)
         free(vec);
-    if (xret)
-        xml_free(xret);
     return retval;
 }
 
@@ -713,9 +712,10 @@ strip_service_data_from_device_config(clixon_handle h,
     int     touch = 0;
 
     /* Get services/created read-only from running_db for reading */
-    if (xmldb_get0(h, "running", YB_NONE, NULL, NULL, 1, WITHDEFAULTS_EXPLICIT, &xt0, NULL, NULL) < 0)
+    if (xmldb_get_cache(h, "running", YB_NONE, &xt0, NULL, NULL) < 0)
         goto done;
-    /* Get services/created and devices from action_db for deleting */
+    /* Get services/created and devices from action_db for deleting.
+     * Cannot be no-copy, since it is modified and then put replace is called */
     if (xmldb_get0(h, db, YB_NONE, NULL, NULL, 1, WITHDEFAULTS_EXPLICIT, &xt1, NULL, NULL) < 0)
         goto done;
     /* Go through /services/././created that match cvv service name (NULL means all)
@@ -738,7 +738,7 @@ strip_service_data_from_device_config(clixon_handle h,
                 if ((xd = xpath_first(xt1, NULL, "%s", xpath)) == NULL)
                     continue;
                 /* Purge from action-db */
-                if (xml_purge(xd) < 0) // XXX Check multiple??
+                if (xml_purge(xd) < 0)
                     goto done;
             }
             /* Purge from action-db */
@@ -760,7 +760,7 @@ strip_service_data_from_device_config(clixon_handle h,
                     continue;
                 if ((xd = xpath_first(xt1, NULL, "%s", xpath)) == NULL)
                     continue;
-                if (xml_purge(xd) < 0) // XXX Check muliple??
+                if (xml_purge(xd) < 0)
                     goto done;
                 touch++;
             }
@@ -797,8 +797,6 @@ strip_service_data_from_device_config(clixon_handle h,
         free(vec);
     if (cbret)
         cbuf_free(cbret);
-    if (xt0)
-        xml_free(xt0);
     if (xt1)
         xml_free(xt1);
     return retval;
@@ -1060,7 +1058,7 @@ devices_match(clixon_handle   h,
     char         *body;
     int           ret;
 
-    if ((ret = xmldb_get0(h, "running", YB_MODULE, nsc, "devices", 1, 0, &xret, NULL, NULL)) < 0)
+    if ((ret = xmldb_get_cache(h, "running", YB_MODULE, &xret, NULL, NULL)) < 0)
         goto done;
     if (ret == 0){
         clixon_err(OE_DB, 0, "Error when reading from running_db, unknown error");
@@ -1087,8 +1085,6 @@ devices_match(clixon_handle   h,
     } /* for */
     retval = 0;
  done:
-    if (xret)
-        xml_free(xret);
     if (vec)
         free(vec);
     return retval;
@@ -1191,9 +1187,9 @@ devices_diff(clixon_handle           h,
     char         *name;
     int           i;
 
-    if (xmldb_get0(h, "candidate", YB_MODULE, nsc, "/", 1, WITHDEFAULTS_EXPLICIT, &td->td_target, NULL, NULL) < 0)
+    if (xmldb_get_cache(h, "candidate", YB_MODULE, &td->td_target, NULL, NULL) < 0)
         goto done;
-    if (xmldb_get0(h, "running", YB_MODULE, nsc, "/", 1, WITHDEFAULTS_EXPLICIT, &td->td_src, NULL, NULL) < 0)
+    if (xmldb_get_cache(h, "running", YB_MODULE, &td->td_src, NULL, NULL) < 0)
         goto done;
     /* Remove devices not in transaction */
     dh = NULL;
@@ -1202,9 +1198,9 @@ devices_diff(clixon_handle           h,
             continue;
         name = device_handle_name_get(dh);
         if ((xn = xpath_first(td->td_src, nsc, "devices/device[name='%s']", name)) != NULL)
-            xml_purge(xn);
+            xml_flag_set(xn, XML_FLAG_SKIP);
         if ((xn = xpath_first(td->td_target, nsc, "devices/device[name='%s']", name)) != NULL)
-            xml_purge(xn);
+            xml_flag_set(xn, XML_FLAG_SKIP);
     }
     if (xml_diff(td->td_src,
                  td->td_target,
@@ -1491,8 +1487,9 @@ rpc_controller_commit(clixon_handle h,
  ok:
     retval = 0;
  done:
-    if (td)
-        transaction_free(td);
+    if (td){
+        transaction_free1(td, 0);
+    }
     if (sourcedb)
         free(sourcedb);
     if (cbtr)
@@ -1544,11 +1541,11 @@ rpc_get_device_config(clixon_handle h,
     config_type = xml_find_body(xe, "config-type");
     dt = device_config_type_str2int(config_type);
     if (dt == DT_CANDIDATE){
-        if ((ret = xmldb_get0(h, "candidate", YB_MODULE, nsc, "devices/device", 1, 0, &xret, NULL, NULL)) < 0)
+        if ((ret = xmldb_get_cache(h, "candidate", YB_MODULE, &xret, NULL, NULL)) < 0)
             goto done;
     }
     else{
-        if ((ret = xmldb_get0(h, "running", YB_MODULE, nsc, "devices/device", 1, 0, &xret, NULL, NULL)) < 0)
+        if ((ret = xmldb_get_cache(h, "running", YB_MODULE, &xret, NULL, NULL)) < 0)
             goto done;
     }
     if (ret == 0){
@@ -1581,19 +1578,17 @@ rpc_get_device_config(clixon_handle h,
             break;
         case DT_SYNCED:
         case DT_TRANSIENT:
-            if ((ret = device_config_read(h, devname, config_type, &xroot, &cberr)) < 0)
+            if ((ret = device_config_read_cache(h, devname, config_type, &xroot, &cberr)) < 0)
                 goto done;
             if (ret == 0){
                 if (netconf_operation_failed(cbret, "application", cbuf_get(cberr))< 0)
                     goto done;
                 goto ok;
             }
-            if (clixon_xml2cbuf(cb, xroot, 0, 0, NULL, -1, 0) < 0)
+            if (clixon_xml2cbuf1(cb, xroot, 0, 0, NULL, -1, 0, WITHDEFAULTS_EXPLICIT) < 0)
                 goto done;
-            if (xroot){
-                xml_free(xroot);
+            if (xroot)
                 xroot = NULL;
-            }
             break;
         }
     }
@@ -1609,8 +1604,6 @@ rpc_get_device_config(clixon_handle h,
         cbuf_free(cberr);
     if (vec)
         free(vec);
-    if (xret)
-        xml_free(xret);
     if (xroot)
         xml_free(xroot);
     return retval;
@@ -1671,8 +1664,7 @@ rpc_connection_change(clixon_handle h,
             goto done;
         goto ok;
     }
-    // XXX: Should work with WITHDEFAULTS_EXPLICIT?
-    if (xmldb_get0(h, "running", YB_MODULE, nsc, "devices", 1, WITHDEFAULTS_REPORT_ALL, &xret, NULL, NULL) < 0)
+    if (xmldb_get_cache(h, "running", YB_MODULE, &xret, NULL, NULL) < 0)
         goto done;
     if (xpath_vec(xret, nsc, "devices/device", &vec, &veclen) < 0)
         goto done;
@@ -1758,8 +1750,6 @@ rpc_connection_change(clixon_handle h,
         cbuf_free(cberr);
     if (vec)
         free(vec);
-    if (xret)
-        xml_free(xret);
     return retval;
 }
 
@@ -1928,13 +1918,13 @@ datastore_diff_dsref(clixon_handle    h,
     cxobj  *x1;
     cxobj  *x2;
 
-    if (xmldb_get0(h, db1, YB_MODULE, NULL, xpath, 1, WITHDEFAULTS_EXPLICIT, &xt1, NULL, NULL) < 0)
+    if (xmldb_get_cache(h, db1, YB_MODULE, &xt1, NULL, NULL) < 0)
         goto done;
     if (xpath)
         x1 = xpath_first(xt1, NULL, "%s", xpath);
     else
         x1 = xt1;
-    if (xmldb_get0(h, db2, YB_MODULE, NULL, xpath, 1, WITHDEFAULTS_EXPLICIT, &xt2, NULL, NULL) < 0)
+    if (xmldb_get_cache(h, db2, YB_MODULE, &xt2, NULL, NULL) < 0)
         goto done;
     if (xpath)
         x2 = xpath_first(xt2, NULL, "%s", xpath);
@@ -1967,10 +1957,6 @@ datastore_diff_dsref(clixon_handle    h,
  done:
     if (cb)
         cbuf_free(cb);
-    if (xt1)
-        xml_free(xt1);
-    if (xt2)
-        xml_free(xt2);
     return retval;
 }
 
@@ -2026,7 +2012,7 @@ datastore_diff_device(clixon_handle      h,
         clixon_err(OE_UNIX, errno, "cbuf_new");
         goto done;
     }
-    if (xmldb_get0(h, "running", YB_MODULE, nsc, "devices/device/name", 1, WITHDEFAULTS_EXPLICIT, &xret, NULL, NULL) < 0)
+    if (xmldb_get_cache(h, "running", YB_MODULE, &xret, NULL, NULL) < 0)
         goto done;
     cprintf(cbret, "<rpc-reply xmlns=\"%s\">", NETCONF_BASE_NAMESPACE);
     if (xpath_vec(xret, nsc, "devices/device/name", &vec, &veclen) < 0)
@@ -2044,28 +2030,28 @@ datastore_diff_device(clixon_handle      h,
         case DT_RUNNING:
             cbuf_reset(cbxpath);
             cprintf(cbxpath, "devices/device[name='%s']/config", devname);
-            if (xmldb_get0(h, "running", YB_MODULE, nsc, cbuf_get(cbxpath), 1, WITHDEFAULTS_EXPLICIT, &x1ret, NULL, NULL) < 0)
+            if (xmldb_get_cache(h, "running", YB_MODULE, &x1ret, NULL, NULL) < 0)
                 goto done;
-            x1 = xpath_first(x1ret, nsc, "devices/device/config");
+            x1 = xpath_first(x1ret, nsc, "%s", cbuf_get(cbxpath));
             break;
         case DT_CANDIDATE:
             cbuf_reset(cbxpath);
             cprintf(cbxpath, "devices/device[name='%s']/config", devname);
-            if (xmldb_get0(h, "candidate", YB_MODULE, nsc, cbuf_get(cbxpath), 1, WITHDEFAULTS_EXPLICIT, &x1ret, NULL, NULL) < 0)
+            if (xmldb_get_cache(h, "candidate", YB_MODULE, &x1ret, NULL, NULL) < 0)
                 goto done;
-            x1 = xpath_first(x1ret, nsc, "devices/device/config");
+            x1 = xpath_first(x1ret, nsc, "%s", cbuf_get(cbxpath));
             break;
         case DT_ACTIONS:
             cbuf_reset(cbxpath);
             cprintf(cbxpath, "devices/device[name='%s']/config", devname);
-            if (xmldb_get0(h, "actions", YB_MODULE, nsc, cbuf_get(cbxpath), 1, WITHDEFAULTS_EXPLICIT, &x1ret, NULL, NULL) < 0)
+            if (xmldb_get_cache(h, "actions", YB_MODULE, &x1ret, NULL, NULL) < 0)
                 goto done;
-            x1 = xpath_first(x1ret, nsc, "devices/device/config");
+            x1 = xpath_first(x1ret, nsc, "%s", cbuf_get(cbxpath));
             break;
         case DT_SYNCED:
         case DT_TRANSIENT:
             ct = device_config_type_int2str(dt1);
-            if ((ret = device_config_read(h, devname, ct, &x1m, &cberr)) < 0)
+            if ((ret = device_config_read_cache(h, devname, ct, &x1m, &cberr)) < 0)
                 goto done;
             if (ret == 0){
                 cbuf_reset(cbret);
@@ -2073,6 +2059,7 @@ datastore_diff_device(clixon_handle      h,
                     goto done;
                 goto ok;
             }
+            x1 = x1m;
             break;
         }
         x2 = x2m = NULL;
@@ -2080,28 +2067,28 @@ datastore_diff_device(clixon_handle      h,
         case DT_RUNNING:
             cbuf_reset(cbxpath);
             cprintf(cbxpath, "devices/device[name='%s']/config", devname);
-            if (xmldb_get0(h, "running", YB_MODULE, nsc, cbuf_get(cbxpath), 1, WITHDEFAULTS_EXPLICIT, &x2ret, NULL, NULL) < 0)
+            if (xmldb_get_cache(h, "running", YB_MODULE, &x2ret, NULL, NULL) < 0)
                 goto done;
-            x2 = xpath_first(x2ret, nsc, "devices/device/config");
+            x2 = xpath_first(x2ret, nsc, "%s", cbuf_get(cbxpath));
             break;
         case DT_CANDIDATE:
             cbuf_reset(cbxpath);
             cprintf(cbxpath, "devices/device[name='%s']/config", devname);
-            if (xmldb_get0(h, "candidate", YB_MODULE, nsc, cbuf_get(cbxpath), 1, WITHDEFAULTS_EXPLICIT, &x2ret, NULL, NULL) < 0)
+            if (xmldb_get_cache(h, "candidate", YB_MODULE, &x2ret, NULL, NULL) < 0)
                 goto done;
-            x2 = xpath_first(x2ret, nsc, "devices/device/config");
+            x2 = xpath_first(x2ret, nsc, "%s", cbuf_get(cbxpath));
             break;
         case DT_ACTIONS:
             cbuf_reset(cbxpath);
             cprintf(cbxpath, "devices/device[name='%s']/config", devname);
-            if (xmldb_get0(h, "actions", YB_MODULE, nsc, cbuf_get(cbxpath), 1, WITHDEFAULTS_EXPLICIT, &x2ret, NULL, NULL) < 0)
+            if (xmldb_get_cache(h, "actions", YB_MODULE, &x2ret, NULL, NULL) < 0)
                 goto done;
-            x2 = xpath_first(x2ret, nsc, "devices/device/config");
+            x2 = xpath_first(x2ret, nsc, "%s", cbuf_get(cbxpath));
             break;
         case DT_SYNCED:
         case DT_TRANSIENT:
             ct = device_config_type_int2str(dt2);
-            if ((ret = device_config_read(h, devname, ct, &x2m, &cberr)) < 0)
+            if ((ret = device_config_read_cache(h, devname, ct, &x2m, &cberr)) < 0)
                 goto done;
             if (ret == 0){
                 cbuf_reset(cbret);
@@ -2109,12 +2096,13 @@ datastore_diff_device(clixon_handle      h,
                     goto done;
                 goto ok;
             }
+            x2 = x2m;
             break;
         }
         switch (format){
         case FORMAT_XML:
             cbuf_reset(cb);
-            if (clixon_xml_diff2cbuf(cb, x1?x1:x1m, x2?x2:x2m) < 0)
+            if (clixon_xml_diff2cbuf(cb, x1, x2) < 0)
                 goto done;
             if (cbuf_len(cb)){
                 cprintf(cbret, "<diff xmlns=\"%s\">", CONTROLLER_NAMESPACE);
@@ -2125,7 +2113,7 @@ datastore_diff_device(clixon_handle      h,
             break;
         case FORMAT_TEXT:
             cbuf_reset(cb);
-            if (clixon_text_diff2cbuf(cb, x1?x1:x1m, x2?x2:x2m) < 0)
+            if (clixon_text_diff2cbuf(cb, x1, x2) < 0)
                 goto done;
             if (cbuf_len(cb)){
                 cprintf(cbret, "<diff xmlns=\"%s\">", CONTROLLER_NAMESPACE);
@@ -2139,22 +2127,14 @@ datastore_diff_device(clixon_handle      h,
         default:
             break;
         }
-        if (x1m){
-            xml_free(x1m);
+        if (x1m)
             x1m = NULL;
-        }
-        if (x2m){
-            xml_free(x2m);
+        if (x2m)
             x2m = NULL;
-        }
-        if (x1ret){
-            xml_free(x1ret);
+        if (x1ret)
             x1ret = NULL;
-        }
-        if (x2ret){
-            xml_free(x2ret);
+        if (x2ret)
             x2ret = NULL;
-        }
     }
     cprintf(cbret, "</rpc-reply>");
  ok:
@@ -2166,12 +2146,6 @@ datastore_diff_device(clixon_handle      h,
         xml_free(x2m);
     if (vec)
         free(vec);
-    if (xret)
-        xml_free(xret);
-    if (x1ret)
-        xml_free(x1ret);
-    if (x2ret)
-        xml_free(x2ret);
     if (cberr)
         cbuf_free(cberr);
     if (cb)
@@ -2374,6 +2348,17 @@ xvars2cvv(cxobj  *xvars,
     return retval;
 }
 
+/*! Apply config-template
+ *
+ * @param[in]  h       Clixon handle
+ * @param[in]  xn      Request: <rpc><xn></rpc>
+ * @param[out] cbret   Return xml tree, eg <rpc-reply>..., <rpc-error..
+ * @param[in]  arg     Domain specific arg, eg client-entry or FCGX_Request
+ * @param[in]  regarg  User argument given at rpc_callback_register()
+ * @retval     0       OK
+ * @retval    -1       Error
+ * @see rpc_device_rpc_template_apply  RPC template
+ */
 static int
 rpc_device_config_template_apply(clixon_handle h,
                                  cxobj        *xe,
@@ -2411,8 +2396,10 @@ rpc_device_config_template_apply(clixon_handle h,
 
     clixon_debug(CLIXON_DBG_CTRL, "");
     yspec0 = clicon_dbspec_yang(h);
-    /* get template and device names */
-    if (xmldb_get0(h, "running", YB_MODULE, nsc, "devices", 1, WITHDEFAULTS_EXPLICIT, &xret, NULL, NULL) < 0)
+    /* get template and device names
+     * Destructively substitutes in xml_template_apply
+     */
+    if (xmldb_get0(h, "running", YB_MODULE, nsc, "devices", 1, WITHDEFAULTS_REPORT_ALL, &xret, NULL, NULL) < 0)
         goto done;
     if ((tmplname = xml_find_body(xe, "template")) == NULL){
         if (netconf_operation_failed(cbret, "application", "No template in rpc")< 0)
@@ -2573,7 +2560,7 @@ device_send_rpc_one(clixon_handle h,
     return retval;
 }
 
-/*! Apply rpc-template callback, see clixon-controller.yang: devices/rpc-template/apply
+/*! Apply rpc-template
  *
  * @param[in]  h       Clixon handle
  * @param[in]  xn      Request: <rpc><xn></rpc>
@@ -2582,7 +2569,7 @@ device_send_rpc_one(clixon_handle h,
  * @param[in]  regarg  User argument given at rpc_callback_register()
  * @retval     0       OK
  * @retval    -1       Error
- * @see rpc_device_template_apply  Config template
+ * @see rpc_device_config_template_apply  Config template
  */
 static int
 rpc_device_rpc_template_apply(clixon_handle h,
@@ -2615,7 +2602,9 @@ rpc_device_rpc_template_apply(clixon_handle h,
     int                     ret;
 
     clixon_debug(CLIXON_DBG_CTRL, "");
-    /* get template and device names */
+    /* Get template and device names.
+     * May destructively substitute xret in apply
+     */
     if (xmldb_get0(h, "running", YB_MODULE, nsc, "devices", 1, WITHDEFAULTS_EXPLICIT, &xret, NULL, NULL) < 0)
         goto done;
     if ((tmplname = xml_find_body(xe, "template")) != NULL){
