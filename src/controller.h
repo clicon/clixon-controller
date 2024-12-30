@@ -76,6 +76,10 @@
  */
 #undef NETCONF_LOCK_EXTRA_NAMESPACE
 
+/*! Optimize commit strip service
+ */
+#define OPTIMIZE_STRIP_SERVICE
+
 #define ACTION_PROCESS "Action process"
 
 /*! Controller debug levels
