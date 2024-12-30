@@ -679,10 +679,42 @@ controller_actions_diff(clixon_handle           h,
     return retval;
 }
 
+/*! Callback function type for xml_apply
+ *
+ * @param[in]  x    XML node
+ * @param[in]  arg  General-purpose argument
+ * @retval     2    Locally abort this subtree, continue with others
+ * @retval     1    Abort, dont continue with others, return 1 to end user
+ * @retval     0    OK, continue
+ * @retval    -1    Error, aborted at first error encounter, return -1 to end user
+ */
+static int
+xml_add_op(cxobj *x,
+           void  *arg)
+{
+    enum operation_type op = (enum operation_type)arg;
+
+    if (xml_flag(x, XML_FLAG_CACHE_DIRTY) != 0x0){
+        xml_flag_reset(x, XML_FLAG_CACHE_DIRTY);
+        if (xml_add_attr(x, NETCONF_BASE_PREFIX, NETCONF_BASE_NAMESPACE, "xmlns", NULL) == NULL)
+            return -1;
+        if (xml_add_attr(x, "operation", xml_operation2str(op), NETCONF_BASE_PREFIX, NULL) == NULL)
+            return -1;
+        return 2;  /* Locally abort this subtree, continue with others, XXX trunc sub-nodes? */
+    }
+    return 0;
+}
+
 /*! Strip all service data in device config
  *
  * Read a datastore, for each device in the datastore, strip data created by services
  * as defined by the services vector cvv. Write back the changed datastore
+ * Algorithm:
+ *   1) Mark orig xd with MARK ancestors to CHANGE (also cache-dirty to overcome flag copy reset)
+ *   2) Copy marked nodes to xedit tree
+ *   3) Add operation="delete" to all marked nodes in xedit tree
+ *   4) Unmark orig tree
+ *   5) Modify tree with xmldb_put
  * @param[in]  h    Clixon handle
  * @param[in]  db   Database
  * @param[in]  cvv  Vector of services
@@ -710,13 +742,15 @@ strip_service_data_from_device_config(clixon_handle h,
     cg_var *cv;
     char   *xpath;
     int     touch = 0;
+    cxobj  *xedit = NULL;
 
     /* Get services/created read-only from running_db for reading */
     if (xmldb_get_cache(h, "running", YB_NONE, &xt0, NULL, NULL) < 0)
         goto done;
-    /* Get services/created and devices from action_db for deleting.
-     * Cannot be no-copy, since it is modified and then put replace is called */
-    if (xmldb_get0(h, db, YB_NONE, NULL, NULL, 1, WITHDEFAULTS_EXPLICIT, &xt1, NULL, NULL) < 0)
+    /* Get services/created and devices from action_db for deleting. */
+    if ((xedit = xml_new("config", NULL, CX_ELMNT)) == NULL)
+        goto done;
+    if (xmldb_get_cache(h, db, YB_NONE, &xt1, NULL, NULL) < 0)
         goto done;
     /* Go through /services/././created that match cvv service name (NULL means all)
      * then for each xpath find object and purge
@@ -727,7 +761,6 @@ strip_service_data_from_device_config(clixon_handle h,
         while ((cv = cvec_each(cvv, cv)) != NULL){
             if ((xc0 = xpath_first(xt0, NULL, "services/%s/created", cv_name_get(cv))) == NULL)
                 continue;
-            xc1 = xpath_first(xt1, NULL, "services/%s/created", cv_name_get(cv));
             /* Read created from read-only running */
             xp = NULL;
             while ((xp = xml_child_each(xc0, xp, CX_ELMNT)) != NULL) {
@@ -737,12 +770,21 @@ strip_service_data_from_device_config(clixon_handle h,
                     continue;
                 if ((xd = xpath_first(xt1, NULL, "%s", xpath)) == NULL)
                     continue;
-                /* Purge from action-db */
-                if (xml_purge(xd) < 0)
-                    goto done;
+                /* cache-dirty just to ensure copied to new tree */
+                xml_flag_set(xd, XML_FLAG_MARK|XML_FLAG_CACHE_DIRTY);
+                xml_apply_ancestor(xd, (xml_applyfn_t*)xml_flag_set, (void*)XML_FLAG_CHANGE);
             }
-            /* Purge from action-db */
-            if (xc1 && xml_purge(xc1) < 0)
+            xc1 = xpath_first(xt1, NULL, "services/%s/created", cv_name_get(cv));
+            if (xc1){
+                /* cache-dirty just to ensure copied to new tree */
+                xml_flag_set(xc1, XML_FLAG_MARK|XML_FLAG_CACHE_DIRTY);
+                xml_apply_ancestor(xc1, (xml_applyfn_t*)xml_flag_set, (void*)XML_FLAG_CHANGE);
+            }
+            if (xml_copy_marked(xt1, xedit) < 0)
+                goto done;
+            if (xml_apply(xt1, CX_ELMNT, (xml_applyfn_t*)xml_flag_reset, (void*)(XML_FLAG_MARK|XML_FLAG_CHANGE|XML_FLAG_CACHE_DIRTY)) < 0)
+                goto done;
+            if (xml_apply(xedit, CX_ELMNT, xml_add_op, (void*)OP_DELETE) < 0)
                 goto done;
             touch++;
         }
@@ -760,8 +802,9 @@ strip_service_data_from_device_config(clixon_handle h,
                     continue;
                 if ((xd = xpath_first(xt1, NULL, "%s", xpath)) == NULL)
                     continue;
-                if (xml_purge(xd) < 0)
-                    goto done;
+                /* cache-dirty just to ensure copied to new tree */
+                xml_flag_set(xd, XML_FLAG_MARK|XML_FLAG_CACHE_DIRTY);
+                xml_apply_ancestor(xd, (xml_applyfn_t*)xml_flag_set, (void*)XML_FLAG_CHANGE);
                 touch++;
             }
         }
@@ -784,7 +827,7 @@ strip_service_data_from_device_config(clixon_handle h,
             clixon_err(OE_UNIX, errno, "cbuf_new");
             goto done;
         }
-        if ((ret = xmldb_put(h, db, OP_REPLACE, xt1, NULL, cbret)) < 0)
+        if ((ret = xmldb_put(h, db, OP_NONE, xedit, NULL, cbret)) < 0)
             goto done;
         if (ret == 0){
             clixon_err(OE_XML, 0, "xmldb_put failed");
@@ -797,8 +840,8 @@ strip_service_data_from_device_config(clixon_handle h,
         free(vec);
     if (cbret)
         cbuf_free(cbret);
-    if (xt1)
-        xml_free(xt1);
+    if (xedit)
+        xml_free(xedit);
     return retval;
 }
 
