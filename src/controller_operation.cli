@@ -123,21 +123,45 @@ push("Push config to one or multiple devices")[
                     commit("Push to devices and commit"), cli_rpc_controller_commit("running", "NONE", "COMMIT");
 }
 connection("Change connection state of one or several devices") {
-   close("Close open connections"), cli_connection_change("CLOSE", false);{
-      (<name:string>("device pattern")|
-       <name:string expand_dbvar("running","/clixon-controller:devices/device/name")>("device pattern")), cli_connection_change("CLOSE", false);
+   close("Close open connections"), cli_connection_change("CLOSE");{
+      (<name:string>("device pattern")
+       |<name:string expand_dbvar("running","/clixon-controller:devices/device/name")>("device pattern")
+       ), cli_connection_change("CLOSE");
+       group (<name:string>("device group pattern")
+             |<name:string expand_dbvar("running","/clixon-controller:devices/device-group/name")>("device-group pattern"))
+          , cli_connection_change("CLOSE", "GROUP");
    }
-   open("Open closed connections"), cli_connection_change("OPEN", true);{
-      async("Open connection do not block"), cli_connection_change("OPEN", false);
-      (<name:string>("device pattern")|
-       <name:string expand_dbvar("running","/clixon-controller:devices/device/name")>("device pattern")), cli_connection_change("OPEN", true);
-   }
-   reconnect("Close all open connections and open all connections"), cli_connection_change("RECONNECT", true);{
-      async("Do not block"), cli_connection_change("RECONNECT", false);
-      (<name:string>("device pattern")|
-       <name:string expand_dbvar("running","/clixon-controller:devices/device/name")>("device pattern")), cli_connection_change("RECONNECT", true);{
-          async("Do not block"), cli_connection_change("RECONNECT", false);
+   open("Open closed connections"), cli_connection_change("OPEN"); {
+      <async:string keyword:async>("Return immediately, do not wait for completion"), cli_connection_change("OPEN"); {
+         (<name:string>("device pattern") |
+          <name:string expand_dbvar("running","/clixon-controller:devices/device/name")>("device pattern")
+         ), cli_connection_change("OPEN");
+         group (<name:string>("device group pattern")
+             |<name:string expand_dbvar("running","/clixon-controller:devices/device-group/name")>("device-group pattern"))
+             , cli_connection_change("OPEN", "GROUP");
       }
+      (<name:string>("device pattern") |
+       <name:string expand_dbvar("running","/clixon-controller:devices/device/name")>("device pattern")
+      ), cli_connection_change("OPEN");
+      group (<name:string>("device group pattern")
+            |<name:string expand_dbvar("running","/clixon-controller:devices/device-group/name")>("device-group pattern")), cli_connection_change("OPEN", "GROUP");
+
+   }
+   reconnect("Close all open connections and open all connections"), cli_connection_change("RECONNECT");{
+      <async:string keyword:async>("Return immediately, do not wait for completion"), cli_connection_change("OPEN"); {
+         (<name:string>("device pattern")
+         |<name:string expand_dbvar("running","/clixon-controller:devices/device/name")>("device pattern")
+         ), cli_connection_change("RECONNECT");
+         group (<name:string>("device group pattern")
+               |<name:string expand_dbvar("running","/clixon-controller:devices/device-group/name")>("device-group pattern")
+               ), cli_connection_change("RECONNECT", "GROUP");
+      }
+      (<name:string>("device pattern")
+       |<name:string expand_dbvar("running","/clixon-controller:devices/device/name")>("device pattern")
+      ), cli_connection_change("RECONNECT");
+      group (<name:string>("device group pattern")
+            |<name:string expand_dbvar("running","/clixon-controller:devices/device-group/name")>("device-group pattern")
+            ), cli_connection_change("RECONNECT", "GROUP");
    }
 }
 rpc("Send RPC to devices")

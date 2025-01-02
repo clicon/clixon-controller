@@ -91,7 +91,7 @@ ret=$(${clixon_netconf} -0 -f $CFG <<EOF
      xmlns:nc="urn:ietf:params:xml:ns:netconf:base:1.0"
      message-id="42">
    <device-template-apply xmlns="http://clicon.org/controller">
-      <devname>openconfig*</devname>
+      <device>openconfig*</device>
       <template>interfaces</template>
       <variables>
          <variable>
@@ -302,7 +302,7 @@ ret=$(${clixon_netconf} -0 -f $CFG <<EOF
      xmlns:nc="urn:ietf:params:xml:ns:netconf:base:1.0"
      message-id="42">
    <device-template-apply xmlns="http://clicon.org/controller">
-      <devname>openconfig*</devname>
+      <device>openconfig*</device>
       <template>interfaces</template>
       <variables>
          <variable>

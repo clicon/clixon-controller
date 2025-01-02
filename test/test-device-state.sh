@@ -68,7 +68,7 @@ ret=$(${clixon_netconf} -0 -f $CFG <<'EOF'
      message-id="99">
    <device-template-apply xmlns="http://clicon.org/controller">
       <type>RPC</type>
-      <devname>openconfig*</devname>
+      <device>openconfig*</device>
       <inline>
          <variables>
             <variable>

@@ -37,7 +37,7 @@ new "trigger pull transient"
 ret=$(${clixon_netconf} -q0 -f $CFG <<EOF
 <rpc xmlns="urn:ietf:params:xml:ns:netconf:base:1.0" message-id="43">
   <config-pull xmlns="http://clicon.org/controller">
-    <devname>*</devname>
+    <device>*</device>
     <transient>true</transient>
   </config-pull>
 </rpc>]]>]]>
@@ -55,7 +55,7 @@ for i in $(seq 1 $nr); do
     ret=$(${clixon_netconf} -q0 -f $CFG <<EOF
 <rpc xmlns="urn:ietf:params:xml:ns:netconf:base:1.0" message-id="43">
   <get-device-config xmlns="http://clicon.org/controller">
-    <devname>$NAME</devname>
+    <device>$NAME</device>
     <config-type>TRANSIENT</config-type>
   </get-device-config>
 </rpc>]]>]]>

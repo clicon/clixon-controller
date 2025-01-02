@@ -735,7 +735,7 @@ cli_rpc_pull(clixon_handle h,
             clicon_username_get(h),
             NETCONF_MESSAGE_ID_ATTR);
     cprintf(cb, "<config-pull xmlns=\"%s\">", CONTROLLER_NAMESPACE);
-    cprintf(cb, "<devname>%s</devname>", name);
+    cprintf(cb, "<device>%s</device>", name);
     if (strcmp(op, "merge") == 0)
         cprintf(cb, "<merge>true</merge>");
     cprintf(cb, "</config-pull>");
@@ -804,7 +804,7 @@ cli_rpc_commit_diff_one(clixon_handle h,
             clicon_username_get(h),
             NETCONF_MESSAGE_ID_ATTR);
     cprintf(cb, "<datastore-diff xmlns=\"%s\">", CONTROLLER_NAMESPACE);
-    cprintf(cb, "<devname>%s</devname>", name);
+    cprintf(cb, "<device>%s</device>", name);
     cprintf(cb, "<config-type1>RUNNING</config-type1>");
     cprintf(cb, "<config-type2>ACTIONS</config-type2>");
     cprintf(cb, "</datastore-diff>");
@@ -1049,24 +1049,22 @@ cli_rpc_controller_commit(clixon_handle h,
         clixon_err_netconf(h, OE_XML, 0, xerr, "Get configuration");
         goto done;
     }
-    if ((xid = xpath_first(xreply, NULL, "tid")) == NULL){
-        clixon_err(OE_CFG, 0, "No returned id");
-        goto done;
-    }
-    tidstr = xml_body(xid);
-    if (transaction_exist(h, tidstr, &exists) < 0)
-        goto done;
-    if (exists){
-        if (transaction_notification_poll(h, tidstr, &result) < 0)
+    if ((xid = xpath_first(xreply, NULL, "tid")) != NULL){
+        tidstr = xml_body(xid);
+        if (transaction_exist(h, tidstr, &exists) < 0)
             goto done;
-        if (result != TR_SUCCESS)
-            goto ok;
-    }
-    /* Interpret actions and no push as diff */
-    if (actions_type_str2int(actions_type) != AT_NONE &&
-        push_type_str2int(push_type) == PT_NONE){
-        if (cli_rpc_commit_diff(h) < 0)
-            goto done;
+        if (exists){
+            if (transaction_notification_poll(h, tidstr, &result) < 0)
+                goto done;
+            if (result != TR_SUCCESS)
+                goto ok;
+        }
+        /* Interpret actions and no push as diff */
+        if (actions_type_str2int(actions_type) != AT_NONE &&
+            push_type_str2int(push_type) == PT_NONE){
+            if (cli_rpc_commit_diff(h) < 0)
+                goto done;
+        }
     }
     cligen_output(stderr, "OK\n");
  ok:
@@ -1086,10 +1084,10 @@ cli_rpc_controller_commit(clixon_handle h,
 /*! Read the config of one or several devices, assumes a name variable for pattern, or NULL for all
  *
  * @param[in] h
- * @param[in] cvv  : <operation>, <wait>
- * @param[in] argv : 0: close, 1: open, 2: reconnect
- * @retval    0    OK
- * @retval   -1    Error
+ * @param[in] cvv    Vector of cli string and instantiated variable, assume <name> <dontwait>
+ * @param[in] argv : OPEN/CLOSE/RECONNECT [GROUP]
+ * @retval    0      OK
+ * @retval   -1      Error
  */
 int
 cli_connection_change(clixon_handle h,
@@ -1106,28 +1104,33 @@ cli_connection_change(clixon_handle h,
     cxobj             *xerr;
     char              *name = "*";
     char              *op;
-    char              *wait;
+    char              *dontwait = NULL;
+    char              *group = NULL;
     cxobj             *xid;
     char              *tidstr;
     transaction_result result = 0;
     int                exists = 0;
 
-    if (argv == NULL || cvec_len(argv) != 2){
-        clixon_err(OE_PLUGIN, EINVAL, "requires argument: <operation> <wait>");
+    if (argv == NULL || cvec_len(argv) < 1 || cvec_len(argv) > 2){
+        clixon_err(OE_PLUGIN, EINVAL, "requires argument: <operation> [GROUP]");
         goto done;
     }
     if ((cv = cvec_i(argv, 0)) == NULL){
-        clixon_err(OE_PLUGIN, 0, "Error when accessing argument <push>");
+        clixon_err(OE_PLUGIN, 0, "Error when accessing argument <operation>");
         goto done;
     }
     op = cv_string_get(cv);
-    if ((cv = cvec_i(argv, 1)) == NULL){
-        clixon_err(OE_PLUGIN, 0, "Error when accessing argument <push>");
-        goto done;
+    if (cvec_len(argv) > 1){
+        if ((cv = cvec_i(argv, 1)) == NULL){
+            clixon_err(OE_PLUGIN, 0, "Error when accessing argument <group>");
+            goto done;
+        }
+        group = cv_string_get(cv);
     }
-    wait = cv_string_get(cv);
     if ((cv = cvec_find(cvv, "name")) != NULL)
         name = cv_string_get(cv);
+    if ((cv = cvec_find(cvv, "async")) != NULL)
+        dontwait = cv_string_get(cv);
     if ((cb = cbuf_new()) == NULL){
         clixon_err(OE_PLUGIN, errno, "cbuf_new");
         goto done;
@@ -1137,7 +1140,10 @@ cli_connection_change(clixon_handle h,
             clicon_username_get(h),
             NETCONF_MESSAGE_ID_ATTR);
     cprintf(cb, "<connection-change xmlns=\"%s\">", CONTROLLER_NAMESPACE);
-    cprintf(cb, "<devname>%s</devname>", name);
+    if (group != NULL)
+        cprintf(cb, "<device-group>%s</device-group>", name);
+    else
+        cprintf(cb, "<device>%s</device>", name);
     cprintf(cb, "<operation>%s</operation>", op);
     cprintf(cb, "</connection-change>");
     cprintf(cb, "</rpc>");
@@ -1156,7 +1162,7 @@ cli_connection_change(clixon_handle h,
         clixon_err_netconf(h, OE_XML, 0, xerr, "Get configuration");
         goto done;
     }
-    if (strcmp(wait, "true") == 0){
+    if (dontwait == NULL){
         if ((xid = xpath_first(xreply, NULL, "tid")) == NULL){
             clixon_err(OE_CFG, 0, "No returned id");
             goto done;
@@ -1609,7 +1615,7 @@ send_pull_transient(clixon_handle h,
             clicon_username_get(h),
             NETCONF_MESSAGE_ID_ATTR);
     cprintf(cb, "<config-pull xmlns=\"%s\">", CONTROLLER_NAMESPACE);
-    cprintf(cb, "<devname>%s</devname>", name);
+    cprintf(cb, "<device>%s</device>", name);
     cprintf(cb, "<transient>true</transient>>");
     cprintf(cb, "</config-pull>");
     cprintf(cb, "</rpc>");
@@ -1749,7 +1755,7 @@ compare_device_config_type(clixon_handle      h,
     cprintf(cb, "<xpath>config</xpath>");
     cprintf(cb, "<format>%s</format>", formatstr);
     device_type = device_config_type_int2str(dt1);
-    cprintf(cb, "<devname>%s</devname>", pattern);
+    cprintf(cb, "<device>%s</device>", pattern);
     cprintf(cb, "<config-type1>%s</config-type1>", device_type);
     device_type = device_config_type_int2str(dt2);
     cprintf(cb, "<config-type2>%s</config-type2>", device_type);
@@ -2622,7 +2628,7 @@ cli_apply_device_template(clixon_handle h,
             NETCONF_MESSAGE_ID_ATTR);
     cprintf(cb, "<device-template-apply xmlns=\"%s\">", CONTROLLER_NAMESPACE);
     cprintf(cb, "<type>CONFIG</type>");
-    cprintf(cb, "<devname>%s</devname>", devs);
+    cprintf(cb, "<device>%s</device>", devs);
     cprintf(cb, "<template>%s</template>", templ);
     cprintf(cb, "<variables>");
     cv = NULL;
@@ -2731,7 +2737,7 @@ cli_device_rpc_template(clixon_handle h,
             NETCONF_MESSAGE_ID_ATTR);
     cprintf(cb, "<device-template-apply xmlns=\"%s\">", CONTROLLER_NAMESPACE);
     cprintf(cb, "<type>RPC</type>");
-    cprintf(cb, "<devname>%s</devname>", devpattern);
+    cprintf(cb, "<device>%s</device>", devpattern);
     cprintf(cb, "<template>%s</template>", templ);
     cprintf(cb, "<variables>");
     cv = NULL;
@@ -3044,7 +3050,7 @@ cli_show_device_state(clixon_handle h,
             NETCONF_MESSAGE_ID_ATTR);
     cprintf(cb, "<device-template-apply xmlns=\"%s\">", CONTROLLER_NAMESPACE);
     cprintf(cb, "<type>RPC</type>");
-    cprintf(cb, "<devname>%s</devname>", devpattern);
+    cprintf(cb, "<device>%s</device>", devpattern);
     cprintf(cb, "<inline>");
     cprintf(cb, "<config>");
     cprintf(cb, "<get xmlns=\"%s\">", NETCONF_BASE_NAMESPACE);

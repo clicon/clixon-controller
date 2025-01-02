@@ -5,6 +5,8 @@ Expected: January 2025
 
 ### New features
 
+* New: [device-groups to be first level objects in cli](https://github.com/clicon/clixon-controller/issues/153)
+  * Connect using device-groups
 * Optimization [Performance: commit takes long time with many devices](https://github.com/clicon/clixon-controller/issues/154)
   * Avoid copy in compare/diff
   * Optimized strip service at commit
@@ -18,6 +20,14 @@ Expected: January 2025
 ### API changes on existing protocol/config features
 
 * New `clixon-controller-config@2024-11-01.yang` revision
+  * Changed RPC input parameter parameter name `devname` -> `device`:
+    * `config-pull`
+    * `controller-commit`
+    * `connection-change`
+    * `get-device-config`
+    * `datastore-diff`
+    * `device-template-apply`
+    * This applies to any "raw" NETCONF RPC:s, CLI code is updated
   * Changed default device-common/port to 830
   * Added hide-show extension to created container
   * Added device-generic-rpc

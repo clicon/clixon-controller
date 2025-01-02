@@ -55,6 +55,9 @@
 #include "controller_transaction.h"
 #include "controller_rpc.h"
 
+/* Forward */
+static int traverse_device_group(clixon_handle h, cxobj *xdevs, cxobj **vec1, size_t vec1len, cxobj **vec2, size_t vec2len, cvec *devvec);
+
 /*! Connect to device via Netconf SSH
  *
  * @param[in]  h             Clixon handle
@@ -264,6 +267,156 @@ controller_connect(clixon_handle           h,
     goto done;
 }
 
+/*! Iterate incoming device pattern
+ *
+ * @param[in]  h       Clixon handle
+ * @param[in]  pattern Pattern match
+ * @param[in]  xdevs   Incoming RPC XML of device-group
+ * @param[in]  vec     List of configured devices
+ * @param[in]  veclen  Length of vec1
+ * @param[out] devvec  List of matching devices on exit
+ * @retval     0       OK
+ * @retval    -1       Error
+ */
+static int
+iterate_device(clixon_handle h,
+               char         *pattern,
+               cxobj       **vec,
+               size_t        veclen,
+               cvec         *devvec)
+{
+    int     retval = -1;
+    char   *devname;
+    cxobj  *xn;
+    cg_var *cv;
+    int     i;
+
+    for (i=0; i<veclen; i++){
+        xn = vec[i];
+        if ((devname = xml_find_body(xn, "name")) == NULL)
+            continue;
+        if (pattern != NULL && fnmatch(pattern, devname, 0) != 0)
+            continue;
+        if (xml_flag(xn, XML_FLAG_MARK) != 0x0)
+            continue;
+        if ((cv = cvec_add(devvec, CGV_VOID)) == NULL){
+            clixon_err(OE_UNIX, errno, "cbuf_add");
+            goto done;
+        }
+        cv_void_set(cv, xn);
+        xml_flag_set(xn, XML_FLAG_MARK);
+    }
+    retval = 0;
+ done:
+    return retval;
+}
+
+/*! Iterate incoming device-group pattern
+ *
+ * @param[in]  h       Clixon handle
+ * @param[in]  pattern Pattern match
+ * @param[in]  vec1    List of configured devices
+ * @param[in]  vec1len Length of vec1
+ * @param[in]  vec2    List of configured device groups
+ * @param[in]  vec2len Length of vec2
+ * @param[out] devvec  List of matching devices on exit
+ * @retval     0       OK
+ * @retval    -1       Error
+ * @note Just ignore duplicate recursive groups
+ */
+static int
+iterate_device_group(clixon_handle h,
+                     char         *pattern,
+                     cxobj       **vec1,
+                     size_t        vec1len,
+                     cxobj       **vec2,
+                     size_t        vec2len,
+                     cvec         *devvec)
+{
+    int    retval = -1;
+    char  *devname;
+    cxobj *xn;
+    int    i;
+
+    for (i=0; i<vec2len; i++){
+        xn = vec2[i];
+        if ((devname = xml_find_body(xn, "name")) == NULL)
+            continue;
+        if (pattern != NULL && fnmatch(pattern, devname, 0) != 0)
+            continue;
+        if (xml_flag(xn, XML_FLAG_MARK) != 0x0)
+            continue;
+        xml_flag_set(xn, XML_FLAG_MARK);
+        if (traverse_device_group(h, xn, vec1, vec1len, vec2, vec2len, devvec) < 0)
+            goto done;
+    }
+    retval = 0;
+ done:
+    return retval;
+}
+
+/*! Traverse device-group recursively
+ *
+ * @param[in]  h       Clixon handle
+ * @param[in]  xdevs   Incoming RPC XML of device-group
+ * @param[in]  vec1    List of configured devices
+ * @param[in]  vec1len Length of vec1
+ * @param[in]  vec2    List of configured device groups
+ * @param[in]  vec2len Length of vec2
+ * @param[out] devvec  List of matching devices on exit
+ * @retval     0       OK
+ * @retval    -1       Error
+ */
+static int
+traverse_device_group(clixon_handle h,
+                      cxobj        *xdevs,
+                      cxobj       **vec1,
+                      size_t        vec1len,
+                      cxobj       **vec2,
+                      size_t        vec2len,
+                      cvec         *devvec)
+{
+    int     retval = -1;
+    cxobj  *xdev;
+    char   *name;
+    char   *pattern;
+
+    xdev = NULL;
+    while ((xdev = xml_child_each(xdevs, xdev, CX_ELMNT)) != NULL) {
+        name = xml_name(xdev);
+        if (strcmp(name, "device-name") == 0){
+            if ((pattern = xml_body(xdev)) == NULL)
+                continue;
+            if (iterate_device(h, pattern, vec1, vec1len, devvec) < 0)
+                goto done;
+        }
+        else if (strcmp(name, "device-group") == 0){
+            if ((pattern = xml_body(xdev)) == NULL)
+                continue;
+            if (iterate_device_group(h, pattern, vec1, vec1len, vec2, vec2len, devvec) < 0)
+            goto done;
+        }
+    }
+    retval = 0;
+ done:
+    return retval;
+}
+
+static int
+clearvec(clixon_handle h,
+         cxobj       **vec,
+         size_t        veclen)
+{
+    cxobj *xn;
+    int    i;
+
+    for (i=0; i<veclen; i++){
+        xn = vec[i];
+        xml_flag_reset(xn, XML_FLAG_MARK);
+    }
+    return 0;
+}
+
 /*! Compute diff, construct edit-config and send to device
  *
  * 1) get previous device synced xml
@@ -448,9 +601,13 @@ rpc_config_pull(clixon_handle h,
     cxobj                  *xret = NULL;
     cxobj                  *xn;
     cvec                   *nsc = NULL;
-    cxobj                 **vec = NULL;
-    size_t                  veclen;
-    int                     i;
+    int                     groups = 0;
+    cvec                   *devvec = NULL;
+    cg_var                 *cv;
+    cxobj                 **vec1 = NULL;
+    size_t                  vec1len;
+    cxobj                 **vec2 = NULL;
+    size_t                  vec2len;
     char                   *devname;
     device_handle           dh;
     controller_transaction *ct = NULL;
@@ -468,7 +625,16 @@ rpc_config_pull(clixon_handle h,
             goto done;
         goto ok;
     }
-    pattern = xml_find_body(xe, "devname");
+    if ((xn = xml_find(xe, "device")) != NULL)
+        ;
+    else if ((xn = xml_find(xe, "device-group")) != NULL)
+        groups++;
+    else {
+        if (netconf_operation_failed(cbret, "application", "No device or device-group")< 0)
+            goto done;
+        goto ok;
+    }
+    pattern = xml_body(xn);
     if ((str = xml_find_body(xe, "transient")) != NULL)
         transient = strcmp(str, "true") == 0;
     ct->ct_pull_transient = transient;
@@ -480,23 +646,38 @@ rpc_config_pull(clixon_handle h,
         clixon_err(OE_DB, 0, "Error when reading from running_db, unknown error");
         goto done;
     }
-    if (xpath_vec(xret, nsc, "devices/device", &vec, &veclen) < 0)
+    if ((devvec = cvec_new(0)) == NULL){
+        clixon_err(OE_UNIX, errno, "cvec_new");
         goto done;
-    for (i=0; i<veclen; i++){
-        xn = vec[i];
+    }
+    if (xpath_vec(xret, nsc, "devices/device", &vec1, &vec1len) < 0)
+        goto done;
+    if (xpath_vec(xret, nsc, "devices/device-group", &vec2, &vec2len) < 0)
+        goto done;
+    if (!groups){
+        if (iterate_device(h, pattern, vec1, vec1len, devvec) < 0)
+            goto done;
+    }
+    else{
+        if (iterate_device_group(h, pattern, vec1, vec1len, vec2, vec2len, devvec) < 0)
+            goto done;
+    }
+    clearvec(h, vec1, vec1len);
+    clearvec(h, vec2, vec2len);
+    cv = NULL;
+    while ((cv = cvec_each(devvec, cv)) != NULL){
+        xn = cv_void_get(cv);
         if ((devname = xml_find_body(xn, "name")) == NULL)
             continue;
         if ((dh = device_handle_find(h, devname)) == NULL)
-            continue;
-        if (pattern != NULL && fnmatch(pattern, devname, 0) != 0)
             continue;
         if (device_handle_conn_state_get(dh) != CS_OPEN) /* maybe this is an error? */
             continue;
         if ((ret = pull_device_one(h, dh, ct->ct_id, 0, NULL, cbret)) < 0)
             goto done;
-        if (ret == 0)  /* Failed but cbret set */
+        if (ret == 0) // XXX: Return value has not been checked before
             goto ok;
-    } /* for */
+    }
     if (xmldb_db_reset(h, "tmpdev") < 0) /* Requires root access */
         goto done;
     if (xmldb_copy(h, "running", "tmpdev") < 0)
@@ -514,8 +695,16 @@ rpc_config_pull(clixon_handle h,
  done:
     if (cberr)
         cbuf_free(cberr);
-    if (vec)
-        free(vec);
+    if (vec1){
+        clearvec(h, vec1, vec1len);
+        free(vec1);
+    }
+    if (vec2){
+        clearvec(h, vec2, vec2len);
+        free(vec2);
+    }
+    if (devvec)
+        cvec_free(devvec);
     return retval;
 }
 
@@ -820,9 +1009,6 @@ strip_service_data_from_device_config(clixon_handle h,
         }
     }
     if (touch){
-        /* XXX Somewhat raw to replace the top-level tree, could do with op=REMOVE
-         * of the sub-parts instead of marking and remove
-         */
         if ((cbret = cbuf_new()) == NULL){ // dummy
             clixon_err(OE_UNIX, errno, "cbuf_new");
             goto done;
@@ -1071,65 +1257,6 @@ controller_commit_actions(clixon_handle           h,
         cvec_free(cvv);
     if (notifycb)
         cbuf_free(notifycb);
-    return retval;
-}
-
-/*! Mark devices with transaction-id if name matches device pattern
- *
- * Read running config and compare configured devices with the selection pattern
- * then set the tid on that device
- * @param[in]  h       Clixon handle
- * @param[in]  device  Name of device to push to, can use wildchars for several, or NULL for all
- * @param[in]  tid     Transaction id
- * @retval     0       OK, note if "closed" is set, then matching was interrupted
- * @retval    -1       Error
- */
-static int
-devices_match(clixon_handle   h,
-              char           *device,
-              uint64_t        tid)
-{
-    int           retval = -1;
-    cxobj       **vec = NULL;
-    size_t        veclen;
-    cvec         *nsc = NULL;
-    cxobj        *xn;
-    cxobj        *xret = NULL;
-    char         *name;
-    device_handle dh;
-    int           i;
-    char         *body;
-    int           ret;
-
-    if ((ret = xmldb_get_cache(h, "running", YB_MODULE, &xret, NULL, NULL)) < 0)
-        goto done;
-    if (ret == 0){
-        clixon_err(OE_DB, 0, "Error when reading from running_db, unknown error");
-        goto done;
-    }
-    if (xpath_vec(xret, nsc, "devices/device", &vec, &veclen) < 0)
-        goto done;
-    for (i=0; i<veclen; i++){
-        xn = vec[i];
-        /* Name of device or device-group */
-        if ((name = xml_find_body(xn, "name")) == NULL)
-            continue;
-        if (device != NULL && fnmatch(device, name, 0) != 0)
-            continue;
-        if ((dh = device_handle_find(h, name)) == NULL)
-            continue;
-        /* Filter if not enabled */
-        if ((body = xml_find_body(xn, "enabled")) == NULL)
-            continue;
-        if (strcmp(body, "true") != 0)
-            continue;
-        /* Include device in transaction */
-        device_handle_tid_set(dh, tid);
-    } /* for */
-    retval = 0;
- done:
-    if (vec)
-        free(vec);
     return retval;
 }
 
@@ -1385,8 +1512,18 @@ rpc_controller_commit(clixon_handle h,
     int                     retval = -1;
     controller_transaction *ct = NULL;
     char                   *str;
-    char                   *device;
-    char                   *device_group;
+    char                   *pattern = NULL;
+    int                     groups = 0;
+    cvec                   *devvec = NULL;
+    cg_var                 *cv;
+    cxobj                  *xret = NULL;
+    cxobj                  *xn = NULL;
+    cvec                   *nsc = NULL;
+    cxobj                 **vec1 = NULL;
+    size_t                  vec1len;
+    cxobj                 **vec2 = NULL;
+    size_t                  vec2len;
+    char                   *devname;
     char                   *sourcedb = NULL;
     actions_type            actions = AT_NONE;
     push_type               pusht = PT_NONE;
@@ -1397,15 +1534,17 @@ rpc_controller_commit(clixon_handle h,
     device_handle           changed = NULL;
     transaction_data_t     *td = NULL;
     char                   *service_instance = NULL;
-    int                    diff = 0;
+    int                     diff = 0;
 
     clixon_debug(CLIXON_DBG_CTRL, "");
-    device = xml_find_body(xe, "device");
-    if ((device_group = xml_find_body(xe, "device-group")) != NULL){
-        if (netconf_operation_failed(cbret, "application", "Device-groups NYI")< 0)
-            goto done;
-        goto ok;
-    }
+    if ((xn = xml_find(xe, "device")) != NULL)
+        ;
+    else if ((xn = xml_find(xe, "device-group")) != NULL)
+        groups++;
+    if (xn)
+        pattern = xml_body(xn);
+    else
+        pattern = "*";
     if ((str = xml_find_body(xe, "source")) == NULL){ /* on the form ds:running */
         if (netconf_operation_failed(cbret, "application", "sourcedb not supported")< 0)
             goto done;
@@ -1457,8 +1596,49 @@ rpc_controller_commit(clixon_handle h,
     ct->ct_sourcedb = sourcedb;
     sourcedb = NULL;
     /* Mark devices with transaction-id if name matches device pattern */
-    if (devices_match(h, device, ct->ct_id) < 0)
+    if ((ret = xmldb_get_cache(h, "running", YB_MODULE, &xret, NULL, NULL)) < 0)
         goto done;
+    if (ret == 0){
+        clixon_err(OE_DB, 0, "Error when reading from running_db, unknown error");
+        goto done;
+    }
+    if ((devvec = cvec_new(0)) == NULL){
+        clixon_err(OE_UNIX, errno, "cvec_new");
+        goto done;
+    }
+    if (xpath_vec(xret, nsc, "devices/device", &vec1, &vec1len) < 0)
+        goto done;
+    if (xpath_vec(xret, nsc, "devices/device-group", &vec2, &vec2len) < 0)
+        goto done;
+    if (!groups){
+        if (iterate_device(h, pattern, vec1, vec1len, devvec) < 0)
+            goto done;
+    }
+    else{
+        if (iterate_device_group(h, pattern, vec1, vec1len, vec2, vec2len, devvec) < 0)
+            goto done;
+    }
+    clearvec(h, vec1, vec1len);
+    clearvec(h, vec2, vec2len);
+    cv = NULL;
+    while ((cv = cvec_each(devvec, cv)) != NULL){
+        char *body;
+        device_handle dh;
+
+        xn = cv_void_get(cv);
+        /* Name of device or device-group */
+        if ((devname = xml_find_body(xn, "name")) == NULL)
+            continue;
+        if ((dh = device_handle_find(h, devname)) == NULL)
+            continue;
+        /* Filter if not enabled */
+        if ((body = xml_find_body(xn, "enabled")) == NULL)
+            continue;
+        if (strcmp(body, "true") != 0)
+            continue;
+        /* Include device in transaction */
+        device_handle_tid_set(dh, ct->ct_id);
+    }
     /* If there are no devices selected and push != NONE */
     if (controller_transaction_nr_devices(h, ct->ct_id) == 0 && pusht != PT_NONE){
         if (device_error(h, ct, NULL, 2, cbret) < 0)
@@ -1530,15 +1710,24 @@ rpc_controller_commit(clixon_handle h,
  ok:
     retval = 0;
  done:
-    if (td){
+    if (td)
         transaction_free1(td, 0);
-    }
     if (sourcedb)
         free(sourcedb);
     if (cbtr)
         cbuf_free(cbtr);
     if (cberr)
         cbuf_free(cberr);
+    if (vec1){
+        clearvec(h, vec1, vec1len);
+        free(vec1);
+    }
+    if (vec2){
+        clearvec(h, vec2, vec2len);
+        free(vec2);
+    }
+    if (devvec)
+        cvec_free(devvec);
     return retval;
 }
 
@@ -1564,23 +1753,35 @@ rpc_get_device_config(clixon_handle h,
 {
     int                retval = -1;
     char              *pattern;
+    int                groups = 0;
+    cvec              *devvec = NULL;
+    cg_var            *cv;
+    cxobj            **vec1 = NULL;
+    size_t             vec1len;
+    cxobj            **vec2 = NULL;
+    size_t             vec2len;
     char              *devname;
     cxobj             *xroot = NULL;
     cxobj             *xroot1; /* dont free */
     char              *config_type;
     cvec              *nsc = NULL;
     cxobj             *xret = NULL;
-    cxobj            **vec = NULL;
-    size_t             veclen;
     cxobj             *xn;
-    device_handle      dh;
     cbuf              *cb = NULL;
     cbuf              *cberr = NULL;
     device_config_type dt;
-    int                i;
     int                ret;
 
-    pattern = xml_find_body(xe, "devname");
+    if ((xn = xml_find(xe, "device")) != NULL)
+        ;
+    else if ((xn = xml_find(xe, "device-group")) != NULL)
+        groups++;
+    else {
+        if (netconf_operation_failed(cbret, "application", "No device or device-group")< 0)
+            goto done;
+        goto ok;
+    }
+    pattern = xml_body(xn);
     config_type = xml_find_body(xe, "config-type");
     dt = device_config_type_str2int(config_type);
     if (dt == DT_CANDIDATE){
@@ -1595,21 +1796,35 @@ rpc_get_device_config(clixon_handle h,
         clixon_err(OE_DB, 0, "Error when reading from running_db, unknown error");
         goto done;
     }
-    if (xpath_vec(xret, nsc, "devices/device", &vec, &veclen) < 0)
+    if ((devvec = cvec_new(0)) == NULL){
+        clixon_err(OE_UNIX, errno, "cvec_new");
         goto done;
+    }
+    if (xpath_vec(xret, nsc, "devices/device", &vec1, &vec1len) < 0)
+        goto done;
+    if (xpath_vec(xret, nsc, "devices/device-group", &vec2, &vec2len) < 0)
+        goto done;
+    if (!groups){
+        if (iterate_device(h, pattern, vec1, vec1len, devvec) < 0)
+            goto done;
+    }
+    else{
+        if (iterate_device_group(h, pattern, vec1, vec1len, vec2, vec2len, devvec) < 0)
+            goto done;
+    }
+    clearvec(h, vec1, vec1len);
+    clearvec(h, vec2, vec2len);
+    cv = NULL;
     if ((cb = cbuf_new()) == NULL){
         clixon_err(OE_UNIX, errno, "cbuf_new");
         goto done;
     }
     cprintf(cb, "<rpc-reply xmlns=\"%s\">", NETCONF_BASE_NAMESPACE);
     cprintf(cb, "<config xmlns=\"%s\">", CONTROLLER_NAMESPACE);
-    for (i=0; i<veclen; i++){
-        xn = vec[i];
+    cv = NULL;
+    while ((cv = cvec_each(devvec, cv)) != NULL){
+        xn = cv_void_get(cv);
         if ((devname = xml_find_body(xn, "name")) == NULL)
-            continue;
-        if ((dh = device_handle_find(h, devname)) == NULL)
-            continue;
-        if (pattern != NULL && fnmatch(pattern, devname, 0) != 0)
             continue;
         switch (dt){
         case DT_RUNNING:
@@ -1645,14 +1860,117 @@ rpc_get_device_config(clixon_handle h,
         cbuf_free(cb);
     if (cberr)
         cbuf_free(cberr);
-    if (vec)
-        free(vec);
+    if (vec1){
+        clearvec(h, vec1, vec1len);
+        free(vec1);
+    }
+    if (vec2){
+        clearvec(h, vec2, vec2len);
+        free(vec2);
+    }
+    if (devvec)
+        cvec_free(devvec);
     if (xroot)
         xml_free(xroot);
     return retval;
 }
 
-/*! (Re)connect try an enabled device in CLOSED state.
+/*! Change connection of single device
+ *
+ * @param[in]  h         Clixon handle
+ * @param[in]  xn        RPC XML
+ * @param[in]  ct        Controller transaction
+ * @param[in]  operation CLOSE/OPEN/RECONNECT
+ * @param[in]  dh        Device handle
+ * @param[in]  enabled   Device is enabled
+ * @param[out] tmpdev    Set if tmpdev datastore for device commits
+ * @param[out] cbret     Return xml tree, eg <rpc-reply>..., <rpc-error..
+ * @retval     1         OK, continue
+ * @retval     0         OK, skip
+ * @retval    -1         Error
+ */
+static int
+connection_change_one(clixon_handle           h,
+                      cxobj                  *xn,
+                      controller_transaction *ct,
+                      char                   *operation,
+                      int                    *tmpdev,
+                      cbuf                   *cbret)
+{
+    int           retval = -1;
+    char         *devname;
+    device_handle dh;
+    char         *body;
+    int           enabled;
+    char         *reason = NULL;
+    int           ret;
+
+    if ((devname = xml_find_body(xn, "name")) == NULL){
+        clixon_err(OE_NETCONF, 0, "name not found");
+        goto done;
+    }
+    clixon_debug(CLIXON_DBG_CTRL, "%s", devname);
+    if ((body = xml_find_body(xn, "enabled")) == NULL){
+        clixon_err(OE_NETCONF, 0, "enabled not found");
+        goto done;
+    }
+    enabled = strcmp(body, "true")==0;
+    dh = device_handle_find(h, devname);
+    /* @see clixon-controller.yang connection-operation */
+    if (strcmp(operation, "CLOSE") == 0){
+        /* Close if there is a handle and it is OPEN */
+        if (dh != NULL && device_handle_conn_state_get(dh) == CS_OPEN){
+            if (device_close_connection(dh, "User request") < 0)
+                goto done;
+        }
+    }
+    else if (strcmp(operation, "OPEN") == 0){
+        /* Open if enabled and handle does not exist or it exists and is closed  */
+        if (enabled &&
+            (dh == NULL || device_handle_conn_state_get(dh) == CS_CLOSED)){
+            if ((ret = controller_connect(h, xn, ct, &reason)) < 0)
+                goto done;
+            if (ret == 0){
+                if (netconf_operation_failed(cbret, "application", reason)< 0)
+                    goto done;
+                goto ok;
+            }
+            (*tmpdev)++;
+        }
+    }
+    else if (strcmp(operation, "RECONNECT") == 0){
+        /* First close it if there is a handle and it is OPEN */
+        if (dh != NULL && device_handle_conn_state_get(dh) == CS_OPEN){
+            if (device_close_connection(dh, "User request") < 0)
+                goto done;
+        }
+        /* Then open if enabled */
+        if (enabled){
+            if ((ret = controller_connect(h, xn, ct, &reason)) < 0)
+                goto done;
+            if (ret == 0){
+                if (netconf_operation_failed(cbret, "application", reason)< 0)
+                    goto done;
+                goto ok;
+            }
+            (*tmpdev)++;
+        }
+    }
+    else {
+        clixon_err(OE_NETCONF, 0, "%s is not a connection-operation", operation);
+        goto done;
+    }
+    retval = 1;
+ done:
+    if (reason)
+        free(reason);
+    return retval;
+ ok:
+    retval = 0;
+    goto done;
+}
+
+/*! Change connection of devices
  *
  * If closed due to error it may need to be cleared and reconnected
  * @param[in]  h       Clixon handle
@@ -1673,23 +1991,22 @@ rpc_connection_change(clixon_handle h,
     client_entry           *ce = (client_entry *)arg;
     int                     retval = -1;
     char                   *pattern = NULL;
+    int                     groups = 0;
     cxobj                  *xret = NULL;
     cxobj                  *xn;
     cvec                   *nsc = NULL;
-    cxobj                 **vec = NULL;
-    size_t                  veclen;
-    int                     i;
-    char                   *devname;
-    char                   *body;
-    int                     enabled;
-    device_handle           dh;
+    cvec                   *devvec = NULL;
+    cg_var                 *cv;
+    cxobj                 **vec1 = NULL;
+    size_t                  vec1len;
+    cxobj                 **vec2 = NULL;
+    size_t                  vec2len;
     controller_transaction *ct = NULL;
     char                   *operation;
     cbuf                   *cberr = NULL;
     cbuf                   *cbtr = NULL;
-    char                   *reason = NULL;
-    int                     ret;
     int                     tmpdev = 0;
+    int                     ret;
 
     clixon_debug(CLIXON_DBG_CTRL, "");
     if ((cbtr = cbuf_new()) == NULL){
@@ -1697,7 +2014,16 @@ rpc_connection_change(clixon_handle h,
         goto done;
     }
     cprintf(cbtr, "Controller commit");
-    pattern = xml_find_body(xe, "devname");
+    if ((xn = xml_find(xe, "device")) != NULL)
+        ;
+    else if ((xn = xml_find(xe, "device-group")) != NULL)
+        groups++;
+    else {
+        if (netconf_operation_failed(cbret, "application", "No device or device-group")< 0)
+            goto done;
+        goto ok;
+    }
+    pattern = xml_body(xn);
     operation = xml_find_body(xe, "operation");
     cprintf(cbtr, " %s", operation);
     if ((ret = controller_transaction_new(h, ce->ce_id, cbuf_get(cbtr), &ct, &cberr)) < 0)
@@ -1709,63 +2035,32 @@ rpc_connection_change(clixon_handle h,
     }
     if (xmldb_get_cache(h, "running", YB_MODULE, &xret, NULL, NULL) < 0)
         goto done;
-    if (xpath_vec(xret, nsc, "devices/device", &vec, &veclen) < 0)
+    if ((devvec = cvec_new(0)) == NULL){
+        clixon_err(OE_UNIX, errno, "cvec_new");
         goto done;
-    for (i=0; i<veclen; i++){
-        xn = vec[i];
-        if ((devname = xml_find_body(xn, "name")) == NULL)
-            continue;
-        if ((body = xml_find_body(xn, "enabled")) == NULL)
-            continue;
-        enabled = strcmp(body, "true")==0;
-        if (pattern != NULL && fnmatch(pattern, devname, 0) != 0)
-            continue;
-        dh = device_handle_find(h, devname);
-        /* @see clixon-controller.yang connection-operation */
-        if (strcmp(operation, "CLOSE") == 0){
-            /* Close if there is a handle and it is OPEN */
-            if (dh != NULL && device_handle_conn_state_get(dh) == CS_OPEN){
-                if (device_close_connection(dh, "User request") < 0)
-                    goto done;
-            }
-        }
-        else if (strcmp(operation, "OPEN") == 0){
-            /* Open if enabled and handle does not exist or it exists and is closed  */
-            if (enabled &&
-                (dh == NULL || device_handle_conn_state_get(dh) == CS_CLOSED)){
-                if ((ret = controller_connect(h, xn, ct, &reason)) < 0)
-                    goto done;
-                if (ret == 0){
-                    if (netconf_operation_failed(cbret, "application", reason)< 0)
-                        goto done;
-                    goto ok;
-                }
-                tmpdev++;
-            }
-        }
-        else if (strcmp(operation, "RECONNECT") == 0){
-            /* First close it if there is a handle and it is OPEN */
-            if (dh != NULL && device_handle_conn_state_get(dh) == CS_OPEN){
-                if (device_close_connection(dh, "User request") < 0)
-                    goto done;
-            }
-            /* Then open if enabled */
-            if (enabled){
-                if ((ret = controller_connect(h, xn, ct, &reason)) < 0)
-                    goto done;
-                if (ret == 0){
-                    if (netconf_operation_failed(cbret, "application", reason)< 0)
-                        goto done;
-                    goto ok;
-                }
-                tmpdev++;
-            }
-        }
-        else {
-            clixon_err(OE_NETCONF, 0, "%s is not a connection-operation", operation);
+    }
+    if (xpath_vec(xret, nsc, "devices/device", &vec1, &vec1len) < 0)
+        goto done;
+    if (xpath_vec(xret, nsc, "devices/device-group", &vec2, &vec2len) < 0)
+        goto done;
+    if (!groups){
+        if (iterate_device(h, pattern, vec1, vec1len, devvec) < 0)
             goto done;
-        }
-    } /* for */
+    }
+    else{
+        if (iterate_device_group(h, pattern, vec1, vec1len, vec2, vec2len, devvec) < 0)
+            goto done;
+    }
+    clearvec(h, vec1, vec1len);
+    clearvec(h, vec2, vec2len);
+    cv = NULL;
+    while ((cv = cvec_each(devvec, cv)) != NULL){
+        xn = cv_void_get(cv);
+        if ((ret = connection_change_one(h, xn, ct, operation, &tmpdev, cbret)) < 0)
+            goto done;
+        if (ret == 0) // XXX: Return value has not been checked before
+            goto ok;
+    }
     /* Initiate tmpdev datastore for device commits */
     if (tmpdev) {
         /* Possibly only copy files / dir */
@@ -1785,14 +2080,20 @@ rpc_connection_change(clixon_handle h,
  ok:
     retval = 0;
  done:
-    if (reason)
-        free(reason);
     if (cbtr)
         cbuf_free(cbtr);
     if (cberr)
         cbuf_free(cberr);
-    if (vec)
-        free(vec);
+    if (vec1){
+        clearvec(h, vec1, vec1len);
+        free(vec1);
+    }
+    if (vec2){
+        clearvec(h, vec2, vec2len);
+        free(vec2);
+    }
+    if (devvec)
+        cvec_free(devvec);
     return retval;
 }
 
@@ -2008,6 +2309,7 @@ datastore_diff_dsref(clixon_handle    h,
  * That is diff of configs for same device, only different variants, eg synced, transient, running, etc
  * @param[in]   h       Clixon handle
  * @param[in]   xpath   XPath
+ * @param[in]   groups  0: device pattern, 1: device-group pattern
  * @param[in]   pattern Glob pattern for selecting devices
  * @param[in]   dt1     Type of device config 1
  * @param[in]   dt2     Type of device config 2
@@ -2020,6 +2322,7 @@ datastore_diff_dsref(clixon_handle    h,
 static int
 datastore_diff_device(clixon_handle      h,
                       char              *xpath,
+                      int                groups,
                       char              *pattern,
                       device_config_type dt1,
                       device_config_type dt2,
@@ -2038,12 +2341,15 @@ datastore_diff_device(clixon_handle      h,
     cxobj        *xret = NULL;
     cxobj        *x1ret = NULL;
     cxobj        *x2ret = NULL;
-    cxobj       **vec = NULL;
-    size_t        veclen;
+    cvec         *devvec = NULL;
+    cg_var       *cv;
+    cxobj       **vec1 = NULL;
+    size_t        vec1len;
+    cxobj       **vec2 = NULL;
+    size_t        vec2len;
     char         *devname;
     cxobj        *xdev;
     device_handle dh;
-    int           i;
     int           ret;
     char         *ct;
 
@@ -2058,11 +2364,28 @@ datastore_diff_device(clixon_handle      h,
     if (xmldb_get_cache(h, "running", YB_MODULE, &xret, NULL, NULL) < 0)
         goto done;
     cprintf(cbret, "<rpc-reply xmlns=\"%s\">", NETCONF_BASE_NAMESPACE);
-    if (xpath_vec(xret, nsc, "devices/device/name", &vec, &veclen) < 0)
+    if ((devvec = cvec_new(0)) == NULL){
+        clixon_err(OE_UNIX, errno, "cvec_new");
         goto done;
-    for (i=0; i<veclen; i++){
-        xdev = vec[i];
-        if ((devname = xml_body(xdev)) == NULL)
+    }
+    if (xpath_vec(xret, nsc, "devices/device", &vec1, &vec1len) < 0)
+        goto done;
+    if (xpath_vec(xret, nsc, "devices/device-group", &vec2, &vec2len) < 0)
+        goto done;
+    if (!groups){
+        if (iterate_device(h, pattern, vec1, vec1len, devvec) < 0)
+            goto done;
+    }
+    else{
+        if (iterate_device_group(h, pattern, vec1, vec1len, vec2, vec2len, devvec) < 0)
+            goto done;
+    }
+    clearvec(h, vec1, vec1len);
+    clearvec(h, vec2, vec2len);
+    cv = NULL;
+    while ((cv = cvec_each(devvec, cv)) != NULL){
+        xdev = cv_void_get(cv);
+        if ((devname = xml_find_body(xdev, "name")) == NULL)
             continue;
         if ((dh = device_handle_find(h, devname)) == NULL)
             continue;
@@ -2187,8 +2510,16 @@ datastore_diff_device(clixon_handle      h,
         xml_free(x1m);
     if (x2m)
         xml_free(x2m);
-    if (vec)
-        free(vec);
+    if (vec1){
+        clearvec(h, vec1, vec1len);
+        free(vec1);
+    }
+    if (vec2){
+        clearvec(h, vec2, vec2len);
+        free(vec2);
+    }
+    if (devvec)
+        cvec_free(devvec);
     if (cberr)
         cbuf_free(cberr);
     if (cb)
@@ -2227,9 +2558,11 @@ rpc_datastore_diff(clixon_handle h,
     device_config_type dt1;
     device_config_type dt2;
     char              *xpath;
-    char              *devname;
+    char              *pattern;
     char              *formatstr;
     enum format_enum   format = FORMAT_XML;
+    cxobj             *xn;
+    int                groups = 0;
 
     clixon_debug(CLIXON_DBG_CTRL, "");
     xpath = xml_find_body(xe, "xpath");
@@ -2258,11 +2591,16 @@ rpc_datastore_diff(clixon_handle h,
             goto done;
     }
     else{ /* Device specific datastores */
-        if ((devname = xml_find_body(xe, "devname")) == NULL){
-            if (netconf_operation_failed(cbret, "application", "No devname")< 0)
+        if ((xn = xml_find(xe, "device")) != NULL)
+            ;
+        else if ((xn = xml_find(xe, "device-group")) != NULL)
+            groups++;
+        else {
+            if (netconf_operation_failed(cbret, "application", "No device or device-group")< 0)
                 goto done;
             goto ok;
         }
+        pattern = xml_body(xn);
         if ((ds1 = xml_find_body(xe, "config-type1")) == NULL){
             if (netconf_operation_failed(cbret, "application", "No config-type1")< 0)
                 goto done;
@@ -2283,7 +2621,7 @@ rpc_datastore_diff(clixon_handle h,
                 goto done;
             goto ok;
         }
-        if (datastore_diff_device(h, xpath, devname, dt1, dt2, format, cbret) < 0)
+        if (datastore_diff_device(h, xpath, groups, pattern, dt1, dt2, format, cbret) < 0)
             goto done;
     }
  ok:
@@ -2412,8 +2750,14 @@ rpc_device_config_template_apply(clixon_handle h,
     int           retval = -1;
     cxobj        *xret = NULL;
     cvec         *nsc = NULL;
-    cxobj       **vec = NULL;
-    size_t        veclen;
+    int           groups = 0;
+    cvec         *devvec = NULL;
+    cg_var       *cv;
+    cxobj       **vec1 = NULL;
+    size_t        vec1len;
+    cxobj       **vec2 = NULL;
+    size_t        vec2len;
+    cxobj        *xn;
     char         *tmplname;
     cxobj        *xtmpl;
     cxobj        *xvars;
@@ -2421,7 +2765,6 @@ rpc_device_config_template_apply(clixon_handle h,
     cvec         *cvv = NULL;
     cxobj        *xv;
     char         *varname;
-    cxobj        *xd;
     char         *devname;
     char         *pattern;
     int           matching;
@@ -2434,13 +2777,12 @@ rpc_device_config_template_apply(clixon_handle h,
     device_handle dh;
     yang_stmt    *yspec0;
     yang_stmt    *yspec1;
-    int           i;
     int           ret;
 
     clixon_debug(CLIXON_DBG_CTRL, "");
     yspec0 = clicon_dbspec_yang(h);
     /* get template and device names
-     * Destructively substitutes in xml_template_apply
+     * XXX: Destructively substitutes in xml_template_apply
      */
     if (xmldb_get0(h, "running", YB_MODULE, nsc, "devices", 1, WITHDEFAULTS_REPORT_ALL, &xret, NULL, NULL) < 0)
         goto done;
@@ -2454,11 +2796,16 @@ rpc_device_config_template_apply(clixon_handle h,
             goto done;
         goto ok;
     }
-    if ((pattern = xml_find_body(xe, "devname")) == NULL){
-        if (netconf_operation_failed(cbret, "application", "No devname")< 0)
+    if ((xn = xml_find(xe, "device")) != NULL)
+        ;
+    else if ((xn = xml_find(xe, "device-group")) != NULL)
+        groups++;
+    else {
+        if (netconf_operation_failed(cbret, "application", "No device or device-group")< 0)
             goto done;
         goto ok;
     }
+    pattern = xml_body(xn);
     xvars = xml_find_type(xe, NULL, "variables", CX_ELMNT);
     xvars0 = xpath_first(xret, nsc, "devices/template[name='%s']/variables", tmplname);
     /* Match actual parameters in xvars with formal paremeters in xvars0 */
@@ -2496,16 +2843,29 @@ rpc_device_config_template_apply(clixon_handle h,
     cprintf(cb, "<devices xmlns=\"%s\" xmlns:%s=\"%s\" %s:operation=\"merge\">",
             CONTROLLER_NAMESPACE,
             NETCONF_BASE_PREFIX, NETCONF_BASE_NAMESPACE, NETCONF_BASE_PREFIX);
-    /* Get devices from config */
-    if (xpath_vec(xret, nsc, "devices/device", &vec, &veclen) < 0)
-        goto done;
     matching=0;
-    /* Apply xtempl on all matching devices */
-    for (i=0; i<veclen; i++){
-        xd = vec[i];
-        if ((devname = xml_find_body(xd, "name")) == NULL)
-            continue;
-        if (pattern != NULL && fnmatch(pattern, devname, 0) != 0)
+    if ((devvec = cvec_new(0)) == NULL){
+        clixon_err(OE_UNIX, errno, "cvec_new");
+        goto done;
+    }
+    if (xpath_vec(xret, nsc, "devices/device", &vec1, &vec1len) < 0)
+        goto done;
+    if (xpath_vec(xret, nsc, "devices/device-group", &vec2, &vec2len) < 0)
+        goto done;
+    if (!groups){
+        if (iterate_device(h, pattern, vec1, vec1len, devvec) < 0)
+            goto done;
+    }
+    else{
+        if (iterate_device_group(h, pattern, vec1, vec1len, vec2, vec2len, devvec) < 0)
+            goto done;
+    }
+    clearvec(h, vec1, vec1len);
+    clearvec(h, vec2, vec2len);
+    cv = NULL;
+    while ((cv = cvec_each(devvec, cv)) != NULL){
+        xn = cv_void_get(cv);
+        if ((devname = xml_find_body(xn, "name")) == NULL)
             continue;
         if ((dh = device_handle_find(h, devname)) == NULL)
             continue;
@@ -2564,8 +2924,16 @@ rpc_device_config_template_apply(clixon_handle h,
         xml_free(xtc);
     if (xroot)
         xml_free(xroot);
-    if (vec)
-        free(vec);
+    if (vec1){
+        clearvec(h, vec1, vec1len);
+        free(vec1);
+    }
+    if (vec2){
+        clearvec(h, vec2, vec2len);
+        free(vec2);
+    }
+    if (devvec)
+        cvec_free(devvec);
     if (nsc)
         cvec_free(nsc);
     return retval;
@@ -2627,8 +2995,14 @@ rpc_device_rpc_template_apply(clixon_handle h,
     cvec                   *nsc = NULL;
     controller_transaction *ct = NULL;
     cbuf                   *cberr = NULL;
-    cxobj                 **vec = NULL;
-    size_t                  veclen;
+    int           groups = 0;
+    cvec         *devvec = NULL;
+    cg_var       *cv;
+    cxobj       **vec1 = NULL;
+    size_t        vec1len;
+    cxobj       **vec2 = NULL;
+    size_t        vec2len;
+    cxobj        *xn;
     char                   *tmplname;
     cxobj                  *xinline;
     cxobj                  *xconfig;
@@ -2637,16 +3011,14 @@ rpc_device_rpc_template_apply(clixon_handle h,
     cvec                   *cvv = NULL;
     cxobj                  *xv;
     char                   *varname;
-    cxobj                  *xd;
     char                   *devname;
     char                   *pattern;
     device_handle           dh;
-    int                     i;
     int                     ret;
 
     clixon_debug(CLIXON_DBG_CTRL, "");
     /* Get template and device names.
-     * May destructively substitute xret in apply
+     * XXX May destructively substitute xret in apply
      */
     if (xmldb_get0(h, "running", YB_MODULE, nsc, "devices", 1, WITHDEFAULTS_EXPLICIT, &xret, NULL, NULL) < 0)
         goto done;
@@ -2671,11 +3043,16 @@ rpc_device_rpc_template_apply(clixon_handle h,
             goto done;
         goto ok;
     }
-    if ((pattern = xml_find_body(xe, "devname")) == NULL){
-        if (netconf_operation_failed(cbret, "application", "No devname")< 0)
+    if ((xn = xml_find(xe, "device")) != NULL)
+        ;
+    else if ((xn = xml_find(xe, "device-group")) != NULL)
+        groups++;
+    else {
+        if (netconf_operation_failed(cbret, "application", "No device or device-group")< 0)
             goto done;
         goto ok;
     }
+    pattern = xml_body(xn);
     xvars = xml_find_type(xe, NULL, "variables", CX_ELMNT);
 
     /* Match actual parameters in xvars with formal paremeters in xvars0 */
@@ -2707,9 +3084,6 @@ rpc_device_rpc_template_apply(clixon_handle h,
         if (xml_sort_recurse(xconfig) < 0)
             goto done;
     }
-    /* Get devices from config */
-    if (xpath_vec(xret, nsc, "devices/device", &vec, &veclen) < 0)
-        goto done;
     /* Initiate new transaction */
     if ((ret = controller_transaction_new(h, ce->ce_id, "rpc", &ct, &cberr)) < 0)
         goto done;
@@ -2718,12 +3092,28 @@ rpc_device_rpc_template_apply(clixon_handle h,
             goto done;
         goto ok;
     }
-    /* Apply rpc input args on all matching devices */
-    for (i=0; i<veclen; i++){
-        xd = vec[i];
-        if ((devname = xml_find_body(xd, "name")) == NULL)
-            continue;
-        if (pattern != NULL && fnmatch(pattern, devname, 0) != 0)
+    if ((devvec = cvec_new(0)) == NULL){
+        clixon_err(OE_UNIX, errno, "cvec_new");
+        goto done;
+    }
+    if (xpath_vec(xret, nsc, "devices/device", &vec1, &vec1len) < 0)
+        goto done;
+    if (xpath_vec(xret, nsc, "devices/device-group", &vec2, &vec2len) < 0)
+        goto done;
+    if (!groups){
+        if (iterate_device(h, pattern, vec1, vec1len, devvec) < 0)
+            goto done;
+    }
+    else{
+        if (iterate_device_group(h, pattern, vec1, vec1len, vec2, vec2len, devvec) < 0)
+            goto done;
+    }
+    clearvec(h, vec1, vec1len);
+    clearvec(h, vec2, vec2len);
+    cv = NULL;
+    while ((cv = cvec_each(devvec, cv)) != NULL){
+        xn = cv_void_get(cv);
+        if ((devname = xml_find_body(xn, "name")) == NULL)
             continue;
         if ((dh = device_handle_find(h, devname)) == NULL)
             continue;
@@ -2754,8 +3144,16 @@ rpc_device_rpc_template_apply(clixon_handle h,
         cvec_free(cvv);
     if (xret)
         xml_free(xret);
-    if (vec)
-        free(vec);
+    if (vec1){
+        clearvec(h, vec1, vec1len);
+        free(vec1);
+    }
+    if (vec2){
+        clearvec(h, vec2, vec2len);
+        free(vec2);
+    }
+    if (devvec)
+        cvec_free(devvec);
     if (nsc)
         cvec_free(nsc);
     return retval;

@@ -52,8 +52,6 @@ test -d $CFD || mkdir -p $CFD
 
 fyang=$dir/myyang.yang
 
-: ${clixon_controller_xpath:=clixon_controller_xpath}
-
 # source IMG/USER etc
 . ./site.sh
 

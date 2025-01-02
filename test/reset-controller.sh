@@ -132,7 +132,7 @@ new "reset-controller: Send rpc connection-change OPEN"
 ret=$(${clixon_netconf} -q0 -f $CFG -E $CFD <<EOF
 <rpc xmlns="urn:ietf:params:xml:ns:netconf:base:1.0" message-id="43">
    <connection-change xmlns="http://clicon.org/controller">
-      <devname>*</devname>
+      <device>*</device>
       <operation>OPEN</operation>
    </connection-change>
 </rpc>]]>]]>
@@ -178,7 +178,7 @@ new "reset-controller: Netconf pull"
 ret=$(${clixon_netconf} -q0 -f $CFG -E $CFD <<EOF
 <rpc xmlns="urn:ietf:params:xml:ns:netconf:base:1.0" message-id="43">
 	<config-pull xmlns="http://clicon.org/controller">
-	 <devname>*</devname>
+	 <device>*</device>
    </config-pull>
 </rpc>]]>]]>
 EOF

@@ -36,7 +36,14 @@ module clixon-controller {
         "Clixon controller";
     revision 2024-11-01 {
         description
-             "Added device-generic-rpc
+             "Added device-group and changed input parameter devname to device in RPC:s:
+                - config-pull
+                - controller-commit
+                - connection-change
+                - get-device-config
+                - datastore-diff
+                - device-template-apply
+              Added device-generic-rpc
               Added rpc-template
               Added rpc device-rpc-template-apply
               Added devices field to controller-transaction notification
@@ -423,6 +430,22 @@ module clixon-controller {
                  The yang is unknown until applied";
         }
     }
+    grouping device-choice {
+        description "Choice of device or device-group patterns for RPC:s";
+        choice devices {
+            description "Specify devices with either name or group. None means all.";
+            leaf device {
+                description
+                    "Name of device to push to, can use wildchars for several";
+                type string;
+            }
+            leaf device-group {
+                description
+                    "Name of device-group, can use wildchars for several";
+                type string;
+            }
+        }
+    }
     container processes {
         description "Process configuration";
         container services {
@@ -486,6 +509,7 @@ module clixon-controller {
                    "A list of device groups contained in this device group.
                     Recursive definitions are not valid.";
                 type leafref {
+                  require-instance false;
                   path "/devices/device-group/name";
                 }
             }
@@ -716,10 +740,8 @@ module clixon-controller {
              - cached as device-<devname>-SYNCED.xml and committed as master OR
              - cached as device-<devname>-TRANSIENT.xml (not installed)";
         input {
-            leaf devname {
-                description
-                    "Name of device to pull from, can use wildchars for several.";
-                type string;
+            uses device-choice {
+                description "Specify devices with either name or group pattern.";
             }
             leaf merge {
                 description
@@ -769,24 +791,10 @@ module clixon-controller {
              - An error is returned if a change is detected on a device that is closed
             ";
         input {
-            choice devices {
-                description "Specify devices with either name or group. None means all.";
-                leaf device {
-                    description
-                        "Name of device to push to, can use wildchars for several";
-                    type leafref {
-                        path "/devices/device/name";
-                        require-instance false;
-                    }
-                }
-                leaf device-group {
-                    description
-                        "Name of device-group, can use wildchars for several";
-                    type leafref {
-                        path "/devices/device-group/name";
-                        require-instance false;
-                    }
-                }
+            uses device-choice {
+                description
+                    "Specify devices with either name or group pattern.
+                     If none given, assume all";
             }
             leaf source {
                 description
@@ -841,10 +849,8 @@ module clixon-controller {
             "(Re)connect try an enabled device in CLOSED state.
              If closed due to error it may need to be cleared and reconnected.";
         input {
-            leaf devname {
-                description
-                    "Name of device or pattern of devices to reconnect.";
-                type string;
+            uses device-choice {
+                description "Specify devices with either name or group pattern.";
             }
             leaf operation {
                 description "close, open, reconnect";
@@ -867,9 +873,8 @@ module clixon-controller {
              Should probably be replaced by a more generic function.
              Possibly just extend get-config with device dbs?";
         input {
-            leaf devname {
-                description "Name of device";
-                type string;
+            uses device-choice {
+                description "Specify devices with either name or group pattern.";
             }
             leaf config-type{
                 description "Device config type";
@@ -960,9 +965,8 @@ module clixon-controller {
                     }
                 }
                 case device{
-                    leaf devname {
-                        description "Name of device";
-                        type string;
+                    uses device-choice {
+                        description "Specify devices with either name or group pattern.";
                     }
                     leaf config-type1{
                         description "Device config type";
@@ -1001,10 +1005,8 @@ module clixon-controller {
                 }
                 default CONFIG;
             }
-            leaf devname {
-                description
-                    "Name of device or pattern of devices to apply on.";
-                type string;
+            uses device-choice {
+                description "Specify devices with either name or group pattern.";
             }
             choice template {
                 leaf template {

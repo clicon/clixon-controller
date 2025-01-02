@@ -147,7 +147,7 @@ ret=$(${clixon_netconf} -0 -f $CFG <<EOF
 </hello>]]>]]>
 <rpc xmlns="urn:ietf:params:xml:ns:netconf:base:1.0" message-id="43">
    <connection-change xmlns="http://clicon.org/controller">
-      <devname>$NAME</devname>
+      <device>$NAME</device>
       <operation>CLOSE</operation>
    </connection-change>
 </rpc>]]>]]>
