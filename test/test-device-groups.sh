@@ -2,7 +2,7 @@
 #
 # Device groups as first-level objects
 # Simple c service is used
-# Connect, commit, show
+# Connect, commit, show commands for device groups
 #
 
 # Magic line must be first in script (see README.md)
@@ -203,9 +203,13 @@ if [ "$res" != "1" ]; then
     err1 "$ii open devices" "$res"
 fi
 
+new "show device group 1 1"
+expectpart "$($clixon_cli -1 -f $CFG -E $CFD show device group mygroup1 state)" 0 "<name>openconfig2</name>" --not-- "<name>openconfig1</name>"
+
 new "connection close"
 expectpart "$($clixon_cli -1 -f $CFG -E $CFD connection close)" 0 "^$"
 
+# Hierarchy/duplicate/recursion
 new "connection open hierarchical group"
 expectpart "$($clixon_cli -1 -f $CFG -E $CFD connection open group mygroup1)" 0 "^$"
 
@@ -215,6 +219,51 @@ res=$(${clixon_cli} -1f $CFG -E $CFD show connections | grep OPEN | wc -l)
 if [ "$res" != "$ii" ]; then
     err1 "$ii open devices" "$res"
 fi
+
+new "show device group 1 2"
+expectpart "$($clixon_cli -1 -f $CFG -E $CFD show device group mygroup1 state)" 0 "<name>openconfig1</name>" "<name>openconfig2</name>"
+
+new "set something"
+expectpart "$($clixon_cli -1 -m configure -f $CFG -E $CFD set devices device openconfig1 config system config login-banner kalle)" 0 "^$"
+
+new "CLI load template ping"
+# quote EOFfor $NAME
+ret=$(${clixon_cli} -1f $CFG -m configure load merge xml <<'EOF'
+      <config>
+         <devices xmlns="http://clicon.org/controller">
+            <rpc-template nc:operation="replace">
+               <name>ping</name>
+               <config>
+                  <ping xmlns="http://clicon.org/lib"/>
+               </config>
+            </rpc-template>
+         </devices>
+      </config>
+EOF
+)
+#echo "ret:$ret"
+
+if [ -n "$ret" ]; then
+    err1 "$ret"
+fi
+
+new "commit local"
+expectpart "$($clixon_cli -1 -m configure -f $CFG -E $CFD commit local)" 0 "^$"
+
+new "show device group diff"
+expectpart "$($clixon_cli -1 -f $CFG -E $CFD show device group mygroup1 diff)" 0 "login-banner kalle;"
+
+new "show device group check fail"
+expectpart "$($clixon_cli -1 -f $CFG -E $CFD show device group mygroup1 check)" 0 "out-of-sync"
+
+new "pull group"
+expectpart "$($clixon_cli -1 -f $CFG -E $CFD pull group mygroup1 2>&1)" 0 "OK"
+
+new "show device group check OK"
+expectpart "$($clixon_cli -1 -f $CFG -E $CFD show device group mygroup1 check)" 0 "OK"
+
+new "ping to group"
+expectpart "$($clixon_cli -1 -f $CFG -E $CFD rpc ping group mygroup1)" 0 "<name>openconfig1</name>" "<name>openconfig2</name>" "<ok"
 
 new "connection close"
 expectpart "$($clixon_cli -1 -f $CFG -E $CFD connection close)" 0 "^$"

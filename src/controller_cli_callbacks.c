@@ -686,7 +686,7 @@ transaction_exist(clixon_handle h,
 /*! Read(pull) the config of one or several devices.
  *
  * @param[in] h
- * @param[in] cvv  : name pattern
+ * @param[in] cvv  : name-pattern, [group]
  * @param[in] argv : replace/merge
  * @retval    0      OK
  * @retval   -1      Error
@@ -706,6 +706,7 @@ cli_rpc_pull(clixon_handle h,
     cxobj             *xerr;
     char              *op;
     char              *name = "*";
+    char              *group = NULL;
     cxobj             *xid;
     char              *tidstr;
     transaction_result result = 0;
@@ -724,6 +725,8 @@ cli_rpc_pull(clixon_handle h,
         clixon_err(OE_PLUGIN, EINVAL, "pull <type> argument is %s, expected \"validate\" or \"commit\"", op);
         goto done;
     }
+    if ((cv = cvec_find(cvv, "group")) != NULL)
+        group = cv_string_get(cv);
     if ((cv = cvec_find(cvv, "name")) != NULL)
         name = cv_string_get(cv);
     if ((cb = cbuf_new()) == NULL){
@@ -735,7 +738,10 @@ cli_rpc_pull(clixon_handle h,
             clicon_username_get(h),
             NETCONF_MESSAGE_ID_ATTR);
     cprintf(cb, "<config-pull xmlns=\"%s\">", CONTROLLER_NAMESPACE);
-    cprintf(cb, "<device>%s</device>", name);
+    if (group != NULL)
+        cprintf(cb, "<device-group>%s</device-group>", name);
+    else
+        cprintf(cb, "<device>%s</device>", name);
     if (strcmp(op, "merge") == 0)
         cprintf(cb, "<merge>true</merge>");
     cprintf(cb, "</config-pull>");
@@ -779,6 +785,8 @@ cli_rpc_pull(clixon_handle h,
     return retval;
 }
 
+/*!
+ */
 static int
 cli_rpc_commit_diff_one(clixon_handle h,
                         char         *name)
@@ -929,10 +937,11 @@ get_service_key(yang_stmt *yspec,
  *
  * Relies on hardcoded "name" and "instance" variables in cvv
  * @param[in] h     Clixon handle
- * @param[in] cvv   Name pattern
+ * @param[in] cvv   Name pattern, [group]
  * @param[in] argv  Source:running/candidate,
                     actions:NONE/CHANGE/FORCE,
                     push:NONE/VALIDATE/COMMIT,
+                    group
  * @retval    0     OK
  * @retval   -1     Error
  * @see controller-commit in clixon-controller.yang
@@ -957,6 +966,7 @@ cli_rpc_controller_commit(clixon_handle h,
     char              *tidstr;
     char              *actions_type;
     char              *source;
+    char              *group = NULL;
     transaction_result result = 0;
     char              *str;
     char              *service = NULL;
@@ -1005,6 +1015,8 @@ cli_rpc_controller_commit(clixon_handle h,
     }
     if ((cv = cvec_find(cvv, "instance")) != NULL)
         instance = cv_string_get(cv);
+    if ((cv = cvec_find(cvv, "group")) != NULL)
+        group = cv_string_get(cv);
     if ((cb = cbuf_new()) == NULL){
         clixon_err(OE_PLUGIN, errno, "cbuf_new");
         goto done;
@@ -1014,7 +1026,10 @@ cli_rpc_controller_commit(clixon_handle h,
             clicon_username_get(h),
             NETCONF_MESSAGE_ID_ATTR);
     cprintf(cb, "<controller-commit xmlns=\"%s\">", CONTROLLER_NAMESPACE);
-    cprintf(cb, "<device>%s</device>", name);
+    if (group)
+        cprintf(cb, "<device-group>%s</device-group>", name);
+    else
+        cprintf(cb, "<device>%s</device>", name);
     cprintf(cb, "<push>%s</push>", push_type);
     cprintf(cb, "<actions>%s</actions>", actions_type);
     if (service && instance && actions_type_str2int(actions_type) == AT_FORCE){
@@ -1084,8 +1099,8 @@ cli_rpc_controller_commit(clixon_handle h,
 /*! Read the config of one or several devices, assumes a name variable for pattern, or NULL for all
  *
  * @param[in] h
- * @param[in] cvv    Vector of cli string and instantiated variable, assume <name> <dontwait>
- * @param[in] argv : OPEN/CLOSE/RECONNECT [GROUP]
+ * @param[in] cvv    Vector of cli string and instantiated variable, assume <name> <async>, [group]
+ * @param[in] argv : OPEN/CLOSE/RECONNECT
  * @retval    0      OK
  * @retval   -1      Error
  */
@@ -1111,8 +1126,8 @@ cli_connection_change(clixon_handle h,
     transaction_result result = 0;
     int                exists = 0;
 
-    if (argv == NULL || cvec_len(argv) < 1 || cvec_len(argv) > 2){
-        clixon_err(OE_PLUGIN, EINVAL, "requires argument: <operation> [GROUP]");
+    if (argv == NULL || cvec_len(argv) != 1){
+        clixon_err(OE_PLUGIN, EINVAL, "requires argument: <operation>");
         goto done;
     }
     if ((cv = cvec_i(argv, 0)) == NULL){
@@ -1120,17 +1135,12 @@ cli_connection_change(clixon_handle h,
         goto done;
     }
     op = cv_string_get(cv);
-    if (cvec_len(argv) > 1){
-        if ((cv = cvec_i(argv, 1)) == NULL){
-            clixon_err(OE_PLUGIN, 0, "Error when accessing argument <group>");
-            goto done;
-        }
-        group = cv_string_get(cv);
-    }
     if ((cv = cvec_find(cvv, "name")) != NULL)
         name = cv_string_get(cv);
     if ((cv = cvec_find(cvv, "async")) != NULL)
         dontwait = cv_string_get(cv);
+    if ((cv = cvec_find(cvv, "group")) != NULL)
+        group = cv_string_get(cv);
     if ((cb = cbuf_new()) == NULL){
         clixon_err(OE_PLUGIN, errno, "cbuf_new");
         goto done;
@@ -1585,14 +1595,17 @@ cli_show_sessions(clixon_handle h,
 
 /*! Send a pull transient
  *
- * @param[in]   h    Clixon handle
- * @param[out]  tid  Transaction id
- * @retval      0    OK
- * @retval     -1    Error
+ * @param[in]   h       Clixon handle
+ * @param[in]   group   0: devices, 1: device groups
+ * @param[in]   pattern Device name pattern
+ * @param[out]  tid     Transaction id
+ * @retval      0       OK
+ * @retval     -1       Error
  */
 static int
 send_pull_transient(clixon_handle h,
-                    char         *name,
+                    char         *group,
+                    char         *pattern,
                     char        **tidstrp)
 {
     int        retval = -1;
@@ -1615,7 +1628,10 @@ send_pull_transient(clixon_handle h,
             clicon_username_get(h),
             NETCONF_MESSAGE_ID_ATTR);
     cprintf(cb, "<config-pull xmlns=\"%s\">", CONTROLLER_NAMESPACE);
-    cprintf(cb, "<device>%s</device>", name);
+    if (group)
+        cprintf(cb, "<device-group>%s</device-group>", pattern);
+    else
+        cprintf(cb, "<device>%s</device>", pattern);
     cprintf(cb, "<transient>true</transient>>");
     cprintf(cb, "</config-pull>");
     cprintf(cb, "</rpc>");
@@ -1688,6 +1704,7 @@ compare_device_config_type(clixon_handle      h,
     enum format_enum   format;
     cg_var            *cv;
     char              *pattern = "*";
+    char              *group = NULL;
     char              *tidstr = NULL;
     char              *formatstr;
     cxobj             *xtop = NULL;
@@ -1728,10 +1745,12 @@ compare_device_config_type(clixon_handle      h,
     }
     if ((cv = cvec_find(cvv, "name")) != NULL)
         pattern = cv_string_get(cv);
+    if ((cv = cvec_find(cvv, "group")) != NULL)
+        group = cv_string_get(cv);
     /* If remote, start with requesting it asynchrously */
     if (dt1 == DT_TRANSIENT || dt2 == DT_TRANSIENT){
         /* Send pull <transient> */
-        if (send_pull_transient(h, pattern, &tidstr) < 0)
+        if (send_pull_transient(h, group, pattern, &tidstr) < 0)
             goto done;
         if (transaction_exist(h, tidstr, &exists) < 0)
             goto done;
@@ -1755,7 +1774,10 @@ compare_device_config_type(clixon_handle      h,
     cprintf(cb, "<xpath>config</xpath>");
     cprintf(cb, "<format>%s</format>", formatstr);
     device_type = device_config_type_int2str(dt1);
-    cprintf(cb, "<device>%s</device>", pattern);
+    if (group != NULL)
+        cprintf(cb, "<device-group>%s</device-group>", pattern);
+    else
+        cprintf(cb, "<device>%s</device>", pattern);
     cprintf(cb, "<config-type1>%s</config-type1>", device_type);
     device_type = device_config_type_int2str(dt2);
     cprintf(cb, "<config-type2>%s</config-type2>", device_type);
@@ -1893,37 +1915,6 @@ compare_dbs_rpc(clixon_handle h,
         xml_free(xtop);
     if (cb)
         cbuf_free(cb);
-    return retval;
-}
-
-/*! Compare device dbs: running with (last) synced db
- *
- * @param[in]   h     Clixon handle
- * @param[in]   cvv
- * @param[in]   argv  arg: 0 as xml, 1: as text
- * @retval      0     OK
- * @retval     -1     Error
- */
-int
-compare_device_db_sync(clixon_handle h,
-                       cvec         *cvv,
-                       cvec         *argv)
-{
-    int   retval = -1;
-    cbuf *cbdiff = NULL;
-
-    if ((cbdiff = cbuf_new()) == NULL){
-        clixon_err(OE_PLUGIN, errno, "cbuf_new");
-        goto done;
-    }
-    if (compare_device_config_type(h, cvv, argv, DT_SYNCED, DT_RUNNING, cbdiff) < 0)
-        goto done;
-    if (strlen(cbuf_get(cbdiff)))
-        cligen_output(stdout, "%s", cbuf_get(cbdiff));
-    retval = 0;
- done:
-    if (cbdiff)
-        cbuf_free(cbdiff);
     return retval;
 }
 
@@ -2522,6 +2513,7 @@ show_yang_revisions(clixon_handle h,
  * @param[in]  argv  Name of cv containing name of top-level/mountpoint
  * @retval     0     OK
  * @retval    -1     Error
+ * XXX device-groups not supported: need to get the device-group config
  */
 int
 show_device_capability(clixon_handle h,
@@ -2530,7 +2522,7 @@ show_device_capability(clixon_handle h,
 {
     int     retval = -1;
     char   *cvname = NULL;
-    char   *name = NULL;
+    char   *pattern = NULL;
     char   *name1;
     cg_var *cv;
     cxobj  *xt = NULL;
@@ -2544,7 +2536,7 @@ show_device_capability(clixon_handle h,
     if (cvec_len(argv) > 0 &&
         (cvname = cv_string_get(cvec_i(argv, 0))) != NULL) {
         if ((cv = cvec_find(cvv, cvname)) != NULL){
-            if ((name = cv_string_get(cv)) == NULL){
+            if ((pattern = cv_string_get(cv)) == NULL){
                 clixon_err(OE_PLUGIN, EINVAL, "cv name is empty");
                 goto done;
             }
@@ -2563,12 +2555,12 @@ show_device_capability(clixon_handle h,
     for (i=0; i<veclen; i++){
         xcaps = vec[i];
         name1 = xml_find_body(xml_parent(xcaps), "name");
-        if (name && strcmp(name, name1))
+        if (pattern && strcmp(pattern, name1))
             continue;
         cligen_output(stdout, "%s:\n", name1);
         if (clixon_xml2file(stdout, xcaps, 0, 1, NULL, cligen_output, 0, 1) < 0)
             goto done;
-        if (name == NULL && i<veclen-1)
+        if (pattern == NULL && i<veclen-1)
             cligen_output(stdout, "\n");
     }
     retval = 0;
@@ -2699,6 +2691,7 @@ cli_device_rpc_template(clixon_handle h,
     cxobj             *xerr;
     char              *templ = NULL;
     char              *devpattern = "*";
+    char              *group = NULL;
     char              *var;
     cxobj             *xid;
     char              *tidstr;
@@ -2727,6 +2720,8 @@ cli_device_rpc_template(clixon_handle h,
             }
         }
     }
+    if ((cv = cvec_find(cvv, "group")) != NULL)
+        group = cv_string_get(cv);
     if ((cb = cbuf_new()) == NULL){
         clixon_err(OE_PLUGIN, errno, "cbuf_new");
         goto done;
@@ -2737,7 +2732,10 @@ cli_device_rpc_template(clixon_handle h,
             NETCONF_MESSAGE_ID_ATTR);
     cprintf(cb, "<device-template-apply xmlns=\"%s\">", CONTROLLER_NAMESPACE);
     cprintf(cb, "<type>RPC</type>");
-    cprintf(cb, "<device>%s</device>", devpattern);
+    if (group)
+        cprintf(cb, "<device-group>%s</device-group>", devpattern);
+    else
+        cprintf(cb, "<device>%s</device>", devpattern);
     cprintf(cb, "<template>%s</template>", templ);
     cprintf(cb, "<variables>");
     cv = NULL;
@@ -2887,8 +2885,8 @@ expand_device_rpc(void   *h,
  *                     rpcname  Name of cv containing module:rpc pattern
  *                     yang     "yang": show yang definition of RPC; else list matching rpc commands
  * @param[in]  cvv   The command so far. Eg: cvec [0]:"a 5 b"; [1]: x=5;
- * @retval     0        OK
- * @retval    -1        Error
+ * @retval     0     OK
+ * @retval    -1     Error
  * @see cli_device_rpc_template  Send device rpc:s using rpc-template
  */
 int

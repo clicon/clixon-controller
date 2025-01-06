@@ -40,29 +40,15 @@ show("Show a particular state of the system"){
                  ], cli_show_connections();{
                  @|pipe_common, cli_show_connections();
              }
-    devices("Show state of devices")[
-                 (<name:string>("device pattern")|
-                  <name:string expand_dbvar("running","/clixon-controller:devices/device/name")>("device pattern"))
-                 ] {
-       check("Check if device is in sync"), check_device_db("default");
-       diff("Compare remote device config with local"), compare_device_db_dev("default");
-       capability("Show device capbilities"), show_device_capability("name"); {
-          @|pipe_show, show_device_capability("name");
+    devices("Show state of devices"){
+       [(<name:string>("device pattern")
+        |<name:string expand_dbvar("running","/clixon-controller:devices/device/name")>("device pattern"))] {
+        @controller_show_devices;
        }
-       rpc("Show device RPC"), cli_generic_rpc_match("name");  {
-                    (<rpcname:string>("rpc name")|
-                     <rpcname:string expand_device_rpc("name")>("rpc name")), cli_generic_rpc_match("name", "rpcname"); {
-             list("List matching device RPCs"), cli_generic_rpc_match("name", "rpcname");
-             yang("Show rpc YANG definition"), cli_generic_rpc_match("name", "rpcname", "yang");{
-                @|pipe_show, cli_generic_rpc_match("name", "rpcname", "yang");
-             }
-          }
-       }
-       state("Show device state"), cli_show_device_state("name");{
-          @|pipe_show, cli_show_device_state("name");
-       }
-       yang("Show yang revisions"), show_yang_revisions("name"); {
-                    @|pipe_show, show_yang_revisions("name");
+       <group:string keyword:group>("device group")
+          (<name:string>("device group pattern")
+           |<name:string expand_dbvar("running","/clixon-controller:devices/device-group/name")>("device-group pattern")) {
+          @controller_show_devices;
        }
     }
     options("Show clixon options"), cli_show_options();{
@@ -107,44 +93,60 @@ save("Save running configuration to XML file") <filename:string>("Filename (loca
     text("Save configuration as TEXT"), save_config_file("running","filename", "text");
     netconf("Save configuration as NETCONF"), save_config_file("running","filename", "netconf");
 }
-
-pull("Pull config from one or multiple devices")[
-                 (<name:string>("device pattern")|
-                  <name:string expand_dbvar("running","/clixon-controller:devices/device/name")>("device pattern"))
-                 ], cli_rpc_pull("replace");{
-                    replace, cli_rpc_pull("replace");
-                    merge, cli_rpc_pull("merge");
+pull("Pull config from one or multiple devices"){
+   [(<name:string>("device pattern")
+   |<name:string expand_dbvar("running","/clixon-controller:devices/device/name")>("device pattern"))
+   ], cli_rpc_pull("replace");{
+      replace, cli_rpc_pull("replace");
+      merge, cli_rpc_pull("merge");
+   }
+   <group:string keyword:group>("device group")
+         (<name:string>("device group pattern")
+          |<name:string expand_dbvar("running","/clixon-controller:devices/device-group/name")>("device-group pattern"))
+         , cli_rpc_pull("replace");{
+      replace, cli_rpc_pull("replace");
+      merge, cli_rpc_pull("merge");
+   }
 }
-push("Push config to one or multiple devices")[
-                 (<name:string>("device pattern")|
-                  <name:string expand_dbvar("running","/clixon-controller:devices/device/name")>("device pattern"))
-                 ], cli_rpc_controller_commit("running", "NONE", "COMMIT");{
-                    validate("Push to devices and validate"), cli_rpc_controller_commit("running", "NONE", "VALIDATE");
-                    commit("Push to devices and commit"), cli_rpc_controller_commit("running", "NONE", "COMMIT");
+push("Push config to one or multiple devices"){
+   [(<name:string>("device pattern")
+    |<name:string expand_dbvar("running","/clixon-controller:devices/device/name")>("device pattern"))
+   ], cli_rpc_controller_commit("running", "NONE", "COMMIT");{
+      validate("Push to devices and validate"), cli_rpc_controller_commit("running", "NONE", "VALIDATE");     commit("Push to devices and commit"), cli_rpc_controller_commit("running", "NONE", "COMMIT");
+   }
+   <group:string keyword:group>("device group")
+         (<name:string>("device group pattern")
+          |<name:string expand_dbvar("running","/clixon-controller:devices/device-group/name")>("device-group pattern"))
+         , cli_rpc_controller_commit("running", "NONE", "COMMIT");{
+      validate("Push to devices and validate"), cli_rpc_controller_commit("running", "NONE", "VALIDATE");     commit("Push to devices and commit"), cli_rpc_controller_commit("running", "NONE", "COMMIT");
+   }
 }
 connection("Change connection state of one or several devices") {
    close("Close open connections"), cli_connection_change("CLOSE");{
       (<name:string>("device pattern")
-       |<name:string expand_dbvar("running","/clixon-controller:devices/device/name")>("device pattern")
+      |<name:string expand_dbvar("running","/clixon-controller:devices/device/name")>("device pattern")
        ), cli_connection_change("CLOSE");
-       group (<name:string>("device group pattern")
-             |<name:string expand_dbvar("running","/clixon-controller:devices/device-group/name")>("device-group pattern"))
-          , cli_connection_change("CLOSE", "GROUP");
+      <group:string keyword:group>("device group")
+          (<name:string>("device group pattern")
+           |<name:string expand_dbvar("running","/clixon-controller:devices/device-group/name")>("device-group pattern"))
+          , cli_connection_change("CLOSE");
    }
    open("Open closed connections"), cli_connection_change("OPEN"); {
       <async:string keyword:async>("Return immediately, do not wait for completion"), cli_connection_change("OPEN"); {
          (<name:string>("device pattern") |
           <name:string expand_dbvar("running","/clixon-controller:devices/device/name")>("device pattern")
          ), cli_connection_change("OPEN");
-         group (<name:string>("device group pattern")
-             |<name:string expand_dbvar("running","/clixon-controller:devices/device-group/name")>("device-group pattern"))
-             , cli_connection_change("OPEN", "GROUP");
+         <group:string keyword:group>("device group")
+            (<name:string>("device group pattern")
+            |<name:string expand_dbvar("running","/clixon-controller:devices/device-group/name")>("device-group pattern"))
+             , cli_connection_change("OPEN");
       }
       (<name:string>("device pattern") |
        <name:string expand_dbvar("running","/clixon-controller:devices/device/name")>("device pattern")
       ), cli_connection_change("OPEN");
-      group (<name:string>("device group pattern")
-            |<name:string expand_dbvar("running","/clixon-controller:devices/device-group/name")>("device-group pattern")), cli_connection_change("OPEN", "GROUP");
+      <group:string keyword:group>("device group")
+          (<name:string>("device group pattern")
+           |<name:string expand_dbvar("running","/clixon-controller:devices/device-group/name")>("device-group pattern")), cli_connection_change("OPEN");
 
    }
    reconnect("Close all open connections and open all connections"), cli_connection_change("RECONNECT");{
@@ -152,24 +154,33 @@ connection("Change connection state of one or several devices") {
          (<name:string>("device pattern")
          |<name:string expand_dbvar("running","/clixon-controller:devices/device/name")>("device pattern")
          ), cli_connection_change("RECONNECT");
-         group (<name:string>("device group pattern")
+         <group:string keyword:group>("device group")
+              (<name:string>("device group pattern")
                |<name:string expand_dbvar("running","/clixon-controller:devices/device-group/name")>("device-group pattern")
-               ), cli_connection_change("RECONNECT", "GROUP");
+               ), cli_connection_change("RECONNECT");
       }
       (<name:string>("device pattern")
        |<name:string expand_dbvar("running","/clixon-controller:devices/device/name")>("device pattern")
       ), cli_connection_change("RECONNECT");
-      group (<name:string>("device group pattern")
+      <group:string keyword:group>("device group")
+           (<name:string>("device group pattern")
             |<name:string expand_dbvar("running","/clixon-controller:devices/device-group/name")>("device-group pattern")
-            ), cli_connection_change("RECONNECT", "GROUP");
+            ), cli_connection_change("RECONNECT");
    }
 }
 rpc("Send RPC to devices")
-   <templ:string expand_dbvar("running","/clixon-controller:devices/rpc-template/name")>("RPC template to apply")
+   <templ:string expand_dbvar("running","/clixon-controller:devices/rpc-template/name")>("RPC template to apply") {
       (<devname:string>("device pattern")|
        <devname:string expand_dbvar("running","/clixon-controller:devices/device/name")>("device pattern")), cli_device_rpc_template("templ", "devname");{
           variables @rpc_template_vars; # see controller_rpc_template_vars.cli
-       }
+   }
+   <group:string keyword:group>("device group")
+      (<devname:string>("device group pattern")
+      |<devname:string expand_dbvar("running","/clixon-controller:devices/device-group/name")>("device-group pattern")
+      ), cli_device_rpc_template("templ", "devname");{
+          variables @rpc_template_vars; # see controller_rpc_template_vars.cli
+      }
+}
 session("Client sessions") {
     kill("Kill client session") {
            <session:uint32 choice:1677721>("Transaction number"), cli_kill_session("session");

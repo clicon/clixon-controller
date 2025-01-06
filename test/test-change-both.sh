@@ -54,9 +54,6 @@ module clixon-ext {
 }
 EOF
 
-# Set if also push, not only change (useful for manually doing push)
-: ${push:=true}
-
 # Reset devices with initial config
 . ./reset-devices.sh
 
@@ -133,12 +130,6 @@ EOF
 match=$(echo $ret | grep --null -Eo "<rpc-error>") || true
 if [ -n "$match" ]; then
     err1 "netconf rpc-error detected"
-fi
-
-if ! $push ; then
-    echo "Stop after changes, no push"
-    echo OK
-    exit 0
 fi
 
 # Change devices only mtu (mtu is ignored by extension)
@@ -231,8 +222,6 @@ if $BE; then
     new "Kill old backend"
     stop_backend -f $CFG -E $CFD
 fi
-
-unset push
 
 endtest
 

@@ -2389,8 +2389,6 @@ datastore_diff_device(clixon_handle      h,
             continue;
         if ((dh = device_handle_find(h, devname)) == NULL)
             continue;
-        if (pattern != NULL && fnmatch(pattern, devname, 0) != 0)
-            continue;
         x1 = x1m = NULL;
         switch (dt1){
         case DT_RUNNING:
