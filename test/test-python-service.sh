@@ -287,6 +287,9 @@ OK"
 new "Commit configuration for user test1"
 expectpart "$($clixon_cli -1 -f $CFG -m configure commit)" 0 ""
 
+new "Second empty commit"
+expectpart "$($clixon_cli -1 -f $CFG -m configure commit)" 0 ""
+
 new "Commited, should be no diff"
 expectpart "$($clixon_cli -1 -f $CFG -m configure commit diff)" 0 ""
 

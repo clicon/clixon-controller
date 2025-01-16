@@ -664,6 +664,14 @@ rpc_config_pull(clixon_handle h,
     }
     clearvec(h, vec1, vec1len);
     clearvec(h, vec2, vec2len);
+    if (vec1){
+        free(vec1);
+        vec1 = NULL;
+    }
+    if (vec2){
+        free(vec2);
+        vec2 = NULL;
+    }
     cv = NULL;
     while ((cv = cvec_each(devvec, cv)) != NULL){
         xn = cv_void_get(cv);
@@ -695,14 +703,10 @@ rpc_config_pull(clixon_handle h,
  done:
     if (cberr)
         cbuf_free(cberr);
-    if (vec1){
-        clearvec(h, vec1, vec1len);
+    if (vec1)
         free(vec1);
-    }
-    if (vec2){
-        clearvec(h, vec2, vec2len);
+    if (vec2)
         free(vec2);
-    }
     if (devvec)
         cvec_free(devvec);
     return retval;
@@ -1273,7 +1277,6 @@ controller_commit_actions(clixon_handle           h,
  * @retval     0       OK
  * @retval    -1       Error
  * @see devices_diff   where diff is constructed
- * @see devices_match  similar selection, but based on open devices
  */
 static int
 devices_local_change(clixon_handle       h,
@@ -1620,6 +1623,14 @@ rpc_controller_commit(clixon_handle h,
     }
     clearvec(h, vec1, vec1len);
     clearvec(h, vec2, vec2len);
+    if (vec1){
+        free(vec1);
+        vec1 = NULL;
+    }
+    if (vec2){
+        free(vec2);
+        vec2 = NULL;
+    }
     cv = NULL;
     while ((cv = cvec_each(devvec, cv)) != NULL){
         char *body;
@@ -1718,14 +1729,10 @@ rpc_controller_commit(clixon_handle h,
         cbuf_free(cbtr);
     if (cberr)
         cbuf_free(cberr);
-    if (vec1){
-        clearvec(h, vec1, vec1len);
+    if (vec1)
         free(vec1);
-    }
-    if (vec2){
-        clearvec(h, vec2, vec2len);
+    if (vec2)
         free(vec2);
-    }
     if (devvec)
         cvec_free(devvec);
     return retval;
@@ -1814,6 +1821,14 @@ rpc_get_device_config(clixon_handle h,
     }
     clearvec(h, vec1, vec1len);
     clearvec(h, vec2, vec2len);
+    if (vec1){
+        free(vec1);
+        vec1 = NULL;
+    }
+    if (vec2){
+        free(vec2);
+        vec2 = NULL;
+    }
     cv = NULL;
     if ((cb = cbuf_new()) == NULL){
         clixon_err(OE_UNIX, errno, "cbuf_new");
@@ -1860,14 +1875,10 @@ rpc_get_device_config(clixon_handle h,
         cbuf_free(cb);
     if (cberr)
         cbuf_free(cberr);
-    if (vec1){
-        clearvec(h, vec1, vec1len);
+    if (vec1)
         free(vec1);
-    }
-    if (vec2){
-        clearvec(h, vec2, vec2len);
+    if (vec2)
         free(vec2);
-    }
     if (devvec)
         cvec_free(devvec);
     if (xroot)
@@ -2053,6 +2064,14 @@ rpc_connection_change(clixon_handle h,
     }
     clearvec(h, vec1, vec1len);
     clearvec(h, vec2, vec2len);
+    if (vec1){
+        free(vec1);
+        vec1 = NULL;
+    }
+    if (vec2){
+        free(vec2);
+        vec2 = NULL;
+    }
     cv = NULL;
     while ((cv = cvec_each(devvec, cv)) != NULL){
         xn = cv_void_get(cv);
@@ -2084,14 +2103,10 @@ rpc_connection_change(clixon_handle h,
         cbuf_free(cbtr);
     if (cberr)
         cbuf_free(cberr);
-    if (vec1){
-        clearvec(h, vec1, vec1len);
+    if (vec1)
         free(vec1);
-    }
-    if (vec2){
-        clearvec(h, vec2, vec2len);
+    if (vec2)
         free(vec2);
-    }
     if (devvec)
         cvec_free(devvec);
     return retval;
@@ -2382,6 +2397,14 @@ datastore_diff_device(clixon_handle      h,
     }
     clearvec(h, vec1, vec1len);
     clearvec(h, vec2, vec2len);
+    if (vec1){
+        free(vec1);
+        vec1 = NULL;
+    }
+    if (vec2){
+        free(vec2);
+        vec2 = NULL;
+    }
     cv = NULL;
     while ((cv = cvec_each(devvec, cv)) != NULL){
         xdev = cv_void_get(cv);
@@ -2508,14 +2531,10 @@ datastore_diff_device(clixon_handle      h,
         xml_free(x1m);
     if (x2m)
         xml_free(x2m);
-    if (vec1){
-        clearvec(h, vec1, vec1len);
+    if (vec1)
         free(vec1);
-    }
-    if (vec2){
-        clearvec(h, vec2, vec2len);
+    if (vec2)
         free(vec2);
-    }
     if (devvec)
         cvec_free(devvec);
     if (cberr)
@@ -2860,6 +2879,14 @@ rpc_device_config_template_apply(clixon_handle h,
     }
     clearvec(h, vec1, vec1len);
     clearvec(h, vec2, vec2len);
+    if (vec1){
+        free(vec1);
+        vec1 = NULL;
+    }
+    if (vec2){
+        free(vec2);
+        vec2 = NULL;
+    }
     cv = NULL;
     while ((cv = cvec_each(devvec, cv)) != NULL){
         xn = cv_void_get(cv);
@@ -2922,14 +2949,10 @@ rpc_device_config_template_apply(clixon_handle h,
         xml_free(xtc);
     if (xroot)
         xml_free(xroot);
-    if (vec1){
-        clearvec(h, vec1, vec1len);
+    if (vec1)
         free(vec1);
-    }
-    if (vec2){
-        clearvec(h, vec2, vec2len);
+    if (vec2)
         free(vec2);
-    }
     if (devvec)
         cvec_free(devvec);
     if (nsc)
@@ -3108,6 +3131,14 @@ rpc_device_rpc_template_apply(clixon_handle h,
     }
     clearvec(h, vec1, vec1len);
     clearvec(h, vec2, vec2len);
+    if (vec1){
+        free(vec1);
+        vec1 = NULL;
+    }
+    if (vec2){
+        free(vec2);
+        vec2 = NULL;
+    }
     cv = NULL;
     while ((cv = cvec_each(devvec, cv)) != NULL){
         xn = cv_void_get(cv);
@@ -3142,14 +3173,10 @@ rpc_device_rpc_template_apply(clixon_handle h,
         cvec_free(cvv);
     if (xret)
         xml_free(xret);
-    if (vec1){
-        clearvec(h, vec1, vec1len);
+    if (vec1)
         free(vec1);
-    }
-    if (vec2){
-        clearvec(h, vec2, vec2len);
+    if (vec2)
         free(vec2);
-    }
     if (devvec)
         cvec_free(devvec);
     if (nsc)
