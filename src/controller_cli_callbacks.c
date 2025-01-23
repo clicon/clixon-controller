@@ -2577,8 +2577,10 @@ show_device_capability(clixon_handle h,
 /*! Apply template on devices
  *
  * @param[in] h
- * @param[in] cvv  templ, devs
- * @param[in] argv null
+ * @param[in] cvv  Assume cv names: groups
+ * @param[in] argv  Arguments given at the callback:
+ *                     templ      Name of cv containing rpc template name
+ *                     devpattern Name of cv containing device name pattern
  * @retval    0    OK
  * @retval   -1    Error
  */
@@ -2589,27 +2591,52 @@ cli_apply_device_template(clixon_handle h,
 {
     int     retval = -1;
     cbuf   *cb = NULL;
+    char   *cvname;
     cg_var *cv;
     cxobj  *xtop = NULL;
     cxobj  *xrpc;
     cxobj  *xret = NULL;
     cxobj  *xreply;
     cxobj  *xerr;
-    char   *devs = "*";
+    char   *devpattern = "*";
+    char   *group = NULL;
     char   *templ;
     char   *var;
 
-    if (argv != NULL){
-        clixon_err(OE_PLUGIN, EINVAL, "requires expected argv=NULL");
+    if (argv == NULL || cvec_len(argv) < 1 || cvec_len(argv) > 2){
+        clixon_err(OE_PLUGIN, EINVAL, "requires arguments: <templ> [<devpattern>]");
+        cvec_print(stderr, argv);
         goto done;
     }
+#if 1
+    if ((cvname = cv_string_get(cvec_i(argv, 0))) != NULL)
+        if ((cv = cvec_find(cvv, cvname)) != NULL)
+            templ = cv_string_get(cv);
+    if (templ == NULL){
+        clixon_err(OE_PLUGIN, EINVAL, "templ is NULL");
+        goto done;
+    }
+    if (cvec_len(argv) > 1){
+        if ((cvname = cv_string_get(cvec_i(argv, 1))) != NULL) {
+            if ((cv = cvec_find(cvv, cvname)) != NULL){
+                if ((devpattern = cv_string_get(cv)) == NULL){
+                    clixon_err(OE_PLUGIN, EINVAL, "cv name is empty");
+                    goto done;
+                }
+            }
+        }
+    }
+#else
     if ((cv = cvec_find(cvv, "templ")) == NULL){
         clixon_err(OE_PLUGIN, EINVAL, "template variable required");
         goto done;
     }
     templ = cv_string_get(cv);
-    if ((cv = cvec_find(cvv, "devs")) != NULL)
-        devs = cv_string_get(cv);
+    if ((cv = cvec_find(cvv, "devname")) != NULL)
+        devpattern = cv_string_get(cv);
+#endif
+    if ((cv = cvec_find(cvv, "group")) != NULL)
+        group = cv_string_get(cv);
     if ((cb = cbuf_new()) == NULL){
         clixon_err(OE_PLUGIN, errno, "cbuf_new");
         goto done;
@@ -2620,7 +2647,10 @@ cli_apply_device_template(clixon_handle h,
             NETCONF_MESSAGE_ID_ATTR);
     cprintf(cb, "<device-template-apply xmlns=\"%s\">", CONTROLLER_NAMESPACE);
     cprintf(cb, "<type>CONFIG</type>");
-    cprintf(cb, "<device>%s</device>", devs);
+    if (group)
+        cprintf(cb, "<device-group>%s</device-group>", devpattern);
+    else
+        cprintf(cb, "<device>%s</device>", devpattern);
     cprintf(cb, "<template>%s</template>", templ);
     cprintf(cb, "<variables>");
     cv = NULL;
@@ -2667,8 +2697,8 @@ cli_apply_device_template(clixon_handle h,
 /*! Apply rpc template on devices
  *
  * @param[in] h      Clixon handle
- * @param[in] cvv    templ, devs
- * @param[in]  argv  Arguments given at the callback:
+ * @param[in] cvv    Assume cv names: groups
+ * @param[in] argv  Arguments given at the callback:
  *                     templ      Name of cv containing rpc template name
  *                     devpattern Name of cv containing device name pattern
  * @retval    0    OK

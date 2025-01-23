@@ -7,6 +7,7 @@ Expected: January 2025
 
 * New: [device-groups to be first level objects in cli](https://github.com/clicon/clixon-controller/issues/153)
   * Connect using device-groups
+  * CLI calls: connection, show devices, pull, push
 * Optimization [Performance: commit takes long time with many devices](https://github.com/clicon/clixon-controller/issues/154)
   * Avoid copy in compare/diff
   * Optimized strip service at commit

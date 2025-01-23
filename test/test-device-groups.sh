@@ -226,7 +226,7 @@ expectpart "$($clixon_cli -1 -f $CFG -E $CFD show device group mygroup1 state)" 
 new "set something"
 expectpart "$($clixon_cli -1 -m configure -f $CFG -E $CFD set devices device openconfig1 config system config login-banner kalle)" 0 "^$"
 
-new "CLI load template ping"
+new "CLI load rpc template ping"
 # quote EOFfor $NAME
 ret=$(${clixon_cli} -1f $CFG -m configure load merge xml <<'EOF'
       <config>
@@ -264,6 +264,51 @@ expectpart "$($clixon_cli -1 -f $CFG -E $CFD show device group mygroup1 check)" 
 
 new "ping to group"
 expectpart "$($clixon_cli -1 -f $CFG -E $CFD rpc ping group mygroup1)" 0 "<name>openconfig1</name>" "<name>openconfig2</name>" "<ok"
+
+new "CLI load template xml"
+# quote EOFfor $NAME
+ret=$(${clixon_cli} -1f $CFG -m configure load merge xml <<'EOF'
+      <config>
+         <devices xmlns="http://clicon.org/controller">
+            <template nc:operation="replace">
+               <name>interfaces</name>
+               <variables>
+                 <variable><name>NAME</name></variable>
+                 <variable><name>TYPE</name></variable>
+               </variables>
+               <config>
+                  <interfaces xmlns="http://openconfig.net/yang/interfaces">
+                     <interface>
+                        <name>${NAME}</name>
+                        <config>
+                           <name>${NAME}</name>
+                           <type xmlns:ianaift="urn:ietf:params:xml:ns:yang:iana-if-type">${TYPE}</type>
+                           <description>Config of interface ${NAME},${NAME} and ${TYPE} type</description>
+                        </config>
+                     </interface>
+                  </interfaces>
+               </config>
+            </template>
+         </devices>
+      </config>
+EOF
+)
+
+#echo "ret:$ret"
+
+if [ -n "$ret" ]; then
+    err1 "$ret"
+fi
+
+new "commit template local"
+expectpart "$($clixon_cli -1f $CFG -m configure commit local 2>&1)" 0 "^$"
+
+new "Apply template CLI 1"
+expectpart "$($clixon_cli -1 -f $CFG -m configure apply template interfaces group mygroup1 variables NAME z TYPE ianaift:v35)" 0 "^$"
+
+new "Verify compare"
+expectpart "$($clixon_cli -1 -f $CFG -m configure -o CLICON_CLI_OUTPUT_FORMAT=text show compare)" 0 "^+\ *interface z {" "^+\ *type ianaift:v35;" "^+\ *description \"Config of interface z,z and ianaift:v35 type\";" --not-- "^\-"
+
 
 new "connection close"
 expectpart "$($clixon_cli -1 -f $CFG -E $CFD connection close)" 0 "^$"
