@@ -51,7 +51,7 @@ SUBDIRS += util
 all:	$(SUBDIRS)
 
 $(SUBDIRS): 
-	(cd $@ && $(MAKE) $(MFLAGS) all)
+	(cd $@ && $(MAKE) $(MFLAGS) all || exit 1)
 
 install:  
 	for i in $(SUBDIRS) doc ; \

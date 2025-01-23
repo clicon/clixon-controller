@@ -2409,7 +2409,7 @@ ac_compiler_gnu=$ac_cv_c_compiler_gnu
 
 
 # Default CFLAGS and INSTALLFLAGS unless set by environment
-: ${CFLAGS="-O2 -Wall"}
+: ${CFLAGS="-O2 -Wall -Werror"}
 : ${INSTALLFLAGS="-s"}
 
 # where autotool scripts are: install-sh, config.sub, config.guess
@@ -4600,7 +4600,7 @@ fi
 { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: debug is $ac_enable_debug" >&5
 printf "%s\n" "debug is $ac_enable_debug" >&6; }
 if test "$ac_enable_debug" = "yes"; then
-   CFLAGS="-g -Wall"
+   CFLAGS="-g -Wall -Werror"
    INSTALLFLAGS=""
 fi
 

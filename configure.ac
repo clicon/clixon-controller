@@ -28,7 +28,7 @@
 AC_INIT([controller],[1.1])
 
 # Default CFLAGS and INSTALLFLAGS unless set by environment
-: ${CFLAGS="-O2 -Wall"}
+: ${CFLAGS="-O2 -Wall -Werror"}
 : ${INSTALLFLAGS="-s"}
 
 # where autotool scripts are: install-sh, config.sub, config.guess
@@ -101,7 +101,7 @@ AC_ARG_ENABLE(debug, AS_HELP_STRING([--enable-debug],[Build with debug symbols, 
 
 AC_MSG_RESULT(debug is $ac_enable_debug)	
 if test "$ac_enable_debug" = "yes"; then
-   CFLAGS="-g -Wall"
+   CFLAGS="-g -Wall -Werror"
    INSTALLFLAGS=""	
 fi
 
