@@ -139,6 +139,18 @@ function testrun()
 
     new "Delete interface"
     expectpart "$($clixon_cli -1 -f $CFG -E $CFD  -m configure delete devices device openconfig1 config interfaces interface xintf)" 0 ""
+
+    new "Rollback"
+    expectpart "$($clixon_cli -1 -f $CFG -E $CFD -m configure rollback)" 0 ""
+
+    # check no default values for show compare
+    new "Set new interface kaka"
+    expectpart "$($clixon_cli -1 -f $CFG -E $CFD -m configure set devices device openconfig1 config interfaces interface kaka)" 0 ""
+
+    new "show compare no defaults"
+    expectpart "$($clixon_cli -1 -f $CFG -E $CFD -m configure show compare)" 0 "<name>kaka</name>" --not-- "<loopback-mode>NONE</loopback-mode>"
+    exit
+
 }
 
 if $BE; then
