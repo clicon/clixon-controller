@@ -214,8 +214,10 @@ fi
 new "Check description diff xml"
 expectpart "$($clixon_cli -1f $CFG show compare xml 2>&1)" 0 "^-\ *<description>Config of interface " "^+\ *<description>Changed description</description>"
 
-new "Check description diff text"
-expectpart "$($clixon_cli -1f $CFG show compare text 2>&1)" 0 "^-\ *description \"Config of interface" "^+\ *description \"Changed description\""
+if false; then # Disabled in 1.3
+    new "Check description diff text"
+    expectpart "$($clixon_cli -1f $CFG show compare text 2>&1)" 0 "^-\ *description \"Config of interface" "^+\ *description \"Changed description\""
+fi
 
 new "commit local"
 expectpart "$($clixon_cli -1f $CFG -m configure commit  2>&1)" 0 "^OK$"

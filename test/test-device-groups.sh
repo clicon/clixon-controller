@@ -309,7 +309,6 @@ expectpart "$($clixon_cli -1 -f $CFG -m configure apply template interfaces grou
 new "Verify compare"
 expectpart "$($clixon_cli -1 -f $CFG -m configure -o CLICON_CLI_OUTPUT_FORMAT=text show compare)" 0 "^+\ *interface z {" "^+\ *type ianaift:v35;" "^+\ *description \"Config of interface z,z and ianaift:v35 type\";" --not-- "^\-"
 
-
 new "connection close"
 expectpart "$($clixon_cli -1 -f $CFG -E $CFD connection close)" 0 "^$"
 

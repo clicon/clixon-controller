@@ -69,8 +69,10 @@ expectpart "$($clixon_cli -1 -m configure -f $CFG delete devices device openconf
 new "show compare xml"
 expectpart "$($clixon_cli -1 -m configure -f $CFG show compare xml)" 0 "\-\ *<address>3.3.3.3</address>" --not-- "+" "1.1.1.1" "2.2.2.2"
 
-new "show compare curly"
-expectpart "$($clixon_cli -1 -m configure -f $CFG show compare text)" 0 "\-\ *server 3.3.3.3" --not-- "+" "1.1.1.1" "2.2.2.2"
+if false; then # Disabled in 1.3
+    new "show compare text"
+    expectpart "$($clixon_cli -1 -m configure -f $CFG show compare text)" 0 "\-\ *server 3.3.3.3" --not-- "+" "1.1.1.1" "2.2.2.2"
+fi
 
 new "commit 2"
 expectpart "$($clixon_cli -1 -m configure -f $CFG commit)" 0 ""

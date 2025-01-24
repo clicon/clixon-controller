@@ -28,7 +28,7 @@ processes("Process maintenace") services("Service daemon operation") {
 show("Show a particular state of the system"){
     compare("Compare candidate and running databases"), compare_dbs_rpc("running", "candidate", "default");{
        xml("Show comparison in xml"), compare_dbs_rpc("running", "candidate","xml");
-       text("Show comparison in text"), compare_dbs_rpc("running", "candidate", "text");
+#       text("Show comparison in text"), compare_dbs_rpc("running", "candidate", "text");
     }
     configuration("Show configuration"), cli_show_auto_mode("running", "default", true, false);{
        @|pipe_show, cli_show_auto_mode("running", "xml", true, false);

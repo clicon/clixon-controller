@@ -36,7 +36,7 @@ show("Show a particular state of the system"), @datamodelshow, cli_show_auto_mod
     @datamodelshow, cli_show_auto_devs("candidate", "pipe-xml-default", true, false, "explicit", "set ", true);
     compare("Compare candidate and running databases"), compare_dbs_rpc("running", "candidate", "default");{
        xml("Show comparison in xml"), compare_dbs_rpc("running", "candidate","xml");
-       text("Show comparison in text"), compare_dbs_rpc("running", "candidate", "text");
+#       text("Show comparison in text"), compare_dbs_rpc("running", "candidate", "text");
     }
 }
 save("Save candidate configuration to XML file") <filename:string>("Filename (local filename)"), save_config_file("candidate","filename", "xml");{
