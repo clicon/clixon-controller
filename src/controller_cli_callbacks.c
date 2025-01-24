@@ -476,38 +476,39 @@ transaction_notification_handler(clixon_handle       h,
     if (clixon_xml_parse_string(cbuf_get(cb), YB_NONE, NULL, &xt, NULL) < 0)
         goto done;
     clixon_debug_xml(CLIXON_DBG_CTRL, xt, "Transaction");
-   if (xpath_vec(xt, nsc, "notification/controller-transaction", &vec, &veclen) < 0)
-       goto done;
-   for (i=0; i<veclen; i++){
-       xn = vec[i];
-       reason = xml_find_body(xn, "reason");
-       if ((tidstr = xml_find_body(xn, "tid")) == NULL){
-           clixon_err(OE_NETCONF, EFAULT, "Notification malformed: no tid");
-           goto done;
-       }
-       if (tidstr0 && strcmp(tidstr0, tidstr) == 0 && match)
-           break;
-   }
-   if (i < veclen)
-       *match = 1;
-    if ((resstr = xml_find_body(xn, "result")) == NULL){
-        clixon_err(OE_NETCONF, EFAULT, "Notification malformed: no result");
+    if (xpath_vec(xt, nsc, "notification/controller-transaction", &vec, &veclen) < 0)
         goto done;
-    }
-    if ((result = transaction_result_str2int(resstr)) != TR_SUCCESS){
-        if((clixon_logflags_get() | CLIXON_LOG_STDERR) == 0x0)
-	  cligen_output(stderr, "%s: pid: %u Transaction %s failed: %s\n",
-		  __FUNCTION__, getpid(), tidstr, reason?reason:"no reason");
-
-      clixon_log(h, LOG_NOTICE, "%s: pid: %u Transaction %s failed: %s",
-		 __FUNCTION__, getpid(), tidstr, reason?reason:"no reason");
-    }
-    if ((xdevdata = xml_find_type(xn, NULL, "devices", CX_ELMNT)) != NULL){
-        if (clixon_xml2file(stdout, xdevdata, 0, 1, NULL, cligen_output, 1, 0) < 0)
+    xn = NULL;
+    for (i=0; i<veclen; i++){
+        xn = vec[i];
+        reason = xml_find_body(xn, "reason");
+        if ((tidstr = xml_find_body(xn, "tid")) == NULL){
+            clixon_err(OE_NETCONF, EFAULT, "Notification malformed: no tid");
             goto done;
+        }
+        if (tidstr0 && strcmp(tidstr0, tidstr) == 0 && match)
+            break;
     }
-    if (result)
-        *resultp = result;
+    if (i < veclen) {
+        *match = 1;
+        if ((resstr = xml_find_body(xn, "result")) == NULL){
+            clixon_err(OE_NETCONF, EFAULT, "Notification malformed: no result");
+            goto done;
+        }
+        if ((result = transaction_result_str2int(resstr)) != TR_SUCCESS){
+            if((clixon_logflags_get() | CLIXON_LOG_STDERR) == 0x0)
+                cligen_output(stderr, "%s: pid: %u Transaction %s failed: %s\n",
+                              __FUNCTION__, getpid(), tidstr, reason?reason:"no reason");
+            clixon_log(h, LOG_NOTICE, "%s: pid: %u Transaction %s failed: %s",
+                       __FUNCTION__, getpid(), tidstr, reason?reason:"no reason");
+        }
+        if ((xdevdata = xml_find_type(xn, NULL, "devices", CX_ELMNT)) != NULL){
+            if (clixon_xml2file(stdout, xdevdata, 0, 1, NULL, cligen_output, 1, 0) < 0)
+                goto done;
+        }
+        if (result)
+            *resultp = result;
+    }
     retval = 0;
  done:
     clixon_debug(CLIXON_DBG_CTRL, "%d", retval);
@@ -2600,7 +2601,7 @@ cli_apply_device_template(clixon_handle h,
     cxobj  *xerr;
     char   *devpattern = "*";
     char   *group = NULL;
-    char   *templ;
+    char   *templ = NULL;
     char   *var;
 
     if (argv == NULL || cvec_len(argv) < 1 || cvec_len(argv) > 2){
@@ -2608,7 +2609,6 @@ cli_apply_device_template(clixon_handle h,
         cvec_print(stderr, argv);
         goto done;
     }
-#if 1
     if ((cvname = cv_string_get(cvec_i(argv, 0))) != NULL)
         if ((cv = cvec_find(cvv, cvname)) != NULL)
             templ = cv_string_get(cv);
@@ -2626,15 +2626,6 @@ cli_apply_device_template(clixon_handle h,
             }
         }
     }
-#else
-    if ((cv = cvec_find(cvv, "templ")) == NULL){
-        clixon_err(OE_PLUGIN, EINVAL, "template variable required");
-        goto done;
-    }
-    templ = cv_string_get(cv);
-    if ((cv = cvec_find(cvv, "devname")) != NULL)
-        devpattern = cv_string_get(cv);
-#endif
     if ((cv = cvec_find(cvv, "group")) != NULL)
         group = cv_string_get(cv);
     if ((cb = cbuf_new()) == NULL){
