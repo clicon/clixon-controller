@@ -35,6 +35,7 @@ Expected: January 2025
 
 ### Corrected Bugs
 
+* Fixed: [Not possible to remove service if "ctrl:created-by-service" is located in the top of the YANG specification](https://github.com/clicon/clixon-controller/issues/179)
 * Fixed: [Running undefined RPC towards a device closes connection](https://github.com/clicon/clixon-controller/issues/173)
 * Fixed: [RPC commit diff problem](https://github.com/clicon/clixon-controller/issues/171)
 * Fixed: [CLI: default format text | display](https://github.com/clicon/clixon-controller/issues/165)

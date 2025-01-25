@@ -787,6 +787,35 @@ actions_timeout_unregister(controller_transaction *ct)
     return 0;
 }
 
+static cxobj *
+getservicekey(cxobj *xn)
+{
+    yang_stmt *yn;
+    cvec      *cvv;
+    char      *key;
+    cxobj     *xkey = NULL;
+
+    if ((yn = xml_spec(xn)) == NULL){
+        clixon_err(OE_YANG, 0, "No yangspec of XML service node %s", xml_name(xn));
+        goto done;
+    }
+    if (yang_keyword_get(yn) != Y_LIST){
+        clixon_err(OE_YANG, 0, "Yangspec %s is not LIST", yang_argument_get(yn));
+        goto done;
+    }
+    if ((cvv = yang_cvec_get(yn)) == NULL){
+        clixon_err(OE_YANG, 0, "Yangspec %s does not have cvv", yang_argument_get(yn));
+        goto done;
+    }
+    if ((key = cvec_i_str(cvv, 0)) == NULL){
+        clixon_err(OE_YANG, 0, "Yangspec %s cvv does not have key", yang_argument_get(yn));
+        goto done;
+    }
+    xkey = xml_find_type(xn, NULL, key, CX_ELMNT);
+ done:
+     return xkey;
+}
+
 /*! Get candidate and running, compute diff and return notification
  *
  * @param[in]  h        Clixon handle
@@ -831,8 +860,7 @@ controller_actions_diff(clixon_handle           h,
         while ((xn = xml_child_each(x0s, xn,  CX_ELMNT)) != NULL){
             if (xml_flag(xn, XML_FLAG_CHANGE|XML_FLAG_DEL) == 0)
                 continue;
-            /* Assume first entry is key, Alt: get key via YANG */
-            if ((xi = xml_find_type(xn, NULL, NULL, CX_ELMNT)) == NULL ||
+            if ((xi = getservicekey(xn)) == NULL ||
                 (instance = xml_body(xi)) == NULL)
                 continue;
             /* XXX See also service_action_one where tags are also created */
@@ -850,8 +878,7 @@ controller_actions_diff(clixon_handle           h,
         while ((xn = xml_child_each(x1s, xn,  CX_ELMNT)) != NULL){
             if (xml_flag(xn, XML_FLAG_CHANGE|XML_FLAG_ADD) == 0)
                 continue;
-            /* Assume first entry is key, Alt: get key via YANG */
-            if ((xi = xml_find_type(xn, NULL, NULL, CX_ELMNT)) == NULL ||
+            if ((xi = getservicekey(xn)) == NULL ||
                 (instance = xml_body(xi)) == NULL)
                 continue;
             /* XXX See also service_action_one where tags are also created */
