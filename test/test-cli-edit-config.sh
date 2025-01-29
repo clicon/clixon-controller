@@ -149,7 +149,6 @@ function testrun()
 
     new "show compare no defaults"
     expectpart "$($clixon_cli -1 -f $CFG -E $CFD -m configure show compare)" 0 "<name>kaka</name>" --not-- "<loopback-mode>NONE</loopback-mode>"
-    exit
 
 }
 

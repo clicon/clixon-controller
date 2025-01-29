@@ -23,7 +23,7 @@ if [ -z "$dockerbin" ]; then
     exit 0
 fi
 # XXX: SKIP TEST SINCE UNCLEAR AND DONT WORK WITH ISOLATED DOMAINS
-exit 0
+if [ "$s" = $0 ]; then exit 0; else return 0; fi
 
 # Default container name, postfixed with 1,2,..,<nr>
 : ${IMG:=clixon-example}
