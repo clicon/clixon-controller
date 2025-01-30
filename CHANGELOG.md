@@ -1,13 +1,14 @@
 # Clixon Controller Changelog
 
 ## 1.3.0
-Expected: January 2025
+30 January 2025
+
+The controller 1.3 release features device RPCs, device-groups, and show device state as well as cycle optimization.
 
 ### New features
 
-* New: [device-groups to be first level objects in cli](https://github.com/clicon/clixon-controller/issues/153)
-  * Connect using device-groups
-  * CLI calls: connection, show devices, pull, push
+* New: [device-groups to be first level objects](https://github.com/clicon/clixon-controller/issues/153)
+  * Use device-groups when connecting, pull, push and show
 * Optimization [Performance: commit takes long time with many devices](https://github.com/clicon/clixon-controller/issues/154)
   * Avoid copy in compare/diff
   * Optimized strip service at commit
