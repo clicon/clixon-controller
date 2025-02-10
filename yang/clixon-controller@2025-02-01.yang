@@ -32,8 +32,16 @@ module clixon-controller {
     import clixon-autocli {
         prefix autocli;
     }
+    import clixon-restconf {
+        prefix clrc; /* This pulls in top-level clrc:restconf */
+    }
     description
         "Clixon controller";
+    revision 2025-02-01 {
+        description
+            "Added restconf
+             Released in 1.4.0";
+    }
     revision 2024-11-01 {
         description
              "Added device-group and changed input parameter devname to device in RPC:s:
@@ -454,7 +462,7 @@ module clixon-controller {
                 type boolean;
                 default true;
             }
-       }
+        }
     }
     container services {
         description
@@ -669,7 +677,7 @@ module clixon-controller {
         description
             "A commit has been made that changes the services declaration and
              that triggers services script.
-             A check is made that only one such registration is active.";
+             NOTE: A check is made that only one such registration is active.";
         leaf tid {
             description "Transaction id that this commit is a part of";
             type uint64;

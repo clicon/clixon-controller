@@ -19,11 +19,19 @@ debug("Debugging parts of the system") {
 default("Set CLI default values") {
    format("Set default output format") <fmt:string choice:xml|json|text|cli>("CLI output format"), cli_format_set();
 }
-processes("Process maintenace") services("Service daemon operation") {
-    start, cli_process_control("Action process", "start");
-    stop, cli_process_control("Action process", "stop");
-    restart, cli_process_control("Action process", "restart");
-    status, cli_process_control("Action process", "status");
+processes("Process maintenace") {
+   services("Service daemon operation") {
+      start, cli_process_control("Action process", "start");
+      stop, cli_process_control("Action process", "stop");
+      restart, cli_process_control("Action process", "restart");
+      status, cli_process_control("Action process", "status");
+   }
+   restconf("RESTCONF daemon operations") {
+      start, cli_process_control("restconf", "start");
+      stop, cli_process_control("restconf", "stop");
+      restart, cli_process_control("restconf", "restart");
+      status, cli_process_control("restconf", "status");
+   }
 }
 show("Show a particular state of the system"){
     compare("Compare candidate and running databases"), compare_dbs_rpc("running", "candidate", "default");{

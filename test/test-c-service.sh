@@ -162,6 +162,7 @@ function check_services()
 </rpc>]]>]]>
 EOF
       )
+#    echo "ret:$ret"
     new "Check rpc-error"
     match=$(echo "$ret" | grep --null -Eo "<rpc-error>") || true
     if [ -n "$match" ]; then
