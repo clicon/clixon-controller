@@ -1,0 +1,35 @@
+/*
+ * Extension module for MACsec configuration, the secret key length is
+ * extended to 1024 characters.
+ */
+
+module controller-extensions-macsec {
+    namespace "http://clicon.org/ext/macsec";
+
+    prefix cl-ext;
+
+    import junos-conf-root {
+	prefix jc;
+    }
+
+    import junos-conf-security {
+    	prefix jcs;
+    }
+
+    revision 2024-01-01 {
+	description "Initial prototype";
+    }
+
+    deviation "/jc:configuration/jcs:security/jcs:authentication-key-chains/jcs:key-chain/jcs:name" {
+	deviate replace {
+	    type string;
+	}
+    }
+    deviation "/jc:configuration/jcs:security/jcs:authentication-key-chains/jcs:key-chain/jcs:key/jcs:secret" {
+	deviate replace {
+	    type string {
+		length "1 .. 1024";
+	    }
+	}
+    }
+}

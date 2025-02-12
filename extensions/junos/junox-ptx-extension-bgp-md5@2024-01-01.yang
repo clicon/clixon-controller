@@ -1,0 +1,30 @@
+/*
+ * Extension to BGP to ignore the authentication-key since it is
+ * re-written by JunOS and will not match the original configuration.
+ */
+ 
+module controller-extensions-bgp-md5 {
+    namespace "http://clicon.org/ext/bgp-md5";
+
+    prefix cl-ext;
+
+    import clixon-lib {
+        prefix cl;
+    }
+
+    import junos-conf-root {
+	prefix jc;
+    }
+
+    import junos-conf-protocols {
+	prefix jcp;
+    }
+
+    revision 2024-04-25 {
+	description "Initial prototype";
+    }
+
+    augment "/jc:configuration/jcp:protocols/jcp:bgp/jcp:group/jcp:neighbor/jcp:authentication-key" {
+	cl:ignore-compare;
+    }
+}
