@@ -1,0 +1,105 @@
+#
+# ***** BEGIN LICENSE BLOCK *****
+#
+# Copyright (C) 2025 Olof Hagsand
+#
+# This file is part of CLIXON
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+# ***** END LICENSE BLOCK *****
+#
+VPATH       	= @srcdir@
+srcdir  	= @srcdir@
+top_srcdir  	= @top_srcdir@
+prefix 		= @prefix@
+exec_prefix 	= @exec_prefix@
+bindir 		= @bindir@
+includedir	= @includedir@
+datarootdir     = @datarootdir@
+sysconfdir      = @sysconfdir@
+localstatedir   = @localstatedir@
+runstatedir     = @runstatedir@
+libdir          = @libdir@
+version         = @CONTROLLER_VERSION@
+
+APPNAME	        = controller
+
+CC		= @CC@
+CFLAGS  	= @CFLAGS@ -fPIC
+LDFLAGS 	= @LDFLAGS@
+INSTALLFLAGS  	= @INSTALLFLAGS@
+
+INCLUDES        = -I. -I@top_srcdir@/src @INCLUDES@
+CPPFLAGS  	= @CPPFLAGS@ -fPIC -DSSH_BIN=\"@SSH_BIN@\" -DCONTROLLER_VERSION=\"$(version)\"
+
+# Plugin has dependency, need better way
+# XXX Consider a lib instead
+EXTRA           = ../../src/controller_device*.o ../../src/controller_lib.o ../../src/controller_rpc.o ../../src/controller_transaction.o ../../src/controller_netconf.o ../../src/build.o
+
+CONTROLLER_VERSION = @CONTROLLER_VERSION@
+
+# Backend plugins
+# Add more with BE_SRC  +=
+BE_SRC    =
+BE_OBJ    = $(BE_SRC:%.c=%.o)
+BE_PLUGIN = $(BE_SRC:%.c=%.so)
+
+#$(BE_PLUGIN): $(BE_OBJ)
+#	$(CC) -Wall -shared $(LDFLAGS) -o $@ -lc $^ -lclixon -lclixon_backend
+
+OBJS    = $(BE_OBJ)
+PLUGINS = $(BE_PLUGIN)
+
+.SUFFIXES: .c .o
+
+# implicit rules
+%.be.so : %.be.o
+	$(CC) -Wall -shared $(LDFLAGS) -o $@ -lc $(EXTRA) $< -lclixon -lclixon_backend
+
+#.c.o:
+%.be.o : %.be.c
+	$(CC) $(INCLUDES) $(CPPFLAGS) $(CFLAGS) -c $<
+
+.PHONY: all clean depend install
+
+all: $(PLUGINS)
+
+DATELEN = $(shell date +"%Y.%m.%d %H:%M by `whoami` on `hostname`XXXX"|wc -c)
+build.c:
+	echo "/* This file is generated from the Controller Makefile */" > $@;
+	date +"const char CONTROLLER_BUILDSTR[$(DATELEN)]=\"%Y.%m.%d %H:%M by `whoami` on `hostname`"\"\; >> $@;
+
+clean:
+	rm -f $(BE_PLUGIN) $(BE_OBJ)
+	rm -f *.gcda *.gcno *.gcov # coverage
+
+distclean: clean
+	rm -f Makefile *~ .depend $(DESTDIR)$(libdir)/$(APPNAME)/backend/$(BE_PLUGIN)
+
+# Cant do install on specific .so
+install: $(BE_PLUGIN)
+	install -d -m 0755 $(DESTDIR)$(libdir)/$(APPNAME)
+	install -d -m 0755 $(DESTDIR)$(libdir)/$(APPNAME)/backend
+	install -m 0644 $(INSTALLFLAGS) $(BE_PLUGIN) $(DESTDIR)$(libdir)/$(APPNAME)/backend
+
+uninstall:
+	rm -f $(DESTDIR)$(sysconfdir)/clixon/$(APPNAME).xml
+	rm -rf $(DESTDIR)$(sysconfdir)/clixon/$(APPNAME)
+	rm -rf $(DESTDIR)$(libdir)/$(APPNAME)/backend/$(BE_PLUGIN)
+	rm -rf $(DESTDIR)$(localstatedir)/$(APPNAME)
+
+depend:
+	$(CC) $(DEPENDFLAGS) $(INCLUDES) $(CFLAGS) -MM $(SRC) > .depend
+
+#include .depend

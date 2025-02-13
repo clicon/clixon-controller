@@ -1,5 +1,12 @@
 # Clixon Controller Changelog
 
+## 1.4.0
+Expected: April 2025
+
+### New features
+
+* New plugin dir with ability to add device-specific plugins
+
 ## 1.3.0
 30 January 2025
 

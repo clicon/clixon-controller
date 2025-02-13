@@ -188,5 +188,7 @@ AC_CONFIG_FILES([Makefile
                  docker/Makefile
                  test/config.sh
                  doc/Makefile
+                 plugins/Makefile
+                 plugins/junos/Makefile
 ])
 AC_OUTPUT

@@ -262,15 +262,19 @@ int
 controller_commit(clixon_handle    h,
                   transaction_data td)
 {
-    int     retval = -1;
-    cxobj  *src;
-    cxobj  *target;
-    cvec   *nsc = NULL;
+    int        retval = -1;
+    cxobj     *src;
+    cxobj     *target;
+    yang_stmt *yspec;
+    cvec      *nsc = NULL;
 
     clixon_debug(CLIXON_DBG_CTRL, "");
     src = transaction_src(td);    /* existing XML tree */
     target = transaction_target(td); /* wanted XML tree */
-    if ((nsc = xml_nsctx_init(NULL, CONTROLLER_NAMESPACE)) == NULL)
+    yspec = clicon_dbspec_yang(h);
+    if (xml_nsctx_yangspec(yspec, &nsc) < 0)
+        goto done;
+    if (xml_nsctx_add(nsc, NULL, CONTROLLER_NAMESPACE) < 0)
         goto done;
     if (controller_commit_device(h, nsc, src, target) < 0)
         goto done;
@@ -605,9 +609,6 @@ static clixon_plugin_api api = {
     .ca_yang_mount   = controller_yang_mount,
     .ca_version      = controller_version,
     .ca_lockdb       = controller_lockdb,
-#ifdef CONTROLLER_JUNOS_ADD_COMMAND_FORWARDING
-    .ca_yang_patch   = controller_yang_patch_junos,
-#endif
 };
 
 clixon_plugin_api *
@@ -634,6 +635,8 @@ clixon_plugin_init(clixon_handle h)
     /* Register pyapi sub-process */
     if (action_daemon_register(h) < 0)
         goto done;
+    /* Reset dynamic device handle flag plugin allocation */
+    clicon_data_int_set(h, "controller-device-flags", 0);
     return &api;
  done:
     return NULL;

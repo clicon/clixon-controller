@@ -4894,7 +4894,7 @@ if test -n "${CLICON_GROUP}"; then
     echo "Using CLICON_GROUP here: ${CLICON_GROUP}"
 fi
 
-ac_config_files="$ac_config_files Makefile clixon-controller.service src/Makefile src/controller.xml yang/Makefile util/Makefile docker/Makefile test/config.sh doc/Makefile"
+ac_config_files="$ac_config_files Makefile clixon-controller.service src/Makefile src/controller.xml yang/Makefile util/Makefile docker/Makefile test/config.sh doc/Makefile plugins/Makefile plugins/junos/Makefile"
 
 cat >confcache <<\_ACEOF
 # This file is a shell script that caches the results of configure
@@ -5606,6 +5606,8 @@ do
     "docker/Makefile") CONFIG_FILES="$CONFIG_FILES docker/Makefile" ;;
     "test/config.sh") CONFIG_FILES="$CONFIG_FILES test/config.sh" ;;
     "doc/Makefile") CONFIG_FILES="$CONFIG_FILES doc/Makefile" ;;
+    "plugins/Makefile") CONFIG_FILES="$CONFIG_FILES plugins/Makefile" ;;
+    "plugins/junos/Makefile") CONFIG_FILES="$CONFIG_FILES plugins/junos/Makefile" ;;
 
   *) as_fn_error $? "invalid argument: \`$ac_config_target'" "$LINENO" 5;;
   esac

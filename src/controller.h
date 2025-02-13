@@ -50,14 +50,6 @@
  */
 #undef CONTROLLER_JUNOS_SKIP_METADATA
 
-/*! Add grouping command-forwarding in junos-rpc yangs if not exists
- *
- * cRPD YANGs do not have groupimg command-grouping in junos-rpc YANGs so that
- * uses command-grouping fails.
- * Insert an empty grouping command-forwarding if it does not exist
- */
-#undef CONTROLLER_JUNOS_ADD_COMMAND_FORWARDING
-
 /*! Top-symbol in clixon datastores
  *
  * Duplicate of constant in clixon_custom.h
