@@ -72,6 +72,7 @@ struct controller_device_handle{
     qelem_t            cdh_qelem;      /* List header */
     uint32_t           cdh_magic;      /* Magic number */
     char              *cdh_name;       /* Connection name */
+    uint32_t           cdh_flags;      /* General purpose flags */
     yang_config_t      cdh_yang_config; /* Yang config (shadow of config) */
     conn_state         cdh_conn_state; /* Connection state */
     struct timeval     cdh_conn_time;  /* Time when entering last connection state */
@@ -387,6 +388,45 @@ device_handle_disconnect(device_handle dh)
     return retval;
 }
 
+/*! Dynamically allocate new device handle flag as used in cd_flags
+ *
+ * Use global handle value "controller-device-flags" to keep track of allocated flags
+ * @param[in]  h    Clixon handle
+ * @param[out] flag Unallocated flag
+ * @retval     0    OK
+ * @retval    -1    Error
+ */
+int
+device_handle_allocate_flag(clixon_handle h,
+                            uint32_t     *flag)
+{
+    int      retval = -1;
+    uint32_t mask = 0x0;
+    int      i;
+    uint32_t u;
+
+    /* Register flags */
+    if ((i = clicon_data_int_get(h, "controller-device-flags")) < 0){
+        clixon_err(OE_PLUGIN, 0, "controller-device flags < 0");
+        goto done;
+    }
+    mask = i;
+    for (i=0; i<30; i++){
+        u = 0x01<<i;
+        if ((mask&u) == 0)
+            break;
+    }
+    if (i >= 30){
+        clixon_err(OE_PLUGIN, 0, "No remaining flag values %d", i);
+        goto done;
+    }
+    clicon_data_int_set(h, "controller-device-flags", mask|u);
+    *flag = u;
+    retval = 0;
+ done:
+    return retval;
+}
+
 /* Accessor functions ------------------------------
  */
 /*! Get name of connection, allocated at creation time
@@ -397,6 +437,50 @@ device_handle_name_get(device_handle dh)
     struct controller_device_handle *cdh = devhandle(dh);
 
     return cdh->cdh_name;
+}
+
+/*! Get device handle flags
+ *
+ * @param[in]  dh    device handle
+ * @retval     flag  Flag value(s), see DH_FLAG_*
+ */
+uint32_t
+device_handle_flag_get(device_handle dh,
+                       uint32_t      flag)
+{
+    struct controller_device_handle *cdh = devhandle(dh);
+
+    return cdh->cdh_flags&flag;
+}
+
+/*! Set device handle flags
+ *
+ * @param[in]  dh      device handle
+ * @param[in]  flag    Flag values to set, see DH_FLAG_*
+ */
+int
+device_handle_flag_set(device_handle dh,
+                       uint32_t      flag)
+{
+    struct controller_device_handle *cdh = devhandle(dh);
+
+    cdh->cdh_flags |= flag;
+    return 0;
+}
+
+/*! Reset xml node flags, used for internal algorithms
+ *
+ * @param[in]  dh      device handle
+ * @param[in]  flag    Flag value(s) to reset, see DH_FLAG_*
+ */
+int
+device_handle_flag_reset(device_handle dh,
+                         uint32_t      flag)
+{
+    struct controller_device_handle *cdh = devhandle(dh);
+
+    cdh->cdh_flags &= ~flag;
+    return 0;
 }
 
 /*! Get socket

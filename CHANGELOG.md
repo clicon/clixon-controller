@@ -5,7 +5,8 @@ Expected: April 2025
 
 ### New features
 
-* New plugin dir with ability to add device-specific plugins
+* Plugin dir with ability to add device-specific plugins
+* Device handle flags and dynamic mechanism to allocate flags
 
 ## 1.3.0
 30 January 2025

@@ -59,9 +59,13 @@ device_handle device_handle_each(clixon_handle h, device_handle dhprev);
 int    device_handle_connect(device_handle dh, clixon_client_type socktype,
                              const char *dest, const char *port, int stricthostkey);
 int    device_handle_disconnect(device_handle dh);
+int    device_handle_allocate_flag(clixon_handle h, uint32_t *flag);
 
 /* Accessor functions */
 char  *device_handle_name_get(device_handle dh);
+uint32_t device_handle_flag_get(device_handle dh, uint32_t flag);
+int    device_handle_flag_set(device_handle dh, uint32_t flag);
+int    device_handle_flag_reset(device_handle dh, uint32_t flag);
 int    device_handle_socket_get(device_handle dh);
 int    device_handle_sockerr_get(device_handle dh);
 uint64_t device_handle_msg_id_get(device_handle dh);
