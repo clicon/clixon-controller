@@ -51,7 +51,7 @@ CONTROLLER_VERSION = @CONTROLLER_VERSION@
 
 # Backend plugins
 # Add more with BE_SRC  +=
-BE_SRC    =
+BE_SRC    = controller_junos_native.be.c
 BE_OBJ    = $(BE_SRC:%.c=%.o)
 BE_PLUGIN = $(BE_SRC:%.c=%.so)
 

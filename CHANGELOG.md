@@ -6,6 +6,7 @@ Expected: April 2025
 ### New features
 
 * Plugin dir with ability to add device-specific plugins
+  * First junos-native plugin for non-rfc-compliant devices
 * Device handle flags and dynamic mechanism to allocate flags
 
 ## 1.3.0

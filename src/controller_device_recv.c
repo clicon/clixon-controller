@@ -231,6 +231,10 @@ device_recv_config(clixon_handle h,
         device_close_connection(dh, "No data in get reply");
         goto closed;
     }
+#ifdef CLIXON_PLUGIN_USERDEF
+    if (clixon_plugin_userdef_all(h, 0, xdata, dh) < 0)
+        goto done;
+#endif
     /* Move all xmlns declarations to <data> */
     if (xmlns_set_all(xdata, nsc) < 0)
         goto done;
@@ -270,7 +274,7 @@ device_recv_config(clixon_handle h,
             clixon_err(OE_UNIX, errno, "cbuf_new");
             goto done;
         }
-        cprintf(cberr, "YANG bind failed at mountpoint ");
+        cprintf(cberr, "Device %s in state %s, mismatch between XML and YANG when reading running config from device: ", name, device_state_int2str(conn_state));
         // xpath not prefix/namespace independent
         if (xerr && (x = xpath_first(xerr, NULL, "rpc-error/error-message")) != NULL){
             if (netconf_err2cb(h,

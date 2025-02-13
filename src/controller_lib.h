@@ -101,6 +101,13 @@ enum actions_type_t{
 };
 typedef enum actions_type_t actions_type;
 
+/*! Netconf recv/send type
+ */
+enum netconf_xmit_type_t{
+    CTRL_NX_RECV = 0,  /* Receive NETCONF message */
+    CTRL_NX_SEND,      /* Send NETCONF message */
+};
+
 /*
  * Prototypes
  */
