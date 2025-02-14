@@ -1200,6 +1200,49 @@ commit_push_after_actions(clixon_handle           h,
     return retval;
 }
 
+/*! Send NETCONF service-commit notification
+ *
+ * @param[in]  h     Clixon handle
+ * @param[in]  ct    Transaction
+ * @param[in]  cvv   Vector of services with changed configuration
+ * @param[in]  diff  Diff of the services configuration
+ * @retval     0     OK
+ * @retval    -1     Error
+ */
+static int
+services_commit_notify(clixon_handle           h,
+                       controller_transaction *ct,
+                       cvec                   *cvv,
+                       int                     diff)
+{
+    int     retval = -1;
+    cbuf   *cb = NULL;
+    cg_var *cv;
+
+    if ((cb = cbuf_new()) == NULL){
+        clixon_err(OE_UNIX, errno, "cbuf_new");
+        goto done;
+    }
+    cprintf(cb, "<services-commit xmlns=\"%s\">", CONTROLLER_NAMESPACE);
+    cprintf(cb, "<tid>%" PRIu64"</tid>", ct->ct_id);
+    cprintf(cb, "<source>actions</source>");
+    cprintf(cb, "<target>actions</target>");
+    if (diff)
+        cprintf(cb, "<diff>true</diff>");
+    cv = NULL;
+    while ((cv = cvec_each(cvv, cv)) != NULL){
+        cprintf(cb, "<service>");
+        xml_chardata_cbuf_append(cb, 0, cv_name_get(cv));
+        cprintf(cb, "</service>");
+    }
+    cprintf(cb, "</services-commit>");
+    if (stream_notify(h, "services-commit", "%s", cbuf_get(cb)) < 0)
+        goto done;
+    retval = 0;
+ done:
+    return retval;
+}
+
 /*! Compute diff of candidate + commit and trigger service-commit notify
  *
  * @param[in]  h         Clixon handle
@@ -1207,6 +1250,7 @@ commit_push_after_actions(clixon_handle           h,
  * @param[in]  actions   How to trigger service-commit notifications
  * @param[in]  td        Transaction data
  * @param[in]  service_instance Optional service instance if actions=FORCE
+ * @param[in]  diff      Diff of the services configuration
  * @retval     0         OK
  * @retval    -1         Error
  */
@@ -1220,10 +1264,8 @@ controller_commit_actions(clixon_handle           h,
                           )
 {
     int     retval = -1;
-    cbuf   *notifycb = NULL;
     cvec   *cvv = NULL;       /* Format: <service> <instance> */
     int     services = 0;
-    cg_var *cv = NULL;
 
     if ((cvv = cvec_new(0)) == NULL){
         clixon_err(OE_UNIX, errno, "cvec_new");
@@ -1250,29 +1292,10 @@ controller_commit_actions(clixon_handle           h,
            either service changes or forced,
            THEN notify services
         */
-        if ((notifycb = cbuf_new()) == NULL){
-            clixon_err(OE_UNIX, errno, "cbuf_new");
+        if (services_commit_notify(h, ct, cvv, diff) < 0)
             goto done;
-        }
-        cprintf(notifycb, "<services-commit xmlns=\"%s\">", CONTROLLER_NAMESPACE);
-        cprintf(notifycb, "<tid>%" PRIu64"</tid>", ct->ct_id);
-        cprintf(notifycb, "<source>actions</source>");
-        cprintf(notifycb, "<target>actions</target>");
-
-	if (diff)
-	    cprintf(notifycb, "<diff>true</diff>");
-
-        while ((cv = cvec_each(cvv, cv)) != NULL){
-            cprintf(notifycb, "<service>");
-            xml_chardata_cbuf_append(notifycb, 0, cv_name_get(cv));
-            cprintf(notifycb, "</service>");
-        }
-        cprintf(notifycb, "</services-commit>");
         /* Strip service data in device config for services that changed */
         if (strip_service_data_from_device_config(h, "actions", cvv) < 0)
-            goto done;
-        clixon_debug(CLIXON_DBG_CTRL, "stream_notify: services-commit: %" PRIu64, ct->ct_id);
-        if (stream_notify(h, "services-commit", "%s", cbuf_get(notifycb)) < 0)
             goto done;
         controller_transaction_state_set(ct, TS_ACTIONS, -1);
         if (actions_timeout_register(ct) < 0)
@@ -1286,8 +1309,6 @@ controller_commit_actions(clixon_handle           h,
  done:
     if (cvv)
         cvec_free(cvv);
-    if (notifycb)
-        cbuf_free(notifycb);
     return retval;
 }
 

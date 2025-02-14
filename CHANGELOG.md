@@ -5,6 +5,7 @@ Expected: April 2025
 
 ### New features
 
+* Check if part of client-rpc, if so send notifications asynchronously
 * Plugin dir with ability to add device-specific plugins
   * First junos-native plugin for non-rfc-compliant devices
 * Device handle flags and dynamic mechanism to allocate flags

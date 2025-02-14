@@ -261,6 +261,37 @@ transaction_devdata_add(clixon_handle           h,
     goto done;
 }
 
+/*! Grouping of handle and NETCONF notification message to use in event callback
+ */
+struct notify_async {
+    clixon_handle na_h;
+    cbuf         *na_cb;
+};
+
+/*! Send notification asnynchrously
+ *
+ * @param[in]  fd   Dummy
+ * @param[in]  arg  Cast to notify_async that holds handle netconf cbuf that needs freeing
+ */
+static int
+transaction_notify_async(int   fd,
+                         void *arg)
+{
+    int                  retval = -1;
+    struct notify_async *na = (struct notify_async *)arg;
+
+    if (stream_notify(na->na_h, "controller-transaction", "%s", cbuf_get(na->na_cb)) < 0)
+        goto done;
+    retval = 0;
+ done:
+    if (na){
+        if (na->na_cb)
+            cbuf_free(na->na_cb);
+        free(na);
+    }
+    return retval;
+}
+
 /*! A transaction has been completed
  *
  * @param[in]  h      Clixon handle
@@ -268,13 +299,16 @@ transaction_devdata_add(clixon_handle           h,
  * @param[in]  result 0:error, 1:success
  * @retval     0      OK
  * @retval    -1      Error
+ * @note  Extra logic to spawn notification message asynchronously
  */
 int
 controller_transaction_notify(clixon_handle           h,
                               controller_transaction *ct)
 {
-    int   retval = -1;
-    cbuf *cb = NULL;
+    int                  retval = -1;
+    cbuf                *cb = NULL;
+    struct timeval       t;
+    struct notify_async *na = NULL;
 
     clixon_debug(CLIXON_DBG_CTRL, "%" PRIu64, ct->ct_id);
     if (ct->ct_state == TS_INIT){
@@ -304,7 +338,19 @@ controller_transaction_notify(clixon_handle           h,
         cprintf(cb, "</devices>");
     }
     cprintf(cb, "</controller-transaction>");
-    if (stream_notify(h, "controller-transaction", "%s", cbuf_get(cb)) < 0)
+    /* This is set in from-client rpc call, which means it is synchronous */
+    if (clicon_data_int_get(h, "clixon-client-rpc") == 1){
+        gettimeofday(&t, NULL);
+        if ((na = malloc(sizeof(*na))) == NULL){
+            clixon_err(OE_UNIX, errno, "malloc");
+            goto done;
+        }
+        na->na_h = h;
+        na->na_cb = cb;
+        clixon_event_reg_timeout(t, transaction_notify_async, na, "transaction-notify");
+        cb = NULL;
+    }
+    else if (stream_notify(h, "controller-transaction", "%s", cbuf_get(cb)) < 0)
         goto done;
     retval = 0;
  done:
