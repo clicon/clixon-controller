@@ -189,6 +189,6 @@ AC_CONFIG_FILES([Makefile
                  test/config.sh
                  doc/Makefile
                  plugins/Makefile
-                 plugins/junos/Makefile
+                 plugins/junos-native/Makefile
 ])
 AC_OUTPUT
