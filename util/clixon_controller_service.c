@@ -93,6 +93,14 @@ send_transaction_actions_done(clixon_handle h,
     return retval;
 }
 
+/*! Send transaction error (simulated)
+ *
+ * @param[in]  h      Clixon handle
+ * @param[in]  tidstr Transaction id
+ * @param[in]  reason Reason for error
+ * @retval     0      OK
+ * @retval    -1      Error
+ */
 static int
 send_transaction_error(clixon_handle h,
                        char         *tidstr,
@@ -103,7 +111,8 @@ send_transaction_error(clixon_handle h,
     struct clicon_msg *msg = NULL;
     cxobj             *xt = NULL;
 
-   /* Write and mark an interface for each param in the service */
+    clixon_debug(CLIXON_DBG_CTRL, "%s", reason);
+    /* Write and mark an interface for each param in the service */
     if ((cb = cbuf_new()) == NULL){
         clixon_err(OE_XML, errno, "cbuf_new");
         goto done;
@@ -117,7 +126,7 @@ send_transaction_error(clixon_handle h,
     cprintf(cb, "<transaction-error xmlns=\"%s\">",
             CONTROLLER_NAMESPACE);
     cprintf(cb, "<tid>%s</tid>", tidstr);
-    cprintf(cb, "<origin>service action</origin>");
+    cprintf(cb, "<origin>c-service</origin>");
     cprintf(cb, "<reason>%s</reason>", reason);
     cprintf(cb, "</transaction-error>");
     cprintf(cb, "</rpc>");

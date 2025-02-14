@@ -765,7 +765,6 @@ if [ -n "$match" ]; then
     err "Bx is removed in $NAME" "$ret"
 fi
 
-
 # Edit service, pull, check service still in candidate,
 # see https://github.com/clicon/clixon-controller/issues/82
 new "edit testC"

@@ -153,11 +153,9 @@ def setup(root, log, **kwargs):
                     device.config.system.aaa.authentication.create("users")
                 device.config.system.aaa.authentication.users.add(new_user)
 
-
 if __name__ == "__main__":
     setup()
 EOF
-
 
 # XXX enable=false, NACM dont work with pyapi
 RULES=$(cat <<EOF

@@ -234,8 +234,8 @@ if [ -n "$match" ]; then
     err "<ok/>" "$ret"
 fi
 
-new "commit"
-expectpart "$(${clixon_cli} -m configure -1f $CFG -E $CFD commit 2>&1)" 0 "simulated error"
+new "commit 1"
+expectpart "$(${clixon_cli} -m configure -1f $CFG -E $CFD commit 2>&1)" 0 "Transaction [0-9]* failed" "in c-service: simulated error"
 
 new "commit diff" # not locked
 expectpart "$(${clixon_cli} -m configure -1f $CFG -E $CFD commit diff 2>&1)" 0 "simulated error"
@@ -323,7 +323,7 @@ if [ -n "$match" ]; then
 fi
 
 # A0y is duplicated
-new "commit"
+new "commit 2"
 # Issue 161
 expectpart "$(${clixon_cli} -m configure -1f $CFG -E $CFD commit 2>&1)" 0 "" --not-- "operation-failed"
 

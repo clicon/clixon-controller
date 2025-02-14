@@ -447,6 +447,7 @@ transaction_notification_handler(clixon_handle       h,
     cxobj             *xt = NULL;
     cxobj             *xn;
     char              *tidstr;
+    char              *origin = NULL;
     char              *reason = NULL;
     char              *resstr;
     transaction_result result;
@@ -481,6 +482,7 @@ transaction_notification_handler(clixon_handle       h,
     xn = NULL;
     for (i=0; i<veclen; i++){
         xn = vec[i];
+        origin = xml_find_body(xn, "origin");
         reason = xml_find_body(xn, "reason");
         if ((tidstr = xml_find_body(xn, "tid")) == NULL){
             clixon_err(OE_NETCONF, EFAULT, "Notification malformed: no tid");
@@ -497,10 +499,10 @@ transaction_notification_handler(clixon_handle       h,
         }
         if ((result = transaction_result_str2int(resstr)) != TR_SUCCESS){
             if((clixon_logflags_get() | CLIXON_LOG_STDERR) == 0x0)
-                cligen_output(stderr, "%s: pid: %u Transaction %s failed: %s\n",
-                              __FUNCTION__, getpid(), tidstr, reason?reason:"no reason");
-            clixon_log(h, LOG_NOTICE, "%s: pid: %u Transaction %s failed: %s",
-                       __FUNCTION__, getpid(), tidstr, reason?reason:"no reason");
+                cligen_output(stderr, "%s: pid: %u Transaction %s failed in %s: %s\n",
+                              __FUNCTION__, getpid(), tidstr, origin?origin:"unknown", reason?reason:"no reason");
+            clixon_log(h, LOG_NOTICE, "%s: pid: %u Transaction %s failed in %s: %s",
+                       __FUNCTION__, getpid(), tidstr, origin?origin:"unknown", reason?reason:"no reason");
         }
         if ((xdevdata = xml_find_type(xn, NULL, "devices", CX_ELMNT)) != NULL){
             if (clixon_xml2file(stdout, xdevdata, 0, 1, NULL, cligen_output, 1, 0) < 0)
