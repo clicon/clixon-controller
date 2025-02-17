@@ -66,9 +66,8 @@ docker:
 	(cd docker; $(MAKE) $(MFLAGS) $@)
 	echo "make push to push images to dockerhub"
 
-plugins:
-	(cd plugins; $(MAKE) $(MFLAGS) $@)
-	echo "Install plugins manually"
+extensions:
+	(cd extensions; $(MAKE) $(MFLAGS) $@)
 
 doc:
 	cd $@; $(MAKE) $(MFLAGS) $@
