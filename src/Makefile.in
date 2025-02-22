@@ -78,8 +78,16 @@ CLI_OBJ         = $(CLI_SRC:%.c=%.o)
 $(CLI_PLUGIN): $(CLI_OBJ) $(GENOBJS)
 	$(CC) -Wall -shared $(LDFLAGS) -o $@ -lc $^ -lclixon -lclixon_cli
 
-OBJS    = $(BE_OBJ) $(CLI_OBJ)
-PLUGINS = $(BE_PLUGIN) $(CLI_PLUGIN)
+RESTCONF_PLUGIN = $(APPNAME)_restconf.so
+RESTCONF_SRC    = $(APPNAME)_restconf.c
+RESTCONF_SRC   += controller_lib.c
+RESTCONF_OBJ    = $(RESTCONF_SRC:%.c=%.o)
+
+$(RESTCONF_PLUGIN): $(RESTCONF_OBJ) $(GENOBJS)
+	$(CC) -Wall -shared $(LDFLAGS) -o $@ -lc $^ -lclixon -lclixon_restconf
+
+OBJS    = $(BE_OBJ) $(CLI_OBJ) $(RESTCONF_OBJ)
+PLUGINS = $(BE_PLUGIN) $(CLI_PLUGIN) $(RESTCONF_PLUGIN)
 
 .SUFFIXES: .c .o
 
@@ -121,12 +129,14 @@ install: $(CLISPECS) $(PLUGINS) $(APPNAME).xml autocli.xml
 	install -d -m 0755 $(DESTDIR)$(libdir)/$(APPNAME)/clispec
 	install -d -m 0755 $(DESTDIR)$(libdir)/$(APPNAME)/backend
 	install -d -m 0755 $(DESTDIR)$(libdir)/$(APPNAME)/cli
+	install -d -m 0755 $(DESTDIR)$(libdir)/$(APPNAME)/restconf
 	install -m 0644 $(CLISPECS) $(DESTDIR)$(libdir)/$(APPNAME)/clispec
 	install -d -m 0755 $(DESTDIR)$(localstatedir)
 	install -d -m 0755 $(DESTDIR)$(localstatedir)/$(APPNAME)
 	install -d -m 0755 $(DESTDIR)$(localstatedir)/$(APPNAME)/pipe
 	install -m 0644 $(INSTALLFLAGS) $(BE_PLUGIN) $(DESTDIR)$(libdir)/$(APPNAME)/backend
 	install -m 0644 $(INSTALLFLAGS) $(CLI_PLUGIN) $(DESTDIR)$(libdir)/$(APPNAME)/cli
+	install -m 0644 $(INSTALLFLAGS) $(RESTCONF_PLUGIN) $(DESTDIR)$(libdir)/$(APPNAME)/restconf
 	install -d -m 0775 -o @CLICON_USER@ -g @CLICON_GROUP@ $(DESTDIR)$(runstatedir)/controller
 	install -d -m 0755 $(DESTDIR)$(datarootdir)/$(APPNAME)/pipe
 
