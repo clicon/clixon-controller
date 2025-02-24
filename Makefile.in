@@ -45,7 +45,7 @@ SHELL		= /bin/sh
 SUBDIRS  = src
 SUBDIRS += yang
 SUBDIRS += util
-SUBDIRS += extensions
+#SUBDIRS += extensions
 #SUBDIRS += docker
 
 .PHONY:	all clean $(SUBDIRS) test install uninstall docker push TAGS .config.status doc extensions

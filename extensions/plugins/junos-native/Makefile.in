@@ -22,6 +22,7 @@
 VPATH       	= @srcdir@
 srcdir  	= @srcdir@
 top_srcdir  	= @top_srcdir@
+top_builddir    = @top_builddir@
 prefix 		= @prefix@
 exec_prefix 	= @exec_prefix@
 bindir 		= @bindir@
@@ -40,12 +41,12 @@ CFLAGS  	= @CFLAGS@ -fPIC
 LDFLAGS 	= @LDFLAGS@
 INSTALLFLAGS  	= @INSTALLFLAGS@
 
-INCLUDES        = -I. -I@top_srcdir@/src @INCLUDES@
+INCLUDES        = -I. -I$(top_srcdir)/src @INCLUDES@
 CPPFLAGS  	= @CPPFLAGS@ -fPIC -DSSH_BIN=\"@SSH_BIN@\" -DCONTROLLER_VERSION=\"$(version)\"
 
 # Plugin has dependency, need better way
 # XXX Consider a lib instead
-EXTRA           = ../../../src/controller_device*.o ../../../src/controller_lib.o ../../../src/controller_rpc.o ../../../src/controller_transaction.o ../../../src/controller_netconf.o ../../../src/build.o
+EXTRA           = $(top_builddir)/src/controller_device*.o $(top_builddir)/src/controller_lib.o $(top_builddir)/src/controller_rpc.o $(top_builddir)/src/controller_transaction.o $(top_builddir)/src/controller_netconf.o $(top_builddir)/src/build.o
 
 CONTROLLER_VERSION = @CONTROLLER_VERSION@
 
