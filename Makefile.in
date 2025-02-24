@@ -45,10 +45,10 @@ SHELL		= /bin/sh
 SUBDIRS  = src
 SUBDIRS += yang
 SUBDIRS += util
-#SUBDIRS += plugins
+SUBDIRS += extensions
 #SUBDIRS += docker
 
-.PHONY:	all clean $(SUBDIRS) test install uninstall docker push TAGS .config.status doc
+.PHONY:	all clean $(SUBDIRS) test install uninstall docker push TAGS .config.status doc extensions
 
 all:	$(SUBDIRS)
 
@@ -67,9 +67,8 @@ docker:
 	(cd docker; $(MAKE) $(MFLAGS) $@)
 	echo "make push to push images to dockerhub"
 
-plugins:
-	(cd plugins; $(MAKE) $(MFLAGS) $@)
-	echo "Install plugins manually"
+extensions:
+	(cd extensions; $(MAKE) $(MFLAGS))
 
 doc:
 	cd $@; $(MAKE) $(MFLAGS) $@

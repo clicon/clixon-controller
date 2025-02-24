@@ -45,7 +45,7 @@ CPPFLAGS  	= @CPPFLAGS@ -fPIC -DSSH_BIN=\"@SSH_BIN@\" -DCONTROLLER_VERSION=\"$(v
 
 # Plugin has dependency, need better way
 # XXX Consider a lib instead
-EXTRA           = ../../src/controller_device*.o ../../src/controller_lib.o ../../src/controller_rpc.o ../../src/controller_transaction.o ../../src/controller_netconf.o ../../src/build.o
+EXTRA           = ../../../src/controller_device*.o ../../../src/controller_lib.o ../../../src/controller_rpc.o ../../../src/controller_transaction.o ../../../src/controller_netconf.o ../../../src/build.o
 
 CONTROLLER_VERSION = @CONTROLLER_VERSION@
 
