@@ -83,6 +83,7 @@ AC_SUBST(LOCALSTATEDIR)
 AC_SUBST(RUNSTATEDIR)
 AC_SUBST(SBINDIR)
 AC_SUBST(SYSCONFDIR)
+AC_SUBST(HAVE_SYSTEMD,false)
 
 #
 AC_PROG_CC()
@@ -194,7 +195,10 @@ AS_IF([test "x$with_systemdsystemunitdir" = "xyes" -o "x$with_systemdsystemunitd
    [with_systemdsystemunitdir="$def_systemdsystemunitdir"])])
 AS_IF([test "x$with_systemdsystemunitdir" != "xno"],
       [AC_SUBST([systemdsystemunitdir], [$with_systemdsystemunitdir])])
-AM_CONDITIONAL([HAVE_SYSTEMD], [test "x$with_systemdsystemunitdir" != "xno"])
+if test "x$with_systemdsystemunitdir" != "xno" ; then
+      AC_DEFINE(HAVE_SYSTEMD, true)
+      HAVE_SYSTEMD=true
+fi
 
 AC_CONFIG_FILES([Makefile
                  clixon-controller.service

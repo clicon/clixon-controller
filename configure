@@ -646,16 +646,12 @@ ac_includes_default="\
 ac_header_c_list=
 ac_subst_vars='LTLIBOBJS
 LIBOBJS
-HAVE_SYSTEMD_FALSE
-HAVE_SYSTEMD_TRUE
 systemdsystemunitdir
-PKG_CONFIG_LIBDIR
-PKG_CONFIG_PATH
-PKG_CONFIG
 CLICON_GROUP
 CLICON_USER
 SSH_BIN
 CPP
+HAVE_SYSTEMD
 SYSCONFDIR
 SBINDIR
 RUNSTATEDIR
@@ -752,10 +748,7 @@ CFLAGS
 LDFLAGS
 LIBS
 CPPFLAGS
-CPP
-PKG_CONFIG
-PKG_CONFIG_PATH
-PKG_CONFIG_LIBDIR'
+CPP'
 
 
 # Initialize some variables set by options.
@@ -1402,11 +1395,6 @@ Some influential environment variables:
   CPPFLAGS    (Objective) C/C++ preprocessor flags, e.g. -I<include dir> if
               you have headers in a nonstandard directory <include dir>
   CPP         C preprocessor
-  PKG_CONFIG  path to pkg-config utility
-  PKG_CONFIG_PATH
-              directories to add to pkg-config's search path
-  PKG_CONFIG_LIBDIR
-              path overriding pkg-config's built-in search path
 
 Use these variables to override the choices made by `configure' or to help
 it to find libraries and programs with nonstandard names/locations.
@@ -3730,6 +3718,8 @@ test -z "$INSTALL_DATA" && INSTALL_DATA='${INSTALL} -m 644'
 
 
 
+HAVE_SYSTEMD=false
+
 
 #
 ac_ext=c
@@ -4911,139 +4901,8 @@ if test -n "${CLICON_GROUP}"; then
     echo "Using CLICON_GROUP here: ${CLICON_GROUP}"
 fi
 
-ac_config_files="$ac_config_files Makefile clixon-controller.service src/Makefile src/controller.xml yang/Makefile util/Makefile docker/Makefile test/config.sh doc/Makefile extensions/Makefile extensions/plugins/Makefile extensions/plugins/junos-native/Makefile extensions/yang/Makefile extensions/yang/junos-bgp/Makefile extensions/yang/junos-macsec/Makefile extensions/yang/junos-users/Makefile"
-
 # handle systemd service
-
-
-
-
-
-
-
-if test "x$ac_cv_env_PKG_CONFIG_set" != "xset"; then
-	if test -n "$ac_tool_prefix"; then
-  # Extract the first word of "${ac_tool_prefix}pkg-config", so it can be a program name with args.
-set dummy ${ac_tool_prefix}pkg-config; ac_word=$2
-{ printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking for $ac_word" >&5
-printf %s "checking for $ac_word... " >&6; }
-if test ${ac_cv_path_PKG_CONFIG+y}
-then :
-  printf %s "(cached) " >&6
-else $as_nop
-  case $PKG_CONFIG in
-  [\\/]* | ?:[\\/]*)
-  ac_cv_path_PKG_CONFIG="$PKG_CONFIG" # Let the user override the test with a path.
-  ;;
-  *)
-  as_save_IFS=$IFS; IFS=$PATH_SEPARATOR
-for as_dir in $PATH
-do
-  IFS=$as_save_IFS
-  case $as_dir in #(((
-    '') as_dir=./ ;;
-    */) ;;
-    *) as_dir=$as_dir/ ;;
-  esac
-    for ac_exec_ext in '' $ac_executable_extensions; do
-  if as_fn_executable_p "$as_dir$ac_word$ac_exec_ext"; then
-    ac_cv_path_PKG_CONFIG="$as_dir$ac_word$ac_exec_ext"
-    printf "%s\n" "$as_me:${as_lineno-$LINENO}: found $as_dir$ac_word$ac_exec_ext" >&5
-    break 2
-  fi
-done
-  done
-IFS=$as_save_IFS
-
-  ;;
-esac
-fi
-PKG_CONFIG=$ac_cv_path_PKG_CONFIG
-if test -n "$PKG_CONFIG"; then
-  { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: $PKG_CONFIG" >&5
-printf "%s\n" "$PKG_CONFIG" >&6; }
-else
-  { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: no" >&5
-printf "%s\n" "no" >&6; }
-fi
-
-
-fi
-if test -z "$ac_cv_path_PKG_CONFIG"; then
-  ac_pt_PKG_CONFIG=$PKG_CONFIG
-  # Extract the first word of "pkg-config", so it can be a program name with args.
-set dummy pkg-config; ac_word=$2
-{ printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking for $ac_word" >&5
-printf %s "checking for $ac_word... " >&6; }
-if test ${ac_cv_path_ac_pt_PKG_CONFIG+y}
-then :
-  printf %s "(cached) " >&6
-else $as_nop
-  case $ac_pt_PKG_CONFIG in
-  [\\/]* | ?:[\\/]*)
-  ac_cv_path_ac_pt_PKG_CONFIG="$ac_pt_PKG_CONFIG" # Let the user override the test with a path.
-  ;;
-  *)
-  as_save_IFS=$IFS; IFS=$PATH_SEPARATOR
-for as_dir in $PATH
-do
-  IFS=$as_save_IFS
-  case $as_dir in #(((
-    '') as_dir=./ ;;
-    */) ;;
-    *) as_dir=$as_dir/ ;;
-  esac
-    for ac_exec_ext in '' $ac_executable_extensions; do
-  if as_fn_executable_p "$as_dir$ac_word$ac_exec_ext"; then
-    ac_cv_path_ac_pt_PKG_CONFIG="$as_dir$ac_word$ac_exec_ext"
-    printf "%s\n" "$as_me:${as_lineno-$LINENO}: found $as_dir$ac_word$ac_exec_ext" >&5
-    break 2
-  fi
-done
-  done
-IFS=$as_save_IFS
-
-  ;;
-esac
-fi
-ac_pt_PKG_CONFIG=$ac_cv_path_ac_pt_PKG_CONFIG
-if test -n "$ac_pt_PKG_CONFIG"; then
-  { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: $ac_pt_PKG_CONFIG" >&5
-printf "%s\n" "$ac_pt_PKG_CONFIG" >&6; }
-else
-  { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: no" >&5
-printf "%s\n" "no" >&6; }
-fi
-
-  if test "x$ac_pt_PKG_CONFIG" = x; then
-    PKG_CONFIG=""
-  else
-    case $cross_compiling:$ac_tool_warned in
-yes:)
-{ printf "%s\n" "$as_me:${as_lineno-$LINENO}: WARNING: using cross tools not prefixed with host triplet" >&5
-printf "%s\n" "$as_me: WARNING: using cross tools not prefixed with host triplet" >&2;}
-ac_tool_warned=yes ;;
-esac
-    PKG_CONFIG=$ac_pt_PKG_CONFIG
-  fi
-else
-  PKG_CONFIG="$ac_cv_path_PKG_CONFIG"
-fi
-
-fi
-if test -n "$PKG_CONFIG"; then
-	_pkg_min_version=0.9.0
-	{ printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking pkg-config is at least version $_pkg_min_version" >&5
-printf %s "checking pkg-config is at least version $_pkg_min_version... " >&6; }
-	if $PKG_CONFIG --atleast-pkgconfig-version $_pkg_min_version; then
-		{ printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: yes" >&5
-printf "%s\n" "yes" >&6; }
-	else
-		{ printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: no" >&5
-printf "%s\n" "no" >&6; }
-		PKG_CONFIG=""
-	fi
-fi
+PKG_PROG_PKG_CONFIG()
 
 # Check whether --with-systemdsystemunitdir was given.
 if test ${with_systemdsystemunitdir+y}
@@ -5074,14 +4933,13 @@ then :
   systemdsystemunitdir=$with_systemdsystemunitdir
 
 fi
- if test "x$with_systemdsystemunitdir" != "xno"; then
-  HAVE_SYSTEMD_TRUE=
-  HAVE_SYSTEMD_FALSE='#'
-else
-  HAVE_SYSTEMD_TRUE='#'
-  HAVE_SYSTEMD_FALSE=
+if test "x$with_systemdsystemunitdir" != "xno" ; then
+      printf "%s\n" "#define HAVE_SYSTEMD true" >>confdefs.h
+
+      HAVE_SYSTEMD=true
 fi
 
+ac_config_files="$ac_config_files Makefile clixon-controller.service src/Makefile src/controller.xml yang/Makefile util/Makefile docker/Makefile test/config.sh doc/Makefile extensions/Makefile extensions/plugins/Makefile extensions/plugins/junos-native/Makefile extensions/yang/Makefile extensions/yang/junos-bgp/Makefile extensions/yang/junos-macsec/Makefile extensions/yang/junos-users/Makefile"
 
 cat >confcache <<\_ACEOF
 # This file is a shell script that caches the results of configure
@@ -5228,10 +5086,6 @@ LIBOBJS=$ac_libobjs
 LTLIBOBJS=$ac_ltlibobjs
 
 
-if test -z "${HAVE_SYSTEMD_TRUE}" && test -z "${HAVE_SYSTEMD_FALSE}"; then
-  as_fn_error $? "conditional \"HAVE_SYSTEMD\" was never defined.
-Usually this means the macro was only invoked conditionally." "$LINENO" 5
-fi
 
 : "${CONFIG_STATUS=./config.status}"
 ac_write_fail=0
