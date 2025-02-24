@@ -27,6 +27,7 @@ includedir	= @includedir@
 datadir 	= @datarootdir@
 localstatedir	= @localstatedir@
 sysconfdir	= @sysconfdir@
+systemdsystemunitdir	= @systemdsystemunitdir@
 
 VPATH       	= @srcdir@
 srcdir  	= @srcdir@
@@ -96,7 +97,8 @@ distclean:
 	do (cd $$i && $(MAKE) $(MFLAGS) $@); done
 
 systemd:
-	${INSTALL} clixon-controller.service /usr/lib/systemd/system/
+	mkdir -p $(DESTDIR)$(systemdsystemunitdir)
+	${INSTALL} clixon-controller.service $(DESTDIR)$(systemdsystemunitdir)
 	@echo "systemd service installed, run systemctl enable clixon-controller.service to enable it"
 
 TAGS:

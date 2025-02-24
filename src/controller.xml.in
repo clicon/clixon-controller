@@ -27,6 +27,8 @@
   <!-- Cannot use drop because XMLDB_MULTI creates new files -->
   <CLICON_BACKEND_PRIVILEGES>none</CLICON_BACKEND_PRIVILEGES>
   <CLICON_BACKEND_PIDFILE>@RUNSTATEDIR@/controller/controller.pid</CLICON_BACKEND_PIDFILE>
+  <!-- Start restconf daemon from backend -->
+  <CLICON_BACKEND_RESTCONF_PROCESS>true</CLICON_BACKEND_RESTCONF_PROCESS>
   <!-- Disable duplicate check in NETCONF messages. Temporary pyapi issue-->
   <CLICON_NETCONF_DUPLICATE_ALLOW>true</CLICON_NETCONF_DUPLICATE_ALLOW>
   <!-- RESTCONF -->

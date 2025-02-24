@@ -43,3 +43,21 @@ SBINDIR=@SBINDIR@
 
 CLICON_USER=@CLICON_USER@
 CLICON_GROUP=@CLICON_GROUP@
+
+# This is for RESTCONF.  There are three options:
+# --without-restconf     No restconf support
+# --with-restconf=fcgi   FCGI interface for separate web reverse proxy like nginx
+# --with-restconf=native Integration with embedded web server
+WITH_RESTCONF=native # native, fcgi or ""
+
+# HTTP/2?
+# If set, curl options are set to use --http2 which may not be what you want, ie
+# you may want to force it to http/1 for example
+# If so, override before test
+HAVE_LIBNGHTTP2=true
+HAVE_HTTP1=true
+
+# Length of TSL RSA key
+# Problem with small key such as 1024 not allowed in centos8 for example (why is this)
+# Problem with long keys are they take time to generate, eg on ARM
+CERTKEYLEN=2048

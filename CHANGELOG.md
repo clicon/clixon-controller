@@ -9,6 +9,8 @@ Expected: April 2025
 * Plugin dir with ability to add device-specific plugins
   * First junos-native plugin for non-rfc-compliant devices
 * Device handle flags and dynamic mechanism to allocate flags
+* Controller RESTCONF support
+  * See: [Controller RESTCONF access not properly tested and documented](https://github.com/clicon/clixon-controller/issues/167)
 
 ## 1.3.0
 30 January 2025
