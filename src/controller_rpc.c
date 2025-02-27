@@ -3389,20 +3389,28 @@ creator_applyfn(cxobj *x,
                 clixon_err(OE_UNIX, errno, "strdup");
                 goto done;
             }
-            if ((p = index(creator1, '[')) == NULL)
-                goto ok;
+            if ((p = index(creator1, '[')) == NULL){
+                clixon_err(OE_YANG, 0, "Creator attribute, no instance: [] in %s", creator);
+                goto done;
+            }
             *p++ = '\0';
-            if ((p = index(p, '=')) == NULL)
-                goto ok;
+            if ((p = index(p, '=')) == NULL){
+                clixon_err(OE_YANG, 0, "Creator attribute, no instance = in %s", creator);
+                goto done;
+            }
             p++;
             q = *p++; /* assume quote */
             instance = p;
-            if ((p = index(p, q)) == NULL)
-                goto ok;
+            if ((p = index(p, q)) == NULL){
+                clixon_err(OE_YANG, 0, "Creator attribute, no quote in %s", creator);
+                goto done;
+            }
             *p = '\0';
             yserv = xml_spec(xserv);
-            if ((yi = yang_find(yserv, Y_LIST, creator1)) == NULL)
-                goto ok;
+            if ((yi = yang_find(yserv, Y_LIST, creator1)) == NULL){
+                clixon_err(OE_YANG, 0, "Invalid creator service name in %s", creator);
+                goto done;
+            }
             if ((cvk = yang_cvec_get(yi)) == NULL)
                 goto ok;
             if ((key = cvec_i_str(cvk, 0)) == NULL)
@@ -3505,6 +3513,11 @@ controller_edit_config(clixon_handle h,
         goto ok;
     if ((ret = xml_apply(xc, CX_ELMNT, creator_applyfn, xserv)) < 0)
         goto done;
+    if (ret == 1){
+        if (netconf_operation_failed(cbret, "application", "Translation for creator attributes to created tag")< 0)
+            goto done;
+        goto ok;
+    }
     if (xml_child_nr_type(xserv, CX_ELMNT) == 0)
         goto ok;
     clixon_debug_xml(CLIXON_DBG_CTRL, xserv, "Objects created in %s-db", target);
