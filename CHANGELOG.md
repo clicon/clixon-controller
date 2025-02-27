@@ -12,6 +12,12 @@ Expected: April 2025
 * Controller RESTCONF support
   * See: [Controller RESTCONF access not properly tested and documented](https://github.com/clicon/clixon-controller/issues/167)
 
+### API changes on existing protocol/config features
+
+* New `clixon-controller-config@2025-02-01.yang` revision
+  * Added restconf
+  * Added common fields to transaction state and notification
+
 ## 1.3.0
 30 January 2025
 

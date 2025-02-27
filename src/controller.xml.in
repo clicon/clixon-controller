@@ -29,7 +29,7 @@
   <CLICON_BACKEND_PIDFILE>@RUNSTATEDIR@/controller/controller.pid</CLICON_BACKEND_PIDFILE>
   <!-- Start restconf daemon from backend -->
   <CLICON_BACKEND_RESTCONF_PROCESS>true</CLICON_BACKEND_RESTCONF_PROCESS>
-  <!-- Disable duplicate check in NETCONF messages. Temporary pyapi issue-->
+  <!-- Disable duplicate check in NETCONF messages. pyapi issue: it is not yang aware-->
   <CLICON_NETCONF_DUPLICATE_ALLOW>true</CLICON_NETCONF_DUPLICATE_ALLOW>
   <!-- RESTCONF -->
   <CLICON_RESTCONF_INSTALLDIR>@SBINDIR@</CLICON_RESTCONF_INSTALLDIR>

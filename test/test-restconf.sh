@@ -42,7 +42,7 @@ if [ $? -ne 0 ]; then
 fi
 
 # To debug, set CLICON_BACKEND_RESTCONF_PROCESS=false and start clixon_restconf manually
-# clixon_restconf -f /usr/local/etc/clixon/controller.xml -E /var/tmp/./test-restconf.sh/confdir  -o CLICON_BACKEND_RESTCONF_PROCESS=true
+# clixon_restconf -f /usr/local/etc/clixon/controller.xml -E /var/tmp/./test-restconf.sh/confdir -o CLICON_BACKEND_RESTCONF_PROCESS=true
 # Specialize controller.xml
 cat<<EOF > $CFD/diff.xml
 <?xml version="1.0" encoding="utf-8"?>
@@ -234,7 +234,6 @@ new "restconf GET device config json"
 new "restconf GET device config XML"
 expectpart "$(curl $CURLOPTS -H "Accept: application/yang-data+xml" -X GET $RCPROTO://localhost/restconf/data/clixon-controller:devices/device=openconfig1/config)" 0 "HTTP/$HVER 200" '<config xmlns="http://clicon.org/controller"><interfaces xmlns="http://openconfig.net/yang/interfaces"><interface><name>x</name><config><name>x</name><type xmlns:ianaift="urn:ietf:params:xml:ns:yang:iana-if-type">ianaift:ethernetCsmacd</type></config>'
 
-
 # Across device mount-point
 new "restconf GET across device mtpoint json"
 expectpart "$(curl $CURLOPTS -H "Accept: application/yang-data+json" -X GET $RCPROTO://localhost/restconf/data/clixon-controller:devices/device=openconfig1/config/openconfig-interfaces:interfaces)" 0 "HTTP/$HVER 200" '{"openconfig-interfaces:interfaces":{"interface":\[{"name":"x","config":{"name":"x","type":"iana-if-type:ethernetCsmacd"' ''
@@ -257,7 +256,7 @@ new "restconf GET connection OPEN"
 expectpart "$(curl $CURLOPTS -H "Accept: application/yang-data+json" -X GET $RCPROTO://localhost/restconf/data/clixon-controller:devices/device=openconfig1/conn-state)" 0 "HTTP/$HVER 200" '{"clixon-controller:conn-state":"OPEN"}'
 
 new "restconf RPC connection close"
-expectpart "$(curl $CURLOPTS -X POST -H "Content-Type: application/yang-data+json" $RCPROTO://localhost/restconf/operations/clixon-controller:connection-change -d '{"clixon-controller:input":{"device":"*","operation":"CLOSE"}}')" 0 "HTTP/$HVER 200" 'Content-Type: application/yang-data+json' '{"clixon-controller:output":{"tid":'
+expectpart "$(curl $CURLOPTS -X POST -H "Content-Type: application/yang-data+json" $RCPROTO://localhost/restconf/operations/clixon-controller:connection-change -d '{"clixon-controller:input":{"device":"*","operation":"CLOSE"}}')" 0 "HTTP/$HVER 200" 'Content-Type: application/yang-data+json' '{"clixon-controller:output":{"tid":"[0-9:.]*"}}'
 
 new "restconf GET connection CLOSED"
 expectpart "$(curl $CURLOPTS -H "Accept: application/yang-data+json" -X GET $RCPROTO://localhost/restconf/data/clixon-controller:devices/device=openconfig1/conn-state)" 0 "HTTP/$HVER 200" '{"clixon-controller:conn-state":"CLOSED"}'
@@ -274,8 +273,12 @@ PID=$!
 new "Notification controller-transaction timeout:${TIMEOUT}s"
 ret=$(curl $CURLOPTS -X GET -H "Accept: text/event-stream" -H "Cache-Control: no-cache" -H "Connection: keep-alive" $RCPROTO://localhost/streams/controller-transaction)
 
-# echo "ret:$ret"
+#echo "ret:$ret"
+
 expect="data: <notification xmlns=\"urn:ietf:params:xml:ns:netconf:notification:1.0\"><eventTime>${DATE}T[0-9:.]*Z</eventTime><controller-transaction xmlns=\"http://clicon.org/controller\"><tid>[0-9:.]*</tid><result>SUCCESS</result></controller-transaction></notification>"
+
+match=$(echo "$ret" | grep --null -Eo "$expect") || true
+
 if [ -z "$match" ]; then
     err "$expect" "$ret"
 fi
@@ -297,6 +300,36 @@ expectpart "$(curl $CURLOPTS -X POST -H "Content-Type: application/yang-data+jso
 
 new "restconf GET interface AA"
 expectpart "$(curl $CURLOPTS -H "Accept: application/yang-data+xml" -X GET $RCPROTO://localhost/restconf/data/clixon-controller:devices/device=openconfig1/config)" 0 "HTTP/$HVER 200" '<interface><name>AA</name><config><name>AA</name><type xmlns:ianaift="urn:ietf:params:xml:ns:yang:iana-if-type">ianaift:ethernetCsmacd</type></config><state>'
+
+# rpc template
+new "Create RPC template"
+expectpart "$(curl $CURLOPTS -X POST -H "Content-Type: application/yang-data+json" $RCPROTO://localhost/restconf/data/clixon-controller:devices -d '{"clixon-controller:rpc-template":[{"name":"stats","variables":{"variable":[{"name":"MODULES"}]},"config":{"clixon-lib:stats":{"modules":"${MODULES}"}}}]}')" 0 "HTTP/$HVER 201"
+
+new "restconf GET rpc-template"
+# XXX clixon-lib:stats not shown correctly
+# This is because it is anydata and therefore not bound, and the JSON translation
+# cannot map properly.
+expectpart "$(curl $CURLOPTS -H "Accept: application/yang-data+json" -X GET $RCPROTO://localhost/restconf/data/clixon-controller:devices/rpc-template=stats)" 0 "HTTP/$HVER 200" '{"clixon-controller:rpc-template":\[{"name":"stats","variables":{"variable":\[{"name":"MODULES"}\]},"config":{"stats":{"modules":"${MODULES}"}}}\]}'
+
+new "Apply template using RPC in background and save PID"
+expectpart "$(curl $CURLOPTS -X POST -H "Content-Type: application/yang-data+json" $RCPROTO://localhost/restconf/operations/clixon-controller:device-template-apply -d '{"clixon-controller:input":{"type":"RPC","device":"openconfig*","template":"stats","variables":[{"variable":{"name":"MODULES","value":"true"}}]}}')" 0 "HTTP/$HVER 200" 'Content-Type: application/yang-data+json' '{"clixon-controller:output":{"tid":"[0-9:.]*"}}' &
+PID=$!
+
+new "Wait for notification timeout:${TIMEOUT}s"
+ret=$(curl $CURLOPTS -X GET -H "Accept: text/event-stream" -H "Cache-Control: no-cache" -H "Connection: keep-alive" $RCPROTO://localhost/streams/controller-transaction)
+
+#echo "ret:$ret"
+
+expect="<controller-transaction xmlns=\"http://clicon.org/controller\"><tid>[0-9:.]*</tid><result>SUCCESS</result><devices><devdata xmlns=\"http://clicon.org/controller\"><name>openconfig1</name>"
+match=$(echo "$ret" | grep --null -Eo "$expect") || true
+if [ -z "$match" ]; then
+    err "$expect" "$ret"
+fi
+
+kill $PID 2> /dev/null
+
+new "Get rpc transaction result"
+expectpart "$(curl $CURLOPTS -H "Accept: application/yang-data+json" -X GET $RCPROTO://localhost/restconf/data/clixon-controller:transactions)" 0 "HTTP/$HVER 200" '{"clixon-controller:transactions":{"transaction":\[{"tid":"1","result":"SUCCESS"' # XXX devdata
 
 if $RC; then
     new "Kill restconf daemon"

@@ -40,6 +40,7 @@ module clixon-controller {
     revision 2025-02-01 {
         description
             "Added restconf
+             Added common fields to transaction state and notification
              Released in 1.4.0";
     }
     revision 2024-11-01 {
@@ -454,6 +455,35 @@ module clixon-controller {
             }
         }
     }
+    grouping transaction-common {
+        description "Common fields for transaction state and notification";
+        leaf tid{
+            description "Transaction id";
+            type uint64;
+        }
+        leaf result {
+            description "Transaction result";
+            type transaction-result;
+        }
+        leaf reason {
+            description "Reason for terminating transaction";
+            type string;
+        }
+        container devices {
+            list devdata {
+                description
+                    "Replies from device, can be rpc reply for rpc-template transaction";
+                key name;
+                leaf name{
+                    description "device name, should be one of /devices/device/name";
+                    type string;
+                }
+                anydata data {
+                    description "Device reply data";
+                }
+            }
+        }
+    }
     container processes {
         description "Process configuration";
         container services {
@@ -634,32 +664,22 @@ module clixon-controller {
         description
             "Info about clixon controller device transaction.
              A controller transaction spans commits on the controller as well as device actions,
-             such as pushing edits, validate, and commit of device configs.";
+             such as pushing edits, validate, and commit of device configs.
+             See also notification controller-transaction";
         list transaction {
             description "Transaction info";
             key tid;
-            leaf tid{
-                description "Transaction id";
-                type uint64;
-            }
+            uses transaction-common;
             leaf state {
                 description "Transaction state";
                 type transaction-state;
             }
-            leaf result {
-                description "Transaction result";
-                type transaction-result;
-            }
             leaf description {
-                description "Description of transacttion";
+                description "Description of transaction";
                 type string;
             }
             leaf origin {
                 description "Originator of error";
-                type string;
-            }
-            leaf reason {
-                description "Reason for terminating transaction";
                 type string;
             }
             leaf warning {
@@ -711,35 +731,10 @@ module clixon-controller {
 	}
     }
     notification controller-transaction {
-        description "A transaction has been completed.";
-        leaf tid {
-            type uint64;
-            description "Transaction id";
-            mandatory true;
-        }
-        leaf result {
-            type transaction-result;
-            description "Status at transaction termination";
-            mandatory true;
-        }
-        leaf reason {
-            description "Reason for terminating transaction (if ok=false)";
-            type string;
-        }
-        container devices {
-            list devdata {
-                description
-                    "Replies from device, can be rpc reply for rpc-template transaction";
-                key name;
-                leaf name{
-                    description "device name, should be one of /devices/device/name";
-                    type string;
-                }
-                anydata data {
-                    description "Device reply data";
-                }
-            }
-        }
+        description
+            "A transaction has been completed.
+             See also non-config transaction container";
+        uses transaction-common;
     }
     rpc config-pull {
         description

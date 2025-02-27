@@ -156,7 +156,7 @@ controller_transaction_state_set(controller_transaction *ct,
     return 0;
 }
 
-/*! Add device data from one device
+/*! Copy XML to transaction devdata field
  *
  * Add a new device element and children of devdata
  * see notification/device-data
@@ -330,7 +330,6 @@ controller_transaction_notify(clixon_handle           h,
             goto done;
         cprintf(cb, "</reason>");
     }
-    /* Check if any devdata, if so add and free */
     if (ct->ct_devdata){
         cprintf(cb, "<devices>");
         if (clixon_xml2cbuf1(cb, ct->ct_devdata, 0, 0, NULL, -1, 1, 0) < 0)
@@ -586,10 +585,17 @@ controller_transaction_done(clixon_handle           h,
     /* This should be the only place */
     if (controller_transaction_notify(h, ct) < 0)
         goto done;
+#if 0
+    /* This will leave devdata in the transaction history.
+     * Pros: You can check device rpc results via show state, not only immediate in the
+     *       transaction-done notification
+     * Cons: Memory consumption, never freed, clutters history
+     */
     if (ct->ct_devdata){
         xml_free(ct->ct_devdata); // XXX free at close?
         ct->ct_devdata = NULL;
     }
+#endif
     retval = 0;
  done:
     return retval;
@@ -851,23 +857,30 @@ controller_transaction_statedata(clixon_handle   h,
         do {
             cprintf(cb, "<transaction>");
             cprintf(cb, "<tid>%" PRIu64  "</tid>", ct->ct_id);
-            cprintf(cb, "<state>%s</state>", transaction_state_int2str(ct->ct_state));
-            if (ct->ct_description)
-                cprintf(cb, "<description>%s</description>", ct->ct_description);
-            if (ct->ct_origin)
-                cprintf(cb, "<origin>%s</origin>", ct->ct_origin);
+            if (ct->ct_state != TS_INIT)
+                cprintf(cb, "<result>%s</result>", transaction_result_int2str(ct->ct_result));
             if (ct->ct_reason){
                 cprintf(cb, "<reason>");
                 xml_chardata_cbuf_append(cb, 0, ct->ct_reason);
                 cprintf(cb, "</reason>");
             }
+            if (ct->ct_devdata){
+                cprintf(cb, "<devices>");
+                if (clixon_xml2cbuf1(cb, ct->ct_devdata, 0, 0, NULL, -1, 1, 0) < 0)
+                    goto done;
+                cprintf(cb, "</devices>");
+            }
+            cprintf(cb, "<state>%s</state>", transaction_state_int2str(ct->ct_state));
+            if (ct->ct_description)
+                cprintf(cb, "<description>%s</description>", ct->ct_description);
+            if (ct->ct_origin)
+                cprintf(cb, "<origin>%s</origin>", ct->ct_origin);
+
             if (ct->ct_warning){
                 cprintf(cb, "<warning>");
                 xml_chardata_cbuf_append(cb, 0, ct->ct_warning);
                 cprintf(cb, "</warning>");
             }
-            if (ct->ct_state != TS_INIT)
-                cprintf(cb, "<result>%s</result>", transaction_result_int2str(ct->ct_result));
             tv = &ct->ct_timestamp;
             if (tv->tv_sec != 0){
                 char timestr[28];
