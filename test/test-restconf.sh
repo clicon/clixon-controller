@@ -34,8 +34,8 @@ fyang=$dir/myyang.yang
 
 # RESTCONFIG for bring-your-own restconf
 # file means /var/log/clixon_restconf.log
-RESTCONFIG=$(restconf_config none false 1048575 file ${TIMEOUT} false)
-#RESTCONFIG=$(restconf_config none false 0 syslog false)
+# Example debug: 1048575
+RESTCONFIG=$(restconf_config none false 0 file ${TIMEOUT} false)
 
 if [ $? -ne 0 ]; then
     err1 "Error when generating certs"
