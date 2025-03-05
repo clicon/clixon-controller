@@ -49,6 +49,7 @@ struct controller_transaction_t{
     transaction_result ct_result;        /* Transaction result */
     void              *ct_h;             /* Back-pointer to clixon handle (for convenience in timeout callbacks) */
     uint32_t           ct_client_id;     /* Client id of originator (may be stale) */
+    char              *ct_username;      /* Client username creating the transaction */
     int                ct_pull_transient;/* pull: dont commit locally */
     int                ct_pull_merge;    /* pull: Merge instead of replace */
     push_type          ct_push_type;     /* push to remote devices: Do not, validate, or commit */
@@ -86,7 +87,7 @@ extern "C" {
 int   controller_transaction_state_set(controller_transaction *ct, transaction_state state, transaction_result result);
 int   transaction_devdata_add(clixon_handle h, controller_transaction *ct, char *name, cxobj *devdata, cbuf **cberr);
 int   controller_transaction_notify(clixon_handle h, controller_transaction *ct);
-int   controller_transaction_new(clixon_handle h, uint32_t ce_id, char *description, controller_transaction **ct, cbuf **cberr);
+int   controller_transaction_new(clixon_handle h, uint32_t ce_id, char *username, char *description, controller_transaction **ct, cbuf **cberr);
 int   controller_transaction_free(clixon_handle h, controller_transaction *ct);
 int   controller_transaction_free_all(clixon_handle h);
 int   controller_transaction_done(clixon_handle h, controller_transaction *ct, transaction_result result);

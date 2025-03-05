@@ -41,6 +41,7 @@ module clixon-controller {
         description
             "Added restconf
              Added common fields to transaction state and notification
+             Added user to transaction
              Released in 1.4.0";
     }
     revision 2024-11-01 {
@@ -460,6 +461,10 @@ module clixon-controller {
         leaf tid{
             description "Transaction id";
             type uint64;
+        }
+        leaf username{
+            description "Which user created the transaction";
+            type string;
         }
         leaf result {
             description "Transaction result";

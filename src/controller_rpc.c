@@ -618,7 +618,7 @@ rpc_config_pull(clixon_handle h,
 
     clixon_debug(CLIXON_DBG_CTRL, "");
     /* Initiate new transaction */
-    if ((ret = controller_transaction_new(h, ce->ce_id, "pull", &ct, &cberr)) < 0)
+    if ((ret = controller_transaction_new(h, ce->ce_id, ce->ce_username, "pull", &ct, &cberr)) < 0)
         goto done;
     if (ret == 0){
         if (netconf_operation_failed(cbret, "application", cbuf_get(cberr))< 0)
@@ -1635,7 +1635,7 @@ rpc_controller_commit(clixon_handle h,
     /* Initiate new transaction.
      * NB: this locks candidate, which always needs to be unlocked, eg by controller_transaction_done
      */
-    if ((ret = controller_transaction_new(h, ce->ce_id, cbuf_get(cbtr), &ct, &cberr)) < 0)
+    if ((ret = controller_transaction_new(h, ce->ce_id, ce->ce_username, cbuf_get(cbtr), &ct, &cberr)) < 0)
         goto done;
     if (ret == 0){
         if (netconf_operation_failed(cbret, "application", cbuf_get(cberr))< 0)
@@ -2085,7 +2085,7 @@ rpc_connection_change(clixon_handle h,
     pattern = xml_body(xn);
     operation = xml_find_body(xe, "operation");
     cprintf(cbtr, " %s", operation);
-    if ((ret = controller_transaction_new(h, ce->ce_id, cbuf_get(cbtr), &ct, &cberr)) < 0)
+    if ((ret = controller_transaction_new(h, ce->ce_id, ce->ce_username, cbuf_get(cbtr), &ct, &cberr)) < 0)
         goto done;
     if (ret == 0){
         if (netconf_operation_failed(cbret, "application", cbuf_get(cberr))< 0)
@@ -3154,7 +3154,7 @@ rpc_device_rpc_template_apply(clixon_handle h,
             goto done;
     }
     /* Initiate new transaction */
-    if ((ret = controller_transaction_new(h, ce->ce_id, "rpc", &ct, &cberr)) < 0)
+    if ((ret = controller_transaction_new(h, ce->ce_id, ce->ce_username, "rpc", &ct, &cberr)) < 0)
         goto done;
     if (ret == 0){
         if (netconf_operation_failed(cbret, "application", cbuf_get(cberr))< 0)
