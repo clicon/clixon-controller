@@ -225,6 +225,18 @@ expectpart "$(curl $CURLOPTS -X GET -H "Accept: application/yang-data+json" $RCP
 new "restconf get restconf resource. RFC 8040 3.3 (xml)"
 expectpart "$(curl $CURLOPTS -X GET -H 'Accept: application/yang-data+xml' $RCPROTO://localhost/restconf)" 0 "HTTP/$HVER 200" '<restconf xmlns="urn:ietf:params:xml:ns:yang:ietf-restconf"><data/><operations/><yang-library-version>2019-01-04</yang-library-version></restconf>'
 
+new "restconf PUT device config"
+expectpart "$(curl $CURLOPTS -X POST -H "Content-Type: application/yang-data+json" $RCPROTO://localhost/restconf/data/clixon-controller:devices -d '{"clixon-controller:device":{"name":"test","enabled":"true","conn-type":"NETCONF_SSH","user":"admin","addr":"127.17.0.3"}}')" 0 "HTTP/$HVER 201"
+
+new "restconf GET device config"
+expectpart "$(curl $CURLOPTS -X GET -H "Content-Type: application/yang-data+json" $RCPROTO://localhost/restconf/data/clixon-controller:devices/device=test)" 0 "HTTP/$HVER 200" '{"clixon-controller:device":\[{"name":"test","enabled":true,"user":"admin","conn-type":"NETCONF_SSH","addr":"127.17.0.3","conn-state":"CLOSED"}\]}'
+
+new "restconf DELETE device config"
+expectpart "$(curl $CURLOPTS -X DELETE -H "Content-Type: application/yang-data+json" $RCPROTO://localhost/restconf/data/clixon-controller:devices/device=test)" 0 "HTTP/$HVER 204"
+
+new "restconf GET empty device config"
+expectpart "$(curl $CURLOPTS -X GET -H "Content-Type: application/yang-data+json" $RCPROTO://localhost/restconf/data/clixon-controller:devices/device=test)" 0 "HTTP/$HVER 404"
+
 new "restconf GET datastore top"
 expectpart "$(curl $CURLOPTS -H "Accept: application/yang-data+json" -X GET $RCPROTO://localhost/restconf/data)" 0 "HTTP/$HVER 200" '"clixon-controller:devices":{"device":\[{"name":"openconfig1"' '"config":{"openconfig-interfaces:interfaces":{"interface":\[{"name":"x","config":{"name":"x","type":"iana-if-type:ethernetCsmacd"' '"ietf-netconf-monitoring:netconf-state":{"capabilities":{'
 
@@ -275,7 +287,7 @@ ret=$(curl $CURLOPTS -X GET -H "Accept: text/event-stream" -H "Cache-Control: no
 
 #echo "ret:$ret"
 
-expect="data: <notification xmlns=\"urn:ietf:params:xml:ns:netconf:notification:1.0\"><eventTime>${DATE}T[0-9:.]*Z</eventTime><controller-transaction xmlns=\"http://clicon.org/controller\"><tid>[0-9:.]*</tid><username>[a-zA-Z0.9]*</username><result>SUCCESS</result></controller-transaction></notification>"
+expect="data: <notification xmlns=\"urn:ietf:params:xml:ns:netconf:notification:1.0\"><eventTime>${DATE}T[0-9:.]*Z</eventTime><controller-transaction xmlns=\"http://clicon.org/controller\"><tid>[0-9:.]*</tid><username>[a-zA-Z0-9]*</username><result>SUCCESS</result></controller-transaction></notification>"
 
 match=$(echo "$ret" | grep --null -Eo "$expect") || true
 
