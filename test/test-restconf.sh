@@ -275,7 +275,7 @@ ret=$(curl $CURLOPTS -X GET -H "Accept: text/event-stream" -H "Cache-Control: no
 
 #echo "ret:$ret"
 
-expect="data: <notification xmlns=\"urn:ietf:params:xml:ns:netconf:notification:1.0\"><eventTime>${DATE}T[0-9:.]*Z</eventTime><controller-transaction xmlns=\"http://clicon.org/controller\"><tid>[0-9:.]*</tid><result>SUCCESS</result></controller-transaction></notification>"
+expect="data: <notification xmlns=\"urn:ietf:params:xml:ns:netconf:notification:1.0\"><eventTime>${DATE}T[0-9:.]*Z</eventTime><controller-transaction xmlns=\"http://clicon.org/controller\"><tid>[0-9:.]*</tid><username>[a-zA-Z0.9]*</username><result>SUCCESS</result></controller-transaction></notification>"
 
 match=$(echo "$ret" | grep --null -Eo "$expect") || true
 
@@ -320,7 +320,7 @@ ret=$(curl $CURLOPTS -X GET -H "Accept: text/event-stream" -H "Cache-Control: no
 
 #echo "ret:$ret"
 
-expect="<controller-transaction xmlns=\"http://clicon.org/controller\"><tid>[0-9:.]*</tid><result>SUCCESS</result><devices><devdata xmlns=\"http://clicon.org/controller\"><name>openconfig1</name>"
+expect="<controller-transaction xmlns=\"http://clicon.org/controller\"><tid>[0-9:.]*</tid><username>[a-zA-Z0-9]*</username><result>SUCCESS</result><devices><devdata xmlns=\"http://clicon.org/controller\"><name>openconfig1</name>"
 match=$(echo "$ret" | grep --null -Eo "$expect") || true
 if [ -z "$match" ]; then
     err "$expect" "$ret"
@@ -329,7 +329,7 @@ fi
 kill $PID 2> /dev/null
 
 new "Get rpc transaction result"
-expectpart "$(curl $CURLOPTS -H "Accept: application/yang-data+json" -X GET $RCPROTO://localhost/restconf/data/clixon-controller:transactions)" 0 "HTTP/$HVER 200" '{"clixon-controller:transactions":{"transaction":\[{"tid":"1","result":"SUCCESS"' # XXX devdata
+expectpart "$(curl $CURLOPTS -H "Accept: application/yang-data+json" -X GET $RCPROTO://localhost/restconf/data/clixon-controller:transactions)" 0 "HTTP/$HVER 200" '{"clixon-controller:transactions":{"transaction":\[{"tid":"1","username":"[a-zA-Z0-9]*","result":"SUCCESS"' # XXX devdata
 
 if $RC; then
     new "Kill restconf daemon"

@@ -321,6 +321,8 @@ controller_transaction_notify(clixon_handle           h,
     }
     cprintf(cb, "<controller-transaction xmlns=\"%s\">", CONTROLLER_NAMESPACE);
     cprintf(cb, "<tid>%" PRIu64  "</tid>", ct->ct_id);
+    if (ct->ct_username)
+        cprintf(cb, "<username>%s</username>", ct->ct_username);
     cprintf(cb, "<result>%s</result>", transaction_result_int2str(ct->ct_result));
     if (ct->ct_origin)
         cprintf(cb, "<origin>%s</origin>", ct->ct_origin);
@@ -466,7 +468,7 @@ controller_transaction_new(clixon_handle            h,
     ct->ct_client_id = ce_id;
     if (username) {
         if ((ct->ct_username = strdup(username)) == NULL){
-            clixon_err(OE_NETCONF, errno, "malloc");
+            clixon_err(OE_NETCONF, errno, "strdup");
             goto done;
         }
     }
@@ -869,6 +871,11 @@ controller_transaction_statedata(clixon_handle   h,
             cprintf(cb, "<tid>%" PRIu64  "</tid>", ct->ct_id);
             if (ct->ct_state != TS_INIT)
                 cprintf(cb, "<result>%s</result>", transaction_result_int2str(ct->ct_result));
+            if (ct->ct_username){
+                cprintf(cb, "<username>");
+                xml_chardata_cbuf_append(cb, 0, ct->ct_username);
+                cprintf(cb, "</username>");
+            }
             if (ct->ct_reason){
                 cprintf(cb, "<reason>");
                 xml_chardata_cbuf_append(cb, 0, ct->ct_reason);
