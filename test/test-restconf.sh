@@ -218,6 +218,9 @@ check_services running
 # Reset controller by initiating with clixon/openconfig devices and a pull
 . ./reset-controller.sh
 
+new "Verify restconf"
+expectpart "$(curl $CURLOPTS -X POST -H "Content-Type: application/yang-data+json" $RCPROTO://localhost/restconf/operations/clixon-lib:process-control -d '{"clixon-lib:input":{"name":"restconf","operation":"status"}}')" 0 "HTTP/$HVER 200" '{"clixon-lib:output":{"active":true,"description":"Clixon RESTCONF process"'
+
 # 1. GET
 new "restconf get restconf resource. RFC 8040 3.3 (json)"
 expectpart "$(curl $CURLOPTS -X GET -H "Accept: application/yang-data+json" $RCPROTO://localhost/restconf)" 0 "HTTP/$HVER 200" '{"ietf-restconf:restconf":{"data":{},"operations":{},"yang-library-version":"2019-01-04"}}'
@@ -248,7 +251,7 @@ expectpart "$(curl $CURLOPTS -H "Accept: application/yang-data+xml" -X GET $RCPR
 
 # Across device mount-point
 new "restconf GET across device mtpoint json"
-expectpart "$(curl $CURLOPTS -H "Accept: application/yang-data+json" -X GET $RCPROTO://localhost/restconf/data/clixon-controller:devices/device=openconfig1/config/openconfig-interfaces:interfaces)" 0 "HTTP/$HVER 200" '{"openconfig-interfaces:interfaces":{"interface":\[{"name":"x","config":{"name":"x","type":"iana-if-type:ethernetCsmacd"' ''
+expectpart "$(curl $CURLOPTS -H "Accept: application/yang-data+json" -X GET $RCPROTO://localhost/restconf/data/clixon-controller:devices/device=openconfig1/config/openconfig-interfaces:interfaces)" 0 "HTTP/$HVER 200" '{"openconfig-interfaces:interfaces":{"interface":\[{"name":"x","config":{"name":"x","type":"iana-if-type:ethernetCsmacd"'
 
 new "restconf GET across device mtpoint xml"
 expectpart "$(curl $CURLOPTS -H "Accept: application/yang-data+xml" -X GET $RCPROTO://localhost/restconf/data/clixon-controller:devices/device=openconfig1/config/openconfig-interfaces:interfaces)" 0 "HTTP/$HVER 200" '<interfaces xmlns="http://openconfig.net/yang/interfaces"><interface><name>x</name><config><name>x</name><type xmlns:ianaift="urn:ietf:params:xml:ns:yang:iana-if-type">ianaift:ethernetCsmacd</type></config>'
@@ -259,6 +262,57 @@ expectpart "$(curl $CURLOPTS -X PUT -H "Content-Type: application/yang-data+json
 
 new "restconf PUT across device mtpoint json"
 expectpart "$(curl $CURLOPTS -X PUT -H "Content-Type: application/yang-data+json" $RCPROTO://localhost/restconf/data/clixon-controller:devices/device=openconfig1/config/openconfig-interfaces:interfaces/interface=x/config -d '{"openconfig-interfaces:config":{"name":"x","type":"iana-if-type:ethernetCsmacd","description":"My description"}}')" 0 "HTTP/$HVER 204"
+
+new "Verify local with GET"
+expectpart "$(curl $CURLOPTS -H "Accept: application/yang-data+json" -X GET $RCPROTO://localhost/restconf/data/clixon-controller:devices/device=openconfig1/config/openconfig-interfaces:interfaces/interface=x/config)" 0 "HTTP/$HVER 200" '{"openconfig-interfaces:config":{"name":"x","type":"iana-if-type:ethernetCsmacd"'
+
+new "Commit push to device"
+expectpart "$(curl $CURLOPTS -X POST -H "Content-Type: application/yang-data+json" $RCPROTO://localhost/restconf/operations/clixon-controller:controller-commit -d '{"clixon-controller:input":{"device":"openconfig1","push":"COMMIT","actions":"NONE","source":"ds:running"}}')" 0 "HTTP/$HVER 200" 'Content-Type: application/yang-data+json' '{"clixon-controller:output":{"tid":'
+
+sleep 1
+
+i=1
+for ip in $CONTAINERS; do
+    new "Verify with GET on device"
+    NAME=$IMG$i
+    ret=$(ssh $ip -l ${USER} -o StrictHostKeyChecking=no -o PasswordAuthentication=no -s netconf <<EOF
+<?xml version="1.0" encoding="UTF-8"?>
+<hello xmlns="urn:ietf:params:xml:ns:netconf:base:1.0">
+   <capabilities>
+      <capability>urn:ietf:params:netconf:base:1.0</capability>
+   </capabilities>
+</hello>]]>]]>
+<rpc xmlns="urn:ietf:params:xml:ns:netconf:base:1.0"
+     xmlns:nc="urn:ietf:params:xml:ns:netconf:base:1.0"
+     message-id="42">
+  <get-config>
+    <source>
+      <running/>
+    </source>
+    <filter type='subtree'>
+      <interfaces xmlns="http://openconfig.net/yang/interfaces">
+        <interface>
+          <name>x</name>
+          <config/>
+        </interface>
+      </interfaces>
+    </filter>
+  </get-config>
+</rpc>]]>]]>
+EOF
+       )
+# echo "ret:$ret"
+    match=$(echo $ret | grep --null -Eo "<rpc-error>") || true
+    if [ -n "$match" ]; then
+        err1 "netconf rpc-error detected"
+    fi
+    match=$(echo $ret | grep --null -Eo "<description>My description</description>") || true
+    if [ -z "$match" ]; then
+        err "No description on device" "$ret"
+    fi
+    i=$((i+1))
+    break
+done
 
 new "restconf PUT across device mtpoint XML"
 expectpart "$(curl $CURLOPTS -X PUT -H "Content-Type: application/yang-data+xml" $RCPROTO://localhost/restconf/data/clixon-controller:devices/device=openconfig1/config/openconfig-interfaces:interfaces/interface=x/config -d '<config xmlns="http://openconfig.net/yang/interfaces"><name>x</name><type xmlns:ianaift="urn:ietf:params:xml:ns:yang:iana-if-type">ianaift:ethernetCsmacd</type><description>My description</description></config>')" 0 "HTTP/$HVER 204"
@@ -285,8 +339,6 @@ PID=$!
 new "Notification controller-transaction timeout:${TIMEOUT}s"
 ret=$(curl $CURLOPTS -X GET -H "Accept: text/event-stream" -H "Cache-Control: no-cache" -H "Connection: keep-alive" $RCPROTO://localhost/streams/controller-transaction)
 
-#echo "ret:$ret"
-
 expect="data: <notification xmlns=\"urn:ietf:params:xml:ns:netconf:notification:1.0\"><eventTime>${DATE}T[0-9:.]*Z</eventTime><controller-transaction xmlns=\"http://clicon.org/controller\"><tid>[0-9:.]*</tid><username>[a-zA-Z0-9]*</username><result>SUCCESS</result></controller-transaction></notification>"
 
 match=$(echo "$ret" | grep --null -Eo "$expect") || true
@@ -308,10 +360,12 @@ new "restconf GET interface not AA"
 expectpart "$(curl $CURLOPTS -H "Accept: application/yang-data+xml" -X GET $RCPROTO://localhost/restconf/data/clixon-controller:devices/device=openconfig1/config)" 0 "HTTP/$HVER 200" --not-- '<interface><name>AA</name><config><name>AA</name><type xmlns:ianaift="urn:ietf:params:xml:ns:yang:iana-if-type">ianaift:ethernetCsmacd</type></config><state>'
 
 new "Apply service"
-expectpart "$(curl $CURLOPTS -X POST -H "Content-Type: application/yang-data+json" $RCPROTO://localhost/restconf/operations/clixon-controller:controller-commit -d '{"clixon-controller:input":{"device":"*","push":"COMMIT","actions":"FORCE","source":"ds:candidate"}}')" 0 "HTTP/$HVER 200" 'Content-Type: application/yang-data+json' '{"clixon-controller:output":{"tid":'
+# quoting frenzy, also clean service (no instance) does not seem to work
+DATA="{\"clixon-controller:input\":{\"device\":\"*\",\"push\":\"COMMIT\",\"actions\":\"FORCE\",\"source\":\"ds:candidate\",\"service-instance\":\"testA[a_name='bar']\"}}"
+expectpart "$(curl $CURLOPTS -X POST -H "Content-Type: application/yang-data+json" $RCPROTO://localhost/restconf/operations/clixon-controller:controller-commit -d "${DATA}")" 0 "HTTP/$HVER 200" 'Content-Type: application/yang-data+json' '{"clixon-controller:output":{"tid":'
 
 new "restconf GET interface AA"
-expectpart "$(curl $CURLOPTS -H "Accept: application/yang-data+xml" -X GET $RCPROTO://localhost/restconf/data/clixon-controller:devices/device=openconfig1/config)" 0 "HTTP/$HVER 200" '<interface><name>AA</name><config><name>AA</name><type xmlns:ianaift="urn:ietf:params:xml:ns:yang:iana-if-type">ianaift:ethernetCsmacd</type></config><state>'
+expectpart "$(curl $CURLOPTS -H "Accept: application/yang-data+xml" -X GET $RCPROTO://localhost/restconf/data/clixon-controller:devices/device=openconfig1/config/openconfig-interfaces:interfaces)" 0 "HTTP/$HVER 200" '<interface><name>AA</name><config><name>AA</name><type xmlns:ianaift="urn:ietf:params:xml:ns:yang:iana-if-type">ianaift:ethernetCsmacd</type></config><state>'
 
 # rpc template
 new "Create RPC template"
