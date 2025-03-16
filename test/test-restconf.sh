@@ -354,7 +354,7 @@ expectpart "$(curl $CURLOPTS -H "Accept: application/yang-data+json" -X GET $RCP
 
 # 5. Service
 new "restconf PUT service"
-expectpart "$(curl $CURLOPTS -X POST -H "Content-Type: application/yang-data+json" $RCPROTO://localhost/restconf/data -d '{"clixon-controller:services":{"myyang:testA":[{"a_name":"bar","params":["AA"]}]}}')" 0 "HTTP/$HVER 201"
+expectpart "$(curl $CURLOPTS -X POST -H "Content-Type: application/yang-data+json" $RCPROTO://localhost/restconf/data/clixon-controller:services -d '{"myyang:testA":[{"a_name":"bar","params":["AA"]}]}')" 0 "HTTP/$HVER 201"
 
 new "restconf GET interface not AA"
 expectpart "$(curl $CURLOPTS -H "Accept: application/yang-data+xml" -X GET $RCPROTO://localhost/restconf/data/clixon-controller:devices/device=openconfig1/config)" 0 "HTTP/$HVER 200" --not-- '<interface><name>AA</name><config><name>AA</name><type xmlns:ianaift="urn:ietf:params:xml:ns:yang:iana-if-type">ianaift:ethernetCsmacd</type></config><state>'

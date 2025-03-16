@@ -268,7 +268,7 @@ struct notify_async {
     cbuf         *na_cb;
 };
 
-/*! Send notification asnynchrously
+/*! Send notification asynchronously
  *
  * @param[in]  fd   Dummy
  * @param[in]  arg  Cast to notify_async that holds handle netconf cbuf that needs freeing

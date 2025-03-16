@@ -859,7 +859,6 @@ junos_native_start(clixon_handle h)
  * @param[in]  arg  User-defined argument
  * @retval     0    OK
  * @retval    -1    Error
- * XXX MOVE to userdef plugin
  */
 static int
 junos_native_userdef(clixon_handle h,
