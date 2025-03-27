@@ -25,7 +25,7 @@ Start device containers. Default is `clixon/clixon-example` but you can also sta
     ./start-devices.sh
 ```
 
-If run natively, the controller runs as root, and a root public key needs to be installed in the clixon-example containers::
+If run natively, the controller runs as root, and a root public key needs to be installed in the clixon-example containers:
 ```
     sudo ./copy-keys.sh
 ```
@@ -39,6 +39,23 @@ Bind the `CONTAINERS` env variable to the IP:s of the clixon-example containers,
 To stop the device containers:
 ```
     ./stop-devices.sh
+```
+
+### SSH certs
+
+There is some support for SSH certs when testing natively. Instead of `start-devices.sh` and `copy-keys-sh` do:
+```
+    ./cert-keys.sh
+```
+
+and in site.sh:
+```
+   SSHID="-i <dir>/user-key"
+```
+
+Also, one needs to change the root identityfile, either directly in /root/.ssh or:
+```
+   <CONTROLLER_SSH_IDENTITYFILE xmlns="http://clicon.org/controller-config"><dir>/root-key</CONTROLLER_SSH_IDENTITYFILE>
 ```
 
 ## Tests

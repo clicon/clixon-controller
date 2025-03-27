@@ -38,7 +38,7 @@ i=1
 for ip in $CONTAINERS; do
     NAME="$IMG$i"
     echo "set hostname $NAME $ip"
-    ret=$(ssh -l $USER $ip -o StrictHostKeyChecking=no -o PasswordAuthentication=no -s netconf <<EOF
+    ret=$(ssh ${SSHID} -l $USER $ip -o StrictHostKeyChecking=no -o PasswordAuthentication=no -s netconf <<EOF
 <?xml version="1.0" encoding="UTF-8"?>
 <hello xmlns="urn:ietf:params:xml:ns:netconf:base:1.0">
    <capabilities>
@@ -92,7 +92,7 @@ i=1
 for ip in $CONTAINERS; do
     NAME=$IMG$i
     echo "init config: $NAME"
-    ret=$(ssh -l $USER $ip -o StrictHostKeyChecking=no -o PasswordAuthentication=no -s netconf <<EOF
+    ret=$(ssh ${SSHID} -l $USER $ip -o StrictHostKeyChecking=no -o PasswordAuthentication=no -s netconf <<EOF
 <?xml version="1.0" encoding="UTF-8"?>
 <hello xmlns="urn:ietf:params:xml:ns:netconf:base:1.0">
    <capabilities>
@@ -130,7 +130,7 @@ i=1
 for ip in $CONTAINERS; do
     NAME=$IMG$i
     echo "Check config $NAME"
-    ret=$(ssh -l $USER $ip -o StrictHostKeyChecking=no -o PasswordAuthentication=no -s netconf <<EOF
+    ret=$(ssh ${SSHID} -l $USER $ip -o StrictHostKeyChecking=no -o PasswordAuthentication=no -s netconf <<EOF
 <?xml version="1.0" encoding="UTF-8"?>
 <hello xmlns="urn:ietf:params:xml:ns:netconf:base:1.0">
    <capabilities>

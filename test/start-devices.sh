@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Start clixon example container devices and initiate with config x=11, y=22
+# Start clixon example container devices and initiate with config
 # Note: dont use with sudo, you need proper ~/ $HOME set for this script to work
 set -u
 

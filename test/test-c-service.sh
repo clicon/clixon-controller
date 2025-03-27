@@ -52,9 +52,6 @@ test -d $CFD || mkdir -p $CFD
 
 fyang=$dir/myyang.yang
 
-# source IMG/USER etc
-. ./site.sh
-
 # Common NACM scripts
 . ./nacm.sh
 

@@ -26,9 +26,6 @@ DATE=$(date -u +"%Y-%m-%d")
 
 fyang=$dir/myyang.yang
 
-# source IMG/USER etc
-. ./site.sh
-
 # Common NACM scripts
 . ./nacm.sh
 
@@ -275,7 +272,7 @@ i=1
 for ip in $CONTAINERS; do
     new "Verify with GET on device"
     NAME=$IMG$i
-    ret=$(ssh $ip -l ${USER} -o StrictHostKeyChecking=no -o PasswordAuthentication=no -s netconf <<EOF
+    ret=$(ssh $ip ${SSHID} -l ${USER} -o StrictHostKeyChecking=no -o PasswordAuthentication=no -s netconf <<EOF
 <?xml version="1.0" encoding="UTF-8"?>
 <hello xmlns="urn:ietf:params:xml:ns:netconf:base:1.0">
    <capabilities>

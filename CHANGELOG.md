@@ -15,6 +15,8 @@ Expected: April 2025
 ### API changes on existing protocol/config features
 
 * New `clixon-controller-config@2025-02-01.yang` revision
+  * Added `CONTROLLER_SSH_IDENTITYFILE`
+* New `clixon-controller@2025-02-01.yang` revision
   * Added restconf
   * Added common fields to transaction state and notification
 

@@ -77,7 +77,7 @@ function device_mtu_set()
     mtu=$2
 
     new "Edit mtu on $ip"
-    ret=$(ssh -l $USER $ip -o StrictHostKeyChecking=no -o PasswordAuthentication=no -s netconf <<EOF
+    ret=$(ssh ${SSHID} -l $USER $ip -o StrictHostKeyChecking=no -o PasswordAuthentication=no -s netconf <<EOF
 <?xml version="1.0" encoding="UTF-8"?>
 <hello xmlns="urn:ietf:params:xml:ns:netconf:base:1.0">
    <capabilities>
@@ -127,7 +127,7 @@ function device_mtu_get()
     REQ='<interfaces xmlns="http://openconfig.net/yang/interfaces/interface/mtu"/>'
     
     new "Get mtu on $ip"
-    ret=$(ssh -l $USER $ip -o StrictHostKeyChecking=no -o PasswordAuthentication=no -s netconf <<EOF
+    ret=$(ssh ${SSHID} -l $USER $ip -o StrictHostKeyChecking=no -o PasswordAuthentication=no -s netconf <<EOF
 <?xml version="1.0" encoding="UTF-8"?>
 <hello xmlns="urn:ietf:params:xml:ns:netconf:base:1.0">
    <capabilities>

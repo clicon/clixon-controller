@@ -20,9 +20,6 @@ test -d $dir || mkdir -p $dir
 test -d $CFD || mkdir -p $CFD
 fin=$dir/in
 
-# source IMG/USER etc
-. ./site.sh
-
 # Specialize controller.xml
 cat<<EOF > $CFD/diff.xml
 <?xml version="1.0" encoding="utf-8"?>
@@ -114,7 +111,7 @@ i=1
 for ip in $CONTAINERS; do
     NAME="$IMG$i"
     new "asynchronous lock running $NAME"
-    sleep 60 |  cat <(echo "<?xml version=\"1.0\" encoding=\"UTF-8\"?><hello xmlns=\"urn:ietf:params:xml:ns:netconf:base:1.0\"><capabilities><capability>urn:ietf:params:netconf:base:1.0</capability></capabilities></hello>]]>]]><rpc xmlns=\"urn:ietf:params:xml:ns:netconf:base:1.0\" message-id=\"42\"><lock><target><candidate/></target></lock></rpc>]]>]]>") -| ssh -l $USER $ip -o StrictHostKeyChecking=no -o PasswordAuthentication=no -s netconf &
+    sleep 60 |  cat <(echo "<?xml version=\"1.0\" encoding=\"UTF-8\"?><hello xmlns=\"urn:ietf:params:xml:ns:netconf:base:1.0\"><capabilities><capability>urn:ietf:params:netconf:base:1.0</capability></capabilities></hello>]]>]]><rpc xmlns=\"urn:ietf:params:xml:ns:netconf:base:1.0\" message-id=\"42\"><lock><target><candidate/></target></lock></rpc>]]>]]>") -| ssh ${SSHID} -l $USER $ip -o StrictHostKeyChecking=no -o PasswordAuthentication=no -s netconf &
 
     PIDS=($(jobs -l % | cut -c 6- | awk '{print $1}'))
     break

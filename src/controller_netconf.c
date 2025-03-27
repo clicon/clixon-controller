@@ -140,9 +140,12 @@ clixon_client_connect_ssh(clixon_handle h,
     char      **argv = NULL;
     char       *ssh_bin = SSH_BIN;
     struct stat st = {0,};
+    char       *idfile = NULL;
 
     clixon_debug(CLIXON_DBG_MSG | CLIXON_DBG_DETAIL, "%s", dest);
     nr = 14;  /* NOTE this is hardcoded */
+    if ((idfile = clicon_option_str(h, "CONTROLLER_SSH_IDENTITYFILE")) != NULL)
+        nr += 2;
     if ((argv = calloc(nr, sizeof(char *))) == NULL){
         clixon_err(OE_UNIX, errno, "calloc");
         goto done;
@@ -154,9 +157,13 @@ clixon_client_connect_ssh(clixon_handle h,
     }
     argv[i++] = ssh_bin;
     argv[i++] = (char*)dest;
-    argv[i++] = "-p"; /* Disable pseudo-terminal allocation. */
+    argv[i++] = "-p";
     argv[i++] = (char*)port;
     argv[i++] = "-T"; /* Disable pseudo-terminal allocation. */
+    if (idfile){
+        argv[i++] = "-i";
+        argv[i++] = idfile;
+    }
     argv[i++] = "-o";
     if (stricthostkey)
         argv[i++] = "StrictHostKeyChecking=yes";

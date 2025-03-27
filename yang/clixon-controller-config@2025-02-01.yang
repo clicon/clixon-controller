@@ -7,6 +7,12 @@ module clixon-controller-config {
     }
     description
         "Clixon controller config extending regular clixon-config";
+    revision 2025-02-01 {
+        description
+            "Added CONTROLLER_SSH_IDENTITYFILE
+             Removed CONTROLLER_YANG_SCHEMA_MOUNT_DIR
+             Released in 1.2.0";
+    }
     revision 2024-08-01 {
         description
             "Moved default directories from clixon/controller to controller
@@ -39,30 +45,14 @@ module clixon-controller-config {
         }
         leaf CONTROLLER_PYAPI_MODULE_FILTER{
             type string;
-            default "";
         }
         leaf CONTROLLER_PYAPI_PIDFILE{
             type string;
         }
-        leaf CONTROLLER_YANG_SCHEMA_MOUNT_DIR{
+        leaf CONTROLLER_SSH_IDENTITYFILE{
             description
-                "This option is obsolete. Use CLICON_YANG_DOMAIN_DIR + domain instead
-
-                 Directory where device YANGs are stored locally.
-                 This is both from RFC 6022 dynamic get-schema retrieval as well as
-                 local module-set YANGs.
-                 For get-schema, the controller looks in this dir before requesting the 
-                 YANG from a device. If it exists there, it is loaded locally and not requested 
-                 from the device.
-                 For local (module-set) declared YANGs, the controller searches in this dir
-                 for the YANG.
-                 Thus the dir serves several purposes:
-                  1. It serves as a cache for performance if multiple devices or restart of
-                     the controller requests the same YANG.
-                  2. A local YANG can override the YANG from a device for debugging or patch.
-                  3. It serves as storage for locally defined YANGs.";
+                "SSH Identityfile if not default";
             type string;
-            status obsolete;
         }
     }
 }

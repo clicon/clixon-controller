@@ -43,6 +43,9 @@ fi
 
 : ${DBG:=0}
 
+# SSH identityfile
+: ${SSHID:=}
+
 # Namespace: netconf base
 BASENS='urn:ietf:params:xml:ns:netconf:base:1.0'
 

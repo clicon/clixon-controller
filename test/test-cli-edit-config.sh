@@ -104,7 +104,7 @@ function testrun()
 
     for container in $CONTAINERS; do
         new "Verify hostname on $container"
-        expectpart "$(ssh -l $USER $container clixon_cli -1 show configuration cli)" 0 "system config hostname test"
+        expectpart "$(ssh ${SSHID} -l $USER $container clixon_cli -1 show configuration cli)" 0 "system config hostname test"
     done
 
     for i in $(seq 1 $nr); do
@@ -117,7 +117,7 @@ function testrun()
 
     for container in $CONTAINERS; do
         new "Verify hostname on $container"
-        expectpart "$(ssh -l $USER $container clixon_cli -1 show configuration cli)" 0 "system config hostname openconfig*"
+        expectpart "$(ssh  ${SSHID} -l $USER $container clixon_cli -1 show configuration cli)" 0 "system config hostname openconfig*"
     done
 
     # identityrefs in mountpoints, see https://github.com/clicon/clixon-controller/issues/32

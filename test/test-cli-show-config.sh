@@ -12,9 +12,6 @@ test -d $dir || mkdir -p $dir
 test -d $CFD || mkdir -p $CFD
 fin=$dir/in
 
-# source IMG/USER etc
-. ./site.sh
-
 # Specialize controller.xml
 cat<<EOF > $CFD/diff.xml
 <?xml version="1.0" encoding="utf-8"?>

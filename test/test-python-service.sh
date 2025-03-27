@@ -294,7 +294,7 @@ expectpart "$($clixon_cli -1 -f $CFG -m configure commit diff)" 0 ""
 # Show the configuration on the devices using SSH
 for container in $CONTAINERS; do
     new "Verify configuration on $container for user test1"
-    expectpart "$(ssh -l $USER $container clixon_cli -1 show configuration cli)" 0 "system aaa authentication users user test1 config username test1" "system aaa authentication users user test1 config ssh-key key1" "system aaa authentication users user test1 config role admin"
+    expectpart "$(ssh ${SSHID} -l $USER $container clixon_cli -1 show configuration cli)" 0 "system aaa authentication users user test1 config username test1" "system aaa authentication users user test1 config ssh-key key1" "system aaa authentication users user test1 config role admin"
 done
 
 new "Configure ssh-users with user test2"
@@ -338,7 +338,7 @@ expectpart "$($clixon_cli -1 -f $CFG -m configure commit diff)" 0 ""
 # Show the configuration on the devices using SSH
 for container in $CONTAINERS; do
     new "Verify configuration on $container for user test2"
-    expectpart "$(ssh -l $USER $container clixon_cli -1 show configuration cli)" 0 "system aaa authentication users user test1 config username test1" "system aaa authentication users user test1 config ssh-key key1" "system aaa authentication users user test1 config role admin" "system aaa authentication users user test2 config username test2" "system aaa authentication users user test2 config ssh-key key2" "system aaa authentication users user test2 config role admin"
+    expectpart "$(ssh ${SSHID} -l $USER $container clixon_cli -1 show configuration cli)" 0 "system aaa authentication users user test1 config username test1" "system aaa authentication users user test1 config ssh-key key1" "system aaa authentication users user test1 config role admin" "system aaa authentication users user test2 config username test2" "system aaa authentication users user test2 config ssh-key key2" "system aaa authentication users user test2 config role admin"
 done
 
 new "Delete user test1"
@@ -384,7 +384,7 @@ OK"
 # Show the configuration on the devices using SSH
 for container in $CONTAINERS; do
     new "Verify configuration on $container for user test1"
-    expectpart "$(ssh -l $USER $container clixon_cli -1 show configuration cli)" 0 "system aaa authentication users user test2 config username test2" "system aaa authentication users user test2 config ssh-key key2" "system aaa authentication users user test2 config role admin"
+    expectpart "$(ssh ${SSHID} -l $USER $container clixon_cli -1 show configuration cli)" 0 "system aaa authentication users user test2 config username test2" "system aaa authentication users user test2 config ssh-key key2" "system aaa authentication users user test2 config role admin"
 done
 
 new "Delete user test2"
@@ -436,7 +436,7 @@ expectpart "$($clixon_cli -1 -f $CFG -m configure commit diff)" 0 ""
 # Show the configuration on the devices using SSH
 for container in $CONTAINERS; do
     new "Verify configuration on $container for user test2"
-    expectpart "$(ssh -l $USER $container clixon_cli -1 show configuration cli)" 0 ""
+    expectpart "$(ssh ${SSHID} -l $USER $container clixon_cli -1 show configuration cli)" 0 ""
 done
 
 if $BE; then
