@@ -44,9 +44,15 @@ module clixon-controller-config {
             type string;
         }
         leaf CONTROLLER_PYAPI_MODULE_FILTER{
+            description
+                "Comma separated list of services modules 
+                 that should be ignored and not loaded.";
             type string;
         }
         leaf CONTROLLER_PYAPI_PIDFILE{
+            description
+                "Path to the pidfile for the controller. 
+                 Typically /usr/local/var/run/controller/clixon_server.pid";
             type string;
         }
         leaf CONTROLLER_SSH_IDENTITYFILE{
