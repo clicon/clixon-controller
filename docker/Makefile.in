@@ -36,7 +36,7 @@ distclean: clean
 	rm -f Makefile *~ .depend
 
 docker: Dockerfile
-	sudo docker compose build --progress plain
+	sudo docker compose build --progress plain  # --no-cache
 
 docker-test: Dockerfile
 	sudo docker compose -f docker-compose-test.yml build --progress plain

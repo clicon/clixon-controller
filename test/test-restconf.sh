@@ -330,7 +330,7 @@ expectpart "$(curl $CURLOPTS -X GET $RCPROTO://localhost/restconf/data/ietf-rest
 
 # Start curl in background and save PID
 new "restconf RPC connection open"
-curl $CURLOPTS -X POST -H "Content-Type: application/yang-data+json" $RCPROTO://localhost/restconf/operations/clixon-controller:connection-change -d '{"clixon-controller:input":{"device":"*","operation":"OPEN"}}' > /dev/null &
+sleep 1 && curl $CURLOPTS -X POST -H "Content-Type: application/yang-data+json" $RCPROTO://localhost/restconf/operations/clixon-controller:connection-change -d '{"clixon-controller:input":{"device":"*","operation":"OPEN"}}' > /dev/null &
 PID=$!
 
 new "Notification controller-transaction timeout:${TIMEOUT}s"
@@ -375,7 +375,7 @@ new "restconf GET rpc-template"
 expectpart "$(curl $CURLOPTS -H "Accept: application/yang-data+json" -X GET $RCPROTO://localhost/restconf/data/clixon-controller:devices/rpc-template=stats)" 0 "HTTP/$HVER 200" '{"clixon-controller:rpc-template":\[{"name":"stats","variables":{"variable":\[{"name":"MODULES"}\]},"config":{"stats":{"modules":"${MODULES}"}}}\]}'
 
 new "Apply template using RPC in background and save PID"
-expectpart "$(curl $CURLOPTS -X POST -H "Content-Type: application/yang-data+json" $RCPROTO://localhost/restconf/operations/clixon-controller:device-template-apply -d '{"clixon-controller:input":{"type":"RPC","device":"openconfig*","template":"stats","variables":[{"variable":{"name":"MODULES","value":"true"}}]}}')" 0 "HTTP/$HVER 200" 'Content-Type: application/yang-data+json' '{"clixon-controller:output":{"tid":"[0-9:.]*"}}' &
+sleep 1 && expectpart "$(curl $CURLOPTS -X POST -H "Content-Type: application/yang-data+json" $RCPROTO://localhost/restconf/operations/clixon-controller:device-template-apply -d '{"clixon-controller:input":{"type":"RPC","device":"openconfig*","template":"stats","variables":[{"variable":{"name":"MODULES","value":"true"}}]}}')" 0 "HTTP/$HVER 200" 'Content-Type: application/yang-data+json' '{"clixon-controller:output":{"tid":"[0-9:.]*"}}' &
 PID=$!
 
 new "Wait for notification timeout:${TIMEOUT}s"

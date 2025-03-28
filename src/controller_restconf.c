@@ -55,7 +55,6 @@
 #include "controller_transaction.h"
 #include "controller_rpc.h"
 
-
 /*! Called when application is "started", (almost) all initialization is complete
  *
  * Create a global transaction notification handler and socket
