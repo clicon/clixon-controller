@@ -85,10 +85,10 @@ if $delete ; then
 </rpc>]]>]]>
 EOF
        )
-
+echo "ret: $ret"
     match=$(echo "$ret" | grep --null -Eo "<rpc-error>") || true
     if [ -n "$match" ]; then
-	err1 "netconf rpc-error detected"
+	err "netconf delete" "$ret"
     fi
 fi # delete
 

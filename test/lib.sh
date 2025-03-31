@@ -312,7 +312,7 @@ function stop_backend(){
     fi
     sudo clixon_backend -z $*
     if [ $? -ne 0 ]; then
-        err "kill backend"
+        err1 "kill backend"
     fi
     if [ $valgrindtest -eq 2 ]; then
         sleep 5         # This is to give valgrind time to dump log file
@@ -584,13 +584,13 @@ subjectAltName = DNS:clicon.org
 EOF
 
     # Generate server key
-    openssl genpkey -algorithm RSA -out $srvkey  || err "Generate server key"
+    openssl genpkey -algorithm RSA -out $srvkey  || err1 "Generate server key"
 
     # Generate CSR (signing request)
-    openssl req -batch -new -config $tmpdir/srv.cnf -key $srvkey -out $tmpdir/srv_csr.pem || err "Generate signing request"
+    openssl req -batch -new -config $tmpdir/srv.cnf -key $srvkey -out $tmpdir/srv_csr.pem || err1 "Generate signing request"
 
     # Sign server cert by CA
-    openssl x509 -req -extfile $tmpdir/srv.cnf -days 1 -passin "pass:password" -in $tmpdir/srv_csr.pem -CA $cacert -CAkey $cakey -CAcreateserial -out $srvcert || err "Sign server cert"
+    openssl x509 -req -extfile $tmpdir/srv.cnf -days 1 -passin "pass:password" -in $tmpdir/srv_csr.pem -CA $cacert -CAkey $cakey -CAcreateserial -out $srvcert || err1 "Sign server cert"
 
     rm -rf $tmpdir
 }

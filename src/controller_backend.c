@@ -535,7 +535,36 @@ controller_reset(clixon_handle h,
 static int
 controller_start(clixon_handle h)
 {
-    return 0;
+    int   retval = -1;
+    char *backend_user;
+    char *backend_group;
+    uid_t uid;
+    gid_t gid;
+
+    if ((backend_user = clicon_backend_user(h)) == NULL){
+        clixon_err(OE_DAEMON, EPERM, "Privileges cannot be dropped without specifying CLICON_BACKEND_USER\n");
+        goto done;
+    }
+    if ((backend_group = clicon_sock_group(h)) == NULL){
+        clixon_err(OE_FATAL, 0, "clicon_sock_group option not set");
+        goto done;
+    }
+    if (name2uid(backend_user, &uid) < 0){
+        clixon_err(OE_DAEMON, errno, "'%s' is not a valid user", backend_user);
+        goto done;
+    }
+    if (group_name2gid(backend_group, &gid) < 0){
+        clixon_err(OE_DAEMON, errno, "'%s' is not a valid group", backend_group);
+        goto done;
+    }
+    if (xmldb_exists(h, "tmpdev") != 1)
+        if (xmldb_create(h, "tmpdev") < 0)
+            goto done;
+    if (xmldb_drop_priv(h, "tmpdev", uid, gid) < 0)
+        goto done;
+    retval = 0;
+ done:
+    return retval;
 }
 
 /*! Called just before plugin unloaded.
@@ -574,7 +603,7 @@ controller_lockdb(clixon_handle h,
     controller_transaction *ct_list = NULL;
 
     clixon_debug(CLIXON_DBG_APP, "Lock callback: db%s: locked:%d", db, lock);
-    /* If client releases lock while transaction ongoing, 
+    /* If client releases lock while transaction ongoing,
      * then create a new per-transaction lock */
     if (lock == 0 &&
         clicon_ptr_get(h, "controller-transaction-list", (void**)&ct_list) == 0 &&
