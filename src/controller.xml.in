@@ -2,7 +2,9 @@
 <clixon-config xmlns="http://clicon.org/config">
   <!-- Controller requires startup datastore -->
   <CLICON_FEATURE>ietf-netconf:startup</CLICON_FEATURE>
-  <CLICON_FEATURE>clixon-restconf:allow-auth-none</CLICON_FEATURE> <!-- XXX -->
+  <!-- Allow no auth just for debug -->
+  <CLICON_FEATURE>clixon-restconf:allow-auth-none</CLICON_FEATURE>
+  <CLICON_FEATURE>clixon-restconf:fcgi</CLICON_FEATURE>
   <!-- See also src/Makefile.in and yang/Makefile.in -->
   <CLICON_CONFIGFILE>@SYSCONFDIR@/clixon/controller.xml</CLICON_CONFIGFILE>
   <CLICON_CONFIGDIR>@SYSCONFDIR@/clixon/controller</CLICON_CONFIGDIR>

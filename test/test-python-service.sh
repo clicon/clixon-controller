@@ -28,6 +28,7 @@ cat <<EOF > $CFG
 <clixon-config xmlns="http://clicon.org/config">
   <CLICON_FEATURE>ietf-netconf:startup</CLICON_FEATURE>
   <CLICON_FEATURE>clixon-restconf:allow-auth-none</CLICON_FEATURE>
+  <CLICON_FEATURE>clixon-restconf:fcgi</CLICON_FEATURE>
   <CLICON_CONFIGFILE>$CFG</CLICON_CONFIGFILE>
   <CLICON_CONFIGDIR>$CFD</CLICON_CONFIGDIR>
   <CLICON_CONFIG_EXTEND>clixon-controller-config</CLICON_CONFIG_EXTEND>

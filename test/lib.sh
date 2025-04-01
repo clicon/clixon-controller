@@ -480,6 +480,7 @@ function restconf_config()
     echo -n "<enable>true</enable>"
     echo -n "<debug>$DEBUG</debug>"
     echo -n "<timeout>$TIMEOUT</timeout>"
+    echo -n "<fcgi-socket>/www-data/fastcgi_restconf.sock</fcgi-socket>"
     if ${HTTPDATA}; then
         echo -n "<enable-http-data>true</enable-http-data>"
     fi

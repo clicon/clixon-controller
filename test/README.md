@@ -96,3 +96,21 @@ The following modifiers apply to some tests:
 * push=false            Only change dont sync push (change-push.sh only)
 * sleep=<s>             Sleep <s> seconds instead of 2 (all)
 * PREFIX=sudo           Generate keys for root (device scripts only)
+
+### RESTCONF
+
+To test with fcgi restconf:
+
+* Configure clixon: ./configure --with-restconf=fcgi
+* In controller test/config.sh.in:
+  WITH_RESTCONF=fcgi
+  HAVE_LIBNGHTTP2=false
+* Re-configure: ./config.status
+
+To test with native restconf:
+
+* Configure clixon: ./configure
+* In controller test/config.sh.in:
+  WITH_RESTCONF=native
+  HAVE_LIBNGHTTP2=true
+* Re-configure: ./config.status
