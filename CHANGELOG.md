@@ -1,16 +1,18 @@
 # Clixon Controller Changelog
 
 ## 1.4.0
-Expected: April 2025
+3 April 2025
+
+The controller 1.4 introduces RESTCONF support and a new extensions architecture.
 
 ### New features
 
-* Check if part of client-rpc, if so send notifications asynchronously
-* Plugin dir with ability to add device-specific plugins
-  * First junos-native plugin for non-rfc-compliant devices
-* Device handle flags and dynamic mechanism to allocate flags
 * Controller RESTCONF support
   * See: [Controller RESTCONF access not properly tested and documented](https://github.com/clicon/clixon-controller/issues/167)
+* New extension plugin dir with ability to add device-specific plugins and YANGs
+  * First junos-native plugin for non-rfc-compliant devices
+* Check if part of client-rpc, if so send notifications asynchronously
+* Device handle flags and dynamic mechanism to allocate flags
 
 ### API changes on existing protocol/config features
 
