@@ -1365,7 +1365,7 @@ cli_show_services_process(clixon_handle h,
     char          *active = "false";
     char          *status = "unknown";
 
-    name = "Action process";
+    name = SERVICES_PROCESS;
     opstr = "status";
     if (clixon_process_op_str2int(opstr) == -1){
         clixon_err(OE_UNIX, 0, "No such process op: %s", opstr);

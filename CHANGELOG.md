@@ -3,6 +3,11 @@
 ## 1.5.0
 Expected: July 2025
 
+### API changes on existing protocol/config features
+
+* New `clixon-controller-config@2025-05-01.yang` revision
+  * Added `CONTROLLER_SERVICES_USER`
+
 ### Corrected Bugs
 
 * Fixed: [Improve error message when creator tag is malformed](https://github.com/clicon/clixon-controller/issues/191)

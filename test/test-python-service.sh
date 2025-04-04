@@ -42,10 +42,13 @@ cat <<EOF > $CFG
   <CLICON_YANG_USE_ORIGINAL>true</CLICON_YANG_USE_ORIGINAL>
   <CLICON_BACKEND_DIR>${LIBDIR}/controller/backend</CLICON_BACKEND_DIR>
   <CLICON_BACKEND_USER>${CLICON_USER}</CLICON_BACKEND_USER>
-  <!--CLICON_BACKEND_PRIVILEGES>drop_perm</CLICON_BACKEND_PRIVILEGES-->
+  <!-- Cannot use drop_perm because:
+       1. XMLDB_MULTI creates new files (Fixed)
+       2. SSH keys to devices are root keys in scripts
+  -->
+  <CLICON_BACKEND_PRIVILEGES>none</CLICON_BACKEND_PRIVILEGES>
   <CLICON_BACKEND_PIDFILE>${LOCALSTATEDIR}/run/controller.pid</CLICON_BACKEND_PIDFILE>
   <CLICON_RESTCONF_INSTALLDIR>${SBINDIR}</CLICON_RESTCONF_INSTALLDIR>
-  <CLICON_RESTCONF_USER>${CLICON_USER}</CLICON_RESTCONF_USER>
   <CLICON_RESTCONF_PRIVILEGES>drop_perm</CLICON_RESTCONF_PRIVILEGES>
   <CLICON_CLI_DIR>${LIBDIR}/controller/cli</CLICON_CLI_DIR>
   <CLICON_CLISPEC_DIR>${LIBDIR}/controller/clispec</CLICON_CLISPEC_DIR>
@@ -69,6 +72,7 @@ cat <<EOF > $CFG
   <CONTROLLER_PYAPI_MODULE_PATH xmlns="http://clicon.org/controller-config">$modules</CONTROLLER_PYAPI_MODULE_PATH>
   <CONTROLLER_PYAPI_MODULE_FILTER xmlns="http://clicon.org/controller-config"></CONTROLLER_PYAPI_MODULE_FILTER>
   <CONTROLLER_PYAPI_PIDFILE xmlns="http://clicon.org/controller-config">/tmp/clixon_pyapi.pid</CONTROLLER_PYAPI_PIDFILE>  <!-- clicon goup cannot write in ${LOCALSTATEDIR} -->
+  <CONTROLLER_SERVICES_USER xmlns="http://clicon.org/controller-config">clicon</CONTROLLER_SERVICES_USER>
 </clixon-config>
 EOF
 

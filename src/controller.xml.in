@@ -26,8 +26,11 @@
   <!-- Backend -->
   <CLICON_BACKEND_DIR>@LIBDIR@/controller/backend</CLICON_BACKEND_DIR>
   <CLICON_BACKEND_USER>@CLICON_USER@</CLICON_BACKEND_USER>
-  <!-- Cannot use drop_perm because XMLDB_MULTI creates new files -->
-  <!--CLICON_BACKEND_PRIVILEGES>drop_perm</CLICON_BACKEND_PRIVILEGES-->
+  <!-- Cannot use drop_perm because:
+       1. XMLDB_MULTI creates new files (Fixed)
+       2. SSH keys to devices are root keys in scripts
+  -->
+  <CLICON_BACKEND_PRIVILEGES>none</CLICON_BACKEND_PRIVILEGES>
   <CLICON_BACKEND_PIDFILE>@RUNSTATEDIR@/controller/controller.pid</CLICON_BACKEND_PIDFILE>
   <!-- Start restconf daemon from backend -->
   <CLICON_BACKEND_RESTCONF_PROCESS>true</CLICON_BACKEND_RESTCONF_PROCESS>
@@ -74,4 +77,5 @@
   <CONTROLLER_PYAPI_MODULE_PATH xmlns="http://clicon.org/controller-config">@DATADIR@/controller/modules</CONTROLLER_PYAPI_MODULE_PATH>
   <CONTROLLER_PYAPI_MODULE_FILTER xmlns="http://clicon.org/controller-config"></CONTROLLER_PYAPI_MODULE_FILTER>
   <CONTROLLER_PYAPI_PIDFILE xmlns="http://clicon.org/controller-config">@RUNSTATEDIR@/controller/clixon_server.pid</CONTROLLER_PYAPI_PIDFILE>
+  <CONTROLLER_SERVICES_USER xmlns="http://clicon.org/controller-config">@CLICON_USER@</CONTROLLER_SERVICES_USER>
 </clixon-config>

@@ -125,7 +125,7 @@ EOF
 
 match=$(echo "$ret" | grep --null -Eo "<rpc-error>") || true
 if [ -n "$match" ]; then
-    err1 "netconf rpc-error detected"
+    err "OK" "$ret"
 fi
 
 new "reset-controller: Send rpc connection-change OPEN"
