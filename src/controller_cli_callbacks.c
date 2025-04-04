@@ -424,6 +424,91 @@ cli_show_auto_devs(clixon_handle h,
     return retval;
 }
 
+/*! Show meta details about a configured node: yang, namespaces, etc"
+ */
+int
+cli_show_config_detail(clixon_handle h,
+                       cvec         *cvv,
+                       cvec         *argv)
+{
+    int        retval = -1;
+    cvec      *nsc = NULL;
+    char      *xpath = NULL;
+    cbuf      *api_path_fmt_cb = NULL;    /* xml key format */
+    char      *api_path_fmt;  /* xml key format */
+    char      *api_path = NULL;
+    char      *mtpoint = NULL;
+    cg_var    *cv;
+    char      *str;
+    int        argc = 0;
+    int        i;
+    yang_stmt *yspec0;
+    yang_stmt *ys;
+    yang_stmt *ymod;
+    cxobj     *xbot = NULL;     /* xpath, NULL if datastore */
+    cxobj     *xtop = NULL;     /* xpath root */
+    int        cvvi = 0;
+    char      *ns;
+    char      *prefix;
+
+    if ((api_path_fmt_cb = cbuf_new()) == NULL){
+        clixon_err(OE_UNIX, errno, "cbuf_new");
+        goto done;
+    }
+    if ((yspec0 = clicon_dbspec_yang(h)) == NULL){
+        clixon_err(OE_FATAL, 0, "No DB_SPEC");
+        goto done;
+    }
+    /* Concatenate all argv strings to a single string
+     * Variant of cvec_concat_cb() where api-path-fmt may be interleaved with mtpoint,
+     * eg /api-path-fmt2 mtpoint /api-path-fmt1 /api-path-fmt0
+     */
+    for (i=cvec_len(argv)-1; i>=0; i--){
+        cv = cvec_i(argv, i);
+        if ((str = cv_string_get(cv)) == NULL)
+            continue;
+        if (str && strncmp(str, "mtpoint:", strlen("mtpoint:")) == 0){
+            mtpoint = str + strlen("mtpoint:");
+            argc++;
+            continue;
+        }
+        if (str[0] != '/')
+            continue;
+        argc++;
+        cprintf(api_path_fmt_cb, "%s", str);
+    }
+    api_path_fmt = cbuf_get(api_path_fmt_cb);
+    if (cli_apipath2xpath(h, cvv, mtpoint, api_path_fmt, &xpath, &nsc) < 0)
+        goto done;
+    if ((xtop = xml_new(NETCONF_INPUT_CONFIG, NULL, CX_ELMNT)) == NULL)
+        goto done;
+    if (cli_apipath(h, cvv, mtpoint, api_path_fmt, &cvvi, &api_path) < 0)
+        goto done;
+    xbot = xtop;
+    if (api_path2xml(api_path, yspec0, xtop, YC_DATANODE, 1, &xbot, &ys, NULL) < 0)
+       goto done;
+    ymod = ys_module(ys);
+    ns = yang_find_mynamespace(ys);
+    prefix = yang_find_myprefix(ys);
+    cligen_output(stdout, "Symbol:     %s\n", yang_argument_get(ys));
+    cligen_output(stdout, "Module:     %s\n", yang_argument_get(ymod));
+    cligen_output(stdout, "File:       %s\n", yang_filename_get(ymod));
+    cligen_output(stdout, "Namespace:  %s\n", ns);
+    cligen_output(stdout, "Prefix:     %s\n", prefix);
+    cligen_output(stderr, "XPath:      %s\n", xpath);
+    cligen_output(stderr, "APIpath:    %s\n", api_path);
+
+    retval = 0;
+ done:
+    if (api_path_fmt_cb)
+        cbuf_free(api_path_fmt_cb);
+    if (nsc)
+        cvec_free(nsc);
+    if (xpath)
+        free(xpath);
+    return retval;
+}
+
 /*! Common transaction notification handling from both async and poll
  *
  * @param[in]   h       CLixon handle
@@ -1365,7 +1450,7 @@ cli_show_services_process(clixon_handle h,
     char          *active = "false";
     char          *status = "unknown";
 
-    name = "Action process";
+    name = SERVICES_PROCESS;
     opstr = "status";
     if (clixon_process_op_str2int(opstr) == -1){
         clixon_err(OE_UNIX, 0, "No such process op: %s", opstr);

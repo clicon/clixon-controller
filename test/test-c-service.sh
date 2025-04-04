@@ -153,7 +153,7 @@ function check_services()
 <rpc xmlns="urn:ietf:params:xml:ns:netconf:base:1.0"
      message-id="42">
    <process-control $LIBNS>
-      <name>Action process</name>
+      <name>Services process</name>
       <operation>status</operation>
    </process-control>
 </rpc>]]>]]>

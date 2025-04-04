@@ -9,13 +9,13 @@ module clixon-controller-config {
         "Clixon controller config extending regular clixon-config";
     revision 2025-05-01 {
         description
-            "Released in 1.4.0";
+            "Released in 1.5.0";
     }
     revision 2025-02-01 {
         description
             "Added CONTROLLER_SSH_IDENTITYFILE
              Removed CONTROLLER_YANG_SCHEMA_MOUNT_DIR
-             Released in 1.3.0";
+             Released in 1.4.0";
     }
     revision 2024-08-01 {
         description

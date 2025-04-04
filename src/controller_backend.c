@@ -125,11 +125,11 @@ controller_commit_processes(clixon_handle h,
     if (veclen){
         body = xml_body(vec[0]);
         if (strcmp(body, "true") == 0){
-            if (clixon_process_operation(h, ACTION_PROCESS, PROC_OP_START, 0) < 0)
+            if (clixon_process_operation(h, SERVICES_PROCESS, PROC_OP_START, 0) < 0)
                 goto done;
         }
         else {
-            if (clixon_process_operation(h, ACTION_PROCESS, PROC_OP_STOP, 0) < 0)
+            if (clixon_process_operation(h, SERVICES_PROCESS, PROC_OP_STOP, 0) < 0)
                 goto done;
         }
     }
@@ -393,14 +393,14 @@ controller_action_proc_cb(clixon_handle    h,
     return retval;
 }
 
-/*! Register action daemon (eg pyapi)
+/*! Init service daemon: register services daemon, add NACM proxy user
  *
- * Need generic options for other solutions
+
  * @retval    0    OK
  * @retval   -1    Error
  */
 static int
-action_daemon_register(clixon_handle h)
+services_daemon_init(clixon_handle h)
 {
     int         retval = -1;
     char       *cmd;
@@ -418,6 +418,10 @@ action_daemon_register(clixon_handle h)
     char       *user;
 
     clixon_debug(CLIXON_DBG_CTRL, "");
+    /* Add pyapi user as NACM proxy user */
+    user = clicon_backend_user(h);
+    if (user && nacm_proxyuser_add(h, user) < 0)
+        goto done;
     if ((cmd = clicon_option_str(h, "CONTROLLER_ACTION_COMMAND")) == NULL)
         goto ok;
     if ((argv0 = clicon_strsep(cmd, " \t", &argc0)) == NULL)
@@ -441,7 +445,7 @@ action_daemon_register(clixon_handle h)
             goto done;
         }
     }
-    if ((user = clicon_backend_user(h)) != NULL){
+    if (user){
         if (name2uid(user, &uid) < 0){
             clixon_err(OE_DAEMON, errno, "'%s' is not a valid user .\n", user);
             goto done;
@@ -461,7 +465,7 @@ action_daemon_register(clixon_handle h)
         goto done;
     }
     /* The actual fork/exec is made in clixon_process_operation/clixon_proc_background */
-    if (clixon_process_register(h, ACTION_PROCESS,
+    if (clixon_process_register(h, SERVICES_PROCESS,
                                 "Controller action daemon process",
                                 NULL,
                                 uid, gid, 2,
@@ -516,7 +520,7 @@ controller_reset(clixon_handle h,
     }
     if ((xse = xpath_first(xtop, 0, "%s", xpath)) != NULL){
         if (strcmp(xml_body(xse), "true") == 0)
-            if (clixon_process_operation(h, ACTION_PROCESS, PROC_OP_START, 0) < 0)
+            if (clixon_process_operation(h, SERVICES_PROCESS, PROC_OP_START, 0) < 0)
                 goto done;
     }
     retval = 0;
@@ -557,6 +561,7 @@ controller_start(clixon_handle h)
         clixon_err(OE_DAEMON, errno, "'%s' is not a valid group", backend_group);
         goto done;
     }
+    /* Used by controller must drop priv on datastore dir */
     if (xmldb_exists(h, "tmpdev") != 1)
         if (xmldb_create(h, "tmpdev") < 0)
             goto done;
@@ -662,7 +667,7 @@ clixon_plugin_init(clixon_handle h)
                    0, NULL) < 0)
         goto done;
     /* Register pyapi sub-process */
-    if (action_daemon_register(h) < 0)
+    if (services_daemon_init(h) < 0)
         goto done;
     /* Reset dynamic device handle flag plugin allocation */
     clicon_data_int_set(h, "controller-device-flags", 0);

@@ -3,6 +3,17 @@
 ## 1.5.0
 Expected: July 2025
 
+### New features
+
+* Fixed: [NACM for Clixon Controller](https://github.com/clicon/clixon-controller/issues/189)
+  * Support for services
+  * Testcases for controller nacm and nacm+restconf
+  * Added cli show detail command
+
+### API changes on existing protocol/config features
+
+* New `clixon-controller-config@2025-05-01.yang` revision
+
 ### Corrected Bugs
 
 * Fixed: [Improve error message when creator tag is malformed](https://github.com/clicon/clixon-controller/issues/191)

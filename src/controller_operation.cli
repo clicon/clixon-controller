@@ -21,10 +21,10 @@ default("Set CLI default values") {
 }
 processes("Process maintenace") {
    services("Service daemon operation") {
-      start, cli_process_control("Action process", "start");
-      stop, cli_process_control("Action process", "stop");
-      restart, cli_process_control("Action process", "restart");
-      status, cli_process_control("Action process", "status");
+      start, cli_process_control("Services process", "start");
+      stop, cli_process_control("Services process", "stop");
+      restart, cli_process_control("Services process", "restart");
+      status, cli_process_control("Services process", "status");
    }
    restconf("RESTCONF daemon operations") {
       start, cli_process_control("restconf", "start");
@@ -37,6 +37,9 @@ show("Show a particular state of the system"){
     compare("Compare candidate and running databases"), compare_dbs_rpc("running", "candidate", "default");{
        xml("Show comparison in xml"), compare_dbs_rpc("running", "candidate","xml");
 #       text("Show comparison in text"), compare_dbs_rpc("running", "candidate", "text");
+    }
+    detail("Show details about a configured node: yang, namespaces, etc"){
+       @datamodelshow, cli_show_config_detail();
     }
     configuration("Show configuration"), cli_show_auto_mode("running", "default", true, false);{
        @|pipe_show, cli_show_auto_mode("running", "xml", true, false);
@@ -63,7 +66,7 @@ show("Show a particular state of the system"){
        @|pipe_show, cli_show_options();
     }
     services("Show service process status"), cli_show_services_process();{
-       detail("Show detailed process status"), cli_process_control("Action process", "status");
+       detail("Show detailed process status"), cli_process_control("Services process", "status");
     }
     sessions("Show client sessions"), cli_show_sessions();{
          detail("Show sessions detailed state"), cli_show_sessions("detail");

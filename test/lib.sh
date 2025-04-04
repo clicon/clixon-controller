@@ -448,7 +448,7 @@ function err1(){
 # Can be placed in clixon-config
 # Note that https clause assumes there exists certs and keys in /etc/ssl,...
 # Args:
-# 1: auth-type (one of none, client-cert, user)
+# 1: auth-type (one of none, client-certificate, user)
 # 2: pretty (if true pretty-print restconf return values)
 # 3: debug (decimal)
 # 4: log-destination (syslog/file/...)
@@ -594,4 +594,42 @@ EOF
     openssl x509 -req -extfile $tmpdir/srv.cnf -days 1 -passin "pass:password" -in $tmpdir/srv_csr.pem -CA $cacert -CAkey $cakey -CAcreateserial -out $srvcert || err1 "Sign server cert"
 
     rm -rf $tmpdir
+}
+
+# Create user cert
+# Vars:
+# 1: name
+# 1: cakey   filename (input)
+# 2: cacert  filename (input)
+# 3: srvkey  filename (output)
+# 4: srvcert filename (output)
+function usercert()
+{
+    # create client certs
+    certdir=$1
+    name=$2
+
+    cacert=${certdir}/clixon-ca-crt.pem
+    cakey=${certdir}/clixon-ca-key.pem
+
+    cat<<EOF > $dir/$name.cnf
+[req]
+prompt = no
+distinguished_name = dn
+[dn]
+CN = $name # This can be verified using SSL_set1_host
+emailAddress = $name@foo.bar
+O = Clixon
+L = Stockholm
+C = SE
+EOF
+    # Create client key
+    openssl genpkey -algorithm RSA -out "$certdir/$name.key" ||  err "Generate client key"
+
+    # Generate CSR (signing request)
+    openssl req -new -config $dir/$name.cnf -key $certdir/$name.key -out $certdir/$name.csr
+
+    # Sign by CA
+    openssl x509 -req -extfile $dir/$name.cnf -days 1 -passin "pass:password" -in $certdir/$name.csr -CA $cacert -CAkey $cakey -CAcreateserial -out $certdir/$name.crt  ||  err "Generate signing client cert"
+
 }
