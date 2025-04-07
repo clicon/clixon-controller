@@ -15,6 +15,7 @@ modules=$dir/modules
 fyang=$dir/ssh-users.yang
 CFG=${SYSCONFDIR}/clixon/controller.xml
 CFD=$dir/confdir
+diff=$CFD/diff.xml
 test -d $dir || mkdir -p $dir
 test -d $modules || mkdir -p $modules
 test -d $CFD || mkdir -p $CFD
@@ -23,7 +24,7 @@ pycode=$modules/ssh-users.py
 : ${RUN_NOT_WORKING:=false}
 
 # Specialize controller.xml
-cat<<EOF > $CFG
+cat<<EOF > $diff
 <?xml version="1.0" encoding="utf-8"?>
 <clixon-config xmlns="http://clicon.org/config">
   <CLICON_FEATURE>ietf-netconf:startup</CLICON_FEATURE>
@@ -169,7 +170,7 @@ function sleep_open()
 {
     for j in $(seq 1 10); do
         new "Verify devices are open"
-        ret=$($clixon_cli -1 -f $CFG show connections)
+        ret=$($clixon_cli -1 -f $CFG -E $CFD show connections)
         match1=$(echo "$ret" | grep --null -Eo "openconfig1.*OPEN") || true
         match2=$(echo "$ret" | grep --null -Eo "openconfig2.*OPEN") || true
         if [ -n "$match1" -a -n "$match2" ]; then
@@ -185,22 +186,22 @@ function sleep_open()
 
 function nacm_init() {
     new "Create default configuration for NACM"
-    expectpart "$($clixon_cli -1 -f $CFG -m configure delete nacm)" 0 ""
-    expectpart "$($clixon_cli -1 -f $CFG -m configure set nacm enable-nacm true)" 0 ""
-    expectpart "$($clixon_cli -1 -f $CFG -m configure set nacm read-default permit)" 0 ""
-    expectpart "$($clixon_cli -1 -f $CFG -m configure set nacm write-default permit)" 0 ""
-    expectpart "$($clixon_cli -1 -f $CFG -m configure set nacm exec-default permit)" 0 ""
-    expectpart "$($clixon_cli -1 -f $CFG -m configure set nacm groups group test-group user-name root)" 0 ""
-    expectpart "$($clixon_cli -1 -f $CFG -m configure set nacm rule-list test-rules group test-group)" 0 ""
-    expectpart "$($clixon_cli -1 -f $CFG -m configure commit local)" 0 ""
+    expectpart "$($clixon_cli -1 -f $CFG -E $CFD -m configure delete nacm)" 0 ""
+    expectpart "$($clixon_cli -1 -f $CFG -E $CFD -m configure set nacm enable-nacm true)" 0 ""
+    expectpart "$($clixon_cli -1 -f $CFG -E $CFD -m configure set nacm read-default permit)" 0 ""
+    expectpart "$($clixon_cli -1 -f $CFG -E $CFD -m configure set nacm write-default permit)" 0 ""
+    expectpart "$($clixon_cli -1 -f $CFG -E $CFD -m configure set nacm exec-default permit)" 0 ""
+    expectpart "$($clixon_cli -1 -f $CFG -E $CFD -m configure set nacm groups group test-group user-name root)" 0 ""
+    expectpart "$($clixon_cli -1 -f $CFG -E $CFD -m configure set nacm rule-list test-rules group test-group)" 0 ""
+    expectpart "$($clixon_cli -1 -f $CFG -E $CFD -m configure commit local)" 0 ""
 }
 
 if $BE; then
     new "Kill old backend"
-    stop_backend -f $CFG
+    stop_backend -f $CFG -E $CFD
 
     new "Start new backend -s startup -f $CFG"
-    start_backend -s startup -f $CFG
+    start_backend -s startup -f $CFG -E $CFD
 fi
 
 SERVICE_DIFF="openconfig1:
@@ -267,12 +268,12 @@ expectpart "$($clixon_cli -1 -f $CFG processes service status)" 0 ".*running.*" 
 nacm_init
 
 new "Deny access to device addr"
-expectpart "$($clixon_cli -1 -f $CFG -m configure set nacm rule-list test-rules group test-group)" 0 ""
-expectpart "$($clixon_cli -1 -f $CFG -m configure set nacm rule-list test-rules rule device-address access-operations read)" 0 ""
-expectpart "$($clixon_cli -1 -f $CFG -m configure set nacm rule-list test-rules rule device-address action deny)" 0 ""
-expectpart "$($clixon_cli -1 -f $CFG -m configure set nacm rule-list test-rules rule device-address path /ctrl:devices/ctrl:device/ctrl:addr)" 0 ""
-expectpart "$($clixon_cli -1 -f $CFG -m configure commit local)" 0 ""
-expectpart "$($clixon_cli -1 -f $CFG -m configure show devices device openconfig1 addr)" 0 "<!-- openconfig1: -->
+expectpart "$($clixon_cli -1 -f $CFG -E $CFD -m configure set nacm rule-list test-rules group test-group)" 0 ""
+expectpart "$($clixon_cli -1 -f $CFG -E $CFD -m configure set nacm rule-list test-rules rule device-address access-operations read)" 0 ""
+expectpart "$($clixon_cli -1 -f $CFG -E $CFD -m configure set nacm rule-list test-rules rule device-address action deny)" 0 ""
+expectpart "$($clixon_cli -1 -f $CFG -E $CFD -m configure set nacm rule-list test-rules rule device-address path /ctrl:devices/ctrl:device/ctrl:addr)" 0 ""
+expectpart "$($clixon_cli -1 -f $CFG -E $CFD -m configure commit local)" 0 ""
+expectpart "$($clixon_cli -1 -f $CFG -E $CFD -m configure show devices device openconfig1 addr)" 0 "<!-- openconfig1: -->
 <devices xmlns=\"http://clicon.org/controller\">
    <device>
       <name>openconfig1</name>
@@ -282,12 +283,12 @@ expectpart "$($clixon_cli -1 -f $CFG -m configure show devices device openconfig
 nacm_init
 
 new "Permit access to device addr"
-expectpart "$($clixon_cli -1 -f $CFG -m configure set nacm rule-list test-rules group test-group)" 0 ""
-expectpart "$($clixon_cli -1 -f $CFG -m configure set nacm rule-list test-rules rule device-address access-operations read)" 0 ""
-expectpart "$($clixon_cli -1 -f $CFG -m configure set nacm rule-list test-rules rule device-address action permit)" 0 ""
-expectpart "$($clixon_cli -1 -f $CFG -m configure set nacm rule-list test-rules rule device-address path /ctrl:devices/ctrl:device/ctrl:addr)" 0 ""
-expectpart "$($clixon_cli -1 -f $CFG -m configure commit local)" 0 ""
-expectpart "$($clixon_cli -1 -f $CFG -m configure show devices device openconfig1 addr)" 0 "<!-- openconfig1: -->
+expectpart "$($clixon_cli -1 -f $CFG -E $CFD -m configure set nacm rule-list test-rules group test-group)" 0 ""
+expectpart "$($clixon_cli -1 -f $CFG -E $CFD -m configure set nacm rule-list test-rules rule device-address access-operations read)" 0 ""
+expectpart "$($clixon_cli -1 -f $CFG -E $CFD -m configure set nacm rule-list test-rules rule device-address action permit)" 0 ""
+expectpart "$($clixon_cli -1 -f $CFG -E $CFD -m configure set nacm rule-list test-rules rule device-address path /ctrl:devices/ctrl:device/ctrl:addr)" 0 ""
+expectpart "$($clixon_cli -1 -f $CFG -E $CFD -m configure commit local)" 0 ""
+expectpart "$($clixon_cli -1 -f $CFG -E $CFD -m configure show devices device openconfig1 addr)" 0 "<!-- openconfig1: -->
 <devices xmlns=\"http://clicon.org/controller\">
    <device>
       <name>openconfig1</name>
@@ -298,79 +299,79 @@ expectpart "$($clixon_cli -1 -f $CFG -m configure show devices device openconfig
 nacm_init
 
 new "Deny access to device hostname but make sure we can modify doamin-name"
-expectpart "$($clixon_cli -1 -f $CFG -m configure set nacm rule-list test-rules group test-group)" 0 ""
-expectpart "$($clixon_cli -1 -f $CFG -m configure set nacm rule-list test-rules rule test-rule path /ctrl:devices/ctrl:device/ctrl:config/oc-sys:system/oc-sys:config/oc-sys:hostname)" 0 ""
-expectpart "$($clixon_cli -1 -f $CFG -m configure set nacm rule-list test-rules rule test-rule access-operations \*)" 0 ""
-expectpart "$($clixon_cli -1 -f $CFG -m configure set nacm rule-list test-rules rule test-rule action deny)" 0 ""
-expectpart "$($clixon_cli -1 -f $CFG -m configure commit local)" 0 ""
-expectpart "$($clixon_cli -1 -f $CFG -m configure set devices device openconfig1 config system config hostname test 2>&1)" 255 ".*Netconf error: Editing configuration: application access-denied access denied.*"
-expectpart "$($clixon_cli -1 -f $CFG -m configure set devices device openconfig1 config system config domain-name example.com 2>&1)" 0 ""
-expectpart "$($clixon_cli -1 -f $CFG -m configure commit diff 2>&1)" 0 "openconfig1:
+expectpart "$($clixon_cli -1 -f $CFG -E $CFD -m configure set nacm rule-list test-rules group test-group)" 0 ""
+expectpart "$($clixon_cli -1 -f $CFG -E $CFD -m configure set nacm rule-list test-rules rule test-rule path /ctrl:devices/ctrl:device/ctrl:config/oc-sys:system/oc-sys:config/oc-sys:hostname)" 0 ""
+expectpart "$($clixon_cli -1 -f $CFG -E $CFD -m configure set nacm rule-list test-rules rule test-rule access-operations \*)" 0 ""
+expectpart "$($clixon_cli -1 -f $CFG -E $CFD -m configure set nacm rule-list test-rules rule test-rule action deny)" 0 ""
+expectpart "$($clixon_cli -1 -f $CFG -E $CFD -m configure commit local)" 0 ""
+expectpart "$($clixon_cli -1 -f $CFG -E $CFD -m configure set devices device openconfig1 config system config hostname test 2>&1)" 255 ".*Netconf error: Editing configuration: application access-denied access denied.*"
+expectpart "$($clixon_cli -1 -f $CFG -E $CFD -m configure set devices device openconfig1 config system config domain-name example.com 2>&1)" 0 ""
+expectpart "$($clixon_cli -1 -f $CFG -E $CFD -m configure commit diff 2>&1)" 0 "openconfig1:
       <config xmlns="http://openconfig.net/yang/system">
 +        <domain-name>example.com</domain-name>
       </config>
 OK"
 
 new "Permit access to device configuration"
-expectpart "$($clixon_cli -1 -f $CFG -m configure set nacm rule-list test-rules rule test-rule action permit)" 0 ""
-expectpart "$($clixon_cli -1 -f $CFG -m configure commit local)" 0 ""
-expectpart "$($clixon_cli -1 -f $CFG -m configure set devices device openconfig1 config system config hostname test)" 0 ""
-expectpart "$($clixon_cli -1 -f $CFG -m configure commit 2>&1)" 0 "OK"
+expectpart "$($clixon_cli -1 -f $CFG -E $CFD -m configure set nacm rule-list test-rules rule test-rule action permit)" 0 ""
+expectpart "$($clixon_cli -1 -f $CFG -E $CFD -m configure commit local)" 0 ""
+expectpart "$($clixon_cli -1 -f $CFG -E $CFD -m configure set devices device openconfig1 config system config hostname test)" 0 ""
+expectpart "$($clixon_cli -1 -f $CFG -E $CFD -m configure commit 2>&1)" 0 "OK"
 
 nacm_init
 
 new "Test NACM for services, deny adding SSH user"
-expectpart "$($clixon_cli -1 -f $CFG -m configure set nacm rule-list test-rules rule test-rule access-operations \*)" 0 ""
-expectpart "$($clixon_cli -1 -f $CFG -m configure set nacm rule-list test-rules rule test-rule action deny)" 0 ""
-expectpart "$($clixon_cli -1 -f $CFG -m configure set nacm rule-list test-rules rule test-rule path /ctrl:devices/ctrl:device/ctrl:config/oc-sys:system)" 0 ""
-expectpart "$($clixon_cli -1 -f $CFG -m configure commit local)" 0 ""
-expectpart "$($clixon_cli -1 -f $CFG -m configure set services ssh-users test username test-user role operator)" 0 ""
-expectpart "$($clixon_cli -1 -f $CFG -m configure set services ssh-users test username test-user ssh-key test-key)" 0 ""
-expectpart "$($clixon_cli -1 -f $CFG -m configure commit 2>&1)" 0 ".*access denied.*"
-expectpart "$($clixon_cli -1 -f $CFG -m configure rollback)" 0 ""
+expectpart "$($clixon_cli -1 -f $CFG -E $CFD -m configure set nacm rule-list test-rules rule test-rule access-operations \*)" 0 ""
+expectpart "$($clixon_cli -1 -f $CFG -E $CFD -m configure set nacm rule-list test-rules rule test-rule action deny)" 0 ""
+expectpart "$($clixon_cli -1 -f $CFG -E $CFD -m configure set nacm rule-list test-rules rule test-rule path /ctrl:devices/ctrl:device/ctrl:config/oc-sys:system)" 0 ""
+expectpart "$($clixon_cli -1 -f $CFG -E $CFD -m configure commit local)" 0 ""
+expectpart "$($clixon_cli -1 -f $CFG -E $CFD -m configure set services ssh-users test username test-user role operator)" 0 ""
+expectpart "$($clixon_cli -1 -f $CFG -E $CFD -m configure set services ssh-users test username test-user ssh-key test-key)" 0 ""
+expectpart "$($clixon_cli -1 -f $CFG -E $CFD -m configure commit 2>&1)" 0 ".*access denied.*"
+expectpart "$($clixon_cli -1 -f $CFG -E $CFD -m configure rollback)" 0 ""
 
 new "Test NACM for services, permit adding SSH user"
-expectpart "$($clixon_cli -1 -f $CFG -m configure set nacm rule-list test-rules rule test-rule access-operations \*)" 0 ""
-expectpart "$($clixon_cli -1 -f $CFG -m configure set nacm rule-list test-rules rule test-rule action permit)" 0 ""
-expectpart "$($clixon_cli -1 -f $CFG -m configure set nacm rule-list test-rules rule test-rule path /ctrl:devices/ctrl:device/ctrl:config/oc-sys:system)" 0 ""
-expectpart "$($clixon_cli -1 -f $CFG -m configure commit local)" 0 ""
-expectpart "$($clixon_cli -1 -f $CFG -m configure set services ssh-users test username test-user role operator)" 0 ""
-expectpart "$($clixon_cli -1 -f $CFG -m configure set services ssh-users test username test-user ssh-key test-key)" 0 ""
-expectpart "$($clixon_cli -1 -f $CFG -m configure commit diff)" 0 "${SERVICE_DIFF}"
-expectpart "$($clixon_cli -1 -f $CFG -m configure rollback)" 0 ""
+expectpart "$($clixon_cli -1 -f $CFG -E $CFD -m configure set nacm rule-list test-rules rule test-rule access-operations \*)" 0 ""
+expectpart "$($clixon_cli -1 -f $CFG -E $CFD -m configure set nacm rule-list test-rules rule test-rule action permit)" 0 ""
+expectpart "$($clixon_cli -1 -f $CFG -E $CFD -m configure set nacm rule-list test-rules rule test-rule path /ctrl:devices/ctrl:device/ctrl:config/oc-sys:system)" 0 ""
+expectpart "$($clixon_cli -1 -f $CFG -E $CFD -m configure commit local)" 0 ""
+expectpart "$($clixon_cli -1 -f $CFG -E $CFD -m configure set services ssh-users test username test-user role operator)" 0 ""
+expectpart "$($clixon_cli -1 -f $CFG -E $CFD -m configure set services ssh-users test username test-user ssh-key test-key)" 0 ""
+expectpart "$($clixon_cli -1 -f $CFG -E $CFD -m configure commit diff)" 0 "${SERVICE_DIFF}"
+expectpart "$($clixon_cli -1 -f $CFG -E $CFD -m configure rollback)" 0 ""
 
 nacm_init
 
 new "Test NACM for services, permit adding SSH user but deny modifying hostname"
-expectpart "$($clixon_cli -1 -f $CFG -m configure set nacm rule-list test-rules rule test-rule access-operations \*)" 0 ""
-expectpart "$($clixon_cli -1 -f $CFG -m configure set nacm rule-list test-rules rule test-rule action deny)" 0 ""
-expectpart "$($clixon_cli -1 -f $CFG -m configure set nacm rule-list test-rules rule test-rule path /ctrl:devices/ctrl:device/ctrl:config/oc-sys:system/oc-sys:config/oc-sys:hostname)" 0 ""
-expectpart "$($clixon_cli -1 -f $CFG -m configure commit local)" 0 ""
-expectpart "$($clixon_cli -1 -f $CFG -m configure set services ssh-users test username test-user role operator)" 0 ""
-expectpart "$($clixon_cli -1 -f $CFG -m configure set services ssh-users test username test-user ssh-key test-key)" 0 ""
-expectpart "$($clixon_cli -1 -f $CFG -m configure commit diff)" 0 "${SERVICE_DIFF}"
+expectpart "$($clixon_cli -1 -f $CFG -E $CFD -m configure set nacm rule-list test-rules rule test-rule access-operations \*)" 0 ""
+expectpart "$($clixon_cli -1 -f $CFG -E $CFD -m configure set nacm rule-list test-rules rule test-rule action deny)" 0 ""
+expectpart "$($clixon_cli -1 -f $CFG -E $CFD -m configure set nacm rule-list test-rules rule test-rule path /ctrl:devices/ctrl:device/ctrl:config/oc-sys:system/oc-sys:config/oc-sys:hostname)" 0 ""
+expectpart "$($clixon_cli -1 -f $CFG -E $CFD -m configure commit local)" 0 ""
+expectpart "$($clixon_cli -1 -f $CFG -E $CFD -m configure set services ssh-users test username test-user role operator)" 0 ""
+expectpart "$($clixon_cli -1 -f $CFG -E $CFD -m configure set services ssh-users test username test-user ssh-key test-key)" 0 ""
+expectpart "$($clixon_cli -1 -f $CFG -E $CFD -m configure commit diff)" 0 "${SERVICE_DIFF}"
 
 nacm_init
 
 new "Test NACM and RPCs, deny config-pull"
-expectpart "$($clixon_cli -1 -f $CFG -m configure set nacm rule-list test-rules rule test-rule access-operations \*)" 0 ""
-expectpart "$($clixon_cli -1 -f $CFG -m configure set nacm rule-list test-rules rule test-rule action deny)" 0 ""
-expectpart "$($clixon_cli -1 -f $CFG -m configure set nacm rule-list test-rules rule test-rule rpc-name config-pull)" 0 ""
-expectpart "$($clixon_cli -1 -f $CFG -m configure commit local)" 0 ""
+expectpart "$($clixon_cli -1 -f $CFG -E $CFD -m configure set nacm rule-list test-rules rule test-rule access-operations \*)" 0 ""
+expectpart "$($clixon_cli -1 -f $CFG -E $CFD -m configure set nacm rule-list test-rules rule test-rule action deny)" 0 ""
+expectpart "$($clixon_cli -1 -f $CFG -E $CFD -m configure set nacm rule-list test-rules rule test-rule rpc-name config-pull)" 0 ""
+expectpart "$($clixon_cli -1 -f $CFG -E $CFD -m configure commit local)" 0 ""
 expectpart "$($clixon_cli -1 -f $CFG pull 2>&1)" 255 ".*application access-denied access denied"
 
 nacm_init
 
 new "Test NACM and RPCs, allow config-pull"
-expectpart "$($clixon_cli -1 -f $CFG -m configure set nacm rule-list test-rules rule test-rule access-operations \*)" 0 ""
-expectpart "$($clixon_cli -1 -f $CFG -m configure set nacm rule-list test-rules rule test-rule action permit)" 0 ""
-expectpart "$($clixon_cli -1 -f $CFG -m configure set nacm rule-list test-rules rule test-rule rpc-name config-pull)" 0 ""
-expectpart "$($clixon_cli -1 -f $CFG -m configure commit local)" 0 ""
+expectpart "$($clixon_cli -1 -f $CFG -E $CFD -m configure set nacm rule-list test-rules rule test-rule access-operations \*)" 0 ""
+expectpart "$($clixon_cli -1 -f $CFG -E $CFD -m configure set nacm rule-list test-rules rule test-rule action permit)" 0 ""
+expectpart "$($clixon_cli -1 -f $CFG -E $CFD -m configure set nacm rule-list test-rules rule test-rule rpc-name config-pull)" 0 ""
+expectpart "$($clixon_cli -1 -f $CFG -E $CFD -m configure commit local)" 0 ""
 expectpart "$($clixon_cli -1 -f $CFG pull 2>&1)" 0 "OK"
 
 if $BE; then
      new "Kill old backend"
-     stop_backend -f $CFG
+     stop_backend -f $CFG -E $CFD
 fi
 
 endtest
