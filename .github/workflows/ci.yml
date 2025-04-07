@@ -5,6 +5,7 @@ on:
     branches:
       - main
       - test-actions
+      - nacm
   pull_request:
     branches:
       - main

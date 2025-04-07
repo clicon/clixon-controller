@@ -44,6 +44,8 @@ RUN ldconfig
 
 WORKDIR /clixon/clixon
 RUN ./configure
+RUN git pull # XXX Only in branch nacm
+RUN git checkout nacm # XXX Only in branch nacm
 RUN make
 RUN make install
 RUN ldconfig
