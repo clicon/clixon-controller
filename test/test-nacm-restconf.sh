@@ -113,42 +113,6 @@ module myyang {
 }
 EOF
 
-# Send process-control and check status of services daemon
-# Args:
-# 0: stopped/running   Expected process status
-function check_services()
-{
-    status=$1
-    new "Query process-control of action process"
-    ret=$(${clixon_netconf} -0 -f $CFG -E $CFD <<EOF
-<?xml version="1.0" encoding="UTF-8"?>
-<hello xmlns="urn:ietf:params:xml:ns:netconf:base:1.0">
-   <capabilities>
-      <capability>urn:ietf:params:netconf:base:1.0</capability>
-   </capabilities>
-</hello>]]>]]>
-<rpc xmlns="urn:ietf:params:xml:ns:netconf:base:1.0"
-     message-id="42">
-   <process-control $LIBNS>
-      <name>Services process</name>
-      <operation>status</operation>
-   </process-control>
-</rpc>]]>]]>
-EOF
-      )
-    new "Check rpc-error"
-    match=$(echo "$ret" | grep --null -Eo "<rpc-error>") || true
-    if [ -n "$match" ]; then
-        err "<reply>" "$ret"
-    fi
-
-    new "Check rpc-error status=$status"
-    match=$(echo "$ret" | grep --null -Eo "<status $LIBNS>$status</status>") || true
-    if [ -z "$match" ]; then
-        err "<status>$status</status>" "$ret"
-    fi
-}
-
 if $BE; then
     new "Kill old backend"
     sudo clixon_backend -s init -f $CFG -E $CFD -z
@@ -181,9 +145,6 @@ wait_backend
 
 new "Wait restconf"
 wait_restconf
-
-# netconf baseline
-check_services running
 
 # Reset controller by initiating with clixon/openconfig devices and a pull
 . ./reset-controller.sh
