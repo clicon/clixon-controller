@@ -71,7 +71,7 @@
 /*! Pyapi or other services process
  * Note this set also in clispec:s and tests
  */
-#define SERVICES_PROCESS "Action process"
+#define SERVICES_PROCESS "Services process"
 
 /*! Controller debug levels
  */

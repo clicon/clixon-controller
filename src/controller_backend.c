@@ -419,8 +419,7 @@ services_daemon_init(clixon_handle h)
 
     clixon_debug(CLIXON_DBG_CTRL, "");
     /* Add pyapi user as NACM proxy user */
-    if ((user = clicon_option_str(h, "CONTROLLER_SERVICES_USER")) == NULL)
-        user = clicon_backend_user(h);
+    user = clicon_backend_user(h);
     if (user && nacm_proxyuser_add(h, user) < 0)
         goto done;
     if ((cmd = clicon_option_str(h, "CONTROLLER_ACTION_COMMAND")) == NULL)

@@ -77,5 +77,4 @@
   <CONTROLLER_PYAPI_MODULE_PATH xmlns="http://clicon.org/controller-config">@DATADIR@/controller/modules</CONTROLLER_PYAPI_MODULE_PATH>
   <CONTROLLER_PYAPI_MODULE_FILTER xmlns="http://clicon.org/controller-config"></CONTROLLER_PYAPI_MODULE_FILTER>
   <CONTROLLER_PYAPI_PIDFILE xmlns="http://clicon.org/controller-config">@RUNSTATEDIR@/controller/clixon_server.pid</CONTROLLER_PYAPI_PIDFILE>
-  <CONTROLLER_SERVICES_USER xmlns="http://clicon.org/controller-config">@CLICON_USER@</CONTROLLER_SERVICES_USER>
 </clixon-config>
