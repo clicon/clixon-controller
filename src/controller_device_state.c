@@ -1084,11 +1084,17 @@ device_state_check_sanity(device_handle           dh,
                           conn_state              conn_state,
                           char                   *rpcname)
 {
-    if (tid == 0 || ct == NULL){
-        device_close_connection(dh, "Unexpected rpc %s from device %s in state %s: device is not part of any transaction",
+    if (tid == 0){
+        device_close_connection(dh, "Unexpected rpc %s from device %s in state %s: device is not part of any transaction (device may have left earlier)",
                                 rpcname, name, device_state_int2str(conn_state));
         return 0;
     }
+    if (ct == NULL){
+        device_close_connection(dh, "Unexpected rpc %s from device %s in state %s: Device part of transaction with unknown id: %" PRIu64,
+                                rpcname, name, device_state_int2str(conn_state), tid);
+        return 0;
+    }
+
     if (ct->ct_state != TS_INIT && ct->ct_state != TS_RESOLVED){
         clixon_debug(CLIXON_DBG_CTRL, "%s: Unexpected msg %s in state %s",
                      name, rpcname, transaction_state_int2str(ct->ct_state));

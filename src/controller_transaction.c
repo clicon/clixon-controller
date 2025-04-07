@@ -672,6 +672,8 @@ controller_transaction_nr_devices(clixon_handle h,
   * If >= WAIT state
   * --> 1.3.2 For all other devices in WAIT state trigger DISCARD
  * @param[in]  h      Clixon handle
+ * @param[in]  func   Inline function name
+ * @param[in]  line   Inline file line number
  * @param[in]  tid    Transaction id
  * @param[in]  dh     Device handler (or NULL)
  * @param[in]  devclose 0: dont close, (If dh is set)
@@ -683,13 +685,15 @@ controller_transaction_nr_devices(clixon_handle h,
  * @retval    -1      Error
  */
 int
-controller_transaction_failed(clixon_handle           h,
-                              uint64_t                tid,
-                              controller_transaction *ct,
-                              device_handle           dh,
-                              tr_failed_devclose      devclose,
-                              char                   *origin,
-                              char                   *reason)
+controller_transaction_failed_fn(clixon_handle           h,
+                                 const char             *func,
+                                 const int               line,
+                                 uint64_t                tid,
+                                 controller_transaction *ct,
+                                 device_handle           dh,
+                                 tr_failed_devclose      devclose,
+                                 char                   *origin,
+                                 char                   *reason)
 {
     int retval = -1;
 
@@ -697,7 +701,14 @@ controller_transaction_failed(clixon_handle           h,
         device_close_connection(dh, "Device not associated with transaction");
         goto done;
     }
-    clixon_debug(CLIXON_DBG_CTRL, "");
+    clixon_debug(CLIXON_DBG_CTRL, "%s:%d tid:%" PRIu64 ", ct-state:%s, device:%s, devclose:%d, origin:%s, reason:%s",
+                 func, line,
+                 tid,
+                 transaction_state_int2str(ct->ct_state),
+                 dh?device_handle_name_get(dh):"NULL",
+                 devclose,
+                 origin?origin:"NULL",
+                 reason?reason:"NULL");
     if (dh != NULL && devclose != TR_FAILED_DEV_IGNORE){
         if (devclose == TR_FAILED_DEV_CLOSE){
             /* 1.2 The error is not recoverable */
