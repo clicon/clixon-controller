@@ -62,14 +62,14 @@ cat<<EOF > $CFG
   <CLICON_XMLDB_DIR>/usr/local/var/controller</CLICON_XMLDB_DIR>
   <CLICON_XMLDB_MULTI>true</CLICON_XMLDB_MULTI>
   <CLICON_STARTUP_MODE>running</CLICON_STARTUP_MODE>
-  <CLICON_NACM_CREDENTIALS>exact</CLICON_NACM_CREDENTIALS>
+  <CLICON_NACM_CREDENTIALS>except</CLICON_NACM_CREDENTIALS>
   <CLICON_NACM_MODE>internal</CLICON_NACM_MODE>
   <CLICON_NACM_DISABLED_ON_EMPTY>true</CLICON_NACM_DISABLED_ON_EMPTY>  
   <CLICON_STREAM_DISCOVERY_RFC5277>true</CLICON_STREAM_DISCOVERY_RFC5277>
   <CLICON_LOG_DESTINATION>syslog stderr</CLICON_LOG_DESTINATION>
   <CLICON_LOG_STRING_LIMIT>0</CLICON_LOG_STRING_LIMIT>
   <CLICON_CLI_PIPE_DIR>/usr/local/share/controller/pipe/</CLICON_CLI_PIPE_DIR>
-  <CONTROLLER_SERVICES_USER xmlns="http://clicon.org/controller-config">clicon</CONTROLLER_SERVICES_USER> 
+  <CONTROLLER_SERVICES_USER xmlns="http://clicon.org/controller-config">root</CONTROLLER_SERVICES_USER> 
   <CONTROLLER_ACTION_COMMAND xmlns="http://clicon.org/controller-config">/usr/local/bin/clixon_server.py -d -f ${CFG} -m ${modules}</CONTROLLER_ACTION_COMMAND>
   <CONTROLLER_PYAPI_MODULE_PATH xmlns="http://clicon.org/controller-config">${modules}</CONTROLLER_PYAPI_MODULE_PATH>       
   <CONTROLLER_PYAPI_MODULE_FILTER xmlns="http://clicon.org/controller-config"></CONTROLLER_PYAPI_MODULE_FILTER>
@@ -312,27 +312,26 @@ expectpart "$($clixon_cli -1 -f $CFG -m configure commit local)" 0 ""
 expectpart "$($clixon_cli -1 -f $CFG -m configure set devices device openconfig1 config system config hostname test)" 0 ""
 expectpart "$($clixon_cli -1 -f $CFG -m configure commit 2>&1)" 0 "OK"
 
-if $RUN_NOT_WORKING; then
-    nacm_init
+nacm_init
 
-    new "Test NACM for services, add SSH user"
-    expectpart "$($clixon_cli -1 -f $CFG -m configure set nacm rule-list test-rules rule test-rule access-operations \*)" 0 ""
-    expectpart "$($clixon_cli -1 -f $CFG -m configure set nacm rule-list test-rules rule test-rule action deny)" 0 ""
-    expectpart "$($clixon_cli -1 -f $CFG -m configure set nacm rule-list test-rules rule test-rule path /ctrl:devices/ctrl:device/ctrl:config/oc-sys:system)" 0 ""
-    expectpart "$($clixon_cli -1 -f $CFG -m configure commit local)" 0 ""
-    expectpart "$($clixon_cli -1 -f $CFG -m configure set services ssh-users test username test-user role operator)" 0 ""
-    expectpart "$($clixon_cli -1 -f $CFG -m configure set services ssh-users test username test-user ssh-key test-key)" 0 ""
-    expectpart "$($clixon_cli -1 -f $CFG -m configure commit 2>&1)" 0 ".*access denied.*"
-    expectpart "$($clixon_cli -1 -f $CFG -m configure rollback)" 0 ""
+new "Test NACM for services, deny adding SSH user"
+expectpart "$($clixon_cli -1 -f $CFG -m configure set nacm rule-list test-rules rule test-rule access-operations \*)" 0 ""
+expectpart "$($clixon_cli -1 -f $CFG -m configure set nacm rule-list test-rules rule test-rule action deny)" 0 ""
+expectpart "$($clixon_cli -1 -f $CFG -m configure set nacm rule-list test-rules rule test-rule path /ctrl:devices/ctrl:device/ctrl:config/oc-sys:system)" 0 ""
+expectpart "$($clixon_cli -1 -f $CFG -m configure commit local)" 0 ""
+expectpart "$($clixon_cli -1 -f $CFG -m configure set services ssh-users test username test-user role operator)" 0 ""
+expectpart "$($clixon_cli -1 -f $CFG -m configure set services ssh-users test username test-user ssh-key test-key)" 0 ""
+expectpart "$($clixon_cli -1 -f $CFG -m configure commit 2>&1)" 0 ".*access denied.*"
+expectpart "$($clixon_cli -1 -f $CFG -m configure rollback)" 0 ""
 
-    new "Test NACM for services, permit adding SSH user"
-    expectpart "$($clixon_cli -1 -f $CFG -m configure set nacm rule-list test-rules rule /ctrl:devices/ctrl:device/ctrl:config/oc-sys:system access-operations \*)" 0 ""
-    expectpart "$($clixon_cli -1 -f $CFG -m configure set nacm rule-list test-rules rule /ctrl:devices/ctrl:device/ctrl:config/oc-sys:system action permit)" 0 ""
-    expectpart "$($clixon_cli -1 -f $CFG -m configure commit local)" 0 ""
-    expectpart "$($clixon_cli -1 -f $CFG -m configure set services ssh-users test username test-user role operator)" 0 ""
-    expectpart "$($clixon_cli -1 -f $CFG -m configure set services ssh-users test username test-user ssh-key test-key)" 0 ""
-    expectpart "$($clixon_cli -1 -f $CFG -m configure commit diff)" 0 "${SERVICE_DIFF}"
-fi
+new "Test NACM for services, permit adding SSH user"
+expectpart "$($clixon_cli -1 -f $CFG -m configure set nacm rule-list test-rules rule test-rule access-operations \*)" 0 ""
+expectpart "$($clixon_cli -1 -f $CFG -m configure set nacm rule-list test-rules rule test-rule action permit)" 0 ""
+expectpart "$($clixon_cli -1 -f $CFG -m configure set nacm rule-list test-rules rule test-rule path /ctrl:devices/ctrl:device/ctrl:config/oc-sys:system)" 0 ""
+expectpart "$($clixon_cli -1 -f $CFG -m configure commit local)" 0 ""
+expectpart "$($clixon_cli -1 -f $CFG -m configure set services ssh-users test username test-user role operator)" 0 ""
+expectpart "$($clixon_cli -1 -f $CFG -m configure set services ssh-users test username test-user ssh-key test-key)" 0 ""
+expectpart "$($clixon_cli -1 -f $CFG -m configure commit diff)" 0 "${SERVICE_DIFF}"
 
 if $BE; then
      new "Kill old backend"
