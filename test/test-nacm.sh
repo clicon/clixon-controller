@@ -69,7 +69,7 @@ cat<<EOF > $CFG
   <CLICON_LOG_DESTINATION>syslog stderr</CLICON_LOG_DESTINATION>
   <CLICON_LOG_STRING_LIMIT>0</CLICON_LOG_STRING_LIMIT>
   <CLICON_CLI_PIPE_DIR>/usr/local/share/controller/pipe/</CLICON_CLI_PIPE_DIR>
-  <CONTROLLER_SERVICES_USER xmlns="http://clicon.org/controller-config">root</CONTROLLER_SERVICES_USER> 
+  <CONTROLLER_SERVICES_USER xmlns="http://clicon.org/controller-config">clicon</CONTROLLER_SERVICES_USER> 
   <CONTROLLER_ACTION_COMMAND xmlns="http://clicon.org/controller-config">/usr/local/bin/clixon_server.py -d -f ${CFG} -m ${modules}</CONTROLLER_ACTION_COMMAND>
   <CONTROLLER_PYAPI_MODULE_PATH xmlns="http://clicon.org/controller-config">${modules}</CONTROLLER_PYAPI_MODULE_PATH>       
   <CONTROLLER_PYAPI_MODULE_FILTER xmlns="http://clicon.org/controller-config"></CONTROLLER_PYAPI_MODULE_FILTER>
@@ -298,13 +298,19 @@ expectpart "$($clixon_cli -1 -f $CFG -m configure show devices device openconfig
 
 nacm_init
 
-new "Deny access to device configuration"
+new "Deny access to device hostname but make sure we can modify doamin-name"
 expectpart "$($clixon_cli -1 -f $CFG -m configure set nacm rule-list test-rules group test-group)" 0 ""
 expectpart "$($clixon_cli -1 -f $CFG -m configure set nacm rule-list test-rules rule test-rule path /ctrl:devices/ctrl:device/ctrl:config/oc-sys:system/oc-sys:config/oc-sys:hostname)" 0 ""
 expectpart "$($clixon_cli -1 -f $CFG -m configure set nacm rule-list test-rules rule test-rule access-operations \*)" 0 ""
 expectpart "$($clixon_cli -1 -f $CFG -m configure set nacm rule-list test-rules rule test-rule action deny)" 0 ""
 expectpart "$($clixon_cli -1 -f $CFG -m configure commit local)" 0 ""
 expectpart "$($clixon_cli -1 -f $CFG -m configure set devices device openconfig1 config system config hostname test 2>&1)" 255 ".*Netconf error: Editing configuration: application access-denied access denied.*"
+expectpart "$($clixon_cli -1 -f $CFG -m configure set devices device openconfig1 config system config domain-name example.com 2>&1)" 0 ""
+expectpart "$($clixon_cli -1 -f $CFG -m configure commit diff 2>&1)" 0 "openconfig1:
+      <config xmlns="http://openconfig.net/yang/system">
++        <domain-name>example.com</domain-name>
+      </config>
+OK"
 
 new "Permit access to device configuration"
 expectpart "$($clixon_cli -1 -f $CFG -m configure set nacm rule-list test-rules rule test-rule action permit)" 0 ""
