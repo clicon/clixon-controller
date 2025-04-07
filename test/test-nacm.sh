@@ -332,10 +332,40 @@ expectpart "$($clixon_cli -1 -f $CFG -m configure commit local)" 0 ""
 expectpart "$($clixon_cli -1 -f $CFG -m configure set services ssh-users test username test-user role operator)" 0 ""
 expectpart "$($clixon_cli -1 -f $CFG -m configure set services ssh-users test username test-user ssh-key test-key)" 0 ""
 expectpart "$($clixon_cli -1 -f $CFG -m configure commit diff)" 0 "${SERVICE_DIFF}"
+expectpart "$($clixon_cli -1 -f $CFG -m configure rollback)" 0 ""
+
+nacm_init
+
+new "Test NACM for services, permit adding SSH user but deny modifying hostname"
+expectpart "$($clixon_cli -1 -f $CFG -m configure set nacm rule-list test-rules rule test-rule access-operations \*)" 0 ""
+expectpart "$($clixon_cli -1 -f $CFG -m configure set nacm rule-list test-rules rule test-rule action deny)" 0 ""
+expectpart "$($clixon_cli -1 -f $CFG -m configure set nacm rule-list test-rules rule test-rule path /ctrl:devices/ctrl:device/ctrl:config/oc-sys:system/oc-sys:config/oc-sys:hostname)" 0 ""
+expectpart "$($clixon_cli -1 -f $CFG -m configure commit local)" 0 ""
+expectpart "$($clixon_cli -1 -f $CFG -m configure set services ssh-users test username test-user role operator)" 0 ""
+expectpart "$($clixon_cli -1 -f $CFG -m configure set services ssh-users test username test-user ssh-key test-key)" 0 ""
+expectpart "$($clixon_cli -1 -f $CFG -m configure commit diff)" 0 "${SERVICE_DIFF}"
+
+nacm_init
+
+new "Test NACM and RPCs, deny config-pull"
+expectpart "$($clixon_cli -1 -f $CFG -m configure set nacm rule-list test-rules rule test-rule access-operations \*)" 0 ""
+expectpart "$($clixon_cli -1 -f $CFG -m configure set nacm rule-list test-rules rule test-rule action deny)" 0 ""
+expectpart "$($clixon_cli -1 -f $CFG -m configure set nacm rule-list test-rules rule test-rule rpc-name config-pull)" 0 ""
+expectpart "$($clixon_cli -1 -f $CFG -m configure commit local)" 0 ""
+expectpart "$($clixon_cli -1 -f $CFG pull 2>&1)" 255 ".*application access-denied access denied"
+
+nacm_init
+
+new "Test NACM and RPCs, allow config-pull"
+expectpart "$($clixon_cli -1 -f $CFG -m configure set nacm rule-list test-rules rule test-rule access-operations \*)" 0 ""
+expectpart "$($clixon_cli -1 -f $CFG -m configure set nacm rule-list test-rules rule test-rule action permit)" 0 ""
+expectpart "$($clixon_cli -1 -f $CFG -m configure set nacm rule-list test-rules rule test-rule rpc-name config-pull)" 0 ""
+expectpart "$($clixon_cli -1 -f $CFG -m configure commit local)" 0 ""
+expectpart "$($clixon_cli -1 -f $CFG pull 2>&1)" 0 "OK"
 
 if $BE; then
      new "Kill old backend"
-     #stop_backend -f $CFG
+     stop_backend -f $CFG
 fi
 
 endtest
