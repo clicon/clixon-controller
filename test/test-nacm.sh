@@ -20,6 +20,7 @@ test -d $dir || mkdir -p $dir
 test -d $modules || mkdir -p $modules
 test -d $CFD || mkdir -p $CFD
 pycode=$modules/ssh-users.py
+USERNAME=$(whoami)
 
 : ${RUN_NOT_WORKING:=false}
 
@@ -153,7 +154,7 @@ function nacm_init() {
     expectpart "$($clixon_cli -1 -f $CFG -E $CFD -m configure set nacm read-default permit)" 0 ""
     expectpart "$($clixon_cli -1 -f $CFG -E $CFD -m configure set nacm write-default permit)" 0 ""
     expectpart "$($clixon_cli -1 -f $CFG -E $CFD -m configure set nacm exec-default permit)" 0 ""
-    expectpart "$($clixon_cli -1 -f $CFG -E $CFD -m configure set nacm groups group test-group user-name root)" 0 ""
+    expectpart "$($clixon_cli -1 -f $CFG -E $CFD -m configure set nacm groups group test-group user-name ${USERNAME})" 0 ""
     expectpart "$($clixon_cli -1 -f $CFG -E $CFD -m configure set nacm rule-list test-rules group test-group)" 0 ""
     expectpart "$($clixon_cli -1 -f $CFG -E $CFD -m configure commit local)" 0 ""
 }
