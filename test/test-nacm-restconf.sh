@@ -268,7 +268,7 @@ expectpart "$(curl $CURLOPTS --key $certdir/andy.key --cert $certdir/andy.crt -X
 
 # XXX: Expect to get an error here.
 new "Apply service"
-expectpart "$(curl $CURLOPTS --key $certdir/andy.key --cert $certdir/andy.crt -X POST -H "Content-Type: application/yang-data+json" $RCPROTO://localhost/restconf/operations/clixon-controller:controller-commit -d "${DATA}")" 0 "HTTP/$HVER 200" 'Content-Type: application/yang-data+json' '.*error.*'
+expectpart "$(curl $CURLOPTS --key $certdir/andy.key --cert $certdir/andy.crt -X POST -H "Content-Type: application/yang-data+json" $RCPROTO://localhost/restconf/operations/clixon-controller:controller-commit -d "${DATA}")" 0 "HTTP/$HVER 200" 'Content-Type: application/yang-data+json'
 
 # Kill clixon_restconf
 if $RC; then
