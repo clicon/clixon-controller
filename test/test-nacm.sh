@@ -27,6 +27,9 @@ pycode=$modules/ssh-users.py
 cat<<EOF > $diff
 <?xml version="1.0" encoding="utf-8"?>
 <clixon-config xmlns="http://clicon.org/config">
+  <CLICON_NACM_CREDENTIALS>except</CLICON_NACM_CREDENTIALS>
+  <CLICON_NACM_MODE>internal</CLICON_NACM_MODE>
+  <CLICON_NACM_DISABLED_ON_EMPTY>true</CLICON_NACM_DISABLED_ON_EMPTY>
   <CLICON_YANG_DIR>${DATADIR}</CLICON_YANG_DIR>
   <CLICON_YANG_MAIN_DIR>${dir}</CLICON_YANG_MAIN_DIR>
   <CLICON_YANG_DOMAIN_DIR>${dir}</CLICON_YANG_DOMAIN_DIR>
