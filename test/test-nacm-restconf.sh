@@ -264,11 +264,11 @@ expectpart "$($clixon_cli -1 -f $CFG -E $CFD -m configure commit local)" 0 ""
 expectpart "$(curl $CURLOPTS --key $certdir/andy.key --cert $certdir/andy.crt -X GET -H "Content-Type: application/yang-data+xml" $RCPROTO://localhost/restconf/data/clixon-controller:devices/device=openconfig1/config/openconfig-system:system/config/hostname)" 0 '.*{"ietf-restconf:errors":{"error":{"error-type":"application","error-tag":"invalid-value","error-severity":"error","error-message":"Instance does not exist"}}}'
 
 new "Create a new service instance"
-expectpart "$(curl $CURLOPTS --key $certdir/andy.key --cert $certdir/andy.crt -X POST -H "Content-Type: application/yang-data+json" $RCPROTO://localhost/restconf/data/clixon-controller:services -d '{"ssh-users:ssh-users": [{"service-name": "test","username": [{"name": "test","ssh-key": "AAAA","role": "operator"}]}]}')" 0 ".*error.*"
+expectpart "$(curl $CURLOPTS --key $certdir/andy.key --cert $certdir/andy.crt -X POST -H "Content-Type: application/yang-data+json" $RCPROTO://localhost/restconf/data/clixon-controller:services -d '{"ssh-users:ssh-users": [{"service-name": "test","username": [{"name": "test","ssh-key": "AAAA","role": "operator"}]}]}')" 0 "HTTP/$HVER 201"
 
 # XXX: Expect to get an error here.
 new "Apply service"
-expectpart "$(curl $CURLOPTS --key $certdir/andy.key --cert $certdir/andy.crt -X POST -H "Content-Type: application/yang-data+json" $RCPROTO://localhost/restconf/operations/clixon-controller:controller-commit -d "${DATA}")" 0 "HTTP/$HVER 200" 'Content-Type: application/yang-data+json' '{"clixon-controller:output":{"tid":'
+expectpart "$(curl $CURLOPTS --key $certdir/andy.key --cert $certdir/andy.crt -X POST -H "Content-Type: application/yang-data+json" $RCPROTO://localhost/restconf/operations/clixon-controller:controller-commit -d "${DATA}")" 0 "HTTP/$HVER 200" 'Content-Type: application/yang-data+json' '.*error.*'
 
 # Kill clixon_restconf
 if $RC; then
