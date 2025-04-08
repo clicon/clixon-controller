@@ -266,9 +266,17 @@ expectpart "$(curl $CURLOPTS --key $certdir/andy.key --cert $certdir/andy.crt -X
 new "Create a new service instance"
 expectpart "$(curl $CURLOPTS --key $certdir/andy.key --cert $certdir/andy.crt -X POST -H "Content-Type: application/yang-data+json" $RCPROTO://localhost/restconf/data/clixon-controller:services -d '{"ssh-users:ssh-users": [{"service-name": "test","username": [{"name": "test","ssh-key": "AAAA","role": "operator"}]}]}')" 0 "HTTP/$HVER 201"
 
-# XXX: Expect to get an error here.
-new "Apply service"
+new "Apply service - should be denied"
 expectpart "$(curl $CURLOPTS --key $certdir/andy.key --cert $certdir/andy.crt -X POST -H "Content-Type: application/yang-data+json" $RCPROTO://localhost/restconf/operations/clixon-controller:controller-commit -d "${DATA}")" 0 "HTTP/$HVER 200" 'Content-Type: application/yang-data+json'
+expectpart "$($clixon_cli -1 -f $CFG -E $CFD show transactions last)" 0 ".*access denied.*"
+
+new "Apply service - should be permitted"
+expectpart "$($clixon_cli -1 -f $CFG -E $CFD -m configure set nacm rule-list test-rules rule test-rule access-operations \*)" 0 ""
+expectpart "$($clixon_cli -1 -f $CFG -E $CFD -m configure set nacm rule-list test-rules rule test-rule action permit)" 0 ""
+expectpart "$($clixon_cli -1 -f $CFG -E $CFD -m configure set nacm rule-list test-rules rule test-rule path /ctrl:devices/ctrl:device/ctrl:config/oc-sys:system)" 0 ""
+expectpart "$($clixon_cli -1 -f $CFG -E $CFD -m configure commit local)" 0 ""
+expectpart "$(curl $CURLOPTS --key $certdir/andy.key --cert $certdir/andy.crt -X POST -H "Content-Type: application/yang-data+json" $RCPROTO://localhost/restconf/operations/clixon-controller:controller-commit -d "${DATA}")" 0 "HTTP/$HVER 200" 'Content-Type: application/yang-data+json'
+expectpart "$($clixon_cli -1 -f $CFG -E $CFD show transactions last)" 0 ".*SUCCESS.*" --not-- ".*access denied.*"
 
 # Kill clixon_restconf
 if $RC; then
