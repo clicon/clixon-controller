@@ -57,6 +57,13 @@ cat<<EOF > $CFD/diff.xml
 </clixon-config>
 EOF
 
+cat<<EOF > $CFD/action-command.xml
+<clixon-config xmlns="http://clicon.org/config">
+  <CONTROLLER_ACTION_COMMAND xmlns="http://clicon.org/controller-config">${BINDIR}/clixon_controller_service -f $CFG -E $CFD</CONTROLLER_ACTION_COMMAND>
+</clixon-config>
+EOF
+
+
 # Specialize autocli.xml for openconfig vs ietf interfaces (debug)
 cat <<EOF > $CFD/autocli.xml
 <clixon-config xmlns="http://clicon.org/config">
@@ -192,6 +199,10 @@ EOF
 # Reset devices with initial config
 . ./reset-devices.sh
 
+if $BE; then
+    echo "Kill old backend"
+    sudo clixon_backend -s init -f $CFG -z
+fi
 if $BE; then
     new "Start new backend -s startup -f $CFG -E $CFD -D $DBG"
     sudo clixon_backend -s startup -f $CFG -E $CFD -D $DBG
