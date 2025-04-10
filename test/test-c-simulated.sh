@@ -5,6 +5,7 @@
 # Simulated errors:
 # - send an error
 # - duplicate entries
+# - invalid tag
 
 # Magic line must be first in script (see README.md)
 s="$_" ; . ./lib.sh || if [ "$s" = $0 ]; then exit 0; else return 0; fi
@@ -150,7 +151,7 @@ EOF
 # Simulated error
 cat<<EOF > $CFD/action-command.xml
 <clixon-config xmlns="http://clicon.org/config">
-  <CONTROLLER_ACTION_COMMAND xmlns="http://clicon.org/controller-config">${BINDIR}/clixon_controller_service -f $CFG -E $CFD -e</CONTROLLER_ACTION_COMMAND>
+  <CONTROLLER_ACTION_COMMAND xmlns="http://clicon.org/controller-config">${BINDIR}/clixon_controller_service -f $CFG -E $CFD -e 1</CONTROLLER_ACTION_COMMAND>
 </clixon-config>
 EOF
 
@@ -250,7 +251,7 @@ sleep 1 # time to make controller-service die
 # and duplicates removed
 cat<<EOF > $CFD/action-command.xml
 <clixon-config xmlns="http://clicon.org/config">
-  <CONTROLLER_ACTION_COMMAND xmlns="http://clicon.org/controller-config">${BINDIR}/clixon_controller_service -f $CFG -E $CFD -d</CONTROLLER_ACTION_COMMAND>
+  <CONTROLLER_ACTION_COMMAND xmlns="http://clicon.org/controller-config">${BINDIR}/clixon_controller_service -f $CFG -E $CFD -e 2</CONTROLLER_ACTION_COMMAND>
 </clixon-config>
 EOF
 
@@ -323,6 +324,90 @@ fi
 new "commit 2"
 # Issue 161
 expectpart "$(${clixon_cli} -m configure -1f $CFG -E $CFD commit 2>&1)" 0 "" --not-- "operation-failed"
+
+if $BE; then
+    new "Kill old backend"
+    stop_backend -f $CFG -E $CFD
+fi
+
+# Issue 191, Simulate tag error
+cat<<EOF > $CFD/action-command.xml
+<clixon-config xmlns="http://clicon.org/config">
+  <CONTROLLER_ACTION_COMMAND xmlns="http://clicon.org/controller-config">${BINDIR}/clixon_controller_service -f $CFG -E $CFD -e 3 -E testA[service_name='foo']</CONTROLLER_ACTION_COMMAND>
+</clixon-config>
+EOF
+
+cat <<EOF > $dir/startup_db
+<config>
+  <processes xmlns="http://clicon.org/controller">
+    <services>
+      <enabled>true</enabled>
+    </services>
+  </processes>
+  $RULES
+</config>
+EOF
+
+. ./reset-devices.sh
+
+if $BE; then
+    new "Start new backend -s startup -f $CFG -E $CFD -D $DBG"
+    sudo clixon_backend -s startup -f $CFG -E $CFD -D $DBG
+fi
+
+new "Wait backend 3"
+wait_backend
+
+check_services running
+
+# Reset controller by initiating with clixon/openconfig devices and a pull
+. ./reset-controller.sh
+
+new "open connections"
+expectpart "$(${clixon_cli} -1f $CFG -E $CFD connect open async)" 0 ""
+
+sleep $sleep
+
+new "edit testA(2)"
+ret=$(${clixon_netconf} -0 -f $CFG -E $CFD <<EOF
+<?xml version="1.0" encoding="UTF-8"?>
+<hello xmlns="urn:ietf:params:xml:ns:netconf:base:1.0">
+   <capabilities>
+      <capability>urn:ietf:params:netconf:base:1.0</capability>
+   </capabilities>
+</hello>]]>]]>
+<rpc xmlns="urn:ietf:params:xml:ns:netconf:base:1.0"
+     xmlns:nc="urn:ietf:params:xml:ns:netconf:base:1.0"
+     message-id="42">
+  <edit-config>
+    <target><candidate/></target>
+    <default-operation>none</default-operation>
+    <config>
+       <services xmlns="http://clicon.org/controller">
+	  <testA xmlns="urn:example:test" nc:operation="replace">
+	     <a_name>foo</a_name>
+	     <params>A0y</params>
+	     <params>A0z</params>
+	     <params>Ay</params>
+	     <params>Az</params>
+	     <params>ABy</params>
+	     <params>ABz</params>
+	 </testA>
+      </services>
+    </config>
+  </edit-config>
+</rpc>]]>]]>
+EOF
+)
+
+match=$(echo "$ret" | grep --null -Eo "<rpc-error>") || true
+if [ -n "$match" ]; then
+    err "<ok/>" "$ret"
+fi
+
+new "commit 3"
+# Issue 161
+expectpart "$(${clixon_cli} -m configure -1f $CFG -E $CFD commit 2>&1)" 0 "failed in c-service: Invalid tag"
 
 if $BE; then
     new "Kill old backend"

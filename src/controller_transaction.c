@@ -310,7 +310,6 @@ controller_transaction_notify(clixon_handle           h,
     struct timeval       t;
     struct notify_async *na = NULL;
 
-    clixon_debug(CLIXON_DBG_CTRL, "%" PRIu64, ct->ct_id);
     if (ct->ct_state == TS_INIT){
         clixon_err(OE_CFG, EINVAL, "Transaction notify sent in state INIT");
         goto done;
@@ -319,6 +318,11 @@ controller_transaction_notify(clixon_handle           h,
         clixon_err(OE_UNIX, errno, "cbuf_new");
         goto done;
     }
+    clixon_debug(CLIXON_DBG_CTRL, "tid:%" PRIu64 ", result:%s origin:%s reason:%s",
+                 ct->ct_id,
+                 transaction_result_int2str(ct->ct_result),
+                 ct->ct_origin?ct->ct_origin:"",
+                 ct->ct_reason?ct->ct_reason:"");
     cprintf(cb, "<controller-transaction xmlns=\"%s\">", CONTROLLER_NAMESPACE);
     cprintf(cb, "<tid>%" PRIu64  "</tid>", ct->ct_id);
     if (ct->ct_username)
@@ -576,7 +580,7 @@ controller_transaction_done(clixon_handle           h,
     char         *db = "candidate";
     device_handle dh;
 
-    clixon_debug(CLIXON_DBG_CTRL, "");
+    clixon_debug(CLIXON_DBG_CTRL | CLIXON_DBG_DETAIL, "");
     controller_transaction_state_set(ct, TS_DONE, result);
     iddb = xmldb_islocked(h, db);
     if (iddb == TRANSACTION_CLIENT_ID){
@@ -761,7 +765,7 @@ controller_transaction_failed_fn(clixon_handle           h,
     }
     retval = 0;
  done:
-    clixon_debug(CLIXON_DBG_CTRL, "retval:%d", retval);
+    clixon_debug(CLIXON_DBG_CTRL | CLIXON_DBG_DETAIL, "retval:%d", retval);
     return retval;
 }
 

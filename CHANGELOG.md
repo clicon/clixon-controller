@@ -1,5 +1,12 @@
 # Clixon Controller Changelog
 
+## 1.5.0
+Expected: July 2025
+
+### Corrected Bugs
+
+* Fixed: [Improve error message when creator tag is malformed](https://github.com/clicon/clixon-controller/issues/191)
+
 ## 1.4.0
 3 April 2025
 

@@ -39,6 +39,25 @@
      |     /
  CS_OPEN <+
 
+Push state-machine:
+
+ PUSH-WAIT -------
+     ^            \
+     |             v
+ PUSH-VALIDATE   PUSH-COMMIT
+     ^      \               \
+     |       v               v
+ PUSH-EDIT2  PUSH-DISCARD   PUSH-COMMIT-SYNC*
+     ^            |          /
+     |            v         /
+ PUSH-EDIT   PUSH-UNLOCK <--
+     ^            |
+     |            |
+ PUSH-LOCK        |
+     ^           /
+     |          /
+ CS_OPEN <------
+
  */
 
 #include <stdio.h>
@@ -1644,11 +1663,7 @@ device_state_handler(clixon_handle h,
         if ((ret = controller_transaction_wait(h, tid)) < 0)
             goto done;
         if (ret == 1){
-            /* 2.2.1 All devices are in WAIT (none are in EDIT/VALIDATE)
-               2.2.1.1 Trigger COMMIT of all devices and set this device into CS_PUSH_COMMIT */
-            if (controller_transaction_wait_trigger(h, tid, 1) < 0)
-                goto done;
-            /* Not running */
+            /* Check if action, skip if dryrun */
             if (ct->ct_actions_type != AT_NONE && strcmp(ct->ct_sourcedb, "candidate")==0){
                 if ((cberr = cbuf_new()) == NULL){
                     clixon_err(OE_UNIX, errno, "cbuf_new");
@@ -1657,39 +1672,41 @@ device_state_handler(clixon_handle h,
                 /* What to copy to candidate and commit to running? */
                 if (xmldb_copy(h, "actions", "candidate") < 0)
                     goto done;
-                /* Second validate, first in rpc_controller_commit, but candidate may have changed:
-                 * services may have edited actions-db
+                /* Third validate,
+                 * first in rpc_controller_commit,
+                 * second in rpc_transactions_actions_done
+                 * candidate should NOT have changed here
                  */
                 if ((ret = candidate_commit(h, NULL, "candidate", 0, 0, cberr)) < 0){
                     /* Handle that candidate_commit can return < 0 if transaction ongoing */
-                    cprintf(cberr, "%s: Commit error", name);
+                    cprintf(cberr, "Controller commit error");
                     if (strlen(clixon_err_reason()) > 0)
                         cprintf(cberr, " %s", clixon_err_reason());
                     if (controller_transaction_failed(h, ct->ct_id, ct, dh, TR_FAILED_DEV_LEAVE, name, cbuf_get(cberr)) < 0)
                         goto done;
                     break;
                 }
-                if (ret == 0){ // XXX awkward, cb ->xml->cb
-                    cxobj *xerr = NULL;
+                if (ret == 0){
                     cbuf  *cberr2 = NULL;
                     if ((cberr2 = cbuf_new()) == NULL){
                         clixon_err(OE_UNIX, errno, "cbuf_new");
                         goto done;
                     }
-                    if (clixon_xml_parse_string(cbuf_get(cberr), YB_NONE, NULL, &xerr, NULL) < 0)
+                    cprintf(cberr2, "Validation: ");
+                    if (netconf_cbuf_err2cb(h, cberr, cberr2) < 0)
                         goto done;
-                    if (netconf_err2cb(h, xerr, cberr2) < 0)
+                    if (controller_transaction_failed(h, ct->ct_id, ct, dh, TR_FAILED_DEV_IGNORE, "controller", cbuf_get(cberr2)) < 0)
                         goto done;
-                    if (controller_transaction_failed(h, ct->ct_id, ct, dh, TR_FAILED_DEV_LEAVE, name, cbuf_get(cberr2)) < 0)
-                        goto done;
-                    if (xerr)
-                        xml_free(xerr);
                     if (cberr2)
                         cbuf_free(cberr2);
+                    if (controller_transaction_wait_trigger(h, tid, 0) < 0)
+                        goto done;
                     break;
                 }
             }
-        }
+            if (controller_transaction_wait_trigger(h, tid, 1) < 0)
+                goto done;
+        } /* All devices are in WAIT state */
         break;
     case CS_PUSH_COMMIT:
         if (device_state_check_sanity(dh, tid, ct, name, conn_state, rpcname) == 0)

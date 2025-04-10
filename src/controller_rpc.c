@@ -1120,6 +1120,7 @@ commit_push_after_actions(clixon_handle           h,
             goto done;
         if (xmldb_write_cache2file(h, "actions") < 0)
             goto done;
+        // XXX validate actions?
     }
     if (ct->ct_push_type == PT_NONE){
         if (controller_transaction_done(h, ct, TR_SUCCESS) < 0)
@@ -2250,8 +2251,10 @@ rpc_transactions_actions_done(clixon_handle h,
     int                     retval = -1;
     char                   *tidstr;
     uint64_t                tid;
-    int                     ret;
     controller_transaction *ct;
+    cbuf                   *cberr = NULL;
+    cbuf                   *cberr2 = NULL;
+    int                     ret;
 
     clixon_debug(CLIXON_DBG_CTRL, "");
     if ((tidstr = xml_find_body(xe, "tid")) == NULL){
@@ -2282,6 +2285,35 @@ rpc_transactions_actions_done(clixon_handle h,
         cprintf(cbret, "<rpc-reply xmlns=\"%s\">", NETCONF_BASE_NAMESPACE);
         cprintf(cbret, "<ok/>");
         cprintf(cbret, "</rpc-reply>");
+        /* Validate db, second time, after services modification.
+         * First is made in rpc_controller_commit.
+         * Third is made in CS_PUSH_VALIDATE/WAIT state in device_state_handler
+         */
+        if ((cberr = cbuf_new()) == NULL){
+            clixon_err(OE_UNIX, errno, "cbuf_new");
+            goto done;
+        }
+        if ((ret = candidate_validate(h, "actions", cberr)) < 0)
+            goto done;
+        if (ret == 0){
+            if ((cberr2 = cbuf_new()) == NULL){
+                clixon_err(OE_UNIX, errno, "cbuf_new");
+                goto done;
+            }
+            if ((ct->ct_origin = strdup("controller")) == NULL){
+                clixon_err(OE_UNIX, errno, "strdup");
+                goto done;
+            }
+            if (netconf_cbuf_err2cb(h, cberr, cberr2) < 0)
+                goto done;
+            if ((ct->ct_reason = strdup(cbuf_get(cberr2))) == NULL){
+                clixon_err(OE_UNIX, errno, "strdup");
+                goto done;
+            }
+            if (controller_transaction_done(h, ct, TR_FAILED) < 0)
+                goto done;
+            break;
+        }
         controller_transaction_state_set(ct, TS_INIT, -1); /* Multiple actions */
         /* Start device push process: compute diff send edit-configs */
         if (commit_push_after_actions(h, ct) < 0)
@@ -2295,6 +2327,10 @@ rpc_transactions_actions_done(clixon_handle h,
  ok:
     retval = 0;
  done:
+    if (cberr)
+        cbuf_free(cberr);
+    if (cberr2)
+        cbuf_free(cberr2);
     return retval;
 }
 
@@ -3346,7 +3382,7 @@ creator_applyfn(cxobj *x,
     int        retval = -1;
     cxobj     *xserv = (cxobj*)arg;
     char      *creator = NULL;
-    char      *creator1 = NULL;
+    char      *service = NULL;
     cvec      *nsc = 0;
     char      *xpath = NULL;
     cxobj     *xi;
@@ -3359,6 +3395,7 @@ creator_applyfn(cxobj *x,
     char      *ns;
     cvec      *cvk;
     char      *key;
+    char      *ykey;
     int        ret;
 
     /* Special clixon-lib attribute for keeping track of creator of objects */
@@ -3382,23 +3419,24 @@ creator_applyfn(cxobj *x,
                 goto ok;
         }
         else {
-            /* split creator into service and name, assuming creator is on the form:
-             * service[name='myname']
+            /* split creator into service, key and instance, assuming creator is on the form:
+             * service[key='myname']
              */
-            if ((creator1 = strdup(creator)) == NULL){
+            if ((service = strdup(creator)) == NULL){
                 clixon_err(OE_UNIX, errno, "strdup");
                 goto done;
             }
-            if ((p = index(creator1, '[')) == NULL){
+            if ((p = index(service, '[')) == NULL){
                 clixon_err(OE_YANG, 0, "Creator attribute, no instance: [] in %s", creator);
                 goto done;
             }
             *p++ = '\0';
+            key = p;
             if ((p = index(p, '=')) == NULL){
                 clixon_err(OE_YANG, 0, "Creator attribute, no instance = in %s", creator);
                 goto done;
             }
-            p++;
+            *p++ = '\0';
             q = *p++; /* assume quote */
             instance = p;
             if ((p = index(p, q)) == NULL){
@@ -3407,14 +3445,18 @@ creator_applyfn(cxobj *x,
             }
             *p = '\0';
             yserv = xml_spec(xserv);
-            if ((yi = yang_find(yserv, Y_LIST, creator1)) == NULL){
+            if ((yi = yang_find(yserv, Y_LIST, service)) == NULL){
                 clixon_err(OE_YANG, 0, "Invalid creator service name in %s", creator);
                 goto done;
             }
             if ((cvk = yang_cvec_get(yi)) == NULL)
                 goto ok;
-            if ((key = cvec_i_str(cvk, 0)) == NULL)
+            if ((ykey = cvec_i_str(cvk, 0)) == NULL)
                 goto ok;
+            if (strcmp(key, ykey) != 0){
+                clixon_err(OE_YANG, 0, "Creator tag: \"%s\": Invalid key: \"%s\", expected: \"%s\"", creator, key, ykey);
+                goto done;
+            }
             if ((ns = yang_find_mynamespace(yi)) == NULL)
                 goto ok;
             clixon_debug(CLIXON_DBG_CTRL, "Created path: %s %s", xpath, creator);
@@ -3422,13 +3464,13 @@ creator_applyfn(cxobj *x,
                                            "<%s xmlns=\"%s\"><%s>%s</%s>"
                                            "<created nc:operation=\"merge\">"
                                            "<path>%s</path></created></%s>",
-                                           creator1,
+                                           service,
                                            ns,
-                                           key,
+                                           ykey,
                                            instance,
-                                           key,
+                                           ykey,
                                            xpath,
-                                           creator1)) < 0)
+                                           service)) < 0)
                 goto done;
             if (ret == 0)
                 goto ok;
@@ -3439,8 +3481,8 @@ creator_applyfn(cxobj *x,
  done:
     if (creator)
         free(creator);
-    if (creator1)
-        free(creator1);
+    if (service)
+        free(service);
     if (xpath)
         free(xpath);
     return retval;
