@@ -5,10 +5,8 @@
 # Magic line must be first in script (see README.md)
 s="$_" ; . ./lib.sh || if [ "$s" = $0 ]; then exit 0; else return 0; fi
 
-# Set if also push, not only change (useful for manually doing push)
-: ${push:=true}
-
-: ${check:=false}
+# Debug early exit
+: ${earlyexit:=false}
 
 CFG=${SYSCONFDIR}/clixon/controller.xml
 dir=/var/tmp/$0
@@ -167,7 +165,9 @@ wait_backend
 new "reset controller"
 (. ./reset-controller.sh)
 
-# exit # for starting controller with devices and debug
+if ${earlyexit}; then
+    exit # for starting controller with devices and debug
+fi
 
 new "Close all devices"
 expectpart "$($clixon_cli -1 -f $CFG -E $CFD connection close)" 0 ""

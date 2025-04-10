@@ -461,13 +461,13 @@ transaction_notification_handler(clixon_handle       h,
 
     clixon_debug(CLIXON_DBG_CTRL, "tid:%s", tidstr0);
     /* Need to set "intr" to enable ^C */
-    if (clixon_resource_check(h, &wh, tidstr0, __FUNCTION__) < 0)
+    if (clixon_resource_check(h, &wh, tidstr0, __func__) < 0)
         goto done;
     if (clixon_msg_rcv11(s, NULL, 1, &cb, eof) < 0){
-        clixon_resource_check(h, &wh, tidstr0, __FUNCTION__);
+        clixon_resource_check(h, &wh, tidstr0, __func__);
         goto done;
     }
-    if (clixon_resource_check(h, &wh, tidstr0, __FUNCTION__) < 0)
+    if (clixon_resource_check(h, &wh, tidstr0, __func__) < 0)
         goto done;
     if (*eof){
         clixon_err(OE_PROTO, ESHUTDOWN, "Socket unexpected close");
@@ -500,9 +500,9 @@ transaction_notification_handler(clixon_handle       h,
         if ((result = transaction_result_str2int(resstr)) != TR_SUCCESS){
             if((clixon_logflags_get() | CLIXON_LOG_STDERR) == 0x0)
                 cligen_output(stderr, "%s: pid: %u Transaction %s failed in %s: %s\n",
-                              __FUNCTION__, getpid(), tidstr, origin?origin:"unknown", reason?reason:"no reason");
+                              __func__, getpid(), tidstr, origin?origin:"unknown", reason?reason:"no reason");
             clixon_log(h, LOG_NOTICE, "%s: pid: %u Transaction %s failed in %s: %s",
-                       __FUNCTION__, getpid(), tidstr, origin?origin:"unknown", reason?reason:"no reason");
+                       __func__, getpid(), tidstr, origin?origin:"unknown", reason?reason:"no reason");
         }
         if ((xdevdata = xml_find_type(xn, NULL, "devices", CX_ELMNT)) != NULL){
             if (clixon_xml2file(stdout, xdevdata, 0, 1, NULL, cligen_output, 1, 0) < 0)

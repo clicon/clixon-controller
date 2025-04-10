@@ -276,7 +276,7 @@ main(int    argc,
                 break;
             if (len==i){
                 if ((buf = realloc(buf, 2*len)) == NULL){
-                    fprintf(stderr, "%s: realloc: %s\n", __FUNCTION__, strerror(errno));
+                    fprintf(stderr, "%s: realloc: %s\n", __func__, strerror(errno));
                     return -1;
                 }
                 memset(buf+len, 0, len);
@@ -340,7 +340,7 @@ main(int    argc,
         if (xml_default_recurse(x0, 0, 0) < 0)
             goto done;
         if (xml_apply0(x0, -1, xml_sort_verify, h) < 0)
-            clixon_log(h, LOG_NOTICE, "%s: sort verify failed", __FUNCTION__);
+            clixon_log(h, LOG_NOTICE, "%s: sort verify failed", __func__);
         if ((ret = xml_yang_validate_all_top(h, x0, &xerr)) < 0)
             goto done;
         if (ret > 0 && (ret = xml_yang_validate_add(h, x0, &xerr)) < 0)
