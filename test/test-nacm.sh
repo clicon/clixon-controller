@@ -283,6 +283,16 @@ expectpart "$($clixon_cli -1 -f $CFG -E $CFD -m configure commit 2>&1)" 0 "OK"
 
 nacm_init
 
+new "Test limiting access to the ssh-users service"
+expectpart "$($clixon_cli -1 -f $CFG -E $CFD -m configure set nacm rule-list test-rules rule test-rule access-operations \*)" 0 ""
+expectpart "$($clixon_cli -1 -f $CFG -E $CFD -m configure set nacm rule-list test-rules rule test-rule action deny)" 0 ""
+expectpart "$($clixon_cli -1 -f $CFG -E $CFD -m configure set nacm rule-list test-rules rule test-rule path /ctrl:services/ssh-users:ssh-users)" 0 ""
+expectpart "$($clixon_cli -1 -f $CFG -E $CFD -m configure commit local)" 0 ""
+expectpart "$($clixon_cli -1 -f $CFG -E $CFD -m configure set services ssh-users test username test-user role operator 2>&1)" 255 ".*access denied.*"
+expectpart "$($clixon_cli -1 -f $CFG -E $CFD -m configure rollback)" 0 ""
+
+nacm_init
+
 new "Test NACM for services, deny adding SSH user"
 expectpart "$($clixon_cli -1 -f $CFG -E $CFD -m configure set nacm rule-list test-rules rule test-rule access-operations \*)" 0 ""
 expectpart "$($clixon_cli -1 -f $CFG -E $CFD -m configure set nacm rule-list test-rules rule test-rule action deny)" 0 ""
