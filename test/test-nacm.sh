@@ -36,7 +36,7 @@ cat<<EOF > $diff
   <CLICON_YANG_DOMAIN_DIR>${dir}</CLICON_YANG_DOMAIN_DIR>
   <CLICON_XMLDB_DIR>${dir}</CLICON_XMLDB_DIR>
   <CONTROLLER_ACTION_COMMAND xmlns="http://clicon.org/controller-config">/usr/local/bin/clixon_server.py -d -f ${CFG} -m ${modules}</CONTROLLER_ACTION_COMMAND>
-  <CONTROLLER_PYAPI_MODULE_PATH xmlns="http://clicon.org/controller-config">${modules}</CONTROLLER_PYAPI_MODULE_PATH>       
+  <CONTROLLER_PYAPI_MODULE_PATH xmlns="http://clicon.org/controller-config">${modules}</CONTROLLER_PYAPI_MODULE_PATH>
 </clixon-config>
 EOF
 
@@ -143,7 +143,7 @@ function sleep_open()
         sleep 1
     done
     if [ $j -eq 10 ]; then
-        err "device openconfig OPEN" "Timeout" 
+        err "device openconfig OPEN" "Timeout"
     fi
 }
 
@@ -208,7 +208,7 @@ USERNAME=$(whoami)
 new "Wait backend"
 wait_backend
 
-# Reset controller 
+# Reset controller
 new "reset controller"
 (. ./reset-controller.sh)
 
@@ -261,13 +261,16 @@ expectpart "$($clixon_cli -1 -f $CFG -E $CFD -m configure show devices device op
 
 nacm_init
 
-new "Deny access to device hostname but make sure we can modify doamin-name"
+new "Deny access to device hostname but make sure we can modify domain-name"
 expectpart "$($clixon_cli -1 -f $CFG -E $CFD -m configure set nacm rule-list test-rules group test-group)" 0 ""
 expectpart "$($clixon_cli -1 -f $CFG -E $CFD -m configure set nacm rule-list test-rules rule test-rule path /ctrl:devices/ctrl:device/ctrl:config/oc-sys:system/oc-sys:config/oc-sys:hostname)" 0 ""
 expectpart "$($clixon_cli -1 -f $CFG -E $CFD -m configure set nacm rule-list test-rules rule test-rule access-operations \*)" 0 ""
 expectpart "$($clixon_cli -1 -f $CFG -E $CFD -m configure set nacm rule-list test-rules rule test-rule action deny)" 0 ""
 expectpart "$($clixon_cli -1 -f $CFG -E $CFD -m configure commit local)" 0 ""
+
+new "Access-denied"
 expectpart "$($clixon_cli -1 -f $CFG -E $CFD -m configure set devices device openconfig1 config system config hostname test 2>&1)" 255 ".*Netconf error: Editing configuration: application access-denied access denied.*"
+
 expectpart "$($clixon_cli -1 -f $CFG -E $CFD -m configure set devices device openconfig1 config system config domain-name example.com 2>&1)" 0 ""
 expectpart "$($clixon_cli -1 -f $CFG -E $CFD -m configure commit diff 2>&1)" 0 "openconfig1:
       <config xmlns="http://openconfig.net/yang/system">
