@@ -143,7 +143,7 @@ clixon_client_connect_ssh(clixon_handle h,
     char       *idfile = NULL;
 
     clixon_debug(CLIXON_DBG_MSG | CLIXON_DBG_DETAIL, "%s", dest);
-    nr = 14;  /* NOTE this is hardcoded */
+    nr = 16;  /* NOTE this is hardcoded */
     if ((idfile = clicon_option_str(h, "CONTROLLER_SSH_IDENTITYFILE")) != NULL)
         nr += 2;
     if ((argv = calloc(nr, sizeof(char *))) == NULL){
@@ -169,6 +169,8 @@ clixon_client_connect_ssh(clixon_handle h,
         argv[i++] = "StrictHostKeyChecking=yes";
     else
         argv[i++] = "StrictHostKeyChecking=no";
+    argv[i++] = "-o";
+    argv[i++] = "ServerAliveInterval=300";
     argv[i++] = "-o";
     argv[i++] = "PasswordAuthentication=no"; // dont query
     argv[i++] = "-o";

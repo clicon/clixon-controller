@@ -5,7 +5,9 @@ Expected: July 2025
 
 ### New features
 
-* Fixed: [NACM for Clixon Controller](https://github.com/clicon/clixon-controller/issues/189)
+* New: [ssh keep-alive](https://github.com/clicon/clixon-controller/issues/193)
+  * Hard-coded to 300s
+* New: [NACM for Clixon Controller](https://github.com/clicon/clixon-controller/issues/189)
   * Support for services
   * Testcases for controller nacm and nacm+restconf
   * Added cli show detail command
