@@ -18,6 +18,7 @@ Expected: July 2025
 
 ### Corrected Bugs
 
+* Fixed: [Confusing error message if device has NACM](https://github.com/clicon/clixon-controller/issues/197)
 * Fixed: [Improve error message when creator tag is malformed](https://github.com/clicon/clixon-controller/issues/191)
 
 ## 1.4.0

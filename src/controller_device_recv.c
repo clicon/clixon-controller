@@ -56,6 +56,14 @@
 #include "controller_device_recv.h"
 #include "controller_transaction.h"
 
+/* Forward declaration */
+static int
+device_recv_check_errors(clixon_handle h,
+                         device_handle dh,
+                         cxobj        *xmsg,
+                         conn_state    conn_state,
+                         cbuf        **cberr);
+
 /*! Check sanity of a rpc-reply
  *
  * @param[in] dh         Clixon client handle.
@@ -400,6 +408,7 @@ device_recv_schema_list(device_handle dh,
     cxobj        *x1;
     cxobj        *xyanglib = NULL;
     clixon_handle h;
+    cbuf         *cb = NULL;
     int           ret;
 
     clixon_debug(CLIXON_DBG_CTRL | CLIXON_DBG_DETAIL, "");
@@ -408,13 +417,20 @@ device_recv_schema_list(device_handle dh,
         goto done;
     if (ret == 0)
         goto closed;
+    if ((ret = device_recv_check_errors(h, dh, xmsg, conn_state, &cb)) < 0)
+        goto done;
+    if (ret == 0){
+        device_close_connection(dh, "Get netconf-state/schemas failed: %s", cbuf_get(cb));
+        goto closed;
+    }
     /* Difficult to use xpath here since prefixes are not known */
     if ((x = xml_find_type(xmsg, NULL, "data", CX_ELMNT)) != NULL &&
         (x1 = xml_find_type(x, NULL, "netconf-state", CX_ELMNT)) != NULL &&
         (xschemas = xml_find_type(x1, NULL, "schemas", CX_ELMNT)) != NULL)
         ;
-    else{
-        device_close_connection(dh, "No schemas returned");
+    else {
+        device_close_connection(dh, "No schemas returned in state %s, no data/netconf-state/schemas found",
+                                device_state_int2str(conn_state));
         goto closed;
     }
     /* Destructive, actually move subtree from xmsg */
@@ -445,6 +461,8 @@ device_recv_schema_list(device_handle dh,
         goto done;
     retval = 1;
  done:
+    if (cb)
+        cbuf_free(cb);
     if (xschemas)
         xml_free(xschemas);
     return retval;
