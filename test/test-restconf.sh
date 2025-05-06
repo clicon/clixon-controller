@@ -6,6 +6,13 @@
 # 3. RPC: Connectivity
 # 4. Notification
 # 5. Services
+# 6. RPC template
+# 7. Device state
+#
+# To debug,
+# 1. Start restconf manually:
+#   clixon_restconf -f /usr/local/etc/clixon/controller.xml -E /var/tmp/./test-restconf.sh/confdir -o CLICON_BACKEND_RESTCONF_PROCESS=true
+# 2. Start test with RC=false ./test-restconf.sh
 
 # Magic line must be first in script (see README.md)
 s="$_" ; . ./lib.sh || if [ "$s" = $0 ]; then exit 0; else return 0; fi
@@ -38,8 +45,12 @@ if [ $? -ne 0 ]; then
     err1 "Error when generating certs"
 fi
 
-# To debug, set CLICON_BACKEND_RESTCONF_PROCESS=false and start clixon_restconf manually
-# clixon_restconf -f /usr/local/etc/clixon/controller.xml -E /var/tmp/./test-restconf.sh/confdir -o CLICON_BACKEND_RESTCONF_PROCESS=true
+if ${RC} ; then
+    STARTFROMBACKEND=true
+else
+    STARTFROMBACKEND=false
+fi
+
 # Specialize controller.xml
 cat<<EOF > $CFD/diff.xml
 <?xml version="1.0" encoding="utf-8"?>
@@ -49,7 +60,7 @@ cat<<EOF > $CFD/diff.xml
   <CLICON_YANG_DIR>${DATADIR}/controller/main</CLICON_YANG_DIR>
   <CLICON_YANG_MAIN_DIR>$dir</CLICON_YANG_MAIN_DIR>
   <CLICON_YANG_DOMAIN_DIR>$dir</CLICON_YANG_DOMAIN_DIR>
-  <CLICON_BACKEND_RESTCONF_PROCESS>true</CLICON_BACKEND_RESTCONF_PROCESS>
+  <CLICON_BACKEND_RESTCONF_PROCESS>${STARTFROMBACKEND}</CLICON_BACKEND_RESTCONF_PROCESS>
   <CLICON_XMLDB_DIR>$dir</CLICON_XMLDB_DIR>
   <CLICON_VALIDATE_STATE_XML>true</CLICON_VALIDATE_STATE_XML>
   <CLICON_CLI_OUTPUT_FORMAT>text</CLICON_CLI_OUTPUT_FORMAT>
@@ -220,8 +231,10 @@ check_services running
 # Reset controller by initiating with clixon/openconfig devices and a pull
 . ./reset-controller.sh
 
-new "Verify restconf"
-expectpart "$(curl $CURLOPTS -X POST -H "Content-Type: application/yang-data+json" $RCPROTO://localhost/restconf/operations/clixon-lib:process-control -d '{"clixon-lib:input":{"name":"restconf","operation":"status"}}')" 0 "HTTP/$HVER 200" '{"clixon-lib:output":{"active":true,"description":"Clixon RESTCONF process"'
+if ${RC} ; then
+    new "Verify restconf in controller config"
+    expectpart "$(curl $CURLOPTS -X POST -H "Content-Type: application/yang-data+json" $RCPROTO://localhost/restconf/operations/clixon-lib:process-control -d '{"clixon-lib:input":{"name":"restconf","operation":"status"}}')" 0 "HTTP/$HVER 200" '{"clixon-lib:output":{"active":true,"description":"Clixon RESTCONF process"'
+fi
 
 # 1. GET
 new "restconf get restconf resource. RFC 8040 3.3 (json)"
@@ -330,8 +343,8 @@ new "restconf GET connection CLOSED"
 expectpart "$(curl $CURLOPTS -H "Accept: application/yang-data+json" -X GET $RCPROTO://localhost/restconf/data/clixon-controller:devices/device=openconfig1/conn-state)" 0 "HTTP/$HVER 200" '{"clixon-controller:conn-state":"CLOSED"}'
 
 # 4. Notification
-new "check notification controller-transaction"
-expectpart "$(curl $CURLOPTS -X GET $RCPROTO://localhost/restconf/data/ietf-restconf-monitoring:restconf-state)" 0 "HTTP/$HVER 200" '{"name":"controller-transaction","description":"A transaction has been completed.","replay-support":false,"access":\[{"encoding":"xml","location":"https://localhost/streams/controller-transaction"}\]}'
+new "Check notification controller-transaction state monitoring"
+expectpart "$(curl $CURLOPTS -X GET $RCPROTO://localhost/restconf/data/ietf-restconf-monitoring:restconf-state)" 0 "HTTP/$HVER 200" "{\"name\":\"controller-transaction\",\"description\":\"A transaction has been completed.\",\"replay-support\":false,\"access\":\[{\"encoding\":\"xml\",\"location\":\"${RCPROTO}://localhost/streams/controller-transaction\"}\]}" '{"name":"services-commit","description":"A commit has been made that changes the services declaration"'
 
 if [ "${WITH_RESTCONF}" = "fcgi" ]; then
 new "restconf RPC connection open"
@@ -346,8 +359,10 @@ new "restconf RPC connection open"
 sleep 1 && curl $CURLOPTS -X POST -H "Content-Type: application/yang-data+json" $RCPROTO://localhost/restconf/operations/clixon-controller:connection-change -d '{"clixon-controller:input":{"device":"*","operation":"OPEN"}}' > /dev/null &
 PID=$!
 
-new "Notification controller-transaction timeout:${TIMEOUT}s"
-ret=$(curl $CURLOPTS -X GET -H "Accept: text/event-stream" -H "Cache-Control: no-cache" -H "Connection: keep-alive" $RCPROTO://localhost/streams/controller-transaction)
+new "Notification controller-transaction timeout:${TIMEOUT}s 1"
+ret=$(curl $CURLOPTS -X GET -H "Accept: text/event-stream" -H "Cache-Control: no-cache" -H "Connection: keep-alive" ${RCPROTO}://localhost/streams/controller-transaction)
+
+#echo "ret:$ret"
 
 expect="data: <notification xmlns=\"urn:ietf:params:xml:ns:netconf:notification:1.0\"><eventTime>${DATE}T[0-9:.]*Z</eventTime><controller-transaction xmlns=\"http://clicon.org/controller\"><tid>[0-9:.]*</tid><username>[a-zA-Z0-9]*</username><result>SUCCESS</result></controller-transaction></notification>"
 
@@ -381,7 +396,7 @@ sleep 1
 new "restconf GET interface AA"
 expectpart "$(curl $CURLOPTS -H "Accept: application/yang-data+xml" -X GET $RCPROTO://localhost/restconf/data/clixon-controller:devices/device=openconfig1/config/openconfig-interfaces:interfaces)" 0 "HTTP/$HVER 200" '<interface><name>AA</name><config><name>AA</name><type xmlns:ianaift="urn:ietf:params:xml:ns:yang:iana-if-type">ianaift:ethernetCsmacd</type></config><state>'
 
-# rpc template
+# 6. RPC template
 new "Create RPC template"
 expectpart "$(curl $CURLOPTS -X POST -H "Content-Type: application/yang-data+json" $RCPROTO://localhost/restconf/data/clixon-controller:devices -d '{"clixon-controller:rpc-template":[{"name":"stats","variables":{"variable":[{"name":"MODULES"}]},"config":{"clixon-lib:stats":{"modules":"${MODULES}"}}}]}')" 0 "HTTP/$HVER 201"
 
@@ -413,6 +428,21 @@ fi
 
 new "Get rpc transaction result"
 expectpart "$(curl $CURLOPTS -H "Accept: application/yang-data+json" -X GET $RCPROTO://localhost/restconf/data/clixon-controller:transactions)" 0 "HTTP/$HVER 200" '{"clixon-controller:transactions":{"transaction":\[{"tid":"1","username":"[a-zA-Z0-9]*","result":"SUCCESS"' # XXX devdata
+
+# 7. Get device state
+sleep 1 && expectpart "$(curl $CURLOPTS -X POST -H "Content-Type: application/yang-data+json" $RCPROTO://localhost/restconf/operations/clixon-controller:device-template-apply -d '{"clixon-controller:input":{"type":"RPC","device":"openconfig*","inline":{"config":{"ietf-netconf:get":null}}}}')" 0 "HTTP/$HVER 200" 'Content-Type: application/yang-data+json' '{"clixon-controller:output":{"tid":"[0-9:.]*"}}' &
+PID=$!
+
+new "Wait for notification timeout:${TIMEOUT}s"
+ret=$(curl $CURLOPTS -X GET -H "Accept: text/event-stream" -H "Cache-Control: no-cache" -H "Connection: keep-alive" $RCPROTO://localhost/streams/controller-transaction)
+#echo "ret:$ret"
+expect="<tpid xmlns=\"http://openconfig.net/yang/vlan\">oc-vlan-types:TPID_0X8100</tpid>"
+match=$(echo "$ret" | grep --null -Eo "$expect") || true
+if [ -z "$match" ]; then
+    err "$expect" "$ret"
+fi
+
+kill $PID 2> /dev/null
 
 if $RC; then
     new "Kill restconf daemon"
