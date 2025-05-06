@@ -110,6 +110,8 @@ pull("Pull config from one or multiple devices"){
    ], cli_rpc_pull("replace");{
       replace, cli_rpc_pull("replace");
       merge, cli_rpc_pull("merge");
+      diff, compare_device_db_dev("default");
+      check("Check if device is in sync"), check_device_db("default");
    }
    <group:string keyword:group>("device group")
          (<name:string>("device group pattern")
@@ -117,6 +119,8 @@ pull("Pull config from one or multiple devices"){
          , cli_rpc_pull("replace");{
       replace, cli_rpc_pull("replace");
       merge, cli_rpc_pull("merge");
+      diff, compare_device_db_dev("default");
+      check("Check if device is in sync"), check_device_db("default");
    }
 }
 push("Push config to one or multiple devices"){
