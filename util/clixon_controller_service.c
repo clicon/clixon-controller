@@ -706,7 +706,6 @@ main(int    argc,
     struct passwd       *pw;
     cbuf                *cb = NULL;
 
-
     if ((h = clixon_handle_init()) == NULL)
         goto done;;
     clixon_log_init(h, __PROGRAM__, LOG_INFO, logdst);

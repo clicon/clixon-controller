@@ -22,6 +22,12 @@ fi
 # Native homedir (~ is treachorous)
 : ${HOSTHOMEDIR:=/root}
 
+
+if [ ! -f "$HOSTHOMEDIR/.ssh/id_rsa.pub" ] ; then
+    >&2 echo "Error: No key $HOSTHOMEDIR/.ssh/id_rsa.pub as required by script"
+    exit
+fi
+
 for i in $(seq 1 $nr); do
     NAME=$IMG$i
     sudo docker exec -t $NAME sh -c "test -d ${HOMEDIR}/.ssh || mkdir -m 700 ${HOMEDIR}/.ssh"

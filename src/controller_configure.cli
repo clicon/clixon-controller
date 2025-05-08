@@ -20,7 +20,7 @@ delete("Delete a configuration item") {
 quit("Quit"), cli_quit();
 commit("Run services, commit and push to devices"), cli_rpc_controller_commit("candidate", "CHANGE", "COMMIT");{
     diff("Show the result of running the services but do not commit"), cli_rpc_controller_commit("candidate", "CHANGE", "NONE");
-    push("Run services, commit and push to devices"), cli_rpc_controller_commit("candidate", "CHANGE", "COMMIT"); 
+    push("Run services, commit and push to devices"), cli_rpc_controller_commit("candidate", "CHANGE", "COMMIT");
     local("Local commit, do not push to devices"), cli_commit();
 }
 validate("Validate changes"), cli_validate();{
@@ -46,7 +46,7 @@ save("Save candidate configuration to XML file") <filename:string>("Filename (lo
     text("Save configuration as TEXT"), save_config_file("candidate","filename", "text");
     netconf("Save configuration as NETCONF"), save_config_file("candidate","filename", "netconf");
 }
-load("Load configuration from file to candidate") <operation:string choice:replace|merge|create>("Write operation on candidate") <format:string choice:xml|json>("File format") [filename <filename:string>("Filename (local filename)")], cli_auto_load_devs(); 
+load("Load configuration from file to candidate") <operation:string choice:replace|merge|create>("Write operation on candidate") <format:string choice:xml|json>("File format") [filename <filename:string>("Filename (local filename)")], cli_auto_load_devs();
 # {    @datamodel, cli_auto_load_devs(); }
 apply("Apply template or service") {
     template("Apply a template on devices")

@@ -1,5 +1,5 @@
 CLICON_MODE="|pipe_common:|pipe_show";
-\| { 
+\| {
    grep("Search for pattern") <arg:string>, pipe_grep_fn("-e", "arg");
    except("Inverted search") <arg:string>, pipe_grep_fn("-v", "arg");
    tail("Output last part") <arg:string>, pipe_tail_fn("-n", "arg");

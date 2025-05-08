@@ -3,9 +3,9 @@
   * [Content](#content)
   * [Compile and run](#compile)
   * [Using the CLI](#using-the-cli)
-  * [Netconf](#netconf)	
+  * [Netconf](#netconf)
   * [Restconf](#restconf)
-  
+
 ## Content
 
 This directory contains the Clixon controller. It contains the following files:
@@ -41,7 +41,7 @@ The example CLI allows you to modify and view the data model using `set`, `delet
 The following example shows how to add a very simple configuration `hello world` using the generated CLI. The config is added to the candidate database, shown, committed to running, and then deleted.
 ```
    olof@vandal> clixon_cli -f /usr/local/etc/clixon/controller.xml
-cli> q   
+cli> q
 ```
 
 ## Netconf
@@ -55,7 +55,7 @@ olof@vandal> clixon_netconf -qf /usr/local/etc/clixon/controller.xml
    </hello>]]>]]>
   <rpc xmlns="urn:ietf:params:xml:ns:netconf:base:1.0"><get-config><source><running/></source></get-config></rpc>]]>]]>
   <rpc-reply xmlns="urn:ietf:params:xml:ns:netconf:base:1.0"><data>...
-olof@vandal> 
+olof@vandal>
 ```
 
 ## Restconf
