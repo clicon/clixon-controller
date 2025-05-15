@@ -506,15 +506,16 @@ module clixon-controller {
              This is typically augmented by an application, such as:
                import clixon-controller { prefix ctrl; }
                augment '/ctrl:services' {
-               list myservice {
-                 key x;
-                 leaf x {
-                   type string;
-                    ...
+                 list myservice {
+                   key x;
+                     leaf x {
+                       type string;
+                       ...
+                     }
+                   }
                  }
-             }
              Note 1: All augmented services must follow this layout (but not same names)
-             Note 2: He alternative design:    services { list service { key name; ...}}
+             Note 2: The alternative design:    services { list service { key name; ...}}
              does not work since augments would then act under service, and you want different
              services in different trees not in the same service branch.";
          container properties {

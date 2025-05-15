@@ -39,6 +39,10 @@
 # Magic line must be first in script (see README.md)
 s="$_" ; . ./lib.sh || if [ "$s" = $0 ]; then exit 0; else return 0; fi
 
+# Debug early exit
+: ${early:=false}
+>&2 echo "early=true for debug "
+
 if [ $nr -lt 2 ]; then
     echo "Test requires nr=$nr to be greater than 1"
     if [ "$s" = $0 ]; then exit 0; else return 0; fi
@@ -94,45 +98,59 @@ EOF
 
 cat <<EOF > $fyang
 module myyang {
-    yang-version 1.1;
-    namespace "urn:example:test";
-    prefix test;
-    import clixon-controller {
+   yang-version 1.1;
+   namespace "urn:example:test";
+   prefix test;
+   import clixon-controller {
       prefix ctrl;
-    }
-    revision 2023-03-22{
-	description "Initial prototype";
-    }
-    augment "/ctrl:services" {
-	list testA {
-	    description "Test A service";
-	    key a_name;
-	    leaf a_name {
-		description "Test A instance";
-		type string;
-	    }
-
-	    leaf-list params{
-	       type string;
-               min-elements 1; /* For validate fail*/
-	   } 
-           uses ctrl:created-by-service;
-	}
-    }
-    augment "/ctrl:services" {
-	list testB {
-	   description "Test B service";
-	   key b_name;
-	   leaf b_name {
-		description "Test B instance";
-	      type string;
-	   }
-	   leaf-list params{
-	      type string;
-	   }
-           uses ctrl:created-by-service;
-	}
-    }
+   }
+   revision 2023-03-22{
+      description "Initial prototype";
+   }
+   augment "/ctrl:services" {
+      list testA {
+         description "Test A service";
+         key a_name;
+         leaf a_name {
+            description "Test A instance";
+            type string;
+         }
+         leaf-list params{
+            type string;
+            min-elements 1; /* For validate fail*/
+         }
+         uses ctrl:created-by-service;
+      }
+   }
+   augment "/ctrl:services" {
+   list testB {
+      description "Test B service";
+         key b_name;
+         leaf b_name {
+            description "Test B instance";
+            type string;
+         }
+         leaf-list params{
+            type string;
+         }
+         uses ctrl:created-by-service;
+      }
+   }
+   augment "/ctrl:services" {
+      list testC {
+         description "To test mandatory";
+         key c_name;
+         leaf c_name {
+            description "Test C instance";
+            type string;
+         }
+         leaf extra {
+            type string;
+            mandatory true;
+         }
+         uses ctrl:created-by-service;
+      }
+   }
 }
 EOF
 
@@ -188,6 +206,7 @@ RULES=$(cat <<EOF
 EOF
 )
 
+# XXX WHY IS THIS COMMENTED?
 if false; then
     
 # Enable services process to check for already running
@@ -367,7 +386,6 @@ fi
 
 #edit # edit
 sleep $sleep
-
 new "commit push"
 set +e
 expectpart "$(${clixon_cli} -m configure -1f $CFG -E $CFD commit push 2>&1)" 0 OK --not-- Error
@@ -378,7 +396,9 @@ expectpart "$(${clixon_cli} -m configure -1f $CFG -E $CFD commit push 2>&1)" 0 O
 new "commit diff 1"
 expectpart "$(${clixon_cli} -m configure -1f $CFG -E $CFD commit diff 2>&1)" 0 OK --not-- "<interface"
 
-# exit # commit diff 1
+if ${early}; then
+    exit # for starting controller with devices and debug
+fi
 
 # see https://github.com/clicon/clixon-controller/issues/78
 new "local change"
@@ -938,6 +958,16 @@ expectpart "$(${clixon_cli} -m configure -1f $CFG -E $CFD apply services myyang:
 
 new "apply all services"
 expectpart "$(${clixon_cli} -m configure -1f $CFG -E $CFD apply services 2>&1)" 0 "OK"
+
+# Test mandatory in services
+new "edit service C"
+expectpart "$(${clixon_cli} -m configure -1f $CFG -E $CFD set services testC foo)" 0 ""
+
+new "validate local"
+expectpart "$(${clixon_cli} -m configure -1f $CFG -E $CFD validate local 2>&1)" 255 "missing-element Mandatory variable of testC in module myyang <bad-element>extra</bad-element>"
+
+new "discard"
+expectpart "$(${clixon_cli} -m configure -1f $CFG -E $CFD discard)" 0 "^$"
 
 if $BE; then
     new "Kill old backend"

@@ -6,7 +6,8 @@
 s="$_" ; . ./lib.sh || if [ "$s" = $0 ]; then exit 0; else return 0; fi
 
 # Debug early exit
-: ${earlyexit:=false}
+: ${early:=false}
+>&2 echo "early=true for debug "
 
 CFG=${SYSCONFDIR}/clixon/controller.xml
 dir=/var/tmp/$0
@@ -165,7 +166,7 @@ wait_backend
 new "reset controller"
 (. ./reset-controller.sh)
 
-if ${earlyexit}; then
+if ${early}; then
     exit # for starting controller with devices and debug
 fi
 

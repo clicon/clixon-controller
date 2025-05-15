@@ -74,7 +74,6 @@ cat<<EOF > $CFD/action-command.xml
 </clixon-config>
 EOF
 
-
 # Specialize autocli.xml for openconfig vs ietf interfaces (debug)
 cat <<EOF > $CFD/autocli.xml
 <clixon-config xmlns="http://clicon.org/config">
@@ -111,7 +110,6 @@ module myyang {
 		description "Test A instance";
 		type string;
 	    }
-
 	    leaf-list params{
 	       type string;
                min-elements 1; /* For validate fail*/
@@ -380,7 +378,7 @@ new "restconf GET connection OPEN"
 expectpart "$(curl $CURLOPTS -H "Accept: application/yang-data+json" -X GET $RCPROTO://localhost/restconf/data/clixon-controller:devices/device=openconfig1/conn-state)" 0 "HTTP/$HVER 200" '{"clixon-controller:conn-state":"OPEN"}'
 
 # 5. Service
-new "restconf PUT service"
+new "restconf POST service AA"
 expectpart "$(curl $CURLOPTS -X POST -H "Content-Type: application/yang-data+json" $RCPROTO://localhost/restconf/data/clixon-controller:services -d '{"myyang:testA":[{"a_name":"bar","params":["AA"]}]}')" 0 "HTTP/$HVER 201"
 
 new "restconf GET interface not AA"
@@ -395,6 +393,22 @@ sleep 1
 
 new "restconf GET interface AA"
 expectpart "$(curl $CURLOPTS -H "Accept: application/yang-data+xml" -X GET $RCPROTO://localhost/restconf/data/clixon-controller:devices/device=openconfig1/config/openconfig-interfaces:interfaces)" 0 "HTTP/$HVER 200" '<interface><name>AA</name><config><name>AA</name><type xmlns:ianaift="urn:ietf:params:xml:ns:yang:iana-if-type">ianaift:ethernetCsmacd</type></config><state>'
+
+if false; then # See https://github.com/clicon/clixon-controller/issues/199
+
+new "restconf PUT service BB"
+expectpart "$(curl $CURLOPTS -X POST -H "Content-Type: application/yang-data+json" $RCPROTO://localhost/restconf/data/clixon-controller:services/myyang:testA=bar -d '{"myyang:params":["BB"]}')" 0 "HTTP/$HVER 201"
+
+new "restconf DELETE service AA"
+expectpart "$(curl $CURLOPTS -X DELETE -H "Content-Type: application/yang-data+json" $RCPROTO://localhost/restconf/data/clixon-controller:services/myyang:testA=bar/params=AA)" 0 "HTTP/$HVER 204"
+
+sleep 2
+new "Apply service deletion of AA"
+# another quoting frenzy
+DATA="{\"clixon-controller:input\":{\"device\":\"*\",\"push\":\"COMMIT\",\"actions\":\"FORCE\",\"source\":\"ds:candidate\"}}"
+expectpart "$(curl $CURLOPTS -X POST -H "Content-Type: application/yang-data+json" $RCPROTO://localhost/restconf/operations/clixon-controller:controller-commit -d "${DATA}")" 0 "HTTP/$HVER 200" 'Content-Type: application/yang-data+json' '{"clixon-controller:output":{"tid":'
+
+fi # XXX
 
 # 6. RPC template
 new "Create RPC template"
@@ -430,6 +444,35 @@ new "Get rpc transaction result"
 expectpart "$(curl $CURLOPTS -H "Accept: application/yang-data+json" -X GET $RCPROTO://localhost/restconf/data/clixon-controller:transactions)" 0 "HTTP/$HVER 200" '{"clixon-controller:transactions":{"transaction":\[{"tid":"1","username":"[a-zA-Z0-9]*","result":"SUCCESS"' # XXX devdata
 
 # 7. Get device state
+new "Apply inline template to get device state XML"
+sleep 1 && expectpart "$(curl $CURLOPTS -X POST -H "Content-Type: application/yang-data+xml" $RCPROTO://localhost/restconf/operations/clixon-controller:device-template-apply -d '<input xmlns="urn:example:clixon-controller"><type>RPC</type>
+    <device>openconfig*</device>
+    <inline>
+      <config>
+        <get xmlns="urn:ietf:params:xml:ns:netconf:base:1.0">
+          <filter type="xpath" select="/oc-sys:system/oc-sys:ssh-server" xmlns:oc-sys="http://openconfig.net/yang/system" />
+        </get>
+      </config>
+    </inline>
+</input>')" 0 "HTTP/$HVER 200" 'Content-Type: application/yang-data+json' '{"clixon-controller:output":{"tid":"[0-9:.]*"}}' &
+PID=$!
+
+new "Wait for notification timeout:${TIMEOUT}s"
+ret=$(curl $CURLOPTS -X GET -H "Accept: text/event-stream" -H "Cache-Control: no-cache" -H "Connection: keep-alive" $RCPROTO://localhost/streams/controller-transaction)
+echo "ret:$ret"
+expect="<ssh-server><state><enable>true</enable><protocol-version>V2</protocol-version></state></ssh-server>"
+match=$(echo "$ret" | grep --null -Eo "$expect") || true
+if [ -z "$match" ]; then
+    err "$expect" "$ret"
+fi
+
+kill $PID 2> /dev/null
+
+# note hard-coded transaction-id=8
+new "poll transaction result"
+expectpart "$(curl $CURLOPTS -X GET -H "Accept: application/yang-data+json" $RCPROTO://localhost/restconf/data/clixon-controller:transactions/transaction=8)" 0 "HTTP/$HVER 200" '"ssh-server":{"state":{"enable":"true","protocol-version":"V2"}}'
+
+new "Apply inline template to get device state JSON"
 sleep 1 && expectpart "$(curl $CURLOPTS -X POST -H "Content-Type: application/yang-data+json" $RCPROTO://localhost/restconf/operations/clixon-controller:device-template-apply -d '{"clixon-controller:input":{"type":"RPC","device":"openconfig*","inline":{"config":{"ietf-netconf:get":null}}}}')" 0 "HTTP/$HVER 200" 'Content-Type: application/yang-data+json' '{"clixon-controller:output":{"tid":"[0-9:.]*"}}' &
 PID=$!
 

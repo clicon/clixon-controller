@@ -250,6 +250,8 @@ rpc_get_yanglib_mount_match(clixon_handle h,
         xml_free(xtop);
     if (xret)
         xml_free(xret);
+    if (xerr)
+        xml_free(xerr);
     if (cb)
         cbuf_free(cb);
     return retval;
@@ -443,13 +445,15 @@ cli_show_config_detail(clixon_handle h,
     int        argc = 0;
     int        i;
     yang_stmt *yspec0;
-    yang_stmt *ys;
+    yang_stmt *ys = NULL;
     yang_stmt *ymod;
     cxobj     *xbot = NULL;     /* xpath, NULL if datastore */
     cxobj     *xtop = NULL;     /* xpath root */
+    cxobj     *xerr = NULL;
     int        cvvi = 0;
     char      *ns;
     char      *prefix;
+    int        ret;
 
     if ((api_path_fmt_cb = cbuf_new()) == NULL){
         clixon_err(OE_UNIX, errno, "cbuf_new");
@@ -485,8 +489,16 @@ cli_show_config_detail(clixon_handle h,
     if (cli_apipath(h, cvv, mtpoint, api_path_fmt, &cvvi, &api_path) < 0)
         goto done;
     xbot = xtop;
-    if (api_path2xml(api_path, yspec0, xtop, YC_DATANODE, 1, &xbot, &ys, NULL) < 0)
+    if ((ret = api_path2xml(api_path, yspec0, xtop, YC_DATANODE, 1, &xbot, &ys, &xerr)) < 0)
        goto done;
+    if (ret == 0){
+        clixon_err_netconf(h, OE_XML, 0, xerr, "Get devices config");
+        goto done;
+    }
+    if (ys == NULL){
+        clixon_err(OE_YANG, 0, "No yang found for api-path: %s", api_path);
+        goto done;
+    }
     ymod = ys_module(ys);
     ns = yang_find_mynamespace(ys);
     prefix = yang_find_myprefix(ys);
@@ -504,6 +516,8 @@ cli_show_config_detail(clixon_handle h,
         cbuf_free(api_path_fmt_cb);
     if (nsc)
         cvec_free(nsc);
+    if (xerr)
+        xml_free(xerr);
     if (xpath)
         free(xpath);
     return retval;
