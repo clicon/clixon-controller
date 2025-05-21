@@ -14,7 +14,7 @@ top, cli_auto_top("basemodel");
 # set is actually merge, see https://github.com/clicon/clixon-controller/issues/33
 set @datamodel, cli_auto_merge_devs();
 delete("Delete a configuration item") {
-      @datamodel, cli_auto_del_devs();
+      @datamodel, @add:leafref-referred, cli_auto_del_devs();
       all("Delete whole candidate configuration"), delete_all("candidate");
 }
 quit("Quit"), cli_quit();
