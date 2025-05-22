@@ -1,0 +1,33 @@
+publiccodeYmlVersion: 0.4.0
+name: clixon-controller
+applicationSuite: Clixon
+url: https://github.com/clicon/clixon-controller
+softwareVersion: 1.4.0
+releaseDate: 2025-04-02
+platforms:
+  - linux
+  - mac
+categories:
+  - network-management
+usedBy:
+  - SUNET
+developmentStatus: stable
+softwareType: standalone/backend
+description:
+  en:
+    localisedName: Clixon Controller
+    shortDescription: Network controller based on NETCONF/YANG
+    longDescription: Network controller which can be used on any devices running
+      NETCONF/YANG. The controller can control one or more devices and comes
+      with an easy Python API for writing network services.
+    features:
+      - NETCONF
+      - API
+legal:
+  license: Apache-2.0
+maintenance:
+  type: community
+localisation:
+  localisationReady: false
+  availableLanguages:
+    - en
