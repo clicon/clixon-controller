@@ -20,6 +20,7 @@ Expected: July 2025
 
 ### Corrected Bugs
 
+* Fixed: [Syntax errror when deleting leafs on Junos](https://github.com/clicon/clixon-controller/issues/203)
 * Fixed: [Confusing error message if device has NACM](https://github.com/clicon/clixon-controller/issues/197)
 * Fixed: [Improve error message when creator tag is malformed](https://github.com/clicon/clixon-controller/issues/191)
 

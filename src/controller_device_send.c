@@ -343,22 +343,46 @@ device_send_get_schema_list(clixon_handle h,
     return retval;
 }
 
-/*! Remove any subtree under xn (expect for list keys)
+/*! As part of creating edt-config, remove subtree under xn
+ *
+ * That is, for operation="remove/delete"
+ * Do not remove keys if xn is LIST
+ * Remove body if xn is LEAF.
+ * @param[in]  xn   XML node
+ * @retval     0    OK
+ * @retval    -1    Error
  */
 static int
-remove_subtree(cxobj *xn)
+device_edit_config_remove_subtree(cxobj *xn)
 {
-    int     retval = -1;
-    cvec   *cvk; /* vector of index keys */
-    cg_var *cvi = NULL;
-    char   *keyname;
-    cxobj  *xk;
+    int        retval = -1;
+    cvec      *cvk; /* vector of index keys */
+    cg_var    *cvi = NULL;
+    char      *keyname;
+    yang_stmt *yn;
+    cxobj     *xsub;
 
-    cvk = yang_cvec_get(xml_spec(xn)); /* Use Y_LIST cache, see ys_populate_list() */
-    while ((cvi = cvec_each(cvk, cvi)) != NULL) {
-        keyname = cv_string_get(cvi);
-        if ((xk = xml_find_type(xn, NULL, keyname, CX_ELMNT)) != NULL)
-            xml_flag_set(xk, XML_FLAG_MARK);
+    if ((yn = xml_spec(xn)) != NULL){
+        switch (yang_keyword_get(yn)){
+        case Y_LIST:
+            cvk = yang_cvec_get(xml_spec(xn)); /* Use Y_LIST cache, see ys_populate_list() */
+            while ((cvi = cvec_each(cvk, cvi)) != NULL) {
+                keyname = cv_string_get(cvi);
+                if ((xsub = xml_find_type(xn, NULL, keyname, CX_ELMNT)) != NULL)
+                    xml_flag_set(xsub, XML_FLAG_MARK);
+            }
+            break;
+        case Y_LEAF:
+            /* If leaf, remove body,
+             *   See https://github.com/clicon/clixon-controller/issues/203
+             *  Not an element, not removed by prune_flagged below
+             */
+            if ((xsub = xml_body_get(xn)) != NULL)
+                xml_purge(xsub);
+            break;
+        default:
+            break;
+        }
     }
     /* Remove all non-key children */
     if (xml_tree_prune_flagged_sub(xn, XML_FLAG_MARK, 1, NULL) < 0)
@@ -430,7 +454,7 @@ device_create_edit_config_diff(clixon_handle h,
             goto done;
         xml_flag_set(xn, XML_FLAG_MARK);
         /* Remove any subtree under xn (except for list keys) */
-        if (remove_subtree(xn) < 0)
+        if (device_edit_config_remove_subtree(xn) < 0)
             goto done;
     }
     for (i=0; i<alen; i++){
