@@ -65,10 +65,16 @@ function sleep_open()
 
 function testrun()
 {
-    new "Show device diff, should be empty"
+    new "Show devices diff, should be empty"
     expectpart "$($clixon_cli -1 -f $CFG -E $CFD show devices diff)" 0 ""
+
+    new "Show devices openconfig* diff, should be empty XXX2"
     expectpart "$($clixon_cli -1 -f $CFG -E $CFD 'show devices openconfig* diff')" 0 ""
+
+    new "Show devices openconfig1 diff, should be empty"
     expectpart "$($clixon_cli -1 -f $CFG -E $CFD show devices openconfig1 diff)" 0 ""
+
+    new "Show devices openconfig2 diff, should be empty"
     expectpart "$($clixon_cli -1 -f $CFG -E $CFD show devices openconfig2 diff)" 0 ""
 
     new "Configure hostname on openconfig1"

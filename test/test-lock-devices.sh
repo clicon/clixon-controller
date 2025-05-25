@@ -81,7 +81,7 @@ top, cli_auto_top("basemodel");
 set @datamodel, cli_auto_set_devs();
 merge @datamodel, cli_auto_merge_devs();
 delete("Delete a configuration item") {
-      @datamodel, @add:leafref-referred, cli_auto_del_devs();
+      @datamodel, @add:leafref-no-refer, cli_auto_del_devs();
       all("Delete whole candidate configuration"), delete_all("candidate");
 }
 quit("Quit"), cli_quit();
