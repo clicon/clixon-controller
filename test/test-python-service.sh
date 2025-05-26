@@ -3,9 +3,6 @@
 # Magic line must be first in script (see README.md)
 s="$_" ; . ./lib.sh || if [ "$s" = $0 ]; then exit 0; else return 0; fi
 
-# Set if also push, not only change (useful for manually doing push)
-: ${push:=true}
-
 : ${check:=false}
 
 # Reset devices with initial config
@@ -194,7 +191,7 @@ function sleep_open()
         sleep 1
     done
     if [ $j -eq 10 ]; then
-        err "device openconfig OPEN" "Timeout" 
+        err "device openconfig OPEN" "Timeout"
     fi
 }
 
@@ -209,7 +206,7 @@ fi
 new "Wait backend"
 wait_backend
 
-# Reset controller 
+# Reset controller
 new "reset controller"
 (. ./reset-controller.sh)
 
@@ -240,10 +237,10 @@ new "Verify service processes are running after restart"
 expectpart "$($clixon_cli -1 -f $CFG processes service status)" 0 ".*running.*" ""
 
 # Configure service
-new "Configure ssh-users with user test1"
-expectpart "$($clixon_cli -1 -f $CFG -m configure set service ssh-users test1)" 0 ""
-expectpart "$($clixon_cli -1 -f $CFG -m configure set service ssh-users test1 username test1)" 0 ""
+new "Configure ssh-users with user test1 role"
 expectpart "$($clixon_cli -1 -f $CFG -m configure set service ssh-users test1 username test1 role admin)" 0 ""
+
+new "Configure ssh-users with user test1 ssh-key"
 expectpart "$($clixon_cli -1 -f $CFG -m configure set service ssh-users test1 username test1 ssh-key key1)" 0 ""
 
 # Commit diff
@@ -299,10 +296,10 @@ for container in $CONTAINERS; do
     expectpart "$(ssh ${SSHID} -l $USER $container clixon_cli -1 show configuration cli)" 0 "system aaa authentication users user test1 config username test1" "system aaa authentication users user test1 config ssh-key key1" "system aaa authentication users user test1 config role admin"
 done
 
-new "Configure ssh-users with user test2"
-expectpart "$($clixon_cli -1 -f $CFG -m configure set service ssh-users test2)" 0 ""
-expectpart "$($clixon_cli -1 -f $CFG -m configure set service ssh-users test2 username test2)" 0 ""
+new "Configure ssh-users with user test2 role"
 expectpart "$($clixon_cli -1 -f $CFG -m configure set service ssh-users test2 username test2 role admin)" 0 ""
+
+new "Configure ssh-users with user test2 ssh-key"
 expectpart "$($clixon_cli -1 -f $CFG -m configure set service ssh-users test2 username test2 ssh-key key2)" 0 ""
 
 # Commit diff
