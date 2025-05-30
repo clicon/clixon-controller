@@ -413,7 +413,7 @@ transaction_new_id(clixon_handle h,
  */
 int
 controller_transaction_new(clixon_handle            h,
-                           uint32_t                 ce_id,
+                           uint32_t                 myid,
                            char                    *username,
                            char                    *description,
                            controller_transaction **ctp,
@@ -444,8 +444,16 @@ controller_transaction_new(clixon_handle            h,
         cprintf(*cberr, "Candidate db is locked by %u", iddb);
         goto failed;
     }
+    else if (iddb != myid){
+        if ((*cberr = cbuf_new()) == NULL){
+            clixon_err(OE_UNIX, errno, "cbuf_new");
+            goto done;
+        }
+        cprintf(*cberr, "Candidate db is locked by %u", iddb);
+        goto failed;
+    }
     else
-        lock_id = 0; /* Reuse lock */
+        lock_id = 0; /* Reuse existing lock */
     /* Exclusive lock of single active transaction */
     if (clicon_ptr_get(h, "controller-transaction-list", (void**)&ct_list) == 0 &&
         (ct = ct_list) != NULL) {
@@ -469,7 +477,7 @@ controller_transaction_new(clixon_handle            h,
     }
     memset(ct, 0, sz);
     ct->ct_h = h;
-    ct->ct_client_id = ce_id;
+    ct->ct_client_id = myid;
     if (username) {
         if ((ct->ct_username = strdup(username)) == NULL){
             clixon_err(OE_NETCONF, errno, "strdup");

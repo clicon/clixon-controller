@@ -395,7 +395,6 @@ controller_action_proc_cb(clixon_handle    h,
 
 /*! Init service daemon: register services daemon, add NACM proxy user
  *
-
  * @retval    0    OK
  * @retval   -1    Error
  */
@@ -621,6 +620,7 @@ controller_lockdb(clixon_handle h,
                 /* user callback */
                 if (clixon_plugin_lockdb_all(h, db, 1, TRANSACTION_CLIENT_ID) < 0)
                     goto done;
+                break;
             }
             ct = NEXTQ(controller_transaction *, ct);
         } while (ct && ct != ct_list);
