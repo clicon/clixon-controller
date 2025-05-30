@@ -3,8 +3,6 @@
 # Magic line must be first in script (see README.md)
 s="$_" ; . ./lib.sh || if [ "$s" = $0 ]; then exit 0; else return 0; fi
 
-# Set if also push, not only change (useful for manually doing push)
-: ${push:=true}
 : ${check:=false}
 
 # Reset devices with initial config
@@ -21,8 +19,6 @@ test -d $modules || mkdir -p $modules
 test -d $CFD || mkdir -p $CFD
 pycode=$modules/ssh-users.py
 USERNAME=$(whoami)
-
-: ${RUN_NOT_WORKING:=false}
 
 # Specialize controller.xml
 cat<<EOF > $diff
@@ -163,8 +159,8 @@ if $BE; then
     new "Kill old backend"
     stop_backend -f $CFG -E $CFD
 
-    new "Start new backend -s startup -f $CFG"
-    start_backend -s startup -f $CFG -E $CFD
+    new "Start new backend -s init -f $CFG"
+    start_backend -s init -f $CFG -E $CFD
 fi
 
 SERVICE_DIFF="openconfig1:
@@ -211,12 +207,6 @@ wait_backend
 # Reset controller
 new "reset controller"
 (. ./reset-controller.sh)
-
-new "Close all devices"
-expectpart "$($clixon_cli -1 -f $CFG connection close)" 0 ""
-
-new "Connect to devices"
-expectpart "$($clixon_cli -1 -f $CFG connection open)" 0 ""
 
 new "Sleep and verify devices are open"
 sleep_open

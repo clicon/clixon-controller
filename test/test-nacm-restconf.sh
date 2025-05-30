@@ -5,7 +5,6 @@
 s="$_" ; . ./lib.sh || if [ "$s" = $0 ]; then exit 0; else return 0; fi
 
 # Set if also push, not only change (useful for manually doing push)
-: ${push:=true}
 : ${check:=true}
 : ${delete:=false}
 
