@@ -220,12 +220,14 @@ expectpart "$($clixon_cli -1 -f $CFG processes service status)" 0 ".*running.*" 
 
 nacm_init
 
-new "Deny access to device addr"
+new "Deny access to device addr 1"
 expectpart "$($clixon_cli -1 -f $CFG -E $CFD -m configure set nacm rule-list test-rules group test-group)" 0 ""
 expectpart "$($clixon_cli -1 -f $CFG -E $CFD -m configure set nacm rule-list test-rules rule device-address access-operations read)" 0 ""
 expectpart "$($clixon_cli -1 -f $CFG -E $CFD -m configure set nacm rule-list test-rules rule device-address action deny)" 0 ""
 expectpart "$($clixon_cli -1 -f $CFG -E $CFD -m configure set nacm rule-list test-rules rule device-address path /ctrl:devices/ctrl:device/ctrl:addr)" 0 ""
 expectpart "$($clixon_cli -1 -f $CFG -E $CFD -m configure commit local)" 0 ""
+
+new "Check show devices deny"
 expectpart "$($clixon_cli -1 -f $CFG -E $CFD -m configure show devices device openconfig1 addr)" 0 "<!-- openconfig1: -->
 <devices xmlns=\"http://clicon.org/controller\">
    <device>
@@ -241,6 +243,7 @@ expectpart "$($clixon_cli -1 -f $CFG -E $CFD -m configure set nacm rule-list tes
 expectpart "$($clixon_cli -1 -f $CFG -E $CFD -m configure set nacm rule-list test-rules rule device-address action permit)" 0 ""
 expectpart "$($clixon_cli -1 -f $CFG -E $CFD -m configure set nacm rule-list test-rules rule device-address path /ctrl:devices/ctrl:device/ctrl:addr)" 0 ""
 expectpart "$($clixon_cli -1 -f $CFG -E $CFD -m configure commit local)" 0 ""
+new "Check show devices permit"
 expectpart "$($clixon_cli -1 -f $CFG -E $CFD -m configure show devices device openconfig1 addr)" 0 "<!-- openconfig1: -->
 <devices xmlns=\"http://clicon.org/controller\">
    <device>

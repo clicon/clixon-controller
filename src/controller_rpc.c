@@ -2334,10 +2334,47 @@ rpc_transactions_actions_done(clixon_handle h,
     return retval;
 }
 
+/*! Do NACM read data check, remove violating nodes
+ *
+ * @param[in]  h     Clixon handle
+ * @param[in]  xt    XML top
+ * @param[in]  xpath XPath
+ * @retval      0    OK
+ * @retval     -1    Error
+ * see code in backend_get.c
+ * get_common(), get_nacm_and_reply()
+  *
+ */
+static int
+datastore_diff_nacm_read(clixon_handle h,
+                         cxobj        *xt,
+                         char         *xpath)
+{
+    int     retval = -1;
+    cxobj  *xnacm;
+    char   *username;
+
+    xnacm = clicon_nacm_cache(h);
+    username = clicon_username_get(h);
+    if (xnacm != NULL){ /* Do NACM validation */
+        /* NACM datanode/module purge read access violation */
+#if 0 // XXX switch to the new function asap
+        if (nacm_datanode_read1(h, xt, username, xnacm) < 0)
+            goto done;
+#else
+        if (nacm_datanode_read(h, xt, NULL, 0, username, xnacm) < 0)
+            goto done;
+#endif
+    }
+    retval = 0;
+ done:
+    return retval;
+}
+
 /*! Given two datastores and xpath, return diff in textual form
  *
  * @param[in]   h      Clixon handle
- * @param[in]   xpath  XPath
+ * @param[in]   xpath  XPath note
  * @param[in]   db1    First datastore
  * @param[in]   db2    Second datastore
  * @param[in]   format Format of diff
@@ -2363,11 +2400,15 @@ datastore_diff_dsref(clixon_handle    h,
 
     if (xmldb_get_cache(h, db1, YB_MODULE, &xt1, NULL, NULL) < 0)
         goto done;
+    if (datastore_diff_nacm_read(h, xt1, xpath) < 0)
+        goto done;
     if (xpath)
         x1 = xpath_first(xt1, NULL, "%s", xpath);
     else
         x1 = xt1;
     if (xmldb_get_cache(h, db2, YB_MODULE, &xt2, NULL, NULL) < 0)
+        goto done;
+    if (datastore_diff_nacm_read(h, xt2, xpath) < 0)
         goto done;
     if (xpath)
         x2 = xpath_first(xt2, NULL, "%s", xpath);
@@ -2407,7 +2448,6 @@ datastore_diff_dsref(clixon_handle    h,
  *
  * That is diff of configs for same device, only different variants, eg synced, transient, running, etc
  * @param[in]   h       Clixon handle
- * @param[in]   xpath   XPath
  * @param[in]   groups  0: device pattern, 1: device-group pattern
  * @param[in]   pattern Glob pattern for selecting devices
  * @param[in]   dt1     Type of device config 1
@@ -2420,7 +2460,6 @@ datastore_diff_dsref(clixon_handle    h,
  */
 static int
 datastore_diff_device(clixon_handle      h,
-                      char              *xpath,
                       int                groups,
                       char              *pattern,
                       device_config_type dt1,
@@ -2460,13 +2499,15 @@ datastore_diff_device(clixon_handle      h,
         clixon_err(OE_UNIX, errno, "cbuf_new");
         goto done;
     }
-    if (xmldb_get_cache(h, "running", YB_MODULE, &xret, NULL, NULL) < 0)
-        goto done;
     cprintf(cbret, "<rpc-reply xmlns=\"%s\">", NETCONF_BASE_NAMESPACE);
     if ((devvec = cvec_new(0)) == NULL){
         clixon_err(OE_UNIX, errno, "cvec_new");
         goto done;
     }
+    if (xmldb_get_cache(h, "running", YB_MODULE, &xret, NULL, NULL) < 0)
+        goto done;
+    if (datastore_diff_nacm_read(h, xret, NULL) < 0)
+        goto done;
     if (xpath_vec(xret, nsc, "devices/device", &vec1, &vec1len) < 0)
         goto done;
     if (xpath_vec(xret, nsc, "devices/device-group", &vec2, &vec2len) < 0)
@@ -2503,6 +2544,8 @@ datastore_diff_device(clixon_handle      h,
             cprintf(cbxpath, "devices/device[name='%s']/config", devname);
             if (xmldb_get_cache(h, "running", YB_MODULE, &x1ret, NULL, NULL) < 0)
                 goto done;
+            if (datastore_diff_nacm_read(h, x1ret, NULL) < 0)
+                goto done;
             x1 = xpath_first(x1ret, nsc, "%s", cbuf_get(cbxpath));
             break;
         case DT_CANDIDATE:
@@ -2517,6 +2560,8 @@ datastore_diff_device(clixon_handle      h,
             cprintf(cbxpath, "devices/device[name='%s']/config", devname);
             if (xmldb_get_cache(h, "actions", YB_MODULE, &x1ret, NULL, NULL) < 0)
                 goto done;
+            if (datastore_diff_nacm_read(h, x1ret, NULL) < 0)
+                goto done;
             x1 = xpath_first(x1ret, nsc, "%s", cbuf_get(cbxpath));
             break;
         case DT_SYNCED:
@@ -2530,6 +2575,8 @@ datastore_diff_device(clixon_handle      h,
                     goto done;
                 goto ok;
             }
+            if (datastore_diff_nacm_read(h, x1m, NULL) < 0)
+                goto done;
             x1 = x1m;
             break;
         }
@@ -2540,6 +2587,8 @@ datastore_diff_device(clixon_handle      h,
             cprintf(cbxpath, "devices/device[name='%s']/config", devname);
             if (xmldb_get_cache(h, "running", YB_MODULE, &x2ret, NULL, NULL) < 0)
                 goto done;
+            if (datastore_diff_nacm_read(h, x2ret, NULL) < 0)
+                goto done;
             x2 = xpath_first(x2ret, nsc, "%s", cbuf_get(cbxpath));
             break;
         case DT_CANDIDATE:
@@ -2547,12 +2596,16 @@ datastore_diff_device(clixon_handle      h,
             cprintf(cbxpath, "devices/device[name='%s']/config", devname);
             if (xmldb_get_cache(h, "candidate", YB_MODULE, &x2ret, NULL, NULL) < 0)
                 goto done;
+            if (datastore_diff_nacm_read(h, x2ret, NULL) < 0)
+                goto done;
             x2 = xpath_first(x2ret, nsc, "%s", cbuf_get(cbxpath));
             break;
         case DT_ACTIONS:
             cbuf_reset(cbxpath);
             cprintf(cbxpath, "devices/device[name='%s']/config", devname);
             if (xmldb_get_cache(h, "actions", YB_MODULE, &x2ret, NULL, NULL) < 0)
+                goto done;
+            if (datastore_diff_nacm_read(h, x2ret, NULL) < 0)
                 goto done;
             x2 = xpath_first(x2ret, nsc, "%s", cbuf_get(cbxpath));
             break;
@@ -2567,6 +2620,8 @@ datastore_diff_device(clixon_handle      h,
                     goto done;
                 goto ok;
             }
+            if (datastore_diff_nacm_read(h, x2m, NULL) < 0)
+                goto done;
             x2 = x2m;
             break;
         }
@@ -2666,7 +2721,6 @@ rpc_datastore_diff(clixon_handle h,
     int                groups = 0;
 
     clixon_debug(CLIXON_DBG_CTRL, "");
-    xpath = xml_find_body(xe, "xpath");
     if ((formatstr = xml_find_body(xe, "format")) != NULL){
         if ((int)(format = format_str2int(formatstr)) < 0){
             clixon_err(OE_PLUGIN, 0, "Not valid format: %s", formatstr);
@@ -2679,6 +2733,7 @@ rpc_datastore_diff(clixon_handle h,
         }
     }
     if ((ds1 = xml_find_body(xe, "dsref1")) != NULL){ /* Regular datastores */
+        xpath = xml_find_body(xe, "xpath");
         if (nodeid_split(ds1, NULL, &id1) < 0)
             goto done;
         if ((ds2 = xml_find_body(xe, "dsref2")) == NULL){
@@ -2722,7 +2777,7 @@ rpc_datastore_diff(clixon_handle h,
                 goto done;
             goto ok;
         }
-        if (datastore_diff_device(h, xpath, groups, pattern, dt1, dt2, format, cbret) < 0)
+        if (datastore_diff_device(h, groups, pattern, dt1, dt2, format, cbret) < 0)
             goto done;
     }
  ok:
