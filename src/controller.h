@@ -43,13 +43,6 @@
 #define CONTROLLER_PREFIX    "ctrl"
 #define CONTROLLER_NAMESPACE "http://clicon.org/controller"
 
-/*! Skip junos-configuration-metadata.yang
- *
- * cRPD gives error if you request it with get-schema:
- * <error-message>invalid schema identifier : junos-configuration-metadata</error-message>
- */
-#undef CONTROLLER_JUNOS_SKIP_METADATA
-
 /*! Top-symbol in clixon datastores
  *
  * Duplicate of constant in clixon_custom.h

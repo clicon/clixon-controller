@@ -952,7 +952,8 @@ module clixon-controller {
         input {
             leaf xpath {
                 description
-                    "XPath to part of XML to compare";
+                    "XPath to part of XML to compare.
+                     Only when datastore = reference";
                 type string;
             }
             leaf format {

@@ -443,10 +443,6 @@ device_recv_schema_list(device_handle dh,
     while ((x = xml_child_each(xschemas, x, CX_ELMNT)) != NULL) {
         if (strcmp(xml_name(x), "schema") != 0)
             xml_flag_set(x, XML_FLAG_MARK);
-#ifdef CONTROLLER_JUNOS_SKIP_METADATA
-        else if (strcmp(xml_find_body(x,"identifier"), "junos-configuration-metadata") == 0)
-            xml_flag_set(x, XML_FLAG_MARK);
-#endif
     }
     if (xml_tree_prune_flags(xschemas, XML_FLAG_MARK, XML_FLAG_MARK) < 0)
         goto done;
