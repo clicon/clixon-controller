@@ -472,7 +472,6 @@ for container in $CONTAINERS; do
     expectpart "$(ssh ${SSHID} -l $USER $container clixon_cli -1 show configuration cli)" 0 "system config login-banner Mybanner"
 done
 
-
 if $BE; then
     new "Kill old backend"
     stop_backend -f $CFG
