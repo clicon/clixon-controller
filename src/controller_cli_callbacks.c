@@ -230,7 +230,7 @@ rpc_get_yanglib_mount_match(clixon_handle h,
         if (xml_tree_prune_flagged_sub(xdevs, XML_FLAG_MARK, 1, NULL) < 0)
             goto done;
         /* Populate XML with Yang spec. */
-        if ((ret = xml_bind_yang0(h, xdevs, YB_MODULE, yspec, &xerr)) < 0)
+        if ((ret = xml_bind_yang0(h, xdevs, YB_MODULE, yspec, 0, &xerr)) < 0)
             goto done;
         if (ret == 0){
             clixon_err_netconf(h, OE_XML, 0, xerr, "Get devices config");
@@ -2171,7 +2171,7 @@ cli_dbxml_devs_sub(clixon_handle       h,
         clixon_err(OE_XML, errno, "cbuf_new");
         goto done;
     }
-    if (clixon_xml2cbuf(cb, xtop, 0, 0, NULL, -1, 0) < 0)
+    if (clixon_xml2cbuf1(cb, xtop, 0, 0, NULL, -1, 0, 0) < 0)
         goto done;
     if (clicon_rpc_edit_config(h, "candidate", OP_NONE, cbuf_get(cb)) < 0)
         goto done;
@@ -2470,7 +2470,7 @@ cli_auto_load_devs(clixon_handle h,
         clixon_err(OE_UNIX, errno, "cbuf_new");
         goto done;
     }
-    if (clixon_xml2cbuf(cb, xt, 0, 0, NULL, -1, 1) < 0)
+    if (clixon_xml2cbuf1(cb, xt, 0, 0, NULL, -1, 1, 0) < 0)
         goto done;
     if (clicon_rpc_edit_config(h, "candidate",
                                op,

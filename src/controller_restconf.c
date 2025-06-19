@@ -94,6 +94,50 @@ controller_restconf_version(clixon_handle h,
     return 0;
 }
 
+/*! Check device open, if not, yanglib data may not be available
+ *
+ * @param[in] h    Clixon handle
+ * @param[in] name Device name
+ * @retval    1    Device is open
+ * @retval    0    Device is not open, or not found
+ * @retval   -1    Error
+ */
+static int
+device_check_open(clixon_handle h,
+                  const char   *name)
+{
+    int    retval = -1;
+    cvec  *nsc = NULL;
+    cxobj *xret = NULL;
+    cxobj *xerr;
+    cxobj *xconn;
+
+    if ((nsc = xml_nsctx_init("co", CONTROLLER_NAMESPACE)) == NULL)
+        goto done;
+    if (clicon_rpc_get(h,
+                       "co:devices/co:device/co:name | co:devices/co:device/co:conn-state",
+                       nsc, CONTENT_ALL, -1, "explicit", &xret) < 0)
+        goto done;
+    if ((xerr = xpath_first(xret, NULL, "/rpc-error")) != NULL){
+        clixon_err_netconf(h, OE_XML, 0, xerr, "Get devices");
+        goto done;
+    }
+    if ((xconn = xpath_first(xret, NULL, "devices/device[name='%s']/conn-state", name)) != NULL){
+        if (strcmp(xml_body(xconn), "OPEN") == 0)
+            goto open;
+    }
+    retval = 0;
+ done:
+    if (xret)
+        xml_free(xret);
+    if (nsc)
+        cvec_free(nsc);
+    return retval;
+ open:
+    retval = 1;
+    goto done;
+}
+
 /*! Get yanglib from xpath and nsc of mountpoint
  *
  * @param[in]  h       Clixon handle
@@ -101,14 +145,14 @@ controller_restconf_version(clixon_handle h,
  * @param[in]  nsc     Namespace context of xpath
  * @param[out] xylib   New XML tree on the form <yang-library><module-set><module>*, caller frees
  * @retval     1       OK
- * @retval     0       Skip
+ * @retval     0       No yanglib returned
  * @retval    -1       Error
  */
 static int
-xpath2yanglib(clixon_handle h,
-              char         *xpath,
-              cvec         *nsc,
-              cxobj       **xylibp)
+controller_xpath2yanglib(clixon_handle h,
+                         char         *xpath,
+                         cvec         *nsc,
+                         cxobj       **xylibp)
 {
     int    retval = -1;
     cbuf  *cb = NULL;
@@ -185,22 +229,36 @@ controller_restconf_yang_mount(clixon_handle   h,
                                validate_level *vl,
                                cxobj         **xyanglib)
 {
-    int        retval = -1;
-    char      *xpath = NULL;
-    cvec      *nsc = NULL;
-    int        ret;
+    int   retval = -1;
+    char *xpath = NULL;
+    cvec *nsc = NULL;
+    int   ret;
 
     if (xml_nsctx_node(xmt, &nsc) < 0)
         goto done;
     if (xml2xpath(xmt, nsc, 1, 1, &xpath) < 0)
         goto done;
     /* get modset */
-    ret = xpath2yanglib(h, xpath, nsc, xyanglib);
+    ret = controller_xpath2yanglib(h, xpath, nsc, xyanglib);
     if (ret < 0)
         goto done;
-    if (ret == 0)
-        goto ok;
- ok:
+    if (ret == 0){ /* No xylib, give a reasonable error msg */
+        cxobj *xname;
+        char  *name;
+
+        if ((xname = xpath_first(xmt, NULL, "/devices/device/name")) != NULL){
+            name = xml_body(xname);
+            if ((ret = device_check_open(h, name)) < 0)
+                goto done;
+            if (ret == 0)
+                clixon_err(OE_YANG, 0, "No yanglib from device %s (device is closed)", name);
+            else
+                clixon_err(OE_YANG, 0, "No yanglib from device %s (device is open)", name);
+        }
+        else
+            clixon_err(OE_YANG, 0, "No yanglib from device");
+        goto done;
+    }
     retval = 0;
  done:
     if (xpath)

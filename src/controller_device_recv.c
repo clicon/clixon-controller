@@ -275,7 +275,7 @@ device_recv_config(clixon_handle h,
      * <data>  ietf-netconf:data (dont bother to bind this node, its just a placeholder)
      * <x>     bind to yspec1
      */
-    if ((ret = xml_bind_yang(h, xdata, YB_MODULE, yspec1, &xerr)) < 0)
+    if ((ret = xml_bind_yang(h, xdata, YB_MODULE, yspec1, 0, &xerr)) < 0)
         goto done;
     if (ret == 0){
         if ((cberr = cbuf_new()) == NULL){

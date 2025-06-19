@@ -99,7 +99,7 @@ ctx_print2(cbuf   *cb,
     case XT_NODESET:
         for (i=0; i<xc->xc_size; i++){
             cprintf(cb, "%d:", i);
-            if (clixon_xml2cbuf(cb, xc->xc_nodeset[i], 0, 0, NULL, -1, 0) < 0)
+            if (clixon_xml2cbuf1(cb, xc->xc_nodeset[i], 0, 0, NULL, -1, 0, 0) < 0)
                 goto done;
         }
         break;
@@ -321,7 +321,7 @@ main(int    argc,
     /* Validate XML as well */
     if (yang_file_dir){
         /* Populate */
-        if ((ret = xml_bind_yang(h, x0, YB_MODULE, yspec, &xerr)) < 0)
+        if ((ret = xml_bind_yang(h, x0, YB_MODULE, yspec, 0, &xerr)) < 0)
             goto done;
         if (ret == 0){
             if ((cbret = cbuf_new()) ==NULL){

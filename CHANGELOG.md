@@ -20,6 +20,7 @@ Expected: July 2025
 
 ### Corrected Bugs
 
+* Fixed: [RESTCONF PUT/POST data does sometimes not work across mountpoint](https://github.com/clicon/clixon-controller/issues/210)
 * Fixed: [Controller diff does not check for NACM read rules](https://github.com/clicon/clixon-controller/issues/207)
 * Fixed: [Controller commit RPC does not check locks](https://github.com/clicon/clixon-controller/issues/206)
 * Fixed: [Syntax errror when deleting leafs on Junos](https://github.com/clicon/clixon-controller/issues/203)
