@@ -953,7 +953,10 @@ expectpart "$(${clixon_cli} -m configure -1f $CFG -E $CFD commit 2>&1)" 0 "OK"
 new "apply single services diff"
 expectpart "$(${clixon_cli} -m configure -1f $CFG -E $CFD apply services myyang:testA foo diff 2>&1)" 0 "OK"
 
-new "apply single services"
+new "apply single services 1"
+expectpart "$(${clixon_cli} -m configure -1f $CFG -E $CFD apply services myyang:testA foo 2>&1)" 0 "OK"
+
+new "apply single services 2"
 expectpart "$(${clixon_cli} -m configure -1f $CFG -E $CFD apply services myyang:testA foo 2>&1)" 0 "OK"
 
 new "apply all services"

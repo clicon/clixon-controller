@@ -323,7 +323,6 @@ do_service(clixon_handle h,
     char      *p;
     static int i = 0;
 
-    clixon_log(h, LOG_NOTICE, "%s: send_err:%d send_arg:%s ", __func__, send_err, send_arg);
     if (i==0 && send_err == SEND_ERROR_TAG){
         tag = send_arg;
         clixon_debug(CLIXON_DBG_CTRL, "Inserted wrong tag: %s", tag);

@@ -5,6 +5,8 @@ Expected: July 2025
 
 ### New features
 
+* New: [CLI exclusive mode for candidate](https://github.com/clicon/clixon-controller/issues/92)
+  * Set `CLICON_AUTOLOCK=true`
 * New: [new command "pull diff"](https://github.com/clicon/clixon-controller/issues/194)
   * Added `pull <device> diff | check`
 * New: [ssh keep-alive](https://github.com/clicon/clixon-controller/issues/193)
