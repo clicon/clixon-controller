@@ -688,8 +688,9 @@ device_recv_ok(clixon_handle h,
                cbuf        **cberr)
 {
     int    retval = -1;
-    int    ret;
     cbuf  *cb = NULL;
+    cxobj *xerr;
+    int    ret;
 
     if ((ret = rpc_reply_sanity(dh, xmsg, rpcname, conn_state)) < 0)
         goto done;
@@ -708,8 +709,14 @@ device_recv_ok(clixon_handle h,
                 device_handle_name_get(dh),
                 device_state_int2str(conn_state));
         /* XXX: following fn does not support prefixes properly, so the err msg from XML does not appear as it should */
-        if (netconf_err2cb(h, xml_find(xmsg, "rpc-error"), cb) < 0)
-            goto done;
+        if ((xerr = xml_find(xmsg, "rpc-error")) != NULL){
+            if (netconf_err2cb(h, xerr, cb) < 0)
+                goto done;
+        }
+        else{
+            if (clixon_xml2cbuf(cb, xmsg, 0, 0, NULL, -1, 1) < 0)
+                goto done;
+        }
         if (cberr){
             *cberr = cb;
             cb = NULL;
