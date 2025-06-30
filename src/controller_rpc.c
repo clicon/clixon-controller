@@ -3155,17 +3155,17 @@ rpc_device_rpc_template_apply(clixon_handle h,
     cvec                   *nsc = NULL;
     controller_transaction *ct = NULL;
     cbuf                   *cberr = NULL;
-    int           groups = 0;
-    cvec         *devvec = NULL;
-    cg_var       *cv;
-    cxobj       **vec1 = NULL;
-    size_t        vec1len;
-    cxobj       **vec2 = NULL;
-    size_t        vec2len;
-    cxobj        *xn;
+    int                     groups = 0;
+    cvec                   *devvec = NULL;
+    cg_var                 *cv;
+    cxobj                 **vec1 = NULL;
+    size_t                  vec1len;
+    cxobj                 **vec2 = NULL;
+    size_t                  vec2len;
+    cxobj                  *xn;
     char                   *tmplname;
     cxobj                  *xinline;
-    cxobj                  *xconfig;
+    cxobj                  *xconfig = NULL;
     cxobj                  *xvars;
     cxobj                  *xvars0;
     cvec                   *cvv = NULL;
@@ -3238,7 +3238,7 @@ rpc_device_rpc_template_apply(clixon_handle h,
     /* Destructively substitute variables in xtempl
      * Maybe work on a copy instead?
      */
-    if (cvv){
+    if (cvv && xconfig){
         if (xml_apply(xconfig, -1, xml_template_apply, cvv) < 0)
             goto done;
         if (xml_sort_recurse(xconfig) < 0)
@@ -3363,6 +3363,149 @@ rpc_device_template_apply(clixon_handle h,
     }
     retval = 0;
  done:
+    return retval;
+}
+
+/*! Apply device template callback, see clixon-controller.yang: devices/template/apply
+ *
+ * @param[in]  h       Clixon handle
+ * @param[in]  xn      Request: <rpc><xn></rpc>
+ * @param[out] cbret   Return xml tree, eg <rpc-reply>..., <rpc-error..
+ * @param[in]  arg     Domain specific arg, eg client-entry or FCGX_Request
+ * @param[in]  regarg  User argument given at rpc_callback_register()
+ * @retval     0       OK
+ * @retval    -1       Error
+ * @see rpc_device_rpc_template_apply  RPC template
+ */
+int
+rpc_device_rpc(clixon_handle h,
+               cxobj        *xe,
+               cbuf         *cbret,
+               void         *arg,
+               void         *regarg)
+{
+    client_entry           *ce = (client_entry *)arg;
+    int                     retval = -1;
+    cxobj                  *xret = NULL;
+    cvec                   *nsc = NULL;
+    controller_transaction *ct = NULL;
+    cbuf                   *cberr = NULL;
+    int                     groups = 0;
+    cvec                   *devvec = NULL;
+    cg_var                 *cv;
+    cxobj                 **vec1 = NULL;
+    size_t                  vec1len;
+    cxobj                 **vec2 = NULL;
+    size_t                  vec2len;
+    cxobj                  *xn;
+    char                   *syncstr;
+    cxobj                  *xconfig = NULL;
+    char                   *devname;
+    char                   *pattern;
+    device_handle           dh;
+    int                     ret;
+
+    clixon_debug(CLIXON_DBG_CTRL, "");
+    if ((syncstr = xml_find_body(xe, "sync")) != NULL){
+        if (strcmp(syncstr, "true") == 0){
+            if (netconf_operation_failed(cbret, "application", "sync=true not allowed to backend")< 0)
+                goto done;
+            goto ok;
+        }
+    }
+    /* Get device names */
+    if (xmldb_get0(h, "running", YB_MODULE, nsc, "devices", 1, WITHDEFAULTS_EXPLICIT, &xret, NULL, NULL) < 0)
+        goto done;
+    if ((xn = xml_find(xe, "device")) != NULL)
+        ;
+    else if ((xn = xml_find(xe, "device-group")) != NULL)
+        groups++;
+    else {
+        if (netconf_operation_failed(cbret, "application", "No device or device-group")< 0)
+            goto done;
+        goto ok;
+    }
+    pattern = xml_body(xn);
+
+    if ((xconfig = xml_find_type(xe, NULL, "config", CX_ELMNT)) == NULL) {
+        if (netconf_operation_failed(cbret, "application", "Inline template config not found")< 0)
+            goto done;
+        goto ok;
+    }
+    /* Initiate new transaction */
+    if ((ret = controller_transaction_new(h, ce->ce_id, clicon_username_get(h), "rpc", &ct, &cberr)) < 0)
+        goto done;
+    if (ret == 0){
+        if (netconf_operation_failed(cbret, "application", cbuf_get(cberr))< 0)
+            goto done;
+        goto ok;
+    }
+    if ((devvec = cvec_new(0)) == NULL){
+        clixon_err(OE_UNIX, errno, "cvec_new");
+        goto done;
+    }
+    if (xpath_vec(xret, nsc, "devices/device", &vec1, &vec1len) < 0)
+        goto done;
+    if (xpath_vec(xret, nsc, "devices/device-group", &vec2, &vec2len) < 0)
+        goto done;
+    if (!groups){
+        if (iterate_device(h, pattern, vec1, vec1len, devvec) < 0)
+            goto done;
+    }
+    else{
+        if (iterate_device_group(h, pattern, vec1, vec1len, vec2, vec2len, devvec) < 0)
+            goto done;
+    }
+    clearvec(h, vec1, vec1len);
+    clearvec(h, vec2, vec2len);
+    if (vec1){
+        free(vec1);
+        vec1 = NULL;
+    }
+    if (vec2){
+        free(vec2);
+        vec2 = NULL;
+    }
+    cv = NULL;
+    while ((cv = cvec_each(devvec, cv)) != NULL){
+        xn = cv_void_get(cv);
+        if ((devname = xml_find_body(xn, "name")) == NULL)
+            continue;
+        if ((dh = device_handle_find(h, devname)) == NULL)
+            continue;
+        if (device_handle_conn_state_get(dh) != CS_OPEN)
+            continue;
+        if ((ret = device_send_rpc_one(h, dh, ct->ct_id, xconfig, cbret)) < 0)
+            goto done;
+        if (ret == 0)  /* Failed but cbret set */
+            goto ok;
+    }
+    cprintf(cbret, "<rpc-reply xmlns=\"%s\">", NETCONF_BASE_NAMESPACE);
+    cprintf(cbret, "<tid xmlns=\"%s\">%" PRIu64"</tid>", CONTROLLER_NAMESPACE, ct->ct_id);
+    cprintf(cbret, "</rpc-reply>");
+
+    /* No device started, close transaction */
+    if (controller_transaction_nr_devices(h, ct->ct_id) == 0){
+        if (controller_transaction_failed(h, ct->ct_id, ct, NULL, TR_FAILED_DEV_IGNORE, "backend", "No device connected") < 0)
+            goto done;
+        if (controller_transaction_done(h, ct, TR_FAILED) < 0)
+            goto done;
+    }
+ ok:
+    retval = 0;
+ done:
+    if (cberr)
+        cbuf_free(cberr);
+    if (xret)
+        xml_free(xret);
+    if (vec1)
+        free(vec1);
+    if (vec2)
+        free(vec2);
+    if (devvec)
+        cvec_free(devvec);
+    if (nsc)
+        cvec_free(nsc);
     return retval;
 }
 
@@ -3686,6 +3829,12 @@ controller_rpc_init(clixon_handle h)
                               NULL,
                               CONTROLLER_NAMESPACE,
                               "device-template-apply"
+                              ) < 0)
+        goto done;
+    if (rpc_callback_register(h, rpc_device_rpc,
+                              NULL,
+                              CONTROLLER_NAMESPACE,
+                              "device-rpc"
                               ) < 0)
         goto done;
     /* Check that services subscriptions is just done once */

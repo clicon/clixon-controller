@@ -1,8 +1,7 @@
 #!/usr/bin/env bash
-# Load and appy RPC template for clixon-lib:stats
-# Define via NETCONF and CLI
-# Check output
-# See test-template.sh for detaiuled tests of multiple templates, variables etc
+# Send device RPCs clixon-lib:stats NETCONF
+# Use rpc templates for CLI
+# See test-template.sh for detailed tests of multiple templates, variables etc
 
 # Magic line must be first in script (see README.md)
 s="$_" ; . ./lib.sh || if [ "$s" = $0 ]; then exit 0; else return 0; fi
@@ -37,7 +36,8 @@ expectpart "$($clixon_cli -1f $CFG show devices openconfig* rpc clixon* 2>&1)" 0
 new "CLI show device yang"
 expectpart "$($clixon_cli -1f $CFG show devices openconfig1 rpc clixon-lib:stats yang 2>&1)" 0 "rpc stats {"
 
-new "Create template w NETCONF"
+# Send device-rpc stats
+new "device-rpc NETCONF"
 ret=$(${clixon_netconf} -0 -f $CFG <<'EOF'
 <?xml version="1.0" encoding="UTF-8"?>
 <hello xmlns="urn:ietf:params:xml:ns:netconf:base:1.0">
@@ -48,60 +48,14 @@ ret=$(${clixon_netconf} -0 -f $CFG <<'EOF'
 <rpc xmlns="urn:ietf:params:xml:ns:netconf:base:1.0"
      xmlns:nc="urn:ietf:params:xml:ns:netconf:base:1.0"
      message-id="42">
-   <edit-config>
-      <target><candidate/></target>
-      <default-operation>none</default-operation>
-      <config>
-         <devices xmlns="http://clicon.org/controller">
-            <rpc-template nc:operation="replace">
-               <name>stats</name>
-               <variables>
-                 <variable><name>MODULES</name></variable>
-               </variables>
-               <config>
-                  <stats xmlns="http://clicon.org/lib">
-                     <modules>${MODULES}</modules>
-                  </stats>
-               </config>
-            </rpc-template>
-         </devices>
-      </config>
-   </edit-config>
-</rpc>]]>]]>
-EOF
-)
-
-new "Check ok"
-match=$(echo $ret | grep --null -Eo "<rpc-error>") || true
-if [ -n "$match" ]; then
-    err1 "$ret"
-fi
-
-new "commit rpc template local 1"
-expectpart "$($clixon_cli -1f $CFG -m configure commit local 2>&1)" 0 "^$"
-
-new "Apply template NETCONF"
-ret=$(${clixon_netconf} -0 -f $CFG <<EOF
-<?xml version="1.0" encoding="UTF-8"?>
-<hello xmlns="urn:ietf:params:xml:ns:netconf:base:1.0">
-   <capabilities>
-      <capability>urn:ietf:params:netconf:base:1.0</capability>
-   </capabilities>
-</hello>]]>]]>
-<rpc xmlns="urn:ietf:params:xml:ns:netconf:base:1.0"
-     xmlns:nc="urn:ietf:params:xml:ns:netconf:base:1.0"
-     message-id="42">
-   <device-template-apply xmlns="http://clicon.org/controller">
-      <type>RPC</type>
+   <device-rpc xmlns="http://clicon.org/controller">
       <device>openconfig*</device>
-      <template>stats</template>
-      <variables>
-         <variable>
-            <name>MODULES</name>
-            <value>true</value>
-         </variable>
-      </variables>
-   </device-template-apply>
+      <config>
+         <stats xmlns="http://clicon.org/lib">
+            <modules>${MODULES}</modules>
+         </stats>
+      </config>
+   </device-rpc>
 </rpc>]]>]]>
 EOF
 )
@@ -111,6 +65,43 @@ new "Check no errors of apply"
 match=$(echo $ret | grep --null -Eo "<rpc-error>") || true
 if [ -n "$match" ]; then
     err "ok" "$ret"
+fi
+
+tid=$(echo $ret | grep --null -Eo ">[0-9]+</tid>" | grep --null -Eo "[0-9]+") || true
+if [ -z "$tid" ]; then
+    err "transaction-id" "$ret"
+fi
+
+new "devcice-rpc ping NETCONF"
+ret=$(${clixon_netconf} -0 -f $CFG <<'EOF'
+<?xml version="1.0" encoding="UTF-8"?>
+<hello xmlns="urn:ietf:params:xml:ns:netconf:base:1.0">
+   <capabilities>
+      <capability>urn:ietf:params:netconf:base:1.0</capability>
+   </capabilities>
+</hello>]]>]]>
+<rpc xmlns="urn:ietf:params:xml:ns:netconf:base:1.0"
+     xmlns:nc="urn:ietf:params:xml:ns:netconf:base:1.0"
+     message-id="42">
+   <device-rpc xmlns="http://clicon.org/controller">
+      <device>openconfig*</device>
+      <config>
+         <ping xmlns="http://clicon.org/lib"/>
+      </config>
+   </device-rpc>
+</rpc>]]>]]>
+EOF
+)
+#echo "ret:$ret"
+
+new "Check no errors of apply"
+match=$(echo $ret | grep --null -Eo "<rpc-error>") || true
+if [ -n "$match" ]; then
+    err "ok" "$ret"
+fi
+tid=$(echo $ret | grep --null -Eo ">[0-9]+</tid>" | grep --null -Eo "[0-9]+") || true
+if [ -z "$tid" ]; then
+    err "transaction-id" "$ret"
 fi
 
 # Its complicated to wait for notify w netconf, skip that and do that for cli instead

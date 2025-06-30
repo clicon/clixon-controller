@@ -6,13 +6,14 @@
 # 3. RPC: Connectivity
 # 4. Notification
 # 5. Services
-# 6. RPC template
+# 6. Device RPC
 # 7. Device state
 #
 # To debug,
-# 1. Start restconf manually:
-#   clixon_restconf -f /usr/local/etc/clixon/controller.xml -E /var/tmp/./test-restconf.sh/confdir -o CLICON_BACKEND_RESTCONF_PROCESS=true
-# 2. Start test with RC=false ./test-restconf.sh
+# Start restconf manually:
+# 1. Kill existing restconf
+# 2. clixon_restconf -f /usr/local/etc/clixon/controller.xml -E /var/tmp/./test-restconf.sh/confdir -o CLICON_BACKEND_RESTCONF_PROCESS=true
+# 3. Start test with RC=false ./test-restconf.sh
 
 # Magic line must be first in script (see README.md)
 s="$_" ; . ./lib.sh || if [ "$s" = $0 ]; then exit 0; else return 0; fi
@@ -410,19 +411,12 @@ expectpart "$(curl $CURLOPTS -X POST -H "Content-Type: application/yang-data+jso
 
 fi # XXX
 
-# 6. RPC template
-new "Create RPC template"
-expectpart "$(curl $CURLOPTS -X POST -H "Content-Type: application/yang-data+json" $RCPROTO://localhost/restconf/data/clixon-controller:devices -d '{"clixon-controller:rpc-template":[{"name":"stats","variables":{"variable":[{"name":"MODULES"}]},"config":{"clixon-lib:stats":{"modules":"${MODULES}"}}}]}')" 0 "HTTP/$HVER 201"
-
-new "restconf GET rpc-template"
-# XXX clixon-lib:stats not shown correctly
-# This is because it is anydata and therefore not bound, and the JSON translation
-# cannot map properly.
-expectpart "$(curl $CURLOPTS -H "Accept: application/yang-data+json" -X GET $RCPROTO://localhost/restconf/data/clixon-controller:devices/rpc-template=stats)" 0 "HTTP/$HVER 200" '{"clixon-controller:rpc-template":\[{"name":"stats","variables":{"variable":\[{"name":"MODULES"}\]},"config":{"stats":{"modules":"${MODULES}"}}}\]}'
-
+# 6. Device RPC
 if [ "${WITH_RESTCONF}" = "native" ]; then
-new "Apply template using RPC in background and save PID"
-sleep 1 && expectpart "$(curl $CURLOPTS -X POST -H "Content-Type: application/yang-data+json" $RCPROTO://localhost/restconf/operations/clixon-controller:device-template-apply -d '{"clixon-controller:input":{"type":"RPC","device":"openconfig*","template":"stats","variables":[{"variable":{"name":"MODULES","value":"true"}}]}}')" 0 "HTTP/$HVER 200" 'Content-Type: application/yang-data+json' '{"clixon-controller:output":{"tid":"[0-9:.]*"}}' &
+new "Send device RPC in background and save PID"
+#echo "curl $CURLOPTS -X POST -H \"Content-Type: application/yang-data+json\" $RCPROTO://localhost/restconf/operations/clixon-controller:device-rpc -d '{\"clixon-controller:input\":{\"device\":\"openconfig*\",\"config\":{\"clixon-lib:stats\":{\"modules\":\"true\"}}}}'"
+
+sleep 1 && expectpart "$(curl $CURLOPTS -X POST -H "Content-Type: application/yang-data+json" $RCPROTO://localhost/restconf/operations/clixon-controller:device-rpc -d '{"clixon-controller:input":{"device":"openconfig*","config":{"clixon-lib:stats":{"modules":"true"}}}}')" 0 "HTTP/$HVER 200" 'Content-Type: application/yang-data+json' '{"clixon-controller:output":{"tid":"[0-9:.]*"}}' &
 PID=$!
 
 new "Wait for notification timeout:${TIMEOUT}s"
@@ -443,23 +437,60 @@ fi
 new "Get rpc transaction result"
 expectpart "$(curl $CURLOPTS -H "Accept: application/yang-data+json" -X GET $RCPROTO://localhost/restconf/data/clixon-controller:transactions)" 0 "HTTP/$HVER 200" '{"clixon-controller:transactions":{"transaction":\[{"tid":"1","username":"[a-zA-Z0-9]*","result":"SUCCESS"' # XXX devdata
 
+# 6a. Device RPC no args
+if [ "${WITH_RESTCONF}" = "native" ]; then
+new "Send device rpc no args in background and save PID"
+sleep 1 && expectpart "$(curl $CURLOPTS -X POST -H "Content-Type: application/yang-data+json" $RCPROTO://localhost/restconf/operations/clixon-controller:device-rpc -d '{"clixon-controller:input":{"device":"openconfig*","config":{"clixon-lib:ping":null}}}')" 0 "HTTP/$HVER 200" 'Content-Type: application/yang-data+json' '{"clixon-controller:output":{"tid":"[0-9:.]*"}}' &
+PID=$!
+
+new "Wait for notification timeout:${TIMEOUT}s"
+ret=$(curl $CURLOPTS -X GET -H "Accept: text/event-stream" -H "Cache-Control: no-cache" -H "Connection: keep-alive" $RCPROTO://localhost/streams/controller-transaction)
+
+#echo "ret:$ret"
+
+expect="<controller-transaction xmlns=\"http://clicon.org/controller\"><tid>[0-9:.]*</tid><username>[a-zA-Z0-9]*</username><result>SUCCESS</result><devices><devdata xmlns=\"http://clicon.org/controller\"><name>openconfig1</name><data><ok xmlns=\"urn:ietf:params:xml:ns:netconf:base:1.0\"/></data></devdata>"
+match=$(echo "$ret" | grep --null -Eo "$expect") || true
+if [ -z "$match" ]; then
+    err "$expect" "$ret"
+fi
+
+kill $PID 2> /dev/null
+fi
+
+# 6b. Device RPC using XML
+if [ "${WITH_RESTCONF}" = "native" ]; then
+new "Send device rpc using RPC xml"
+sleep 1 && expectpart "$(curl $CURLOPTS -X POST -H "Content-Type: application/yang-data+xml" $RCPROTO://localhost/restconf/operations/clixon-controller:device-rpc -d '<input xmlns="http://clicon.org/controller"><device>openconfig*</device><config><ping xmlns="http://clicon.org/lib"></ping></config></input>')" 0 "HTTP/$HVER 200" 'Content-Type: application/yang-data+json' '{"clixon-controller:output":{"tid":"[0-9:.]*"}}' &
+PID=$!
+
+new "Wait for notification timeout:${TIMEOUT}s"
+ret=$(curl $CURLOPTS -X GET -H "Accept: text/event-stream" -H "Cache-Control: no-cache" -H "Connection: keep-alive" $RCPROTO://localhost/streams/controller-transaction)
+
+#echo "ret:$ret"
+expect="<controller-transaction xmlns=\"http://clicon.org/controller\"><tid>[0-9:.]*</tid><username>[a-zA-Z0-9]*</username><result>SUCCESS</result><devices><devdata xmlns=\"http://clicon.org/controller\"><name>openconfig1</name><data><ok xmlns=\"urn:ietf:params:xml:ns:netconf:base:1.0\"/></data></devdata>"
+match=$(echo "$ret" | grep --null -Eo "$expect") || true
+if [ -z "$match" ]; then
+    err "$expect" "$ret"
+fi
+
+kill $PID 2> /dev/null
+fi
+
 # 7. Get device state
-new "Apply inline template to get device state XML"
-sleep 1 && expectpart "$(curl $CURLOPTS -X POST -H "Content-Type: application/yang-data+xml" $RCPROTO://localhost/restconf/operations/clixon-controller:device-template-apply -d '<input xmlns="urn:example:clixon-controller"><type>RPC</type>
+new "Get state using device rpc get XML"
+sleep 1 && expectpart "$(curl $CURLOPTS -X POST -H "Content-Type: application/yang-data+xml" $RCPROTO://localhost/restconf/operations/clixon-controller:device-rpc -d '<input xmlns="urn:example:clixon-controller">
     <device>openconfig*</device>
-    <inline>
-      <config>
-        <get xmlns="urn:ietf:params:xml:ns:netconf:base:1.0">
-          <filter type="xpath" select="/oc-sys:system/oc-sys:ssh-server" xmlns:oc-sys="http://openconfig.net/yang/system" />
-        </get>
-      </config>
-    </inline>
+    <config>
+      <get xmlns="urn:ietf:params:xml:ns:netconf:base:1.0">
+        <filter type="xpath" select="/oc-sys:system/oc-sys:ssh-server" xmlns:oc-sys="http://openconfig.net/yang/system" />
+      </get>
+    </config>
 </input>')" 0 "HTTP/$HVER 200" 'Content-Type: application/yang-data+json' '{"clixon-controller:output":{"tid":"[0-9:.]*"}}' &
 PID=$!
 
 new "Wait for notification timeout:${TIMEOUT}s"
 ret=$(curl $CURLOPTS -X GET -H "Accept: text/event-stream" -H "Cache-Control: no-cache" -H "Connection: keep-alive" $RCPROTO://localhost/streams/controller-transaction)
-echo "ret:$ret"
+#echo "ret:$ret"
 expect="<ssh-server><state><enable>true</enable><protocol-version>V2</protocol-version></state></ssh-server>"
 match=$(echo "$ret" | grep --null -Eo "$expect") || true
 if [ -z "$match" ]; then
@@ -468,12 +499,12 @@ fi
 
 kill $PID 2> /dev/null
 
-# note hard-coded transaction-id=8
+# note hard-coded transaction-id=10
 new "poll transaction result"
-expectpart "$(curl $CURLOPTS -X GET -H "Accept: application/yang-data+json" $RCPROTO://localhost/restconf/data/clixon-controller:transactions/transaction=8)" 0 "HTTP/$HVER 200" '"ssh-server":{"state":{"enable":"true","protocol-version":"V2"}}'
+expectpart "$(curl $CURLOPTS -X GET -H "Accept: application/yang-data+json" $RCPROTO://localhost/restconf/data/clixon-controller:transactions/transaction=10)" 0 "HTTP/$HVER 200" '"ssh-server":{"state":{"enable":"true","protocol-version":"V2"}}'
 
-new "Apply inline template to get device state JSON"
-sleep 1 && expectpart "$(curl $CURLOPTS -X POST -H "Content-Type: application/yang-data+json" $RCPROTO://localhost/restconf/operations/clixon-controller:device-template-apply -d '{"clixon-controller:input":{"type":"RPC","device":"openconfig*","inline":{"config":{"ietf-netconf:get":null}}}}')" 0 "HTTP/$HVER 200" 'Content-Type: application/yang-data+json' '{"clixon-controller:output":{"tid":"[0-9:.]*"}}' &
+new "Get state using device rpc get JSON"
+sleep 1 && expectpart "$(curl $CURLOPTS -X POST -H "Content-Type: application/yang-data+json" $RCPROTO://localhost/restconf/operations/clixon-controller:device-rpc -d '{"clixon-controller:input":{"device":"openconfig*","config":{"ietf-netconf:get":null}}}')" 0 "HTTP/$HVER 200" 'Content-Type: application/yang-data+json' '{"clixon-controller:output":{"tid":"[0-9:.]*"}}' &
 PID=$!
 
 new "Wait for notification timeout:${TIMEOUT}s"

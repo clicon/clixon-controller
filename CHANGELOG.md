@@ -5,6 +5,8 @@ Expected: July 2025
 
 ### New features
 
+* New `clixon-controller@2025-05-01.yang` revision
+  * Added rpc `device-rpc`
 * New: [CLI exclusive mode for candidate](https://github.com/clicon/clixon-controller/issues/92)
   * Set `CLICON_AUTOLOCK=true`
 * New: [new command "pull diff"](https://github.com/clicon/clixon-controller/issues/194)
