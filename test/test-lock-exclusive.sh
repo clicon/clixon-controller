@@ -15,17 +15,16 @@
 # 4b) limited cannot see protected data with commit diff
 # 5a) limited cannot make commit
 # 5b) admin can make commit
-#
 # 6a) limited cannot edit service data
 # 6b) admin can edit service data
 # 7a) limited cannot do commit diff
 # 7b) admin can do commit diff
 # 8a) limited cannot do commit
 # 8b) admin can do commit
-# 9) Configuration on devices is updated
-#
-# (3) and (6) does not work 2025-05-30
-# XXX expand does not work for limited after show devices device ?
+# 9)  admin makes change
+# 10) kill admin session
+# 11) Check change removed
+# 12) Configuration on devices is updated
 
 # Magic line must be first in script (see README.md)
 s="$_" ; . ./lib.sh || if [ "$s" = $0 ]; then exit 0; else return 0; fi
@@ -43,10 +42,10 @@ dir=/var/tmp/$0
 modules=$dir/modules
 fyang=$dir/example.yang
 CFG=$dir/controller.xml
-CFD=$dir/conf.d
+#CFD=$dir/conf.d
 test -d $dir || mkdir -p $dir
 test -d $modules || mkdir -p $modules
-test -d $CFD || mkdir -p $CFD
+#test -d $CFD || mkdir -p $CFD
 pycode=$modules/example.py
 
 # Use two users
@@ -194,13 +193,22 @@ RULES=$(cat <<EOF
          <action>permit</action>
        </rule>
        <rule>
-         <name>permit-read-path</name>
-         <comment>Allow some reads</comment>
+         <name>permit-system-path</name>
+         <comment>Allow openconfig system reads</comment>
          <module-name>*</module-name>
          <access-operations>read</access-operations>
          <path xmlns:ctrl="urn:example:controller" xmlns:oc-sys="http://openconfig.net/yang/system">/ctrl:devices/ctrl:device/ctrl:config/oc-sys:system</path>
          <action>permit</action>
        </rule>
+       <rule>
+         <name>permit-read-monitoring</name>
+         <comment>Allow monitoring reads</comment>
+         <module-name>ietf-netconf-monitoring</module-name>
+         <path xmlns:ncm="urn:ietf:params:xml:ns:yang:ietf-netconf-monitoring">/ncm:netconf-state</path>
+         <access-operations>read</access-operations>
+         <action>permit</action>
+       </rule>
+
      </rule-list>
    </nacm>
 EOF
@@ -266,7 +274,7 @@ new "Wait backend"
 wait_backend
 
 new "connection open"
-expectpart "$(sudo -u ${CLICON_USER} $clixon_cli -1 -f $CFG -E $CFD connection open)" 0 "^$"
+expectpart "$(sudo -u ${CLICON_USER} $clixon_cli -1 -f $CFG connection open)" 0 "^$"
 
 new "Sleep and verify devices are open"
 sleep_open "sudo -u ${CLICON_USER}"
@@ -458,15 +466,32 @@ expect {
     eof { exit 3 }
 }
 
+if { true } {
+puts "Test: 9) admin makes change"
+set cmd "set devices device openconfig1 config keychains keychain e1 config name e1"
+sleep 1
+send -i $cli1 "$cmd\n"
+expect {
+    -i $cli1
+    -re "^$cmd\r\n\r\r$prompt1\$" { puts "Test 9: empty OK" }
+    timeout { puts "Timeout 9"; exit 2 }
+    eof { exit 3 }
+}
+
+puts "Test: 10) kill admin session"
+
+puts "Test: 11) Check change removed"
+}
 EOF
+# NOTE not completed checking removed datastore
 ret=$?
-echo "ret:$ret"
+# echo "ret:$ret"
 if [ $ret -ne 0 ]; then
     err1 "Failed: test lock exclusive using expect"
 fi
 
 # Show the configuration on the devices after mini-service using SSH
-new "9) Configuration on devices is updated"
+new "12) Configuration on devices is updated"
 for container in $CONTAINERS; do
     new "Verify configuration on $container"
     expectpart "$(ssh ${SSHID} -l $USER $container clixon_cli -1 show configuration cli)" 0 "system config login-banner Mybanner"
