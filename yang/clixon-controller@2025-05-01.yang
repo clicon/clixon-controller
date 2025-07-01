@@ -37,7 +37,13 @@ module clixon-controller {
     }
     description
         "Clixon controller";
-    revision 2025-02-01 {
+    revision 2025-05-01 {
+        description
+            "Added rpc device-rpc
+             Released in 1.5.0";
+    }
+    revision 2025-0
+2-01 {
         description
             "Added restconf
              Added common fields to transaction state and notification
@@ -414,6 +420,8 @@ module clixon-controller {
              A template is like a macro with shell-like ${var} variables.
              There are two uses: config and rpc.";
         leaf name{
+            description
+                "For rpc-template, this is the name of the RPC.";
             type string;
         }
         container variables {
@@ -1061,5 +1069,59 @@ module clixon-controller {
                 }
             }
         }
+    }
+    rpc device-rpc {
+        description
+            "Send RPC to devices";
+        input {
+            leaf sync{
+                type boolean;
+                description
+                    "1: sync: block until result (only available via restconf)
+                     0: async, return transaction-id";
+            }
+            uses device-choice {
+                description "Specify devices with either name or group pattern.";
+            }
+            anydata config{
+                description
+                    "The first element is the rpc with its namespace.
+                     The yang is unknown until applied
+                     Example:
+                       <config>
+                         <get xmlns='urn:ietf:params:xml:ns:netconf:base:1.0'/>
+                       </config>";
+            }
+        }
+        output {
+            choice rpc-reply {
+                description
+                    "blocking reply for sync, transaction-id for async";
+                case async{
+                    leaf tid {
+                        description
+                            "Id of allocated transaction, for RPC templates";
+                        type uint64;
+                    }
+                }
+                case sync{
+                    container devices {
+                        list devdata {
+                            description
+                                "Replies from device, can be rpc reply for rpc-template transaction";
+                            key name;
+                            leaf name{
+                                description "device name, should be one of /devices/device/name";
+                                type string;
+                            }
+                            anydata data {
+                                description "Device reply data";
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
     }
 }
