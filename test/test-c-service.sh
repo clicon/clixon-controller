@@ -401,25 +401,23 @@ if ${early}; then
 fi
 
 # see https://github.com/clicon/clixon-controller/issues/78
-new "local change"
-expectpart "$(${clixon_cli} -m configure -1f $CFG -E $CFD set devices device openconfig1 config system config login-banner mylogin-banner)" 0 ""
+new "local change w default"
+expectpart "$(${clixon_cli} -m configure -1f $CFG -E $CFD set devices device openconfig1 config system dns servers server 1.1.1.1 config address 1.1.1.1)" 0 ""
 
-# exit # set login-banner
+new "show compare text"
+expectpart "$(${clixon_cli} -m configure -1f $CFG -E $CFD show compare 2>&1)" 0 "^+\ *address 1.1.1.1;" --not-- "^+\ *port 53;"
+
+new "show compare xml"
+expectpart "$(${clixon_cli} -m configure -1f $CFG -E $CFD show compare xml 2>&1)" 0 "^+\ *<address>1.1.1.1</address>" --not-- "^+\ *<port>53</port>"
 
 new "commit diff 2"
-expectpart "$(${clixon_cli} -m configure -1f $CFG -E $CFD commit diff 2>&1)" 0 "^+\ *<login-banner>mylogin-banner</login-banner>"
-
-# exit # commit diff 2
+expectpart "$(${clixon_cli} -m configure -1f $CFG -E $CFD commit diff 2>&1)" 0 "^+\ *<address>1.1.1.1</address>" --not-- "^+\ *<port>53</port>"
 
 new "commit"
 expectpart "$(${clixon_cli} -m configure -1f $CFG -E $CFD commit 2>&1)" 0 ""
 
-# exit # commit 2
-
 new "commit diff 3"
-expectpart "$(${clixon_cli} -m configure -1f $CFG -E $CFD commit diff 2>&1)" 0 --not-- "^+\ *<login-banner>mylogin-banner</login-banner>"
-
-# exit # commit diff 3
+expectpart "$(${clixon_cli} -m configure -1f $CFG -E $CFD commit diff 2>&1)" 0 --not-- "^+\ *<address>1.1.1.1</address>"
 
 CREATORSA="<created><path>/devices/device\[name=\"openconfig1\"\]/config/interfaces/interface\[name=\"A0x\"\]</path><path>/devices/device\[name=\"openconfig1\"\]/config/interfaces/interface\[name=\"A0y\"\]</path><path>/devices/device\[name=\"openconfig1\"\]/config/interfaces/interface\[name=\"ABx\"\]</path><path>/devices/device\[name=\"openconfig1\"\]/config/interfaces/interface\[name=\"ABy\"\]</path><path>/devices/device\[name=\"openconfig1\"\]/config/interfaces/interface\[name=\"Ax\"\]</path><path>/devices/device\[name=\"openconfig1\"\]/config/interfaces/interface\[name=\"Ay\"\]</path><path>/devices/device\[name=\"openconfig2\"\]/config/interfaces/interface\[name=\"A0x\"\]</path><path>/devices/device\[name=\"openconfig2\"\]/config/interfaces/interface\[name=\"A0y\"\]</path><path>/devices/device\[name=\"openconfig2\"\]/config/interfaces/interface\[name=\"ABx\"\]</path><path>/devices/device\[name=\"openconfig2\"\]/config/interfaces/interface\[name=\"ABy\"\]</path><path>/devices/device\[name=\"openconfig2\"\]/config/interfaces/interface\[name=\"Ax\"\]</path><path>/devices/device\[name=\"openconfig2\"\]/config/interfaces/interface\[name=\"Ay\"\]</path></created>"
 
