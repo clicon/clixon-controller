@@ -50,8 +50,10 @@
 
 /*!
  *
- * @retval     0    OK
- * @retval    -1    Error
+ * @param[in]  h        Clixon handle
+ * @param[out] api_path Deallocate with free
+ * @retval     0        OK
+ * @retval    -1        Error
  */
 static int
 cli_apipath(clixon_handle h,
@@ -514,10 +516,14 @@ cli_show_config_detail(clixon_handle h,
  done:
     if (api_path_fmt_cb)
         cbuf_free(api_path_fmt_cb);
+    if (api_path)
+        free(api_path);
     if (nsc)
         cvec_free(nsc);
     if (xerr)
         xml_free(xerr);
+    if (xtop)
+        xml_free(xtop);
     if (xpath)
         free(xpath);
     return retval;
