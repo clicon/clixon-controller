@@ -160,7 +160,7 @@ rpc_get_yanglib_mount_match(clixon_handle h,
     cxobj     *xy;
     char      *devname;
     cxobj     *xret = NULL;
-    cxobj     *xerr;
+    cxobj     *xerr = NULL;
     cxobj     *xp;
     yang_stmt *yspec;
     int        ret;
@@ -444,7 +444,6 @@ cli_show_config_detail(clixon_handle h,
     char      *mtpoint = NULL;
     cg_var    *cv;
     char      *str;
-    int        argc = 0;
     int        i;
     yang_stmt *yspec0;
     yang_stmt *ys = NULL;
@@ -475,12 +474,10 @@ cli_show_config_detail(clixon_handle h,
             continue;
         if (str && strncmp(str, "mtpoint:", strlen("mtpoint:")) == 0){
             mtpoint = str + strlen("mtpoint:");
-            argc++;
             continue;
         }
         if (str[0] != '/')
             continue;
-        argc++;
         cprintf(api_path_fmt_cb, "%s", str);
     }
     api_path_fmt = cbuf_get(api_path_fmt_cb);
@@ -564,7 +561,7 @@ transaction_notification_handler(clixon_handle       h,
     size_t             veclen;
     int                i;
 
-    clixon_debug(CLIXON_DBG_CTRL, "tid:%s", tidstr0);
+    clixon_debug(CLIXON_DBG_CTRL, "tid:%s", tidstr0?tidstr0:"");
     /* Need to set "intr" to enable ^C */
     if (clixon_resource_check(h, &wh, tidstr0, __func__) < 0)
         goto done;

@@ -912,7 +912,7 @@ static int
 xml_add_op(cxobj *x,
            void  *arg)
 {
-    enum operation_type op = (enum operation_type)arg;
+    enum operation_type op = (intptr_t)arg;
 
     if (xml_flag(x, XML_FLAG_CACHE_DIRTY) != 0x0){
         xml_flag_reset(x, XML_FLAG_CACHE_DIRTY);
@@ -2918,7 +2918,6 @@ rpc_device_config_template_apply(clixon_handle h,
     char         *varname;
     char         *devname;
     char         *pattern;
-    int           matching;
     cxobj        *xerr = NULL;
     cxobj        *xtc = NULL;
     cxobj        *xroot = NULL;
@@ -2994,7 +2993,6 @@ rpc_device_config_template_apply(clixon_handle h,
     cprintf(cb, "<devices xmlns=\"%s\" xmlns:%s=\"%s\" %s:operation=\"merge\">",
             CONTROLLER_NAMESPACE,
             NETCONF_BASE_PREFIX, NETCONF_BASE_NAMESPACE, NETCONF_BASE_PREFIX);
-    matching=0;
     if ((devvec = cvec_new(0)) == NULL){
         clixon_err(OE_UNIX, errno, "cvec_new");
         goto done;
@@ -3055,7 +3053,6 @@ rpc_device_config_template_apply(clixon_handle h,
         if (ret == 0)
             goto ok;
         xml_rm(xroot);
-        matching++;
         if (xtc){
             xml_free(xtc);
             xtc = NULL;
