@@ -302,7 +302,6 @@ new "Deep uses/grouping on two devices"
 expectpart "$(cat $fin | $clixon_cli -f $CFG -E $CFD 2>&1)" 0 --not-- "CLI syntax error:" "Unknown command"
 
 new "Test show detail"
-echo "$clixon_cli -1 -f $CFG -E $CFD show detail devices device \* config system config hostname"
 expectpart "$($clixon_cli -1 -f $CFG -E $CFD show detail devices device \* config system config hostname)" 0 "Symbol:     hostname
 Module:     openconfig-system
 File:       /usr/local/share/controller/mounts/default/openconfig-system@2024-09-24.yang

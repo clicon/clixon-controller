@@ -2358,13 +2358,8 @@ datastore_diff_nacm_read(clixon_handle h,
     username = clicon_username_get(h);
     if (xnacm != NULL){ /* Do NACM validation */
         /* NACM datanode/module purge read access violation */
-#if 0 // XXX switch to the new function asap
         if (nacm_datanode_read1(h, xt, username, xnacm) < 0)
             goto done;
-#else
-        if (nacm_datanode_read(h, xt, NULL, 0, username, xnacm) < 0)
-            goto done;
-#endif
     }
     retval = 0;
  done:

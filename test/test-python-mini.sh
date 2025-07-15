@@ -159,6 +159,7 @@ new "Configure example services"
 expectpart "$($clixon_cli -1 -f $CFG -m configure set service example Mybanner)" 0 ""
 
 # Commit diff
+# XXX Hangs here sometimes
 new "Commit diff"
 expectpart "$($clixon_cli -1 -f $CFG -m configure commit diff)" 0 "openconfig1:
       <config xmlns=\"http://openconfig.net/yang/system\">

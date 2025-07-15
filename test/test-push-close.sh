@@ -19,7 +19,7 @@ s="$_" ; . ./lib.sh || if [ "$s" = $0 ]; then exit 0; else return 0; fi
 set -u
 
 # Reset devices with initial config
-. ./reset-devices.sh
+(. ./reset-devices.sh)
 
 if $BE; then
     new "Kill old backend"

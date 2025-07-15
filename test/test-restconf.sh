@@ -221,6 +221,9 @@ fi
 new "Wait backend"
 wait_backend
 
+if [ $valgrindtest -eq 3 ]; then # restconf mem test
+    sleep 10
+fi
 new "Wait restconf"
 wait_restconf
 

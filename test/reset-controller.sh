@@ -7,9 +7,6 @@ set -u
 # Set if delete old config
 : ${delete:=true}
 
-# Set if also check, which only works for clixon-example
-: ${check:=true}
-
 # Default values for controller device settings
 : ${description:="Clixon example container"}
 : ${yang_config:=VALIDATE}
@@ -208,13 +205,8 @@ res=$(echo "$ret" | sed 's/OPEN/OPEN\n/g' | grep "$IMG" | grep -c "OPEN") || tru
 if [ "$res" != "$nr" ]; then
     err1 "Error: $res"
 fi
-# Early exit point, do not check pulled config
-if ! $check ; then
-    new "reset-controller early exit: do not check result"
-    echo OK
-    exit 0
-fi
 
+new "reset-controller 4"
 i=1
 # Only works for openconfig, others should set check=false
 for ip in $CONTAINERS; do

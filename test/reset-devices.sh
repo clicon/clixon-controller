@@ -5,7 +5,6 @@ set -u
 echo "reset-devices"
 
 # Set if also check, which only works for clixon-example
-: ${check:=true}
 : ${dir:=/var/tmp}
 : ${nrif:=2}
 
@@ -80,13 +79,6 @@ EOF
         sudo docker cp -q $dir/extra.xml $NAME:/usr/local/etc/clixon/openconfig/extra.xml
     fi
 done
-
-# Early exit point, do not check pulled config
-if ! $check ; then
-    echo "reset-controller early exit: do not check result"
-    echo OK
-    exit 0
-fi
 
 i=1
 for ip in $CONTAINERS; do

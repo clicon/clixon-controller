@@ -60,7 +60,6 @@ function memonce(){
             ;;
     esac
 
-
     memerr=0
     for test in $pattern; do
         # Can happen if no pattern, eg pattern=foo but "foo" does not exist
@@ -73,6 +72,7 @@ function memonce(){
         if [ $testnr != 0 ]; then echo; fi
         perfnr=1000 # Limit performance tests
         testfile=$test
+
         . ./$test 
         errcode=$?
 

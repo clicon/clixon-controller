@@ -154,7 +154,7 @@ main(int    argc,
     if ((h = clixon_handle_init()) == NULL)
         goto done;
     /* In the startup, logs to stderr & debug flag set later */
-    clixon_log_init(h, "xpath", LOG_DEBUG, logdst); 
+    clixon_log_init(h, "xpath", LOG_DEBUG, logdst);
     /* Initialize config tree (needed for -Y below) */
     if ((xcfg = xml_new("clixon-config", NULL, CX_ELMNT)) == NULL)
         goto done;

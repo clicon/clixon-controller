@@ -229,6 +229,10 @@ wait_backend
 # Reset controller by initiating with clixon/openconfig devices and a pull
 . ./reset-controller.sh
 
+if [ $valgrindtest -eq 3 ]; then # restconf mem test
+    sleep 10
+fi
+
 new "Wait restconf"
 wait_restconf
 
