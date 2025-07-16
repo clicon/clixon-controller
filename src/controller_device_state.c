@@ -1150,6 +1150,8 @@ device_commit_when_done(clixon_handle           h,
         cprintf(cbret, "Failed to commit: %s", clixon_err_reason());
         ret = 0;
     }
+    if (clicon_option_bool(h, "CLICON_AUTOLOCK"))
+        xmldb_unlock(h, db);
     if (ret == 0){ /* discard */
         clixon_debug(CLIXON_DBG_CTRL, "%s", cbuf_get(cbret));
         if (device_close_connection(dh, "%s", cbuf_get(cbret)) < 0)
@@ -1686,6 +1688,8 @@ device_state_handler(clixon_handle h,
                         goto done;
                     break;
                 }
+                if (clicon_option_bool(h, "CLICON_AUTOLOCK"))
+                    xmldb_unlock(h, "candidate");
                 if (ret == 0){
                     cbuf  *cberr2 = NULL;
                     if ((cberr2 = cbuf_new()) == NULL){

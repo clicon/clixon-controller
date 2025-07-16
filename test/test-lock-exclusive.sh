@@ -364,7 +364,7 @@ expect {
     -i $cli2
     -re "\\+.+keychain e0 \{.+$prompt2\$" { puts "Test 3b can see data"; puts "<<<$expect_out(buffer)>>>"; exit 2 }
     timeout { puts "Timeout 3b cannot see data" }
-    eof { exit 4 }
+    eof { exit 3 }
 }
 
 set cmd "commit diff"
@@ -412,7 +412,7 @@ puts "Test: 6a) limited cannot edit service data"
 send -i $cli2 "$cmd\n"
 expect {
     -i $cli2
-    -re "$cmd.+lock is already held.+$prompt2" { puts "Test 6a: cannot commit" }
+    -re "$cmd.+access-denied default deny.+$prompt2" { puts "Test 6a: cannot commit" }
     timeout { puts "Timeout 6a"; exit 2}
     eof { exit 3 }
 }
@@ -422,8 +422,8 @@ send -i $cli1 "$cmd\n"
 expect {
     -i $cli1
     -re "$cmd\r\n\r\r$prompt1\$" { puts "Test 6b: edit" }
-    timeout { exit 1 }
-    eof { exit 1 }
+    timeout { puts "Timeout 6b"; exit 2 }
+    eof { exit 3 }
 }
 
 set cmd "commit diff"

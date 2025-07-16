@@ -1160,6 +1160,8 @@ commit_push_after_actions(clixon_handle           h,
                     cprintf(cberr, "%s", clixon_err_reason()); // XXX encode
                     ret = 0;
                 }
+                if (clicon_option_bool(h, "CLICON_AUTOLOCK"))
+                    xmldb_unlock(h, "candidate");
                 if (ret == 0){ // XXX awkward, cb ->xml->cb
                     cxobj *xerr = NULL;
                     cbuf *cberr2 = NULL;
