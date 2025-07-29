@@ -433,7 +433,7 @@ controller_gentree_pattern(cligen_handle ch,
  */
 static int
 controller_yang2cli_mount(cligen_handle ch,
-                          char         *name,
+                          const char   *name,
                           cvec         *cvt,
                           void         *arg,
                           char        **namep)
@@ -494,7 +494,7 @@ controller_yang2cli_mount(cligen_handle ch,
  */
 static int
 controller_yang2cli_wrap(cligen_handle ch,
-                         char         *name,
+                         const char   *name,
                          cvec         *cvt,
                          void         *arg,
                          char        **namep)
@@ -582,7 +582,7 @@ controller_cli_yang_mount(clixon_handle   h,
  */
 static int
 cli_history_cb(cligen_handle ch,
-               char         *cmd,
+               const char   *cmd,
                void         *arg)
 {
     clixon_handle h = arg;
