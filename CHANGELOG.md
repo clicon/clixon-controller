@@ -1,22 +1,22 @@
 # Clixon Controller Changelog
 
 ## 1.5.0
-Expected: July 2025
+29 July 2025
 
 ### New features
 
-* New `clixon-controller@2025-05-01.yang` revision
-  * Added rpc `device-rpc`
+* New: [NACM for Clixon Controller](https://github.com/clicon/clixon-controller/issues/189)
+  * Support for services
+  * Testcases for controller nacm and nacm+restconf
+  * Added cli show detail command
 * New: [CLI exclusive mode for candidate](https://github.com/clicon/clixon-controller/issues/92)
   * Set `CLICON_AUTOLOCK=true`
 * New: [new command "pull diff"](https://github.com/clicon/clixon-controller/issues/194)
   * Added `pull <device> diff | check`
 * New: [ssh keep-alive](https://github.com/clicon/clixon-controller/issues/193)
   * Hard-coded to 300s
-* New: [NACM for Clixon Controller](https://github.com/clicon/clixon-controller/issues/189)
-  * Support for services
-  * Testcases for controller nacm and nacm+restconf
-  * Added cli show detail command
+* New `clixon-controller@2025-05-01.yang` revision
+  * Added rpc `device-rpc`
 
 ### API changes on existing protocol/config features
 
