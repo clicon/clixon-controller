@@ -68,7 +68,6 @@ device_send_lock(clixon_handle h,
 {
     int   retval = -1;
     cbuf *cb = NULL;
-    int   encap;
     int   s;
 
     if (lock != 0 && lock != 1){
@@ -91,9 +90,6 @@ device_send_lock(clixon_handle h,
     cprintf(cb, "<target><candidate/></target>");
     cprintf(cb, "</%slock>", lock==0?"un":"");
     cprintf(cb, "</rpc>");
-    encap = device_handle_framing_type_get(dh);
-    if (netconf_output_encap(encap, cb) < 0)
-        goto done;
     if (clixon_msg_send10(s, device_handle_name_get(dh), cb) < 0)
         goto done;
     retval = 0;
@@ -122,7 +118,6 @@ device_send_get(clixon_handle h,
 {
     int   retval = -1;
     cbuf *cb = NULL;
-    int   encap;
 
     if ((cb = cbuf_new()) == NULL){
         clixon_err(OE_PLUGIN, errno, "cbuf_new");
@@ -143,9 +138,6 @@ device_send_get(clixon_handle h,
         cprintf(cb, "</get-config>");
     }
     cprintf(cb, "</rpc>");
-    encap = device_handle_framing_type_get(dh);
-    if (netconf_output_encap(encap, cb) < 0)
-        goto done;
     s = device_handle_socket_get(dh);
     if (clixon_msg_send10(s, device_handle_name_get(dh), cb) < 0)
         goto done;
@@ -176,7 +168,6 @@ device_get_schema_sendit(clixon_handle h,
     int      retval = -1;
     cbuf    *cb = NULL;
     uint64_t seq;
-    int      encap;
     char    *name;
 
     name = device_handle_name_get(dh);
@@ -193,9 +184,6 @@ device_get_schema_sendit(clixon_handle h,
     cprintf(cb, "<format>yang</format>");
     cprintf(cb, "</get-schema>");
     cprintf(cb, "</rpc>");
-    encap = device_handle_framing_type_get(dh);
-    if (netconf_output_encap(encap, cb) < 0)
-        goto done;
     if (clixon_msg_send10(s, device_handle_name_get(dh), cb) < 0)
         goto done;
     clixon_debug(CLIXON_DBG_CTRL, "%s: sent get-schema(%s@%s) seq:%" PRIu64, name, identifier, version, seq);
@@ -313,7 +301,6 @@ device_send_get_schema_list(clixon_handle h,
 {
     int   retval = -1;
     cbuf *cb = NULL;
-    int   encap;
 
     clixon_debug(CLIXON_DBG_CTRL, "");
     if ((cb = cbuf_new()) == NULL){
@@ -331,9 +318,6 @@ device_send_get_schema_list(clixon_handle h,
     cprintf(cb, "</filter>");
     cprintf(cb, "</get>");
     cprintf(cb, "</rpc>");
-    encap = device_handle_framing_type_get(dh);
-    if (netconf_output_encap(encap, cb) < 0)
-        goto done;
     if (clixon_msg_send10(s, device_handle_name_get(dh), cb) < 0)
         goto done;
     retval = 0;
@@ -440,7 +424,6 @@ device_create_edit_config_diff(clixon_handle h,
     int     i;
     cxobj  *xn;
     cxobj  *xa;
-    int     encap;
 
     clixon_debug(CLIXON_DBG_CTRL, "");
     /* 1. Add netconf operation attributes to add/del/change nodes in x0 and x1 and mark */
@@ -484,7 +467,6 @@ device_create_edit_config_diff(clixon_handle h,
         goto done;
     // XXX validate
     /* 4. Create two edit-config messages and parse them */
-    encap = device_handle_framing_type_get(dh);
     if (dlen) {
         if ((cb = cbuf_new()) == NULL){
             clixon_err(OE_PLUGIN, errno, "cbuf_new");
@@ -509,8 +491,6 @@ device_create_edit_config_diff(clixon_handle h,
         cprintf(cb, "</config>");
         cprintf(cb, "</edit-config>");
         cprintf(cb, "</rpc>");
-        if (netconf_output_encap(encap, cb) < 0)
-            goto done;
         *cbret1 = cb;
         cb = NULL;
     }
@@ -538,8 +518,6 @@ device_create_edit_config_diff(clixon_handle h,
         cprintf(cb, "</config>");
         cprintf(cb, "</edit-config>");
         cprintf(cb, "</rpc>");
-        if (netconf_output_encap(encap, cb) < 0)
-            goto done;
         *cbret2 = cb;
         cb = NULL;
     }
@@ -566,7 +544,6 @@ device_send_rpc(clixon_handle h,
 {
     int   retval = -1;
     cbuf *cb = NULL;
-    int   encap;
     int   s;
 
     clixon_debug(CLIXON_DBG_CTRL, "%s", msgbody);
@@ -581,9 +558,6 @@ device_send_rpc(clixon_handle h,
     if (msgbody)
         cprintf(cb, "%s", msgbody);
     cprintf(cb, "</rpc>");
-    encap = device_handle_framing_type_get(dh);
-    if (netconf_output_encap(encap, cb) < 0)
-        goto done;
     if (clixon_msg_send10(s, device_handle_name_get(dh), cb) < 0)
         goto done;
     retval = 0;

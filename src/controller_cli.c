@@ -93,12 +93,11 @@ controller_cli_start(clixon_handle h)
 int
 controller_cli_exit(clixon_handle h)
 {
-    int                retval = -1;
-    int                s;
-    cbuf              *cb = NULL;
-    char              *username;
-    struct clicon_msg *msg = NULL;
-    uint32_t           session_id = 0;
+    int      retval = -1;
+    int      s;
+    cbuf    *cb = NULL;
+    char    *username;
+    uint32_t session_id = 0;
 
     if ((s = clicon_data_int_get(h, "controller-transaction-notify-socket")) > 0){
         /* Inline of clicon_rpc_close_session() w other socket */
@@ -117,9 +116,7 @@ controller_cli_exit(clixon_handle h)
         cprintf(cb, ">");
         cprintf(cb, "<close-session/>");
         cprintf(cb, "</rpc>");
-        if ((msg = clicon_msg_encode(session_id, "%s", cbuf_get(cb))) == NULL)
-            goto done;
-        if (clicon_rpc_msg(h, msg, NULL) < 0)
+        if (clicon_rpc_msg(h, cb, NULL) < 0)
             goto done;
         clicon_data_int_del(h, "controller-transaction-notify-socket");
         close(s);
@@ -132,8 +129,6 @@ controller_cli_exit(clixon_handle h)
  done:
     if (cb)
         cbuf_free(cb);
-    if (msg)
-        free(msg);
     return retval;
 }
 

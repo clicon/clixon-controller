@@ -15,7 +15,7 @@ CONFIG='<interfaces xmlns="http://openconfig.net/yang/interfaces">\
                <type nc:operation="replace" xmlns:ianaift="urn:ietf:params:xml:ns:yang:iana-if-type">ianaift:atm</type>\
             </config>\
           </interface>\
-         <interface nc_operation="merge">\
+         <interface nc:operation="merge">\
            <name>z</name>\
            <config>\
              <name>z</name>\

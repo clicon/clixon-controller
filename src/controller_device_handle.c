@@ -318,7 +318,7 @@ device_handle_connect(device_handle      dh,
     cdh->cdh_type = socktype;
     switch (socktype){
     case CLIXON_CLIENT_IPC:
-        if (clicon_rpc_connect(h, &cdh->cdh_socket) < 0)
+        if (clixon_rpc_connect(h, &cdh->cdh_socket) < 0)
             goto err;
         break;
     case CLIXON_CLIENT_NETCONF:

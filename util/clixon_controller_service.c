@@ -69,10 +69,9 @@ static int
 send_transaction_actions_done(clixon_handle h,
                               char         *tidstr)
 {
-    int                retval = -1;
-    cbuf              *cb = NULL;
-    struct clicon_msg *msg = NULL;
-    cxobj             *xt = NULL;
+    int    retval = -1;
+    cbuf  *cb = NULL;
+    cxobj *xt = NULL;
 
    /* Write and mark an interface for each param in the service */
     if ((cb = cbuf_new()) == NULL){
@@ -90,9 +89,7 @@ send_transaction_actions_done(clixon_handle h,
     cprintf(cb, "<tid>%s</tid>", tidstr);
     cprintf(cb, "</transaction-actions-done>");
     cprintf(cb, "</rpc>");
-    if ((msg = clicon_msg_encode(0, "%s", cbuf_get(cb))) == NULL)
-        goto done;
-    if (clicon_rpc_msg(h, msg, &xt) < 0)
+    if (clicon_rpc_msg(h, cb, &xt) < 0)
         goto done;
     if (xpath_first(xt,  NULL, "rpc-reply/rpc-error") != NULL){
         clixon_err(OE_NETCONF, 0, "rpc-error");
@@ -100,8 +97,6 @@ send_transaction_actions_done(clixon_handle h,
     }
     retval = 0;
  done:
-    if (msg)
-        free(msg);
     if (xt)
         xml_free(xt);
     if (cb)
@@ -122,10 +117,9 @@ send_transaction_error(clixon_handle h,
                        char         *tidstr,
                        const char   *reason)
 {
-    int                retval = -1;
-    cbuf              *cb = NULL;
-    struct clicon_msg *msg = NULL;
-    cxobj             *xt = NULL;
+    int    retval = -1;
+    cbuf  *cb = NULL;
+    cxobj *xt = NULL;
 
     clixon_debug(CLIXON_DBG_CTRL, "%s", reason);
     /* Write and mark an interface for each param in the service */
@@ -146,9 +140,8 @@ send_transaction_error(clixon_handle h,
     cprintf(cb, "<reason>%s</reason>", reason);
     cprintf(cb, "</transaction-error>");
     cprintf(cb, "</rpc>");
-    if ((msg = clicon_msg_encode(0, "%s", cbuf_get(cb))) == NULL)
-        goto done;
-    if (clicon_rpc_msg(h, msg, &xt) < 0)
+
+    if (clicon_rpc_msg(h, cb, &xt) < 0)
         goto done;
     if (xpath_first(xt,  NULL, "rpc-reply/rpc-error") != NULL){
         clixon_err(OE_NETCONF, 0, "rpc-error");
@@ -156,8 +149,6 @@ send_transaction_error(clixon_handle h,
     }
     retval = 0;
  done:
-    if (msg)
-        free(msg);
     if (xt)
         xml_free(xt);
     if (cb)
@@ -178,11 +169,10 @@ read_services(clixon_handle h,
               char         *db,
               cxobj       **xtp)
 {
-    int                retval = -1;
-    cxobj             *xt = NULL;
-    cxobj             *xd;
-    struct clicon_msg *msg = NULL;
-    cbuf              *cb = NULL;
+    int    retval = -1;
+    cxobj *xt = NULL;
+    cxobj *xd;
+    cbuf  *cb = NULL;
 
     if ((cb = cbuf_new()) == NULL){
         clixon_err(OE_XML, errno, "cbuf_new");
@@ -206,9 +196,7 @@ read_services(clixon_handle h,
             CONTROLLER_NAMESPACE);
     cprintf(cb, "/>");
     cprintf(cb, "</get-config></rpc>");
-    if ((msg = clicon_msg_encode(0, "%s", cbuf_get(cb))) == NULL)
-        goto done;
-    if (clicon_rpc_msg(h, msg, &xt) < 0)
+    if (clicon_rpc_msg(h, cb, &xt) < 0)
         goto done;
     if (xpath_first(xt,  NULL, "rpc-reply/rpc-error") != NULL){
         clixon_err(OE_NETCONF, 0, "rpc-error");
@@ -222,8 +210,6 @@ read_services(clixon_handle h,
  done:
     if (cb)
         cbuf_free(cb);
-    if (msg)
-        free(msg);
     if (xt)
         xml_free(xt);
     return retval;
@@ -242,11 +228,10 @@ read_devices(clixon_handle h,
              char         *db,
              cxobj       **xtp)
 {
-    int                retval = -1;
-    cxobj             *xt = NULL;
-    cxobj             *xd;
-    struct clicon_msg *msg = NULL;
-    cbuf              *cb = NULL;
+    int    retval = -1;
+    cxobj *xt = NULL;
+    cxobj *xd;
+    cbuf  *cb = NULL;
 
     if ((cb = cbuf_new()) == NULL){
         clixon_err(OE_XML, errno, "cbuf_new");
@@ -270,9 +255,7 @@ read_devices(clixon_handle h,
             CONTROLLER_NAMESPACE);
     cprintf(cb, "/>");
     cprintf(cb, "</get-config></rpc>");
-    if ((msg = clicon_msg_encode(0, "%s", cbuf_get(cb))) == NULL)
-        goto done;
-    if (clicon_rpc_msg(h, msg, &xt) < 0)
+    if (clicon_rpc_msg(h, cb, &xt) < 0)
         goto done;
     if (xpath_first(xt,  NULL, "rpc-reply/rpc-error") != NULL){
         clixon_err(OE_NETCONF, 0, "rpc-error");
@@ -286,8 +269,6 @@ read_devices(clixon_handle h,
  done:
     if (cb)
         cbuf_free(cb);
-    if (msg)
-        free(msg);
     if (xt)
         xml_free(xt);
     return retval;

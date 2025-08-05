@@ -132,7 +132,8 @@ new "Wait backend"
 wait_backend
 
 # Reset controller by initiating with clixon/openconfig devices and a pull
-. ./reset-controller.sh
+new "reset controller"
+(. ./reset-controller.sh)
 
 new "close connections"
 expectpart "$(${clixon_cli} -1f $CFG -E $CFD connect close)" 0 ""
