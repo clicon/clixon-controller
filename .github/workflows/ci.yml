@@ -5,6 +5,7 @@ on:
     branches:
       - main
       - test-actions
+      - delete-service
   pull_request:
     branches:
       - main

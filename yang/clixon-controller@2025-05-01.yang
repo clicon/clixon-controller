@@ -332,6 +332,11 @@ module clixon-controller {
                 "Unconditionally trigger services-commit notification for a service
                  or all services.";
             }
+            enum DELETE {
+                description
+                "Delete service, remove service device data
+                 XXX: bump yang revision number";
+            }
         }
     }
     grouping created-by-service {
@@ -848,7 +853,7 @@ module clixon-controller {
                 default NONE;
             }
             leaf service-instance {
-                when "../actions = 'FORCE'";
+                when "../actions = 'FORCE' or ../actions = 'DELETE'";
                 description
                     "For forced reapply select which service-instance should be triggered";
                 type string;

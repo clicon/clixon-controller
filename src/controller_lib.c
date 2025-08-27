@@ -96,13 +96,14 @@ static const map_str2int ptmap[] = {
 
 /*! Mapping between enum actions_type_t and yang actions-type
  *
- * @see clixon-controller@2023-01-01.yang
+ * @see clixon-controller.yang
  */
 static const map_str2int atmap[] = {
     {"NONE",    AT_NONE},
     {"CHANGE",  AT_CHANGE},
     {"FORCE",   AT_FORCE},
-    {NULL,      -1}
+    {"DELETE",  AT_DELETE},
+    {NULL,     -1}
 };
 
 /*! Map controller transaction state from int to string

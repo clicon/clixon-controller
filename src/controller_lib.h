@@ -98,6 +98,7 @@ enum actions_type_t{
     AT_NONE = 0,    /* Do not trigger actions */
     AT_CHANGE,      /* Trigger actions if service configuration has changed. */
     AT_FORCE,       /* Unconditionally trigger services-commit notification for all services */
+    AT_DELETE,      /* Delete service, remove service device data */
 };
 typedef enum actions_type_t actions_type;
 
