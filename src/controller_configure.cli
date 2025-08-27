@@ -66,6 +66,7 @@ apply("Apply template or service") {
         <instance:string expand_dbvar("running", "/clixon-controller:services/%s/%k")>,
           cli_rpc_controller_commit("candidate", "FORCE", "COMMIT"); {
               diff("Show the result of running the services but do not commit"), cli_rpc_controller_commit("candidate", "FORCE", "NONE");
+              delete("Delete service"), cli_rpc_controller_commit("candidate", "DELETE", "COMMIT");
           }
     }
 }

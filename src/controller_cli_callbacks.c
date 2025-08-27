@@ -1137,7 +1137,9 @@ cli_rpc_controller_commit(clixon_handle h,
         cprintf(cb, "<device>%s</device>", name);
     cprintf(cb, "<push>%s</push>", push_type);
     cprintf(cb, "<actions>%s</actions>", actions_type);
-    if (service && instance && actions_type_str2int(actions_type) == AT_FORCE){
+    if (service && instance &&
+        (actions_type_str2int(actions_type) == AT_FORCE ||
+         actions_type_str2int(actions_type) == AT_DELETE)){
         if (get_service_key(yspec, service, &keyname) < 0)
             goto done;
         if (keyname){

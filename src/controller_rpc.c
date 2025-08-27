@@ -937,7 +937,7 @@ xml_add_op(cxobj *x,
  *   5) Modify tree with xmldb_put
  * @param[in]  h    Clixon handle
  * @param[in]  db   Database
- * @param[in]  cvv  Vector of services
+ * @param[in]  cvv  Vector of services, if empty then all
  * @retval     0    OK
  * @retval    -1    Error
  * @note Differentiate between reading created from running while deleting from action-db
@@ -1263,12 +1263,12 @@ controller_commit_actions(clixon_handle           h,
                           actions_type            actions,
                           transaction_data_t     *td,
                           char                   *service_instance,
-			  int                    diff
+			  int                     diff
                           )
 {
-    int     retval = -1;
-    cvec   *cvv = NULL;       /* Format: <service> <instance> */
-    int     services = 0;
+    int   retval = -1;
+    cvec *cvv = NULL;       /* Format: <service> <instance> */
+    int   services = 0;
 
     if ((cvv = cvec_new(0)) == NULL){
         clixon_err(OE_UNIX, errno, "cvec_new");
@@ -1280,7 +1280,7 @@ controller_commit_actions(clixon_handle           h,
      */
     if (controller_actions_diff(h, ct, td, &services, cvv) < 0)
         goto done;
-    if (actions == AT_FORCE){
+    if (actions == AT_FORCE || actions == AT_DELETE){
         cvec_reset(cvv);
         if (service_instance)
             cvec_add_string(cvv, service_instance, NULL);
@@ -1289,12 +1289,19 @@ controller_commit_actions(clixon_handle           h,
     if (xmldb_copy(h, "candidate", "actions") < 0)
         goto done;
     xmldb_volatile_set(h, "actions", 1);
-    if (services &&
-        (actions == AT_FORCE || cvec_len(cvv) > 0)){
+    if (services && actions == AT_DELETE){
+        /* Delete service, do not activate/notify actions, just push deletes to devices
+           Strip service data in device config */
+        if (strip_service_data_from_device_config(h, "actions", cvv) < 0)
+            goto done;
+        if (commit_push_after_actions(h, ct) < 0)
+            goto done;
+    }
+    else if (services && (actions == AT_FORCE || cvec_len(cvv) > 0)){
         /* IF Services exist AND
-           either service changes or forced,
-           THEN notify services
-        */
+         * either service changes or forced,
+         * THEN notify services
+         */
         if (services_commit_notify(h, ct, cvv, diff) < 0)
             goto done;
         /* Strip service data in device config for services that changed */
@@ -1750,6 +1757,7 @@ rpc_controller_commit(clixon_handle h,
         break;
     case AT_CHANGE:
     case AT_FORCE:
+    case AT_DELETE:
         if (strcmp(ct->ct_sourcedb, "candidate") != 0){
             if (netconf_operation_failed(cbret, "application", "Only candidates db supported if actions")< 0)
                 goto done;
@@ -1757,10 +1765,8 @@ rpc_controller_commit(clixon_handle h,
                 goto done;
             goto ok;
         }
-
 	if (pusht == PT_NONE)
 	    diff = 1;
-
         /* Compute diff of candidate + commit and trigger service-commit notify */
         if (controller_commit_actions(h, ct, actions, td, service_instance, diff) < 0)
             goto done;
