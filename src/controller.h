@@ -61,6 +61,12 @@
  */
 #undef NETCONF_LOCK_EXTRA_NAMESPACE
 
+/*! Action-db in-mem is good for performance, but hard to debug
+ *
+ * Maybe should be in controller config?
+ */
+#define XMLDB_ACTION_INMEM 1
+
 /*! Pyapi or other services process
  * Note this set also in clispec:s and tests
  */

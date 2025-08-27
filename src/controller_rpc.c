@@ -447,17 +447,17 @@ push_device_one(clixon_handle           h,
     cbuf      *cb = NULL;
     char      *name;
     cxobj    **dvec = NULL;
-    int        dlen;
+    size_t     dlen;
     cxobj    **avec = NULL;
-    int        alen;
+    size_t     alen;
     cxobj    **chvec0 = NULL;
     cxobj    **chvec1 = NULL;
-    int        chlen;
+    size_t     chlen;
     yang_stmt *yspec;
     cbuf      *cbmsg1 = NULL;
     cbuf      *cbmsg2 = NULL;
-    int        ret;
     cvec      *nsc = NULL;
+    int        ret;
 
     /* Note x0 and x1 are directly modified in device_create_edit_config_diff, cannot do no-copy
        1) get previous device synced xml */
@@ -640,7 +640,7 @@ rpc_config_pull(clixon_handle h,
     ct->ct_pull_transient = transient;
     if ((str = xml_find_body(xe, "merge")) != NULL)
         ct->ct_pull_merge = strcmp(str, "true") == 0;
-    if ((ret = xmldb_get_cache(h, "running", YB_MODULE, &xret, NULL, NULL)) < 0)
+    if ((ret = xmldb_get_cache(h, "running", &xret, NULL)) < 0)
         goto done;
     if (ret == 0){
         clixon_err(OE_DB, 0, "Error when reading from running_db, unknown error");
@@ -965,12 +965,12 @@ strip_service_data_from_device_config(clixon_handle h,
     cxobj  *xedit = NULL;
 
     /* Get services/created read-only from running_db for reading */
-    if (xmldb_get_cache(h, "running", YB_NONE, &xt0, NULL, NULL) < 0)
+    if (xmldb_get_cache(h, "running", &xt0, NULL) < 0)
         goto done;
     /* Get services/created and devices from action_db for deleting. */
     if ((xedit = xml_new("config", NULL, CX_ELMNT)) == NULL)
         goto done;
-    if (xmldb_get_cache(h, db, YB_NONE, &xt1, NULL, NULL) < 0)
+    if (xmldb_get_cache(h, db, &xt1, NULL) < 0)
         goto done;
     /* Go through /services/././created that match cvv service name (NULL means all)
      * then for each xpath find object and purge
@@ -1246,8 +1246,10 @@ services_commit_notify(clixon_handle           h,
     return retval;
 }
 
-/*! Compute diff of candidate + commit and trigger service-commit notify
+/*! Compute diff of candidate, copy to actions-db and trigger service-commit notify
  *
+ * Compute diff of candidate + commit, copy candidate to actions-db and
+ * trigger service-commit notify
  * @param[in]  h         Clixon handle
  * @param[in]  ct        Transaction
  * @param[in]  actions   How to trigger service-commit notifications
@@ -1269,6 +1271,7 @@ controller_commit_actions(clixon_handle           h,
     int     retval = -1;
     cvec   *cvv = NULL;       /* Format: <service> <instance> */
     int     services = 0;
+    db_elmnt *de;
 
     if ((cvv = cvec_new(0)) == NULL){
         clixon_err(OE_UNIX, errno, "cvec_new");
@@ -1286,9 +1289,14 @@ controller_commit_actions(clixon_handle           h,
             cvec_add_string(cvv, service_instance, NULL);
     }
     /* 1) copy candidate to actions and remove all device config tagged with services */
+    if ((de = clicon_db_elmnt_get(h, "actions")) == NULL)
+        if ((de = xmldb_new(h, "actions")) == NULL)
+            goto done;
+#ifdef XMLDB_ACTION_INMEM
+    xmldb_volatile_set(de, 1);
+#endif
     if (xmldb_copy(h, "candidate", "actions") < 0)
         goto done;
-    xmldb_volatile_set(h, "actions", 1);
     if (services &&
         (actions == AT_FORCE || cvec_len(cvv) > 0)){
         /* IF Services exist AND
@@ -1411,9 +1419,9 @@ devices_diff(clixon_handle           h,
     char         *name;
     int           i;
 
-    if (xmldb_get_cache(h, "candidate", YB_MODULE, &td->td_target, NULL, NULL) < 0)
+    if (xmldb_get_cache(h, "candidate", &td->td_target, NULL) < 0)
         goto done;
-    if (xmldb_get_cache(h, "running", YB_MODULE, &td->td_src, NULL, NULL) < 0)
+    if (xmldb_get_cache(h, "running", &td->td_src, NULL) < 0)
         goto done;
     /* Remove devices not in transaction */
     dh = NULL;
@@ -1650,7 +1658,7 @@ rpc_controller_commit(clixon_handle h,
     ct->ct_sourcedb = sourcedb;
     sourcedb = NULL;
     /* Mark devices with transaction-id if name matches device pattern */
-    if ((ret = xmldb_get_cache(h, "running", YB_MODULE, &xret, NULL, NULL)) < 0)
+    if ((ret = xmldb_get_cache(h, "running", &xret, NULL)) < 0)
         goto done;
     if (ret == 0){
         clixon_err(OE_DB, 0, "Error when reading from running_db, unknown error");
@@ -1761,7 +1769,7 @@ rpc_controller_commit(clixon_handle h,
 	if (pusht == PT_NONE)
 	    diff = 1;
 
-        /* Compute diff of candidate + commit and trigger service-commit notify */
+        /* Compute diff of candidate, copy to actions, trigger notify */
         if (controller_commit_actions(h, ct, actions, td, service_instance, diff) < 0)
             goto done;
         break;
@@ -1843,11 +1851,11 @@ rpc_get_device_config(clixon_handle h,
     config_type = xml_find_body(xe, "config-type");
     dt = device_config_type_str2int(config_type);
     if (dt == DT_CANDIDATE){
-        if ((ret = xmldb_get_cache(h, "candidate", YB_MODULE, &xret, NULL, NULL)) < 0)
+        if ((ret = xmldb_get_cache(h, "candidate", &xret, NULL)) < 0)
             goto done;
     }
     else{
-        if ((ret = xmldb_get_cache(h, "running", YB_MODULE, &xret, NULL, NULL)) < 0)
+        if ((ret = xmldb_get_cache(h, "running", &xret, NULL)) < 0)
             goto done;
     }
     if (ret == 0){
@@ -2095,7 +2103,7 @@ rpc_connection_change(clixon_handle h,
             goto done;
         goto ok;
     }
-    if (xmldb_get_cache(h, "running", YB_MODULE, &xret, NULL, NULL) < 0)
+    if (xmldb_get_cache(h, "running", &xret, NULL) < 0)
         goto done;
     if ((devvec = cvec_new(0)) == NULL){
         clixon_err(OE_UNIX, errno, "cvec_new");
@@ -2395,7 +2403,7 @@ datastore_diff_dsref(clixon_handle    h,
     cxobj  *x1;
     cxobj  *x2;
 
-    if (xmldb_get_cache(h, db1, YB_MODULE, &xt1, NULL, NULL) < 0)
+    if (xmldb_get_cache(h, db1, &xt1, NULL) < 0)
         goto done;
     if (datastore_diff_nacm_read(h, xt1, xpath) < 0)
         goto done;
@@ -2403,7 +2411,7 @@ datastore_diff_dsref(clixon_handle    h,
         x1 = xpath_first(xt1, NULL, "%s", xpath);
     else
         x1 = xt1;
-    if (xmldb_get_cache(h, db2, YB_MODULE, &xt2, NULL, NULL) < 0)
+    if (xmldb_get_cache(h, db2, &xt2, NULL) < 0)
         goto done;
     if (datastore_diff_nacm_read(h, xt2, xpath) < 0)
         goto done;
@@ -2501,7 +2509,7 @@ datastore_diff_device(clixon_handle      h,
         clixon_err(OE_UNIX, errno, "cvec_new");
         goto done;
     }
-    if (xmldb_get_cache(h, "running", YB_MODULE, &xret, NULL, NULL) < 0)
+    if (xmldb_get_cache(h, "running", &xret, NULL) < 0)
         goto done;
     if (datastore_diff_nacm_read(h, xret, NULL) < 0)
         goto done;
@@ -2539,7 +2547,7 @@ datastore_diff_device(clixon_handle      h,
         case DT_RUNNING:
             cbuf_reset(cbxpath);
             cprintf(cbxpath, "devices/device[name='%s']/config", devname);
-            if (xmldb_get_cache(h, "running", YB_MODULE, &x1ret, NULL, NULL) < 0)
+            if (xmldb_get_cache(h, "running", &x1ret, NULL) < 0)
                 goto done;
             if (datastore_diff_nacm_read(h, x1ret, NULL) < 0)
                 goto done;
@@ -2548,14 +2556,14 @@ datastore_diff_device(clixon_handle      h,
         case DT_CANDIDATE:
             cbuf_reset(cbxpath);
             cprintf(cbxpath, "devices/device[name='%s']/config", devname);
-            if (xmldb_get_cache(h, "candidate", YB_MODULE, &x1ret, NULL, NULL) < 0)
+            if (xmldb_get_cache(h, "candidate", &x1ret, NULL) < 0)
                 goto done;
             x1 = xpath_first(x1ret, nsc, "%s", cbuf_get(cbxpath));
             break;
         case DT_ACTIONS:
             cbuf_reset(cbxpath);
             cprintf(cbxpath, "devices/device[name='%s']/config", devname);
-            if (xmldb_get_cache(h, "actions", YB_MODULE, &x1ret, NULL, NULL) < 0)
+            if (xmldb_get_cache(h, "actions", &x1ret, NULL) < 0)
                 goto done;
             if (datastore_diff_nacm_read(h, x1ret, NULL) < 0)
                 goto done;
@@ -2582,7 +2590,7 @@ datastore_diff_device(clixon_handle      h,
         case DT_RUNNING:
             cbuf_reset(cbxpath);
             cprintf(cbxpath, "devices/device[name='%s']/config", devname);
-            if (xmldb_get_cache(h, "running", YB_MODULE, &x2ret, NULL, NULL) < 0)
+            if (xmldb_get_cache(h, "running", &x2ret, NULL) < 0)
                 goto done;
             if (datastore_diff_nacm_read(h, x2ret, NULL) < 0)
                 goto done;
@@ -2591,7 +2599,7 @@ datastore_diff_device(clixon_handle      h,
         case DT_CANDIDATE:
             cbuf_reset(cbxpath);
             cprintf(cbxpath, "devices/device[name='%s']/config", devname);
-            if (xmldb_get_cache(h, "candidate", YB_MODULE, &x2ret, NULL, NULL) < 0)
+            if (xmldb_get_cache(h, "candidate", &x2ret, NULL) < 0)
                 goto done;
             if (datastore_diff_nacm_read(h, x2ret, NULL) < 0)
                 goto done;
@@ -2600,7 +2608,7 @@ datastore_diff_device(clixon_handle      h,
         case DT_ACTIONS:
             cbuf_reset(cbxpath);
             cprintf(cbxpath, "devices/device[name='%s']/config", devname);
-            if (xmldb_get_cache(h, "actions", YB_MODULE, &x2ret, NULL, NULL) < 0)
+            if (xmldb_get_cache(h, "actions", &x2ret, NULL) < 0)
                 goto done;
             if (datastore_diff_nacm_read(h, x2ret, NULL) < 0)
                 goto done;

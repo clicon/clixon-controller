@@ -827,7 +827,7 @@ device_config_read_cache(clixon_handle h,
     }
     cprintf(cb, "device-%s-%s", devname, config_type);
     db = cbuf_get(cb);
-    if (xmldb_get_cache(h, db, YB_MODULE, &xt, NULL, NULL) < 0)
+    if (xmldb_get_cache(h, db, &xt, NULL) < 0)
         goto done;
     if ((xroot = xpath_first(xt, NULL, "devices/device/config")) == NULL){
         if ((*cberr = cbuf_new()) == NULL){

@@ -165,7 +165,7 @@ if $BE; then
     start_backend -s init -f $CFG -E $CFD
 fi
 
-new "wait backend"
+new "wait backend 1"
 wait_backend
 
 # Reset controller 
