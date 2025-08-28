@@ -229,10 +229,12 @@ controller_restconf_yang_mount(clixon_handle   h,
                                validate_level *vl,
                                cxobj         **xyanglib)
 {
-    int   retval = -1;
-    char *xpath = NULL;
-    cvec *nsc = NULL;
-    int   ret;
+    int    retval = -1;
+    char  *xpath = NULL;
+    cvec  *nsc = NULL;
+    cxobj *xname;
+    char  *name;
+    int    ret;
 
     if (xml_nsctx_node(xmt, &nsc) < 0)
         goto done;
@@ -243,20 +245,18 @@ controller_restconf_yang_mount(clixon_handle   h,
     if (ret < 0)
         goto done;
     if (ret == 0){ /* No xylib, give a reasonable error msg */
-        cxobj *xname;
-        char  *name;
-
-        if ((xname = xpath_first(xmt, NULL, "/devices/device/name")) != NULL){
+        if ((xname = xpath_first(xmt, NULL, "/devices/device/name")) != NULL ||
+            (xname = xpath_first(xmt, NULL, "../name")) != NULL){
             name = xml_body(xname);
             if ((ret = device_check_open(h, name)) < 0)
                 goto done;
             if (ret == 0)
-                clixon_err(OE_YANG, 0, "No yanglib from device %s (device is closed)", name);
+                clixon_err(OE_YANG, 0, "No yanglib from closed device %s", name);
             else
-                clixon_err(OE_YANG, 0, "No yanglib from device %s (device is open)", name);
+                clixon_err(OE_YANG, 0, "No yanglib from open device %s", name);
         }
         else
-            clixon_err(OE_YANG, 0, "No yanglib from device");
+            clixon_err(OE_YANG, 0, "No yanglib from device, unknown");
         goto done;
     }
     retval = 0;
