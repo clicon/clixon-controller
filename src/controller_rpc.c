@@ -1289,7 +1289,7 @@ controller_commit_actions(clixon_handle           h,
             cvec_add_string(cvv, service_instance, NULL);
     }
     /* 1) copy candidate to actions and remove all device config tagged with services */
-    if ((de = clicon_db_elmnt_get(h, "actions")) == NULL)
+    if ((de = xmldb_find(h, "actions")) == NULL)
         if ((de = xmldb_new(h, "actions")) == NULL)
             goto done;
 #ifdef XMLDB_ACTION_INMEM
