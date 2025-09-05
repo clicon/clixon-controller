@@ -511,7 +511,7 @@ controller_reset(clixon_handle h,
 
     if ((nsc = xml_nsctx_init(NULL, CONTROLLER_NAMESPACE)) == NULL)
         goto done;
-    if ((ret = xmldb_get_cache(h, "running", YB_MODULE, &xtop, NULL, NULL)) < 0)
+    if ((ret = xmldb_get_cache(h, "running", &xtop, NULL)) < 0)
         goto done;
     if (ret == 0){
         clixon_err(OE_DB, 0, "Error when reading from running_db, unknown error");
