@@ -398,21 +398,18 @@ sleep 1
 new "restconf GET interface AA"
 expectpart "$(curl $CURLOPTS -H "Accept: application/yang-data+xml" -X GET $RCPROTO://localhost/restconf/data/clixon-controller:devices/device=openconfig1/config/openconfig-interfaces:interfaces)" 0 "HTTP/$HVER 200" '<interface><name>AA</name><config><name>AA</name><type xmlns:ianaift="urn:ietf:params:xml:ns:yang:iana-if-type">ianaift:ethernetCsmacd</type></config><state>'
 
-if false; then # See https://github.com/clicon/clixon-controller/issues/199
-
-new "restconf PUT service BB"
-expectpart "$(curl $CURLOPTS -X POST -H "Content-Type: application/yang-data+json" $RCPROTO://localhost/restconf/data/clixon-controller:services/myyang:testA=bar -d '{"myyang:params":["BB"]}')" 0 "HTTP/$HVER 201"
-
-new "restconf DELETE service AA"
-expectpart "$(curl $CURLOPTS -X DELETE -H "Content-Type: application/yang-data+json" $RCPROTO://localhost/restconf/data/clixon-controller:services/myyang:testA=bar/params=AA)" 0 "HTTP/$HVER 204"
-
-sleep 2
-new "Apply service deletion of AA"
-# another quoting frenzy
-DATA="{\"clixon-controller:input\":{\"device\":\"*\",\"push\":\"COMMIT\",\"actions\":\"FORCE\",\"source\":\"ds:candidate\"}}"
+new "Delete service"
+# quoting frenzy, also clean service (no instance) does not seem to work
+DATA="{\"clixon-controller:input\":{\"device\":\"*\",\"push\":\"COMMIT\",\"actions\":\"DELETE\",\"source\":\"ds:candidate\",\"service-instance\":\"testA[a_name='bar']\"}}"
 expectpart "$(curl $CURLOPTS -X POST -H "Content-Type: application/yang-data+json" $RCPROTO://localhost/restconf/operations/clixon-controller:controller-commit -d "${DATA}")" 0 "HTTP/$HVER 200" 'Content-Type: application/yang-data+json' '{"clixon-controller:output":{"tid":'
 
-fi # XXX
+sleep 5
+
+new "restconf DELETE service AA"
+expectpart "$(curl $CURLOPTS -X DELETE -H "Content-Type: application/yang-data+json" $RCPROTO://localhost/restconf/data/clixon-controller:services/myyang:testA=bar)" 0 "HTTP/$HVER 204"
+
+new "restconf verify that interface don't exist by doing GET interface AA"
+expectpart "$(curl $CURLOPTS -H "Accept: application/yang-data+xml" -X GET $RCPROTO://localhost/restconf/data/clixon-controller:devices/device=openconfig1/config)" 0 "HTTP/$HVER 200" --not-- '<interface><name>AA</name><config><name>AA</name><type xmlns:ianaift="urn:ietf:params:xml:ns:yang:iana-if-type">ianaift:ethernetCsmacd</type></config><state>'
 
 # 6. Device RPC
 if [ "${WITH_RESTCONF}" = "native" ]; then
