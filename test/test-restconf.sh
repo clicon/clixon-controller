@@ -398,21 +398,22 @@ sleep 1
 new "restconf GET interface AA"
 expectpart "$(curl $CURLOPTS -H "Accept: application/yang-data+xml" -X GET $RCPROTO://localhost/restconf/data/clixon-controller:devices/device=openconfig1/config/openconfig-interfaces:interfaces)" 0 "HTTP/$HVER 200" '<interface><name>AA</name><config><name>AA</name><type xmlns:ianaift="urn:ietf:params:xml:ns:yang:iana-if-type">ianaift:ethernetCsmacd</type></config><state>'
 
-if false; then # See https://github.com/clicon/clixon-controller/issues/199
+new "Delete service"
+# quoting frenzy, also clean service (no instance) does not seem to work
+DATA="{\"clixon-controller:input\":{\"device\":\"*\",\"push\":\"COMMIT\",\"actions\":\"DELETE\",\"source\":\"ds:candidate\",\"service-instance\":\"myyang:testA[a_name='bar']\"}}"
 
-new "restconf PUT service BB"
-expectpart "$(curl $CURLOPTS -X POST -H "Content-Type: application/yang-data+json" $RCPROTO://localhost/restconf/data/clixon-controller:services/myyang:testA=bar -d '{"myyang:params":["BB"]}')" 0 "HTTP/$HVER 201"
-
-new "restconf DELETE service AA"
-expectpart "$(curl $CURLOPTS -X DELETE -H "Content-Type: application/yang-data+json" $RCPROTO://localhost/restconf/data/clixon-controller:services/myyang:testA=bar/params=AA)" 0 "HTTP/$HVER 204"
-
-sleep 2
-new "Apply service deletion of AA"
-# another quoting frenzy
-DATA="{\"clixon-controller:input\":{\"device\":\"*\",\"push\":\"COMMIT\",\"actions\":\"FORCE\",\"source\":\"ds:candidate\"}}"
 expectpart "$(curl $CURLOPTS -X POST -H "Content-Type: application/yang-data+json" $RCPROTO://localhost/restconf/operations/clixon-controller:controller-commit -d "${DATA}")" 0 "HTTP/$HVER 200" 'Content-Type: application/yang-data+json' '{"clixon-controller:output":{"tid":'
 
-fi # XXX
+sleep 3
+
+new "Poll transaction result after apply delete"
+expectpart "$(curl $CURLOPTS -X GET -H "Accept: application/yang-data+json" $RCPROTO://localhost/restconf/data/clixon-controller:transactions/transaction=7)" 0 "HTTP/$HVER 200" '{"clixon-controller:transaction":[{"tid":"[0-9.]*","username":"anonymous","result":"SUCCESS"'
+
+new "restconf DELETE service A"
+expectpart "$(curl $CURLOPTS -X DELETE -H "Content-Type: application/yang-data+json" $RCPROTO://localhost/restconf/data/clixon-controller:services/myyang:testA=bar)" 0 "HTTP/$HVER 204"
+
+new "restconf verify that interface don't exist by doing GET interface AA"
+expectpart "$(curl $CURLOPTS -H "Accept: application/yang-data+xml" -X GET $RCPROTO://localhost/restconf/data/clixon-controller:devices/device=openconfig1/config)" 0 "HTTP/$HVER 200" --not-- '<interface><name>AA</name><config><name>AA</name><type xmlns:ianaift="urn:ietf:params:xml:ns:yang:iana-if-type">ianaift:ethernetCsmacd</type></config><state>'
 
 # 6. Device RPC
 if [ "${WITH_RESTCONF}" = "native" ]; then
@@ -504,7 +505,7 @@ kill $PID 2> /dev/null
 
 # note hard-coded transaction-id=10
 new "poll transaction result"
-expectpart "$(curl $CURLOPTS -X GET -H "Accept: application/yang-data+json" $RCPROTO://localhost/restconf/data/clixon-controller:transactions/transaction=10)" 0 "HTTP/$HVER 200" '"ssh-server":{"state":{"enable":"true","protocol-version":"V2"}}'
+expectpart "$(curl $CURLOPTS -X GET -H "Accept: application/yang-data+json" $RCPROTO://localhost/restconf/data/clixon-controller:transactions/transaction=11)" 0 "HTTP/$HVER 200" '"ssh-server":{"state":{"enable":"true","protocol-version":"V2"}}'
 
 new "Get state using device rpc get JSON"
 sleep 1 && expectpart "$(curl $CURLOPTS -X POST -H "Content-Type: application/yang-data+json" $RCPROTO://localhost/restconf/operations/clixon-controller:device-rpc -d '{"clixon-controller:input":{"device":"openconfig*","config":{"ietf-netconf:get":null}}}')" 0 "HTTP/$HVER 200" 'Content-Type: application/yang-data+json' '{"clixon-controller:output":{"tid":"[0-9:.]*"}}' &
