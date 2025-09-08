@@ -438,6 +438,32 @@ for container in $CONTAINERS; do
     expectpart "$(ssh ${SSHID} -l $USER $container clixon_cli -1 show configuration cli)" 0 ""
 done
 
+# Test service apply and apply delete
+
+new "Configure ssh-users with user test3 ssh-key"
+expectpart "$($clixon_cli -1 -f $CFG -m configure set service ssh-users test3 username test3 ssh-key key3)" 0 ""
+expectpart "$($clixon_cli -1 -f $CFG -m configure set service ssh-users test3 username test3 role role3)" 0 ""
+
+# Commit local
+new "Commit local for user test3"
+expectpart "$($clixon_cli -1 -f $CFG -m configure commit local)" 0 ""
+
+new "Apply servce for user test3"
+expectpart "$($clixon_cli -1 -f $CFG -m configure apply services ssh-users:ssh-users test3)" 0 ""
+
+for container in $CONTAINERS; do
+    new "Verify configuration on $container for user test3"
+    expectpart "$(ssh ${SSHID} -l $USER $container clixon_cli -1 show configuration cli)" 0 "system aaa authentication users user test3 config username test3" "system aaa authentication users user test3 config ssh-key key3" "system aaa authentication users user test3 config role role3" "system aaa authentication users user test3 config username test3" "system aaa authentication users user test3 config ssh-key key3" "system aaa authentication users user test3 config role role3"
+done
+
+new "Apply delete for user test3"
+expectpart "$($clixon_cli -1 -f $CFG -m configure apply services ssh-users:ssh-users test3 delete)" 0 ""
+
+for container in $CONTAINERS; do
+    new "Verify configuration on $container for user test3, should not exist"
+    expectpart "$(ssh ${SSHID} -l $USER $container clixon_cli -1 show configuration cli)" 0 --not-- "system aaa authentication users user test3 config username test3" "system aaa authentication users user test3 config ssh-key key3" "system aaa authentication users user test3 config role role3" "system aaa authentication users user test3 config username test3" "system aaa authentication users user test3 config ssh-key key3" "system aaa authentication users user test3 config role role3"
+done
+
 if $BE; then
     new "Kill old backend"
     stop_backend -f $CFG
