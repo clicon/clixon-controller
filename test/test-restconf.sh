@@ -400,7 +400,7 @@ expectpart "$(curl $CURLOPTS -H "Accept: application/yang-data+xml" -X GET $RCPR
 
 new "Delete service"
 # quoting frenzy, also clean service (no instance) does not seem to work
-DATA="{\"clixon-controller:input\":{\"device\":\"*\",\"push\":\"COMMIT\",\"actions\":\"DELETE\",\"source\":\"ds:candidate\",\"service-instance\":\"myyang:testA[a_name='bar']\"}}"
+DATA="{\"clixon-controller:input\":{\"device\":\"*\",\"push\":\"COMMIT\",\"actions\":\"DELETE\",\"source\":\"ds:candidate\",\"service-instance\":\"testA[a_name='bar']\"}}"
 
 expectpart "$(curl $CURLOPTS -X POST -H "Content-Type: application/yang-data+json" $RCPROTO://localhost/restconf/operations/clixon-controller:controller-commit -d "${DATA}")" 0 "HTTP/$HVER 200" 'Content-Type: application/yang-data+json' '{"clixon-controller:output":{"tid":'
 
