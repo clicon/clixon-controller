@@ -1243,6 +1243,8 @@ services_commit_notify(clixon_handle           h,
         goto done;
     retval = 0;
  done:
+    if (cb)
+        cbuf_free(cb);
     return retval;
 }
 
