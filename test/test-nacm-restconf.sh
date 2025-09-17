@@ -277,6 +277,7 @@ expectpart "$($clixon_cli -1 -f $CFG -E $CFD show transactions last)" 0 ".*acces
 
 new "Apply service again as Bob, should be denied"
 expectpart "$(curl $CURLOPTS --key $certdir/bob.key --cert $certdir/bob.crt -X POST -H "Content-Type: application/yang-data+json" $RCPROTO://localhost/restconf/operations/clixon-controller:controller-commit -d "${DATA}")" 0 "HTTP/$HVER 200" 'Content-Type: application/yang-data+json'
+sleep 3
 expectpart "$($clixon_cli -1 -f $CFG -E $CFD show transactions last)" 0 ".*SUCCESS.*"
 
 new "Permit Andy to run service"
@@ -285,6 +286,7 @@ expectpart "$($clixon_cli -1 -f $CFG -E $CFD -m configure set nacm rule-list tes
 expectpart "$($clixon_cli -1 -f $CFG -E $CFD -m configure set nacm rule-list test-rules rule test-rule path /ctrl:devices/ctrl:device/ctrl:config/oc-sys:system)" 0 ""
 expectpart "$($clixon_cli -1 -f $CFG -E $CFD -m configure commit local)" 0 ""
 expectpart "$(curl $CURLOPTS --key $certdir/andy.key --cert $certdir/andy.crt -X POST -H "Content-Type: application/yang-data+json" $RCPROTO://localhost/restconf/operations/clixon-controller:controller-commit -d "${DATA}")" 0 "HTTP/$HVER 200" 'Content-Type: application/yang-data+json'
+sleep 3
 expectpart "$($clixon_cli -1 -f $CFG -E $CFD show transactions last)" 0 ".*SUCCESS.*" --not-- ".*access denied.*"
 
 # Kill clixon_restconf
