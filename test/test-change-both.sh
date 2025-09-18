@@ -194,7 +194,7 @@ if [ -z "$match" ]; then
     err1 "out-of-sync"
 fi
 
-new "check device diff XXX"
+new "check device diff"
 ret=$(${clixon_cli} -1f $CFG -E $CFD pull $NAME diff 2>&1)
 match=$(echo $ret | grep --null -Eo "+ <type>ianaift:v35</type>") || true
 if [ -z "$match" ]; then

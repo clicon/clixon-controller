@@ -219,7 +219,6 @@ device_recv_config(clixon_handle h,
     char                   *name;
     cvec                   *nsc = NULL;
     yang_stmt              *yspec1;
-    int                     ret;
     cxobj                  *x;
     cxobj                  *xroot;
     yang_stmt              *yroot;
@@ -229,6 +228,7 @@ device_recv_config(clixon_handle h,
     int                     merge = 0;
     int                     transient = 0;
     cxobj                  *xt1 = NULL;
+    int                     ret;
 
     clixon_debug(CLIXON_DBG_CTRL | CLIXON_DBG_DETAIL, "");
     if ((ret = rpc_reply_sanity(dh, xmsg, rpcname, conn_state)) < 0)
@@ -494,20 +494,17 @@ device_recv_get_schema(device_handle dh,
     char         *ydec = NULL;
     char         *modname;
     char         *revision = NULL;
-    cbuf         *cb;
+    cbuf         *cb = NULL;
     FILE         *f = NULL;
     size_t        sz;
     char         *dir;
-    int           ret;
+    char         *file;
     char         *domain;
     struct stat   st0;
     struct stat   st1;
+    int           ret;
 
     clixon_debug(CLIXON_DBG_CTRL, "");
-    if ((cb = cbuf_new()) == NULL){
-        clixon_err(OE_UNIX, errno, "cbuf_new");
-        goto done;
-    }
     h = device_handle_handle_get(dh);
     if ((ret = rpc_reply_sanity(dh, xmsg, rpcname, conn_state)) < 0)
         goto done;
@@ -532,12 +529,12 @@ device_recv_get_schema(device_handle dh,
         goto done;
     }
     if (stat(dir, &st0) < 0){
-        clixon_err(OE_YANG, errno, "%s not found", cbuf_get(cb));
+        clixon_err(OE_YANG, errno, "%s not found", dir);
         goto done;
     }
     /* Check top dir  */
     if (S_ISDIR(st0.st_mode) == 0){
-        clixon_err(OE_YANG, errno, "%s not directory", cbuf_get(cb));
+        clixon_err(OE_YANG, errno, "%s not directory", dir);
         goto done;
     }
     if ((cb = cbuf_new()) == NULL){
@@ -561,9 +558,10 @@ device_recv_get_schema(device_handle dh,
     if (revision)
         cprintf(cb, "@%s", revision);
     cprintf(cb, ".yang");
-    clixon_debug(CLIXON_DBG_CTRL, "Write yang to %s", cbuf_get(cb));
+    file = cbuf_get(cb);
+    clixon_debug(CLIXON_DBG_CTRL, "Write yang to %s", file);
     if ((f = fopen(cbuf_get(cb), "w")) == NULL){
-        clixon_err(OE_UNIX, errno, "fopen(%s)", cbuf_get(cb));
+        clixon_err(OE_UNIX, errno, "fopen(%s)", file);
         goto done;
     }
     if (fwrite(ydec, 1, sz, f) != sz){
@@ -762,8 +760,8 @@ device_recv_generic_rpc(clixon_handle           h,
                         cbuf                  **cberr)
 {
     int   retval = -1;
-    int   ret;
     cbuf *cb = NULL;
+    int   ret;
 
     if ((ret = rpc_reply_sanity(dh, xmsg, rpcname, conn_state)) < 0)
         goto done;
