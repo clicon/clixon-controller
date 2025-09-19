@@ -26,6 +26,7 @@
 
 ### Corrected Bugs
 
+* Fixed: [get-schema rpc in netconf monitoring: need to decode yang module with CDATA](https://github.com/clicon/clixon-controller/issues/222)
 * Fixed: [Candidate CLICON_AUTOLOCK not automatically removed](https://github.com/clicon/clixon-controller/issues/214)
 * Fixed: [RESTCONF PUT/POST data does sometimes not work across mountpoint](https://github.com/clicon/clixon-controller/issues/210)
 * Fixed: [Controller diff does not check for NACM read rules](https://github.com/clicon/clixon-controller/issues/207)

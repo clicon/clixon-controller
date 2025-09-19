@@ -470,6 +470,8 @@ device_recv_schema_list(device_handle dh,
 /*! Receive RFC 6022 get-schema and write to local yang file
  *
  * Local dir is CLICON_YANG_DOMAIN_DIR/domain and is created if it does not exist.
+ * Get data payload as YANG and write to file.
+ * Decode yang using CDATA or regular XML character decoding
  * @param[in] h          Clixon handle.
  * @param[in] dh         Clixon client handle.
  * @param[in] s          Socket where input arrives. Read from this.
@@ -514,7 +516,19 @@ device_recv_get_schema(device_handle dh,
         device_close_connection(dh, "Invalid get-schema, no YANG body");
         goto closed;
     }
-    if (xml_chardata_decode(&ydec, "%s", ystr) < 0)
+    /* Check if CDATA */
+    if (strncmp(ystr, "<![CDATA[", strlen("<![CDATA[")) == 0){
+        if (strncmp(&ystr[strlen(ystr)-strlen("]]>")], "]]>", strlen("]]>")) != 0){
+            device_close_connection(dh, "CDATA encoding but not CDATA trailer");
+            goto closed;
+        }
+        if ((ydec = strdup(ystr + strlen("<![CDATA["))) == NULL){
+            clixon_err(OE_UNIX, errno, "strdup");
+            goto done;
+        }
+        ydec[strlen(ydec)-strlen("]]>")] = '\0';
+    }
+    else if (xml_chardata_decode(&ydec, "%s", ystr) < 0)
         goto done;
     sz = strlen(ydec);
     revision = device_handle_schema_rev_get(dh);

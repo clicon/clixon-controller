@@ -26,7 +26,7 @@ test -d $mounts || mkdir $mounts
 test -d $mounts/default || mkdir $mounts/default
 test -d $mounts/isolated || mkdir $mounts/isolated
 # Openconfig system revision. This may need to be updated now and then
-REVISION="2024-09-24"
+REVISION="2025-07-08"
 
 # Use this file and modify it for the isolated case
 yangfile=openconfig-system@${REVISION}.yang
