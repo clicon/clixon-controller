@@ -99,15 +99,15 @@ device_send_lock(clixon_handle h,
     return retval;
 }
 
-/*! Send a <get-config> request to a device
+/*! Send a <get>/<get-config> request to a device
  *
- * @param[in]  h   Clixon handle
- * @param[in]  dh  Clixon client handle
- * @param[in]  s   Socket
- * @param[in]  state   0: config, 1: config+state
- * @param[in]  xpath   XPath (experimental, unclear semantics)
- * @retval     0   OK
- * @retval    -1   Error
+ * @param[in]  h     Clixon handle
+ * @param[in]  dh    Clixon client handle
+ * @param[in]  s     Socket
+ * @param[in]  state 0: config, 1: config+state
+ * @param[in]  xpath XPath (experimental, unclear semantics)
+ * @retval     0     OK
+ * @retval    -1     Error
  */
 int
 device_send_get(clixon_handle h,
@@ -318,6 +318,7 @@ device_send_get_schema_list(clixon_handle h,
     cprintf(cb, "</filter>");
     cprintf(cb, "</get>");
     cprintf(cb, "</rpc>");
+    /* Hardcoded to 10 */
     if (clixon_msg_send10(s, device_handle_name_get(dh), cb) < 0)
         goto done;
     retval = 0;

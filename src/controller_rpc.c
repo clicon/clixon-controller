@@ -167,7 +167,6 @@ controller_connect(clixon_handle           h,
          * Alt: clear in device_close_connection()
          */
         device_handle_yang_lib_set(dh, NULL);
-
     }
     if ((xconfig = xml_find(xn, "config")) != NULL){
         if (yang_schema_yspec_rm(h, xconfig) < 0)

@@ -1296,7 +1296,7 @@ device_state_handler(clixon_handle h,
                     break;
                 }
             }
-            /* Unconditionally sync */
+            /* Send a <get-config> request to a device */
             if (device_send_get(h, dh, s, 0, NULL) < 0)
                 goto done;
             if (device_state_set(dh, CS_DEVICE_SYNC) < 0)
