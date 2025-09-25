@@ -70,6 +70,24 @@ show("Show a particular state of the system"), @datamodelshow, cli_show_auto_mod
 
 EOF
 
+
+cat<<EOF > $dir/controller_operation.cli
+CLICON_MODE="operation";
+CLICON_PROMPT="%U@%H> ";
+CLICON_PLUGIN="controller_cli";
+
+configure("Change to configure mode"), cli_set_mode("configure");
+exit("Quit"), cli_quit();
+quit("Quit"), cli_quit();
+show("Show a particular state of the system"){
+    connections("Show state of connection to devices")[
+                 (<name:string>("device pattern")|
+                  <name:string expand_dbvar("running","/clixon-controller:devices/device/name")>("device pattern"))
+                 ], cli_show_connections();
+}
+
+EOF
+
 cat<<EOF > $dir/controller_pipe.cli
 CLICON_MODE="|controller_pipe";
 

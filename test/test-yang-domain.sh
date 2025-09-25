@@ -26,11 +26,12 @@ test -d $mounts || mkdir $mounts
 test -d $mounts/default || mkdir $mounts/default
 test -d $mounts/isolated || mkdir $mounts/isolated
 # Openconfig system revision. This may need to be updated now and then
-REVISION="2024-09-24"
+REVISION="2025-07-08"
+REVISION2="2024-09-24" # Old version
 
 # Use this file and modify it for the isolated case
 yangfile=openconfig-system@${REVISION}.yang
-
+yangfile2=openconfig-system@${REVISION2}.yang
 # Specialize controller.xml
 cat<<EOF > $CFD/diff.xml
 <?xml version="1.0" encoding="utf-8"?>
@@ -135,7 +136,10 @@ expectpart "$($clixon_cli -1 -f $CFG -E $CFD connection open openconfig1)" 0 ""
 new "Find original $yangfile"
 # Find openconfig-system@${REVISION}.yang
 if [ ! -f $mounts/default/$yangfile ]; then
-    err "$yangfile" "Not found"
+    if [ ! -f $mounts/default/$yangfile2 ]; then
+        err "$yangfile2" "Not found"
+    fi
+    yangfile=$yangfile2
 fi
 
 new "check cli memory openconfig1"

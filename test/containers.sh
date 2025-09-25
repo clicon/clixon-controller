@@ -1,7 +1,8 @@
 #!/bin/sh
 
-if [ -f ./site.sh ]; then
-    . ./site.sh
+: ${SITEFILE:=./site.sh}
+if [ -f ${SITEFILE} ]; then
+    . ${SITEFILE}
     if [ $? -ne 0 ]; then
         return -1 # skip
     fi
