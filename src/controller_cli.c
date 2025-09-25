@@ -352,7 +352,7 @@ controller_gentree_pattern(cligen_handle ch,
         cprintf(cb, "mountpoint-%s", devname);
         newtree = cbuf_get(cb);
         if (namep && firsttree == NULL) {
-            if ((firsttree= strdup(newtree)) == NULL){
+            if ((firsttree = strdup(newtree)) == NULL){
                 clixon_err(OE_UNIX, errno, "strdup");
                 goto done;
             }
@@ -361,8 +361,13 @@ controller_gentree_pattern(cligen_handle ch,
             /* No such cligen parse-tree, do yang mount stuff */
             if ((ret = controller_yanglib2yspec(h, xdev0, devname, &yspec1)) < 0)
                 goto done;
-            if (ret == 0 || yspec1 == NULL) /* Skip if not connected or disabled */
+            if (ret == 0 || yspec1 == NULL){ /* Skip if disabled */
+                if (firsttree){
+                    free(firsttree);
+                    firsttree = NULL;
+                }
                 continue;
+            }
             /* Generate auto-cligen tree from the specs */
             if (yang2cli_yspec(h, yspec1, newtree) < 0)
                 goto done;
@@ -404,6 +409,9 @@ controller_gentree_pattern(cligen_handle ch,
             }
         }
     }
+    if (!allequal) // XXX May occur more than once
+        clixon_log(h, LOG_WARNING, "Devices matching %s including %s also match other devices with different YANGs",
+                   pattern, firsttree);
     retval = 0;
  done:
     if (cb)
