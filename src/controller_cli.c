@@ -324,11 +324,11 @@ controller_gentree_pattern(cligen_handle ch,
     pt_head      *ph;
     char         *newtree;
     yang_stmt    *yspec1 = NULL;
-    int           ret;
     char         *firsttree = NULL;
     int           allequal = 1; /* if 0, at least 2 trees and at least two of the trees are !eq */
     parse_tree   *pt0;
     parse_tree   *pt1;
+    int           ret;
 
     clixon_debug(CLIXON_DBG_CTRL, "%s", pattern);
     h = cligen_userhandle(ch);
@@ -545,8 +545,8 @@ controller_cli_yang_mount(clixon_handle   h,
     int    retval = -1;
     char  *xpath = NULL;
     char  *str;
-    int    ret;
     cvec  *nsc = NULL;
+    int    ret;
 
     if (xml_nsctx_node(xmt, &nsc) < 0)
         goto done;

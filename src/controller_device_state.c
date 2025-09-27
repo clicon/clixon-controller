@@ -272,8 +272,8 @@ device_input_cb(int   s,
     char                   *name;
     uint64_t                tid;
     controller_transaction *ct = NULL;
-    int                     ret;
     int                     sockerr;
+    int                     ret;
 
     clixon_debug(CLIXON_DBG_CTRL | CLIXON_DBG_DETAIL, "");
     h = device_handle_handle_get(dh);
@@ -401,10 +401,10 @@ device_state_mount_point_get(char      *devicename,
                              cxobj    **xrootp)
 {
     int    retval = -1;
-    int    ret;
     cbuf  *cb = NULL;
     cxobj *xt = NULL;
     cxobj *xroot;
+    int    ret;
 
     if ((cb = cbuf_new()) == NULL){
         clixon_err(OE_UNIX, errno, "cbuf_new");
@@ -512,11 +512,11 @@ device_schemas_local_check(clixon_handle h,
     size_t  veclen;
     cxobj  *xi;
     int     i;
-    int     ret;
     char   *name;
     char   *revision;
     cvec   *nsc = NULL;
     char   *domain = NULL;
+    int     ret;
 
     if ((domain = device_handle_domain_get(dh)) == NULL){
         clixon_err(OE_YANG, 0, "No YANG domain");
@@ -1195,12 +1195,13 @@ device_state_handler(clixon_handle h,
     yang_stmt  *yspec_orig = NULL;
     yang_stmt  *yspec1 = NULL;
     int         nr;
-    int         ret;
     uint64_t    tid;
     controller_transaction *ct = NULL;
     cbuf       *cberr = NULL;
     cbuf       *cbmsg;
     cxobj      *xyanglib;
+    char       *candidate = NULL;
+    int         ret;
 
     rpcname = xml_name(xmsg);
     conn_state = device_handle_conn_state_get(dh);
@@ -1672,14 +1673,21 @@ device_state_handler(clixon_handle h,
                     goto done;
                 }
                 /* What to copy to candidate and commit to running? */
-                if (xmldb_copy(h, "actions", "candidate") < 0)
+                if (xmldb_candidate_find(h, "candidate", ct->ct_client_id, NULL, &candidate) < 0)
+                    goto done;
+                if (candidate == NULL){
+                    if (controller_transaction_failed(h, ct->ct_id, ct, dh, TR_FAILED_DEV_LEAVE, name, "Candidate does not exist (privcand exit?)") < 0)
+                        goto done;
+                    break;
+                }
+                if (xmldb_copy(h, "actions", candidate) < 0)
                     goto done;
                 /* Third validate,
                  * first in rpc_controller_commit,
                  * second in rpc_transactions_actions_done
                  * candidate should NOT have changed here
                  */
-                if ((ret = candidate_commit(h, NULL, "candidate", 0, 0, cberr)) < 0){
+                if ((ret = candidate_commit(h, NULL, candidate, 0, 0, cberr)) < 0){
                     /* Handle that candidate_commit can return < 0 if transaction ongoing */
                     cprintf(cberr, "Controller commit error");
                     if (strlen(clixon_err_reason()) > 0)
@@ -1689,7 +1697,7 @@ device_state_handler(clixon_handle h,
                     break;
                 }
                 if (clicon_option_bool(h, "CLICON_AUTOLOCK"))
-                    xmldb_unlock(h, "candidate");
+                    xmldb_unlock(h, candidate);
                 if (ret == 0){
                     cbuf  *cberr2 = NULL;
                     if ((cberr2 = cbuf_new()) == NULL){

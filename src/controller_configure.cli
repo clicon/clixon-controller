@@ -72,3 +72,4 @@ apply("Apply template or service") {
 }
 lock("Lock candidate datastore"), cli_lock("candidate");
 unlock("Unlock candidate datastore"), cli_unlock("candidate");
+update("Update private candidate from running configuration"), cli_update();

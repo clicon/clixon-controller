@@ -594,8 +594,8 @@ rpc_config_pull(clixon_handle h,
                 void         *arg,
                 void         *regarg)
 {
-    client_entry           *ce = (client_entry *)arg;
     int                     retval = -1;
+    client_entry           *ce = (client_entry *)arg;
     char                   *pattern = NULL;
     cxobj                  *xret = NULL;
     cxobj                  *xn;
@@ -617,7 +617,7 @@ rpc_config_pull(clixon_handle h,
 
     clixon_debug(CLIXON_DBG_CTRL, "");
     /* Initiate new transaction */
-    if ((ret = controller_transaction_new(h, ce->ce_id, clicon_username_get(h), "pull", &ct, &cberr)) < 0)
+    if ((ret = controller_transaction_new(h, ce, clicon_username_get(h), "pull", &ct, &cberr)) < 0)
         goto done;
     if (ret == 0){
         if (netconf_operation_failed(cbret, "application", cbuf_get(cberr))< 0)
@@ -954,7 +954,6 @@ strip_service_data_from_device_config(clixon_handle h,
     cxobj  *xp;
     cxobj  *xd;
     cbuf   *cbret = NULL;
-    int     ret;
     int     i;
     cxobj **vec = NULL;
     size_t  veclen;
@@ -962,6 +961,7 @@ strip_service_data_from_device_config(clixon_handle h,
     char   *xpath;
     int     touch = 0;
     cxobj  *xedit = NULL;
+    int     ret;
 
     /* Get services/created read-only from running_db for reading */
     if (xmldb_get_cache(h, "running", &xt0, NULL) < 0)
@@ -1102,12 +1102,14 @@ controller_commit_push(clixon_handle           h,
  * Devices are removed of no device diff
  * @param[in]  h    Clixon handle
  * @param[in]  ct   Transaction
+ * @param[in]  candidate Name of candidate-db
  * @retval     0    OK
  * @retval    -1    Error
  */
 static int
 commit_push_after_actions(clixon_handle           h,
-                          controller_transaction *ct)
+                          controller_transaction *ct,
+                          const char             *candidate)
 {
     int           retval = -1;
     cbuf         *cberr = NULL;
@@ -1151,16 +1153,16 @@ commit_push_after_actions(clixon_handle           h,
                     goto done;
                 }
                 /* What to copy to candidate and commit to running? */
-                if (xmldb_copy(h, "actions", "candidate") < 0)
+                if (xmldb_copy(h, "actions", candidate) < 0)
                     goto done;
                 /* XXX: recursive creates transaction */
-                if ((ret = candidate_commit(h, NULL, "candidate", 0, 0, cberr)) < 0){
+                if ((ret = candidate_commit(h, NULL, candidate, 0, 0, cberr)) < 0){
                     /* Handle that candidate_commit can return < 0 if transaction ongoing */
                     cprintf(cberr, "%s", clixon_err_reason()); // XXX encode
                     ret = 0;
                 }
                 if (clicon_option_bool(h, "CLICON_AUTOLOCK"))
-                    xmldb_unlock(h, "candidate");
+                    xmldb_unlock(h, candidate);
                 if (ret == 0){ // XXX awkward, cb ->xml->cb
                     cxobj *xerr = NULL;
                     cbuf *cberr2 = NULL;
@@ -1257,6 +1259,7 @@ services_commit_notify(clixon_handle           h,
  * @param[in]  td        Transaction data
  * @param[in]  service_instance Optional service instance if actions=FORCE
  * @param[in]  diff      Diff of the services configuration
+ * @param[in]  candidate Name of candidate-db
  * @retval     0         OK
  * @retval    -1         Error
  */
@@ -1266,12 +1269,13 @@ controller_commit_actions(clixon_handle           h,
                           actions_type            actions,
                           transaction_data_t     *td,
                           char                   *service_instance,
-			  int                     diff
+			  int                     diff,
+                          const char             *candidate
                           )
 {
-    int     retval = -1;
-    cvec   *cvv = NULL;       /* Format: <service> <instance> */
-    int     services = 0;
+    int       retval = -1;
+    cvec     *cvv = NULL;       /* Format: <service> <instance> */
+    int       services = 0;
     db_elmnt *de;
 
     if ((cvv = cvec_new(0)) == NULL){
@@ -1296,14 +1300,14 @@ controller_commit_actions(clixon_handle           h,
 #ifdef XMLDB_ACTION_INMEM
     xmldb_volatile_set(de, 1);
 #endif
-    if (xmldb_copy(h, "candidate", "actions") < 0)
+    if (xmldb_copy(h, candidate, "actions") < 0)
         goto done;
     if (services && actions == AT_DELETE){
         /* Delete service, do not activate/notify actions, just push deletes to devices
            Strip service data in device config */
         if (strip_service_data_from_device_config(h, "actions", cvv) < 0)
             goto done;
-        if (commit_push_after_actions(h, ct) < 0)
+        if (commit_push_after_actions(h, ct, candidate) < 0)
             goto done;
     }
     else if (services && (actions == AT_FORCE || cvec_len(cvv) > 0)){
@@ -1321,7 +1325,7 @@ controller_commit_actions(clixon_handle           h,
             goto done;
     }
     else{ /* No services, proceed to next step */
-        if (commit_push_after_actions(h, ct) < 0)
+        if (commit_push_after_actions(h, ct, candidate) < 0)
             goto done;
     }
     retval = 0;
@@ -1407,16 +1411,18 @@ devices_local_change(clixon_handle       h,
 /*! Diff candidate/running and fill in a diff transaction structure for devices in transaction
  *
  * and check if any changed device is closed
- * @param[in]  h      Clixon handle
- * @param[in]  ct     Controller transaction
- * @param[out] td     Diff structure
- * @param[out] closed (First) Changed device handle which is also closed
- * @retval     0      OK
- * @retval    -1      Error
+ * @param[in]  h         Clixon handle
+ * @param[in]  ct        Controller transaction
+ * @param[in]  candidate Name of candidate-db
+ * @param[out] td        Diff structure
+ * @param[out] closed    (First) Changed device handle which is also closed
+ * @retval     0         OK
+ * @retval    -1         Error
  */
 static int
 devices_diff(clixon_handle           h,
              controller_transaction *ct,
+             const char             *candidate,
              transaction_data_t     *td,
              device_handle          *closed)
 {
@@ -1427,7 +1433,11 @@ devices_diff(clixon_handle           h,
     char         *name;
     int           i;
 
-    if (xmldb_get_cache(h, "candidate", &td->td_target, NULL) < 0)
+    if (candidate == NULL){
+        clixon_err(OE_DB, EINVAL, "candidate is NULL");
+        goto done;
+    }
+    if (xmldb_get_cache(h, candidate, &td->td_target, NULL) < 0)
         goto done;
     if (xmldb_get_cache(h, "running", &td->td_src, NULL) < 0)
         goto done;
@@ -1597,7 +1607,6 @@ rpc_controller_commit(clixon_handle h,
     char                   *sourcedb = NULL;
     actions_type            actions = AT_NONE;
     push_type               pusht = PT_NONE;
-    int                     ret;
     cbuf                   *cbtr = NULL;
     cbuf                   *cberr = NULL;
     device_handle           closed = NULL;
@@ -1605,6 +1614,8 @@ rpc_controller_commit(clixon_handle h,
     transaction_data_t     *td = NULL;
     char                   *service_instance = NULL;
     int                     diff = 0;
+    char                   *candidate = NULL;
+    int                     ret;
 
     clixon_debug(CLIXON_DBG_CTRL, "");
     if ((xn = xml_find(xe, "device")) != NULL)
@@ -1629,9 +1640,15 @@ rpc_controller_commit(clixon_handle h,
             goto done;
         goto ok;
     }
+    if (xmldb_find_create(h, "candidate", ce->ce_id, NULL, &candidate) < 0)
+        goto done;
+    if (candidate == NULL){
+        clixon_err(OE_DB, 0, "No candidate struct");
+        goto done;
+    }
     /* Local validate if candidate */
     if (strcmp(sourcedb, "candidate") == 0){
-        if ((ret = candidate_validate(h, sourcedb, cbret)) < 0)
+        if ((ret = candidate_validate(h, candidate, cbret)) < 0)
             goto done;
         if (ret == 0)
             goto ok;
@@ -1654,7 +1671,7 @@ rpc_controller_commit(clixon_handle h,
     /* Initiate new transaction.
      * NB: this locks candidate, which always needs to be unlocked, eg by controller_transaction_done
      */
-    if ((ret = controller_transaction_new(h, ce->ce_id, clicon_username_get(h), cbuf_get(cbtr), &ct, &cberr)) < 0)
+    if ((ret = controller_transaction_new(h, ce, clicon_username_get(h), cbuf_get(cbtr), &ct, &cberr)) < 0)
         goto done;
     if (ret == 0){
         if (netconf_operation_failed(cbret, "application", cbuf_get(cberr))< 0)
@@ -1728,7 +1745,7 @@ rpc_controller_commit(clixon_handle h,
         goto done;
     /* Diff candidate/running and fill in a diff transaction structure td for future use
      */
-    if (devices_diff(h, ct, td, &closed) < 0)
+    if (devices_diff(h, ct, candidate, td, &closed) < 0)
         goto done;
     /* If device is closed and push != NONE, then error */
     if (closed != NULL && pusht != PT_NONE){
@@ -1767,7 +1784,7 @@ rpc_controller_commit(clixon_handle h,
     case AT_CHANGE:
     case AT_FORCE:
     case AT_DELETE:
-        if (strcmp(ct->ct_sourcedb, "candidate") != 0){
+        if (strcmp(ct->ct_sourcedb, "candidate") != 0){ // XXX
             if (netconf_operation_failed(cbret, "application", "Only candidates db supported if actions")< 0)
                 goto done;
             if (controller_transaction_done(h, ct, TR_FAILED) < 0)
@@ -1777,7 +1794,7 @@ rpc_controller_commit(clixon_handle h,
 	if (pusht == PT_NONE)
 	    diff = 1;
         /* Compute diff of candidate, copy to actions, trigger notify */
-        if (controller_commit_actions(h, ct, actions, td, service_instance, diff) < 0)
+        if (controller_commit_actions(h, ct, actions, td, service_instance, diff, candidate) < 0)
             goto done;
         break;
     }
@@ -1825,6 +1842,7 @@ rpc_get_device_config(clixon_handle h,
                       void         *regarg)
 {
     int                retval = -1;
+    client_entry      *ce = (client_entry *)arg;
     char              *pattern;
     int                groups = 0;
     cvec              *devvec = NULL;
@@ -1843,6 +1861,7 @@ rpc_get_device_config(clixon_handle h,
     cbuf              *cb = NULL;
     cbuf              *cberr = NULL;
     device_config_type dt;
+    char              *candidate = NULL;
     int                ret;
 
     if ((xn = xml_find(xe, "device")) != NULL)
@@ -1858,7 +1877,9 @@ rpc_get_device_config(clixon_handle h,
     config_type = xml_find_body(xe, "config-type");
     dt = device_config_type_str2int(config_type);
     if (dt == DT_CANDIDATE){
-        if ((ret = xmldb_get_cache(h, "candidate", &xret, NULL)) < 0)
+        if (xmldb_find_create(h, "candidate", ce->ce_id, NULL, &candidate) < 0)
+            goto done;
+        if ((ret = xmldb_get_cache(h, candidate, &xret, NULL)) < 0)
             goto done;
     }
     else{
@@ -2103,7 +2124,7 @@ rpc_connection_change(clixon_handle h,
     pattern = xml_body(xn);
     operation = xml_find_body(xe, "operation");
     cprintf(cbtr, " %s", operation);
-    if ((ret = controller_transaction_new(h, ce->ce_id, clicon_username_get(h), cbuf_get(cbtr), &ct, &cberr)) < 0)
+    if ((ret = controller_transaction_new(h, ce, clicon_username_get(h), cbuf_get(cbtr), &ct, &cberr)) < 0)
         goto done;
     if (ret == 0){
         if (netconf_operation_failed(cbret, "application", cbuf_get(cberr))< 0)
@@ -2201,8 +2222,8 @@ rpc_transaction_error(clixon_handle h,
     char                   *origin;
     char                   *reason;
     uint64_t                tid;
-    int                     ret;
     controller_transaction *ct;
+    int                     ret;
 
     clixon_debug(CLIXON_DBG_CTRL, "");
     if ((tidstr = xml_find_body(xe, "tid")) == NULL){
@@ -2266,11 +2287,13 @@ rpc_transactions_actions_done(clixon_handle h,
                               void         *regarg)
 {
     int                     retval = -1;
+    client_entry           *ce = (client_entry *)arg;
     char                   *tidstr;
     uint64_t                tid;
     controller_transaction *ct;
     cbuf                   *cberr = NULL;
     cbuf                   *cberr2 = NULL;
+    char                   *candidate = NULL;
     int                     ret;
 
     clixon_debug(CLIXON_DBG_CTRL, "");
@@ -2291,6 +2314,8 @@ rpc_transactions_actions_done(clixon_handle h,
             goto done;
         goto ok;
     }
+    if (xmldb_find_create(h, "candidate", ce->ce_id, NULL, &candidate) < 0)
+        goto done;
     switch (ct->ct_state){
     case TS_RESOLVED:
     case TS_INIT:
@@ -2333,7 +2358,7 @@ rpc_transactions_actions_done(clixon_handle h,
         }
         controller_transaction_state_set(ct, TS_INIT, -1); /* Multiple actions */
         /* Start device push process: compute diff send edit-configs */
-        if (commit_push_after_actions(h, ct) < 0)
+        if (commit_push_after_actions(h, ct, candidate) < 0)
             goto done;
         break;
     case TS_DONE:
@@ -2465,6 +2490,7 @@ datastore_diff_dsref(clixon_handle    h,
  * @param[in]   dt1     Type of device config 1
  * @param[in]   dt2     Type of device config 2
  * @param[in]   format  Format of diff
+ * @param[in]   ceid    Client/session id
  * @param[out]  cbret   CLIgen buff with NETCONF reply
  * @retval      0       OK
  * @retval     -1       Error
@@ -2477,6 +2503,7 @@ datastore_diff_device(clixon_handle      h,
                       device_config_type dt1,
                       device_config_type dt2,
                       enum format_enum   format,
+                      uint32_t           ceid,
                       cbuf              *cbret)
 {
     int           retval = -1;
@@ -2500,8 +2527,9 @@ datastore_diff_device(clixon_handle      h,
     char         *devname;
     cxobj        *xdev;
     device_handle dh;
-    int           ret;
     char         *ct;
+    char         *db;
+    int           ret;
 
     if ((cbxpath = cbuf_new()) == NULL){
         clixon_err(OE_UNIX, errno, "cbuf_new");
@@ -2563,7 +2591,14 @@ datastore_diff_device(clixon_handle      h,
         case DT_CANDIDATE:
             cbuf_reset(cbxpath);
             cprintf(cbxpath, "devices/device[name='%s']/config", devname);
-            if (xmldb_get_cache(h, "candidate", &x1ret, NULL) < 0)
+            db = NULL;
+            if (xmldb_find_create(h, "candidate", ceid, NULL, &db) < 0)
+                goto done;
+            if (db == NULL){
+                clixon_err(OE_DB, 0, "No candidate");
+                goto done;
+            }
+            if (xmldb_get_cache(h, db, &x1ret, NULL) < 0)
                 goto done;
             x1 = xpath_first(x1ret, nsc, "%s", cbuf_get(cbxpath));
             break;
@@ -2606,7 +2641,14 @@ datastore_diff_device(clixon_handle      h,
         case DT_CANDIDATE:
             cbuf_reset(cbxpath);
             cprintf(cbxpath, "devices/device[name='%s']/config", devname);
-            if (xmldb_get_cache(h, "candidate", &x2ret, NULL) < 0)
+            db = NULL;
+            if (xmldb_find_create(h, "candidate", ceid, NULL, &db) < 0)
+                goto done;
+            if (db == NULL){
+                clixon_err(OE_DB, 0, "No candidate");
+                goto done;
+            }
+            if (xmldb_get_cache(h, db, &x2ret, NULL) < 0)
                 goto done;
             if (datastore_diff_nacm_read(h, x2ret, NULL) < 0)
                 goto done;
@@ -2719,10 +2761,13 @@ rpc_datastore_diff(clixon_handle h,
                    void         *regarg)
 {
     int                retval = -1;
+    client_entry      *ce = (client_entry *)arg;
     char              *ds1;
     char              *ds2;
     char              *id1 = NULL;
     char              *id2 = NULL;
+    char              *db1 = NULL;
+    char              *db2 = NULL;
     device_config_type dt1;
     device_config_type dt2;
     char              *xpath;
@@ -2748,6 +2793,7 @@ rpc_datastore_diff(clixon_handle h,
         xpath = xml_find_body(xe, "xpath");
         if (nodeid_split(ds1, NULL, &id1) < 0)
             goto done;
+        // id1 -> candidate
         if ((ds2 = xml_find_body(xe, "dsref2")) == NULL){
             if (netconf_operation_failed(cbret, "application", "No dsref2")< 0)
                 goto done;
@@ -2755,7 +2801,12 @@ rpc_datastore_diff(clixon_handle h,
         }
         if (nodeid_split(ds2, NULL, &id2) < 0)
             goto done;
-        if (datastore_diff_dsref(h, xpath, id1, id2, format, cbret) < 0)
+        // id2 -> candidate
+        if (xmldb_find_create(h, id1, ce->ce_id, NULL, &db1) < 0)
+            goto done;
+        if (xmldb_find_create(h, id2, ce->ce_id, NULL, &db2) < 0)
+            goto done;
+        if (datastore_diff_dsref(h, xpath, db1, db2, format, cbret) < 0)
             goto done;
     }
     else{ /* Device specific datastores */
@@ -2789,7 +2840,7 @@ rpc_datastore_diff(clixon_handle h,
                 goto done;
             goto ok;
         }
-        if (datastore_diff_device(h, groups, pattern, dt1, dt2, format, cbret) < 0)
+        if (datastore_diff_device(h, groups, pattern, dt1, dt2, format, ce->ce_id, cbret) < 0)
             goto done;
     }
  ok:
@@ -2823,7 +2874,6 @@ check_services_commit_subscription(clixon_handle h,
                                    void         *regarg)
 {
     int                  retval = -1;
-    //    struct client_entry *ce = (struct client_entry *)arg;
     char                *stream = "NETCONF";
     cxobj               *x; /* Generic xml tree */
     cvec                *nsc = NULL;
@@ -2916,6 +2966,7 @@ rpc_device_config_template_apply(clixon_handle h,
                                  void         *regarg)
 {
     int           retval = -1;
+    client_entry *ce = (client_entry *)arg;
     cxobj        *xret = NULL;
     cvec         *nsc = NULL;
     int           groups = 0;
@@ -2944,10 +2995,13 @@ rpc_device_config_template_apply(clixon_handle h,
     device_handle dh;
     yang_stmt    *yspec0;
     yang_stmt    *yspec1;
+    char         *candidate = NULL;
     int           ret;
 
     clixon_debug(CLIXON_DBG_CTRL, "");
     yspec0 = clicon_dbspec_yang(h);
+    if (xmldb_find_create(h, "candidate", ce->ce_id, NULL, &candidate) < 0)
+        goto done;
     /* get template and device names
      * XXX: Destructively substitutes in xml_template_apply
      */
@@ -3065,7 +3119,7 @@ rpc_device_config_template_apply(clixon_handle h,
             if (xml_addsub(xmnt, x) < 0)
                 goto done;
         }
-        if ((ret = xmldb_put(h, "candidate", OP_MERGE, xroot, NULL, cbret)) < 0)
+        if ((ret = xmldb_put(h, candidate, OP_MERGE, xroot, NULL, cbret)) < 0)
             goto done;
         if (ret == 0)
             goto ok;
@@ -3254,7 +3308,7 @@ rpc_device_rpc_template_apply(clixon_handle h,
             goto done;
     }
     /* Initiate new transaction */
-    if ((ret = controller_transaction_new(h, ce->ce_id, clicon_username_get(h), "rpc", &ct, &cberr)) < 0)
+    if ((ret = controller_transaction_new(h, ce, clicon_username_get(h), "rpc", &ct, &cberr)) < 0)
         goto done;
     if (ret == 0){
         if (netconf_operation_failed(cbret, "application", cbuf_get(cberr))< 0)
@@ -3442,7 +3496,7 @@ rpc_device_rpc(clixon_handle h,
         goto ok;
     }
     /* Initiate new transaction */
-    if ((ret = controller_transaction_new(h, ce->ce_id, clicon_username_get(h), "rpc", &ct, &cberr)) < 0)
+    if ((ret = controller_transaction_new(h, ce, clicon_username_get(h), "rpc", &ct, &cberr)) < 0)
         goto done;
     if (ret == 0){
         if (netconf_operation_failed(cbret, "application", cbuf_get(cberr))< 0)

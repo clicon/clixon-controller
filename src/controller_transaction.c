@@ -401,7 +401,7 @@ transaction_new_id(clixon_handle h,
  * - Ongoing transaction, only one active transaction is allowed.
  *   Actually should always be a sub-condition of the former condition
  * @param[in]   h           Clixon handle
- * @param[in]   ce_id       Client/session identifier
+ * @param[in]   ce          Client/session entry
  * @param[in]   username    Which user created the transaction
  * @param[in]   description Description of transaction
  * @param[out]  ct          Transaction struct (if retval = 1)
@@ -413,7 +413,7 @@ transaction_new_id(clixon_handle h,
  */
 int
 controller_transaction_new(clixon_handle            h,
-                           uint32_t                 myid,
+                           client_entry            *ce,
                            char                    *username,
                            char                    *description,
                            controller_transaction **ctp,
@@ -425,13 +425,23 @@ controller_transaction_new(clixon_handle            h,
     size_t                  sz;
     uint32_t                iddb;
     uint32_t                lock_id;
-    char                   *db = "candidate";
+    uint32_t                ceid;
+    db_elmnt               *de = NULL;
+    char                   *db = NULL;
+    int                     ret;
 
+    clixon_debug(CLIXON_DBG_CTRL, "");
     if (ctp == NULL){
         clixon_err(OE_PLUGIN, EINVAL, "ctp is NULL");
         goto done;
     }
-    clixon_debug(CLIXON_DBG_CTRL, "");
+    ceid = ce->ce_id;
+    if (xmldb_find_create(h, "candidate", ceid, &de, &db) < 0)
+        goto done;
+    if (de == NULL){
+        clixon_err(OE_DB, 0, "No candidate struct");
+        goto done;
+    }
     iddb = xmldb_islocked(h, db);
     /* If no lock create transaction lock else use existing lock */
     if (iddb == 0)
@@ -444,7 +454,7 @@ controller_transaction_new(clixon_handle            h,
         cprintf(*cberr, "Candidate db is locked by %u", iddb);
         goto failed;
     }
-    else if (iddb != myid){
+    else if (iddb != ceid){
         if ((*cberr = cbuf_new()) == NULL){
             clixon_err(OE_UNIX, errno, "cbuf_new");
             goto done;
@@ -454,6 +464,17 @@ controller_transaction_new(clixon_handle            h,
     }
     else
         lock_id = 0; /* Reuse existing lock */
+    if (if_feature(h, "ietf-netconf-private-candidate", "private-candidate")){
+        /* First step, rebase private candidate with running */
+        if ((*cberr = cbuf_new()) == NULL){
+            clixon_err(OE_UNIX, errno, "cbuf_new");
+            goto done;
+        }
+        if ((ret = backend_update(h, ce, de, *cberr)) < 0)
+            goto done;
+        if (ret == 0)
+            goto failed;
+    }
     /* Exclusive lock of single active transaction */
     if (clicon_ptr_get(h, "controller-transaction-list", (void**)&ct_list) == 0 &&
         (ct = ct_list) != NULL) {
@@ -477,7 +498,7 @@ controller_transaction_new(clixon_handle            h,
     }
     memset(ct, 0, sz);
     ct->ct_h = h;
-    ct->ct_client_id = myid;
+    ct->ct_client_id = ceid;
     if (username) {
         if ((ct->ct_username = strdup(username)) == NULL){
             clixon_err(OE_NETCONF, errno, "strdup");
@@ -585,18 +606,25 @@ controller_transaction_done(clixon_handle           h,
 {
     int           retval = -1;
     uint32_t      iddb;
-    char         *db = "candidate";
+    char         *db;
     device_handle dh;
 
     clixon_debug(CLIXON_DBG_CTRL | CLIXON_DBG_DETAIL, "");
     controller_transaction_state_set(ct, TS_DONE, result);
-    iddb = xmldb_islocked(h, db);
-    if (iddb == TRANSACTION_CLIENT_ID){
-        if (xmldb_unlock(h, db) < 0)
-            goto done;
-        /* user callback */
-        if (clixon_plugin_lockdb_all(h, db, 0, TRANSACTION_CLIENT_ID) < 0)
-            goto done;
+    if (xmldb_candidate_find(h, "candidate", ct->ct_client_id, NULL, &db) < 0)
+        goto done;
+    if (db == NULL){
+        clixon_debug(CLIXON_DBG_CTRL, "Candidate not found on close");
+    }
+    else {
+        iddb = xmldb_islocked(h, db);
+        if (iddb == TRANSACTION_CLIENT_ID){
+            if (xmldb_unlock(h, db) < 0)
+                goto done;
+            /* user callback */
+            if (clixon_plugin_lockdb_all(h, db, 0, TRANSACTION_CLIENT_ID) < 0)
+                goto done;
+        }
     }
     /* Unmark all devices */
     dh = NULL;

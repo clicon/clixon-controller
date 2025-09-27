@@ -82,7 +82,7 @@ if $delete ; then
 </rpc>]]>]]>
 EOF
        )
-echo "ret: $ret"
+    # echo "ret: $ret"
     match=$(echo "$ret" | grep --null -Eo "<rpc-error>") || true
     if [ -n "$match" ]; then
 	err "netconf delete" "$ret"
@@ -97,7 +97,7 @@ for ip in $CONTAINERS; do
     jmax=5
     for j in $(seq 1 $jmax); do
 	init_device_config $NAME $ip
-#	echo "$ret"
+	# echo "$ret"
 	match=$(echo "$ret" | grep --null -Eo "<rpc-error>") || true
 	if [ -z "$match" ]; then
 	    break

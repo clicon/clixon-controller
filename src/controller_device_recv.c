@@ -228,6 +228,7 @@ device_recv_config(clixon_handle h,
     int                     merge = 0;
     int                     transient = 0;
     cxobj                  *xt1 = NULL;
+    char                   *db = NULL;
     int                     ret;
 
     clixon_debug(CLIXON_DBG_CTRL | CLIXON_DBG_DETAIL, "");
@@ -354,7 +355,15 @@ device_recv_config(clixon_handle h,
     }
     device_handle_sync_time_set(dh, NULL);
     /* 2. Put same to candidate */
-    if (ret && (ret = xmldb_put(h, "candidate", OP_NONE, xt1, NULL, cbret)) < 0)
+    if (xmldb_candidate_find(h, "candidate", ct->ct_client_id, NULL, &db) < 0)
+        goto done;
+    if (db == NULL){
+        clixon_debug(CLIXON_DBG_CTRL, "candidate not found");
+        if (device_close_connection(dh, "Failed to commit: candidate not found") < 0)
+            goto done;
+        goto closed;
+    }
+    if ((ret = xmldb_put(h, db, OP_NONE, xt1, NULL, cbret)) < 0)
         goto done;
     if (ret && (ret = device_config_write(h, name, "SYNCED", xt, cbret)) < 0)
         goto done;

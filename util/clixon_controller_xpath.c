@@ -130,7 +130,6 @@ main(int    argc,
     int         c;
     int         len;
     char       *buf = NULL;
-    int         ret;
     FILE       *fp = stdin; /* unless overriden by -f */
     char       *yang_file_dir = NULL;
     yang_stmt  *yspec = NULL;
@@ -149,6 +148,7 @@ main(int    argc,
     int         logdst = CLIXON_LOG_STDERR;
     int         dbg = 0;
     int         xpath_inverse = 0;
+    int         ret;
 
     /* Initialize clixon handle */
     if ((h = clixon_handle_init()) == NULL)
