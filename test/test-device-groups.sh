@@ -177,12 +177,13 @@ for ip in $CONTAINERS; do
 
     if [ $ii = 1 ]; then
         cmd="set devices device-group mygroup1 device-name $NAME"
-    else
+        new "$cmd"
+        expectpart "$($clixon_cli -1 -m configure -f $CFG -E $CFD $cmd)" 0 "^$"
+    elif [ $ii = 2 ]; then
         cmd="set devices device-group mygroup0 device-name $NAME"
+        new "$cmd"
+        expectpart "$($clixon_cli -1 -m configure -f $CFG -E $CFD $cmd)" 0 "^$"
     fi
-    new "$cmd"
-    expectpart "$($clixon_cli -1 -m configure -f $CFG -E $CFD $cmd)" 0 "^$"
-
     ii=$((ii+1))
 done
 ii=$((ii-1))
@@ -193,7 +194,7 @@ expectpart "$($clixon_cli -1 -m configure -f $CFG -E $CFD commit local)" 0 "^$"
 new "connection open base group"
 expectpart "$($clixon_cli -1 -f $CFG -E $CFD connection open group mygroup0)" 0 "^$"
 
-new "Verify controller $NAME"
+new "Verify controller 1"
 res=$(${clixon_cli} -1f $CFG -E $CFD show connections | grep OPEN | wc -l)
 
 if [ "$res" != "1" ]; then
@@ -210,10 +211,10 @@ expectpart "$($clixon_cli -1 -f $CFG -E $CFD connection close)" 0 "^$"
 new "connection open hierarchical group"
 expectpart "$($clixon_cli -1 -f $CFG -E $CFD connection open group mygroup1)" 0 "^$"
 
-new "Verify controller $NAME"
+new "Verify controller 2"
 res=$(${clixon_cli} -1f $CFG -E $CFD show connections | grep OPEN | wc -l)
 
-if [ "$res" != "$ii" ]; then
+if [ "$res" != "2" ]; then
     err1 "$ii open devices" "$res"
 fi
 
@@ -312,10 +313,10 @@ expectpart "$($clixon_cli -1 -f $CFG -E $CFD connection close)" 0 "^$"
 new "connection open duplicate group"
 expectpart "$($clixon_cli -1 -f $CFG -E $CFD connection open group mygroup2)" 0 "^$"
 
-new "Verify controller $NAME"
+new "Verify controller 3"
 res=$(${clixon_cli} -1f $CFG -E $CFD show connections | grep OPEN | wc -l)
 
-if [ "$res" != "$ii" ]; then
+if [ "$res" != "2" ]; then
     err1 "$ii open devices" "$res"
 fi
 
