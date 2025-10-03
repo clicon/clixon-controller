@@ -97,8 +97,8 @@ int   controller_transaction_new(clixon_handle h, client_entry *ce, char *userna
 int   controller_transaction_free(clixon_handle h, controller_transaction *ct);
 int   controller_transaction_free_all(clixon_handle h);
 int   controller_transaction_done(clixon_handle h, controller_transaction *ct, transaction_result result);
-
 controller_transaction *controller_transaction_find(clixon_handle h, const uint64_t id);
+controller_transaction *controller_transaction_find_bystate(clixon_handle h, int neg, transaction_state state);
 int   controller_transaction_nr_devices(clixon_handle h, uint64_t tid);
 int   controller_transaction_failed_fn(clixon_handle h, const char *func, const int line,
                                        uint64_t tid, controller_transaction *ct, device_handle dh,

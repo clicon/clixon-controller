@@ -421,6 +421,8 @@ controller_transaction_new(clixon_handle            h,
 {
     int                     retval = -1;
     controller_transaction *ct = NULL;
+    controller_transaction *ct0;
+    client_entry           *ce1;
     controller_transaction *ct_list = NULL;
     size_t                  sz;
     uint32_t                iddb;
@@ -446,20 +448,38 @@ controller_transaction_new(clixon_handle            h,
     /* If no lock create transaction lock else use existing lock */
     if (iddb == 0)
         lock_id = TRANSACTION_CLIENT_ID;
-    else if (iddb == TRANSACTION_CLIENT_ID){
+    else if (iddb != ceid || iddb == TRANSACTION_CLIENT_ID){
+        assert(iddb != ceid);
         if ((*cberr = cbuf_new()) == NULL){
             clixon_err(OE_UNIX, errno, "cbuf_new");
             goto done;
         }
-        cprintf(*cberr, "Candidate db is locked by %u", iddb);
-        goto failed;
-    }
-    else if (iddb != ceid){
-        if ((*cberr = cbuf_new()) == NULL){
-            clixon_err(OE_UNIX, errno, "cbuf_new");
-            goto done;
+        if (iddb == TRANSACTION_CLIENT_ID){
+            if ((ct0 = controller_transaction_find_bystate(h, 1, TS_DONE)) != NULL){
+                ce1 = NULL;
+                if (ct0->ct_client_id &&
+                    (ce1 = backend_client_find(h, ct0->ct_client_id)) != NULL){
+
+                }
+                cprintf(*cberr, "Candidate db is locked by transaction \"%s\" initiated by user:%s with client-id:%d",
+                        ct0->ct_description, ct0->ct_username, ct0->ct_client_id);
+                if (ce1 && ce1->ce_transport)
+                    cprintf(*cberr, " using transport:%s", ce1->ce_transport);
+            }
+            else
+                cprintf(*cberr, "Candidate db is locked by unknown transaction");
         }
-        cprintf(*cberr, "Candidate db is locked by %u", iddb);
+        else{
+            if ((ce1 = backend_client_find(h, iddb)) != NULL){
+                cprintf(*cberr, "Candidate db is locked by user:%s with client-id:%u",
+                        ce1->ce_username, iddb);
+                if (ce1->ce_transport)
+                    cprintf(*cberr, " using transport:%s", ce1->ce_transport);
+            }
+            else{
+                cprintf(*cberr, "Candidate db is locked by %u", iddb);
+            }
+        }
         goto failed;
     }
     else
@@ -653,11 +673,13 @@ controller_transaction_done(clixon_handle           h,
     return retval;
 }
 
-/*! Find clixon-client given name
+/*! Find controller transaction given id
  *
  * @param[in]  h     Clixon  handle
  * @param[in]  id    Transaction id
  * @retval     ct    Transaction struct
+ * @retval     NULL  Not found
+ * @see controller_transaction_find_bystate
  */
 controller_transaction *
 controller_transaction_find(clixon_handle  h,
@@ -675,6 +697,37 @@ controller_transaction_find(clixon_handle  h,
         } while (ct && ct != ct_list);
     }
     return NULL;
+}
+
+/*! Find frst controller transaction with given state
+ *
+ * @param[in]  h     Clixon  handle
+ * @param[in]  neg   If set find first that is not in this state
+ * @param[in]  state Transaction state
+ * @retval     ct    Transaction struct
+ * @retval     NULL  Not found
+ */
+controller_transaction *
+controller_transaction_find_bystate(clixon_handle     h,
+                                    int               neg,
+                                    transaction_state state)
+{
+    controller_transaction *ct_list = NULL;
+    controller_transaction *ct = NULL;
+
+    if (clicon_ptr_get(h, "controller-transaction-list", (void**)&ct_list) == 0 &&
+        (ct = ct_list) != NULL) {
+        do {
+            if (neg){
+                if (ct->ct_state != state)
+                    break;
+            }
+            else if (ct->ct_state == state)
+                break;
+            ct = NEXTQ(controller_transaction *, ct);
+        } while (ct && ct != ct_list);
+    }
+    return ct;
 }
 
 /*! Return number of devices in a specific transaction

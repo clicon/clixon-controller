@@ -5,6 +5,7 @@
 
 ### New features
 
+* Improved NETCONF error messages on locked datastore
 * New: [RESTCONF service delete does not work](https://github.com/clicon/clixon-controller/issues/199)
    * Add delete service by extending rpc controller-commit with DELETE
 * New: [NACM for Clixon Controller](https://github.com/clicon/clixon-controller/issues/189)
