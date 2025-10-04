@@ -116,7 +116,7 @@ expectpart "$($clixon_cli -1 -f $CFG -E $CFD connection open)" 0 "^$"
 new "Spawn expect script to simulate two CLI sessions"
 
 # -d to debug matching info
-sudo expect -d - "$clixon_cli" "$CFG" $(whoami) <<'EOF'
+sudo expect - "$clixon_cli" "$CFG" $(whoami) <<'EOF'
 # Use of expect to start two NETCONF sessions
 log_user 0
 set timeout 5

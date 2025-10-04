@@ -38,6 +38,12 @@
 #define _CONTROLLER_DEVICE_HANDLE_H
 
 /*
+ * Constants
+ */
+/* Device flags */
+#define DH_FLAG_PRIVATE_CANDIDATE 0x01 /* Announce private-candidate in hello message */
+
+/*
  * Types
  */
 /* Abstract device handle, see struct controller_device_handle for concrete struct */

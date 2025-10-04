@@ -213,7 +213,6 @@ controller_connect(clixon_handle           h,
     }
     if (xb && (str = xml_body(xb)) != NULL)
         port = str;
-
     /* Now dh is either NULL or in closed state and with correct type
      * First create it if still NULL
      */
@@ -253,6 +252,13 @@ controller_connect(clixon_handle           h,
                 goto done;
         }
     }
+    if ((xb = xml_find_type(xn, NULL, "private-candidate", CX_ELMNT)) == NULL ||
+        xml_flag(xb, XML_FLAG_DEFAULT)){
+        if (xdevprofile)
+            xb = xml_find_type(xdevprofile, NULL, "private-candidate", CX_ELMNT);
+    }
+    if (xb && (str = xml_body(xb)) != NULL && strcmp(str, "true") == 0)
+        device_handle_flag_set(dh, DH_FLAG_PRIVATE_CANDIDATE);
     /* Point of no return: assume errors handled in device_input_cb */
     device_handle_tid_set(dh, ct->ct_id);
     if (connect_netconf_ssh(h, dh, user, addr, port, ssh_stricthostkey) < 0) /* match */
@@ -2111,7 +2117,7 @@ rpc_connection_change(clixon_handle h,
         clixon_err(OE_UNIX, errno, "cbuf_new");
         goto done;
     }
-    cprintf(cbtr, "Controller commit");
+    cprintf(cbtr, "Controller connect");
     if ((xn = xml_find(xe, "device")) != NULL)
         ;
     else if ((xn = xml_find(xe, "device-group")) != NULL)

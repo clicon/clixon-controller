@@ -1172,6 +1172,63 @@ device_commit_when_done(clixon_handle           h,
     goto done;
 }
 
+/*! Map device capabilities to local settings
+ *
+ * Based on dcapabilities announced by the device, and the local configuration,
+ * set local settings.
+ * From: RFC 6241:
+ * If more than one protocol version URI in common is present,
+ * then the highest numbered (most recent) protocol version MUST be used
+ * by both peers.
+ * From RFC 6242:
+ * If the :base:1.1 capability is advertised by both
+ * peers, the chunked framing mechanism (see Section 4.2) is used for
+ * the remainder of the NETCONF session.  Otherwise, the old end-of-
+ * message-based mechanism (see Section 4.3) is used.
+ * @param[in] h     Clixon handle
+ * @param[in] dh    Clixon device handle.
+ * @retval    1     OK
+ * @retval    0     Fail: close connection
+ * @retval   -1     Error
+ */
+static int
+device_capabilities2settings(clixon_handle h,
+                             device_handle dh)
+{
+    int    retval = -1;
+    cxobj *xcaps;
+    int    framing = 0;
+
+    if ((xcaps = device_handle_capabilities_get(dh)) == NULL){
+        clixon_err(OE_XML, 0, "No capabilities");
+        goto done;
+    }
+    if (device_handle_capabilities_find(dh, NETCONF_BASE_CAPABILITY_1_1))
+        framing = 1;
+    else if (device_handle_capabilities_find(dh, NETCONF_BASE_CAPABILITY_1_0))
+        framing = 0;
+    else{
+        device_close_connection(dh, "No base netconf capability found in hello protocol");
+        goto fail;
+    }
+    //
+    clixon_debug(CLIXON_DBG_CTRL, "netconf framing: %d", framing);
+    framing = 0; /* XXX hardcoded to 0 */
+    device_handle_framing_type_set(dh, framing);
+
+    /* Private candidate, only if both configured and frm device is set */
+    if (device_handle_flag_get(dh, DH_FLAG_PRIVATE_CANDIDATE) &&
+        !device_handle_capabilities_find(dh, NETCONF_PRIVATE_CANDIDATE_CAPABILITY)){
+        device_handle_flag_reset(dh, DH_FLAG_PRIVATE_CANDIDATE);
+    }
+    retval = 1;
+ done:
+    return retval;
+ fail:
+    retval = 0;
+    goto done;
+}
+
 /*! Main state machine for controller transactions+devices
  *
  * @param[in]  h     Clixon handle
@@ -1215,7 +1272,7 @@ device_state_handler(clixon_handle h,
     case CS_CONNECTING:
         if (device_state_check_sanity(dh, tid, ct, name, conn_state, rpcname) == 0)
             break;
-        /* Receive hello from device, send hello */
+        /* Receive hello from device */
         if ((ret = device_recv_hello(h, dh, s, xmsg, rpcname, conn_state)) < 0)
             goto done;
         if (ret == 0){ /* closed */
@@ -1223,6 +1280,14 @@ device_state_handler(clixon_handle h,
                 goto done;
             break;
         }
+        /* Map device capabilities to local settings */
+        if (device_capabilities2settings(h, dh) < 0)
+            goto done;
+        /* Send hello to device*/
+        if (clixon_client_hello(s, device_handle_name_get(dh),
+                                device_handle_framing_type_get(dh),
+                                device_handle_flag_get(dh, DH_FLAG_PRIVATE_CANDIDATE)) < 0)
+            goto done;
         /* The device is OK */
         if (ct->ct_state == TS_RESOLVED && ct->ct_result == TR_SUCCESS){
             clixon_err(OE_XML, 0, "Transaction unexpected SUCCESS state");

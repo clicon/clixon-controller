@@ -72,7 +72,7 @@ struct controller_device_handle{
     qelem_t            cdh_qelem;      /* List header */
     uint32_t           cdh_magic;      /* Magic number */
     char              *cdh_name;       /* Connection name */
-    uint32_t           cdh_flags;      /* General purpose flags */
+    uint32_t           cdh_flags;      /* General purpose flags, see DH_FLAG_* */
     yang_config_t      cdh_yang_config; /* Yang config (shadow of config) */
     conn_state         cdh_conn_state; /* Connection state */
     struct timeval     cdh_conn_time;  /* Time when entering last connection state */

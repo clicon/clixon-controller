@@ -1,11 +1,25 @@
 # Clixon Controller Changelog
 
+## 1.6.0
+Expected: October 2025
+
+### New features
+
+* Improved NETCONF error messages on locked datastore
+* New `clixon-controller@2025-08-01.yang` revision
+  * Added the following fields to device-common:
+    * private-candidate
+
+### Corrected Bugs
+
+* Fixed: set glob skip disabled devices correctly and warn of different YANGs
+* Fixed: [get-schema rpc in netconf monitoring: need to decode yang module with CDATA](https://github.com/clicon/clixon-controller/issues/222)
+
 ## 1.5.0
 29 July 2025
 
 ### New features
 
-* Improved NETCONF error messages on locked datastore
 * New: [RESTCONF service delete does not work](https://github.com/clicon/clixon-controller/issues/199)
    * Add delete service by extending rpc controller-commit with DELETE
 * New: [NACM for Clixon Controller](https://github.com/clicon/clixon-controller/issues/189)
@@ -27,8 +41,6 @@
 
 ### Corrected Bugs
 
-* Fixed: set glob skip disabled devices correctly and warn of different YANGs
-* Fixed: [get-schema rpc in netconf monitoring: need to decode yang module with CDATA](https://github.com/clicon/clixon-controller/issues/222)
 * Fixed: [Candidate CLICON_AUTOLOCK not automatically removed](https://github.com/clicon/clixon-controller/issues/214)
 * Fixed: [RESTCONF PUT/POST data does sometimes not work across mountpoint](https://github.com/clicon/clixon-controller/issues/210)
 * Fixed: [Controller diff does not check for NACM read rules](https://github.com/clicon/clixon-controller/issues/207)

@@ -128,12 +128,11 @@ device_recv_hello(clixon_handle h,
                   char         *rpcname,
                   conn_state    conn_state)
 {
-    int                  retval = -1;
-    char                *rpcprefix;
-    char                *namespace = NULL;
-    netconf_framing_type version;
-    cvec                *nsc = NULL;
-    cxobj               *xcaps;
+    int    retval = -1;
+    char  *rpcprefix;
+    char  *namespace = NULL;
+    cvec  *nsc = NULL;
+    cxobj *xcapabilities;
 
     clixon_debug(CLIXON_DBG_CTRL|CLIXON_DBG_DETAIL, "");
     rpcprefix = xml_prefix(xmsg);
@@ -152,29 +151,14 @@ device_recv_hello(clixon_handle h,
     if (xml_nsctx_node(xmsg, &nsc) < 0)
         goto done;
     // XXX not prefix/namespace independent
-    if ((xcaps = xpath_first(xmsg, nsc, "/hello/capabilities")) == NULL){
+    if ((xcapabilities = xpath_first(xmsg, nsc, "/hello/capabilities")) == NULL){
         clixon_err(OE_PROTO, ESHUTDOWN, "No capabilities found");
         goto done;
     }
     /* Destructive, actually move subtree from xmsg */
-    if (xml_rm(xcaps) < 0)
+    if (xml_rm(xcapabilities) < 0)
         goto done;
-    if (device_handle_capabilities_set(dh, xcaps) < 0)
-        goto done;
-    /* Set NETCONF version */
-    if (device_handle_capabilities_find(dh, NETCONF_BASE_CAPABILITY_1_1))
-        version = 1;
-    else if (device_handle_capabilities_find(dh, NETCONF_BASE_CAPABILITY_1_0))
-        version = 0;
-    else{
-        device_close_connection(dh, "No base netconf capability found in hello protocol");
-        goto closed;
-    }
-    clixon_debug(CLIXON_DBG_CTRL, "version: %d", version);
-    version = 0; /* XXX hardcoded to 0 */
-    device_handle_framing_type_set(dh, version);
-    /* Send hello */
-    if (clixon_client_hello(s, device_handle_name_get(dh), version) < 0)
+    if (device_handle_capabilities_set(dh, xcapabilities) < 0)
         goto done;
     retval = 1;
  done:

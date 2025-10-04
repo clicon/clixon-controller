@@ -37,6 +37,12 @@ module clixon-controller {
     }
     description
         "Clixon controller";
+    revision 2025-08-01 {
+        description
+            "Added the following fields to device-common:
+             - private-candidate
+             Released in 1.6.0";
+    }
     revision 2025-05-01 {
         description
             "Added rpc device-rpc
@@ -339,6 +345,24 @@ module clixon-controller {
             }
         }
     }
+    typedef netconf-framing-type {
+        description
+            "How to trigger service-commit notifications, and thereby action scripts.";
+        type enumeration{
+            enum netconf-10 {
+                description
+                    "NETCONF framing using end-of-message as defined in RFC 4742";
+            }
+            enum netconf-11 {
+                description
+                    "NETCONF framing using chunked encoding as defined in RFC 6242";
+            }
+            enum netconf-10-11 {
+                description
+                    "Announce both NETCONF framing 1.0 and 1.1";
+            }
+        }
+    }
     grouping created-by-service {
         description
             "All services should use this grouping for keeping track of created objects.";
@@ -415,6 +439,12 @@ module clixon-controller {
                  Yang files will be in ${CLICON_YANG_DOMAIN_DIR}/${device-domain}";
             type string;
             default "default";
+        }
+        leaf private-candidate {
+            description
+                "Announce private-candidate capability to device in hello message";
+            type boolean;
+            default false;
         }
     }
     grouping device-template {
