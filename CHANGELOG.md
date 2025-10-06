@@ -12,6 +12,7 @@ Expected: October 2025
 
 ### Corrected Bugs
 
+* Fixed: Device closes when device out-of-sync (Only > 50 devices)
 * Fixed: set glob skip disabled devices correctly and warn of different YANGs
 * Fixed: [get-schema rpc in netconf monitoring: need to decode yang module with CDATA](https://github.com/clicon/clixon-controller/issues/222)
 

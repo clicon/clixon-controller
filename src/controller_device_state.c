@@ -1558,6 +1558,8 @@ device_state_handler(clixon_handle h,
         /* The device is OK */
         if ((ret = device_state_check_fail(h, dh, ct, 0)) < 0)
             goto done;
+        if (ret == 0)
+            break;
         if (device_send_get(h, dh, s, 0, NULL) < 0)
             goto done;
         device_handle_tid_set(dh, ct->ct_id);
