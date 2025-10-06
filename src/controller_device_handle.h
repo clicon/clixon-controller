@@ -40,8 +40,10 @@
 /*
  * Constants
  */
-/* Device flags */
-#define DH_FLAG_PRIVATE_CANDIDATE 0x01 /* Announce private-candidate in hello message */
+/* Device flags, the configured flags onoy if device announce them */
+#define DH_FLAG_PRIVATE_CANDIDATE 0x01 /* Configured private-candidate announcement*/
+#define DH_FLAG_NETCONF_BASE10    0x02 /* Configured NETCONF base10 (eom) announcement */
+#define DH_FLAG_NETCONF_BASE11    0x04 /* Configured NETCONF base11 (chunked) announcement */
 
 /*
  * Types

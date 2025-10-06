@@ -5,13 +5,20 @@ Expected: October 2025
 
 ### New features
 
+* New: [Configure and adapt to device netconf encapsulation 1.0 or 1.1](https://github.com/clicon/clixon-controller/issues/225)
 * Improved NETCONF error messages on locked datastore
 * New `clixon-controller@2025-08-01.yang` revision
   * Added the following fields to device-common:
     * private-candidate
+* New `clixon-controller@2025-05-01.yang` revision
+  * Added the following fields to device-common:
+    * private-candidate
+    * netconf-framing
+    * netconf-state-schemas
 
 ### Corrected Bugs
 
+* Fixed: [commit on multiple devices with one device with not pulled local commit drops connection to subset of devices](https://github.com/clicon/clixon-controller/issues/223)
 * Fixed: Device closes when device out-of-sync (Only > 50 devices)
 * Fixed: set glob skip disabled devices correctly and warn of different YANGs
 * Fixed: [get-schema rpc in netconf monitoring: need to decode yang module with CDATA](https://github.com/clicon/clixon-controller/issues/222)

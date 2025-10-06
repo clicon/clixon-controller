@@ -9,6 +9,9 @@ CFG=${SYSCONFDIR}/clixon/controller.xml
 dir=/var/tmp/$0
 CFD=$dir/conf.d
 dbdir=$dir/db
+# Debug early exit
+: ${early:=false}
+>&2 echo "early=true for debug "
 
 test -d $dir || mkdir -p $dir
 test -d $CFD || mkdir -p $CFD
@@ -106,6 +109,10 @@ fi
 
 new "Open connections"
 expectpart "$($clixon_cli -1 -f $CFG -E $CFD connection open)" 0 "^$"
+
+if ${early}; then
+    exit # for starting controller with devices and debug
+fi
 
 # Start two cli:s
 # (1) Edit device config in both in different parts

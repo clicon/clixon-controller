@@ -105,7 +105,7 @@ static const map_str2int csmap[] = {
     {"SCHEMA-ONE",       CS_SCHEMA_ONE}, /* substate is schema-nr */
     {"DEVICE-SYNC",      CS_DEVICE_SYNC},
     /* Push state machine */
-    {"PUSH_LOCK",        CS_PUSH_LOCK},
+    {"PUSH-LOCK",        CS_PUSH_LOCK},
     {"PUSH-CHECK",       CS_PUSH_CHECK},
     {"PUSH-EDIT",        CS_PUSH_EDIT},
     {"PUSH-EDIT2",       CS_PUSH_EDIT2},
@@ -114,9 +114,9 @@ static const map_str2int csmap[] = {
     {"PUSH-COMMIT",      CS_PUSH_COMMIT},
     {"PUSH-COMMIT-SYNC", CS_PUSH_COMMIT_SYNC},
     {"PUSH-DISCARD",     CS_PUSH_DISCARD},
-    {"PUSH_UNLOCK",      CS_PUSH_UNLOCK},
+    {"PUSH-UNLOCK",      CS_PUSH_UNLOCK},
     /* Generic RPC state machine */
-    {"RPC_GENERIC",      CS_RPC_GENERIC},
+    {"RPC-GENERIC",      CS_RPC_GENERIC},
     {NULL,              -1}
 };
 
@@ -1004,7 +1004,7 @@ device_shared_yspec(clixon_handle h,
  * @param[in]  h       Clixon handle
  * @param[in]  dh      Device handle.
  * @param[in]  ct      Controller transaction
- * @param[in]  discard 0: Send onlylock; 1: Send discard; lock
+ * @param[in]  discard 0: Send only unlock; 1: Send discard; unlock
  * @retval     1       Transaction PK, continue
  * @retval     0       Transaction has failed, break
  * @retval    -1       Error
@@ -1190,30 +1190,74 @@ device_commit_when_done(clixon_handle           h,
  * @retval    1     OK
  * @retval    0     Fail: close connection
  * @retval   -1     Error
+ *
+ * Truth values:
+ client 10 | client 11 | config 10 | config 11 | Result
+-----------+-----------+-----------+-----------+-----------+
+ 0         | 0         | -         | -         | Error
+ 0         | 0         | -         | -         | Error
+ 0         | 0         | -         | -         | Error
+ 0         | 1         | 0         | 0         | 11
+ 0         | 1         | 0         | 1         | 11
+ 0         | 1         | 1         | 0         | Error
+ 1         | 0         | 0         | 0         | 10
+ 1         | 0         | 0         | 1         | Error
+ 1         | 0         | 1         | 0         | 10
+ 1         | 1         | 0         | 0         | 11
+ 1         | 1         | 0         | 1         | 11
+ 1         | 1         | 1         | 0         | 10
+
  */
 static int
 device_capabilities2settings(clixon_handle h,
                              device_handle dh)
 {
-    int    retval = -1;
-    cxobj *xcaps;
-    int    framing = 0;
+    int                  retval = -1;
+    cxobj               *xcaps;
+    int                  client10;
+    int                  client11;
+    int                  config10;
+    int                  config11;
+    netconf_framing_type framing;
 
     if ((xcaps = device_handle_capabilities_get(dh)) == NULL){
         clixon_err(OE_XML, 0, "No capabilities");
         goto done;
     }
-    if (device_handle_capabilities_find(dh, NETCONF_BASE_CAPABILITY_1_1))
-        framing = 1;
-    else if (device_handle_capabilities_find(dh, NETCONF_BASE_CAPABILITY_1_0))
-        framing = 0;
-    else{
-        device_close_connection(dh, "No base netconf capability found in hello protocol");
+    client10 = device_handle_capabilities_find(dh, NETCONF_BASE_CAPABILITY_1_0);
+    client11 = device_handle_capabilities_find(dh, NETCONF_BASE_CAPABILITY_1_1);
+    if (client10 == 0 && client11 == 0){
+        device_close_connection(dh, "Neither NETCONF base 10 or 11 capability found in hello protocol from device %s", device_handle_name_get(dh));
         goto fail;
     }
-    //
-    clixon_debug(CLIXON_DBG_CTRL, "netconf framing: %d", framing);
-    framing = 0; /* XXX hardcoded to 0 */
+    config10 = device_handle_flag_get(dh, DH_FLAG_NETCONF_BASE10);
+    config11 = device_handle_flag_get(dh, DH_FLAG_NETCONF_BASE11);
+    if (config10 == 1 && config11 == 1){
+        clixon_err(OE_XML, 0, "Invalid config: Both base10 and base11 are configured to 1");
+        goto done;
+    }
+    if (client10 == 0 && client11 == 1){
+        if (config10){
+            device_close_connection(dh, "NETCONF framing is configured to 10 but device announces only base 11");
+            goto fail;
+        }
+        framing = NETCONF_SSH_CHUNKED;
+    }
+    else if (client10 == 1 && client11 == 0){
+        if (config11){
+            device_close_connection(dh, "NETCONF framing is configured to 11 but device announces only base 10");
+            goto fail;
+        }
+        framing = NETCONF_SSH_EOM;
+    }
+    else{ /* both 1 */
+        if (config10)
+            framing = NETCONF_SSH_EOM;
+        else
+            framing = NETCONF_SSH_CHUNKED;
+    }
+    clixon_debug(CLIXON_DBG_CTRL, "netconf framing: %s", netconf_framing_int2str(framing));
+    //    framing = 0; //NETCONF_SSH_EOM; // XXX
     device_handle_framing_type_set(dh, framing);
 
     /* Private candidate, only if both configured and frm device is set */
@@ -1285,7 +1329,8 @@ device_state_handler(clixon_handle h,
             goto done;
         /* Send hello to device*/
         if (clixon_client_hello(s, device_handle_name_get(dh),
-                                device_handle_framing_type_get(dh),
+                                device_handle_framing_type_get(dh) == NETCONF_SSH_EOM,
+                                device_handle_framing_type_get(dh) == NETCONF_SSH_CHUNKED,
                                 device_handle_flag_get(dh, DH_FLAG_PRIVATE_CANDIDATE)) < 0)
             goto done;
         /* The device is OK */
@@ -1605,13 +1650,21 @@ device_state_handler(clixon_handle h,
                     goto done;
                 break;
             }
-            if (clixon_msg_send10(s, device_handle_name_get(dh), cbmsg) < 0)
+            if (device_handle_framing_type_get(dh) == NETCONF_SSH_CHUNKED){
+                if (clixon_msg_send11(s, device_handle_name_get(dh), cbmsg) < 0)
+                    goto done;
+            }
+            else if (clixon_msg_send10(s, device_handle_name_get(dh), cbmsg) < 0)
                 goto done;
             if (device_state_set(dh, CS_PUSH_EDIT2) < 0)
                 goto done;
             break;
         }
-        if (clixon_msg_send10(s, device_handle_name_get(dh), cbmsg) < 0)
+        if (device_handle_framing_type_get(dh) == NETCONF_SSH_CHUNKED){
+            if (clixon_msg_send11(s, device_handle_name_get(dh), cbmsg) < 0)
+                goto done;
+        }
+        else if (clixon_msg_send10(s, device_handle_name_get(dh), cbmsg) < 0)
             goto done;
         if (device_state_set(dh, CS_PUSH_EDIT) < 0)
             goto done;
@@ -1652,7 +1705,11 @@ device_state_handler(clixon_handle h,
                 goto done;
             break;
         }
-        if (clixon_msg_send10(s, device_handle_name_get(dh), cbmsg) < 0)
+        if (device_handle_framing_type_get(dh) == NETCONF_SSH_CHUNKED){
+            if (clixon_msg_send11(s, device_handle_name_get(dh), cbmsg) < 0)
+                goto done;
+        }
+        else if (clixon_msg_send10(s, device_handle_name_get(dh), cbmsg) < 0)
             goto done;
         if (device_state_set(dh, CS_PUSH_EDIT2) < 0)
             goto done;
@@ -1985,6 +2042,12 @@ device_state_handler(clixon_handle h,
 
 /*! Get netconf device statedata
  *
+ * The state returned includes per-device:
+ * - connection state
+ * - capabilities
+ * - Last connection state-change time
+ * - Last sync-time
+ * - Log msg
  * @param[in]    h        Clixon handle
  * @param[in]    nsc      External XML namespace context, or NULL
  * @param[in]    xpath    String with XPath syntax. or NULL for all
@@ -2051,6 +2114,10 @@ devices_statedata(clixon_handle   h,
             xml_chardata_cbuf_append(cb, 0, logmsg);
             cprintf(cb, "</logmsg>");
         }
+        if (device_handle_flag_get(dh, DH_FLAG_PRIVATE_CANDIDATE))
+            cprintf(cb, "<private-candidate-state>true</private-candidate-state>");
+        cprintf(cb, "<netconf-framing-type>%s</netconf-framing-type>",
+                netconf_framing_int2str(device_handle_framing_type_get(dh)));
         cprintf(cb, "</device></devices>");
         if (clixon_xml_parse_string(cbuf_get(cb), YB_NONE, NULL, &xstate, NULL) < 0)
             goto done;

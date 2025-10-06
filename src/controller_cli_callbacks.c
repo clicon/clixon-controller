@@ -1364,7 +1364,7 @@ cli_show_connections(clixon_handle h,
     else{
         /* Avoid including moint-point which triggers a lot of extra traffic */
         if (clicon_rpc_get(h,
-                           "co:devices/co:device/co:name | co:devices/co:device/co:conn-state | co:devices/co:device/co:conn-state-timestamp | co:devices/co:device/co:logmsg",
+                           "co:devices/co:device/co:name | co:devices/co:device/co:conn-state | co:devices/co:device/co:conn-state-timestamp | co:devices/co:device/co:logmsg | co:devices/co:device/co:private-candidate-state | co:devices/co:device/co:netconf-framing-type",
                            nsc, CONTENT_ALL, -1, "explicit", &xn) < 0)
             goto done;
     }
@@ -1392,10 +1392,10 @@ cli_show_connections(clixon_handle h,
             goto done;
         }
         width = cligen_terminal_width(cli_cligen(h));
-        logw = width - 59;
+        logw = width - 61;
         if (logw < 0)
             logw = 1;
-        cligen_output(stdout, "%-23s %-10s %-22s %-*s\n", "Name", "State", "Time", logw, "Logmsg");
+        cligen_output(stdout, "%-23s %-12s %-22s %-*s\n", "Name", "F State", "Time", logw, "Logmsg");
         for (i=0; i<width; i++)
             cligen_output(stdout, "=");
         cligen_output(stdout, "\n");
@@ -1415,6 +1415,14 @@ cli_show_connections(clixon_handle h,
             if (pattern != NULL && fnmatch(pattern, name, 0) != 0)
                 continue;
             cligen_output(stdout, "%-24s",  name);
+            if ((state = xml_find_body(xc, "netconf-framing-type")) != NULL){
+                if (strcmp(state, "eom") == 0)
+                    cligen_output(stdout, "%-2s", "0");
+                else if (strcmp(state, "chunked") == 0)
+                    cligen_output(stdout, "%-2s", "1");
+                else
+                    cligen_output(stdout, "%-2s", " ");
+            }
             state = xml_find_body(xc, "conn-state");
             cligen_output(stdout, "%-11s",  state?state:"");
             if ((timestamp = xml_find_body(xc, "conn-state-timestamp")) != NULL){

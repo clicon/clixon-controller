@@ -2,7 +2,7 @@
 # Reset running example container devices and initiate with config x=11, y=22
 set -u
 
-echo "reset-devices"
+new "run $0"
 
 # Set if also check, which only works for clixon-example
 : ${dir:=/var/tmp}
@@ -32,11 +32,11 @@ cat <<EOF > $dir/extra.xml
 </clixon-config>
 EOF
 
-# Add hostname
+new "reset-devices: Add hostname"
 i=1
 for ip in $CONTAINERS; do
     NAME="$IMG$i"
-    echo "set hostname $NAME $ip"
+    new "set hostname $NAME $ip"
     ret=$(ssh ${SSHID} -l $USER $ip -o StrictHostKeyChecking=no -o PasswordAuthentication=no -s netconf <<EOF
 <?xml version="1.0" encoding="UTF-8"?>
 <hello xmlns="urn:ietf:params:xml:ns:netconf:base:1.0">
@@ -80,10 +80,11 @@ EOF
     fi
 done
 
+new "reset-devices: Init config"
 i=1
 for ip in $CONTAINERS; do
     NAME=$IMG$i
-    echo "init config: $NAME"
+    new "init config: $NAME"
     ret=$(ssh ${SSHID} -l $USER $ip -o StrictHostKeyChecking=no -o PasswordAuthentication=no -s netconf <<EOF
 <?xml version="1.0" encoding="UTF-8"?>
 <hello xmlns="urn:ietf:params:xml:ns:netconf:base:1.0">
@@ -117,11 +118,12 @@ EOF
     i=$((i+1))
 done
 
+new "reset-devices: Check config"
 # Check config
 i=1
 for ip in $CONTAINERS; do
     NAME=$IMG$i
-    echo "Check config $NAME"
+    new "Check config $NAME"
     ret=$(ssh ${SSHID} -l $USER $ip -o StrictHostKeyChecking=no -o PasswordAuthentication=no -s netconf <<EOF
 <?xml version="1.0" encoding="UTF-8"?>
 <hello xmlns="urn:ietf:params:xml:ns:netconf:base:1.0">
@@ -153,4 +155,4 @@ EOF
     i=$((i+1))
 done
 
-echo "reset-devices OK"
+new "reset-devices OK"

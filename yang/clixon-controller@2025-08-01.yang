@@ -41,6 +41,8 @@ module clixon-controller {
         description
             "Added the following fields to device-common:
              - private-candidate
+             - netconf-framing
+             - netconf-state-schemas
              Released in 1.6.0";
     }
     revision 2025-05-01 {
@@ -345,24 +347,6 @@ module clixon-controller {
             }
         }
     }
-    typedef netconf-framing-type {
-        description
-            "How to trigger service-commit notifications, and thereby action scripts.";
-        type enumeration{
-            enum netconf-10 {
-                description
-                    "NETCONF framing using end-of-message as defined in RFC 4742";
-            }
-            enum netconf-11 {
-                description
-                    "NETCONF framing using chunked encoding as defined in RFC 6242";
-            }
-            enum netconf-10-11 {
-                description
-                    "Announce both NETCONF framing 1.0 and 1.1";
-            }
-        }
-    }
     grouping created-by-service {
         description
             "All services should use this grouping for keeping track of created objects.";
@@ -445,6 +429,24 @@ module clixon-controller {
                 "Announce private-candidate capability to device in hello message";
             type boolean;
             default false;
+        }
+        leaf netconf-framing {
+            description
+                "How to announce netconf framing version to device in hello protocol
+                 If not set, then announce both eom(base10) and chunked (base11).
+                 If set to eom or chunked, then pin the value to only that and do not
+                 announce the other";
+            type cl:netconf-framing-type;
+        }
+        leaf netconf-state-schemas {
+            description
+                "Use ietf-netconf-monitoring to obtain YANG schemas from devices
+                 using the netconf-state/schemas subtree as defined in RFC6022.
+                 If false, yang modules can be specified via manual configuration of
+                 module-set.
+                 This does not effect using get-schema RPC to get schemas from the device";
+            type boolean;
+            default true;
         }
     }
     grouping device-template {
@@ -693,6 +695,18 @@ module clixon-controller {
             leaf logmsg {
                 config false;
                 type string;
+            }
+            leaf private-candidate-state {
+                description
+                    "State of private-candidate after capability negotiation";
+                config false;
+                type boolean;
+            }
+            leaf netconf-framing-type {
+                description
+                    "State of netconf-framing after capability negotiation";
+                config false;
+                type cl:netconf-framing-type;
             }
             container config {
                 presence "Otherwise root is not visible";

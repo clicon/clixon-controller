@@ -90,7 +90,11 @@ device_send_lock(clixon_handle h,
     cprintf(cb, "<target><candidate/></target>");
     cprintf(cb, "</%slock>", lock==0?"un":"");
     cprintf(cb, "</rpc>");
-    if (clixon_msg_send10(s, device_handle_name_get(dh), cb) < 0)
+    if (device_handle_framing_type_get(dh) == NETCONF_SSH_CHUNKED){
+        if (clixon_msg_send11(s, device_handle_name_get(dh), cb) < 0)
+            goto done;
+    }
+    else if (clixon_msg_send10(s, device_handle_name_get(dh), cb) < 0)
         goto done;
     retval = 0;
  done:
@@ -139,7 +143,11 @@ device_send_get(clixon_handle h,
     }
     cprintf(cb, "</rpc>");
     s = device_handle_socket_get(dh);
-    if (clixon_msg_send10(s, device_handle_name_get(dh), cb) < 0)
+    if (device_handle_framing_type_get(dh) == NETCONF_SSH_CHUNKED){
+        if (clixon_msg_send11(s, device_handle_name_get(dh), cb) < 0)
+            goto done;
+    }
+    else if (clixon_msg_send10(s, device_handle_name_get(dh), cb) < 0)
         goto done;
     retval = 0;
  done:
@@ -184,7 +192,11 @@ device_get_schema_sendit(clixon_handle h,
     cprintf(cb, "<format>yang</format>");
     cprintf(cb, "</get-schema>");
     cprintf(cb, "</rpc>");
-    if (clixon_msg_send10(s, device_handle_name_get(dh), cb) < 0)
+    if (device_handle_framing_type_get(dh) == NETCONF_SSH_CHUNKED){
+        if (clixon_msg_send11(s, device_handle_name_get(dh), cb) < 0)
+            goto done;
+    }
+    else if (clixon_msg_send10(s, device_handle_name_get(dh), cb) < 0)
         goto done;
     clixon_debug(CLIXON_DBG_CTRL, "%s: sent get-schema(%s@%s) seq:%" PRIu64, name, identifier, version, seq);
     retval = 0;
@@ -318,8 +330,11 @@ device_send_get_schema_list(clixon_handle h,
     cprintf(cb, "</filter>");
     cprintf(cb, "</get>");
     cprintf(cb, "</rpc>");
-    /* Hardcoded to 10 */
-    if (clixon_msg_send10(s, device_handle_name_get(dh), cb) < 0)
+    if (device_handle_framing_type_get(dh) == NETCONF_SSH_CHUNKED){
+        if (clixon_msg_send11(s, device_handle_name_get(dh), cb) < 0)
+            goto done;
+    }
+    else if (clixon_msg_send10(s, device_handle_name_get(dh), cb) < 0)
         goto done;
     retval = 0;
  done:
@@ -559,7 +574,11 @@ device_send_rpc(clixon_handle h,
     if (msgbody)
         cprintf(cb, "%s", msgbody);
     cprintf(cb, "</rpc>");
-    if (clixon_msg_send10(s, device_handle_name_get(dh), cb) < 0)
+    if (device_handle_framing_type_get(dh) == NETCONF_SSH_CHUNKED){
+        if (clixon_msg_send11(s, device_handle_name_get(dh), cb) < 0)
+            goto done;
+    }
+    else if (clixon_msg_send10(s, device_handle_name_get(dh), cb) < 0)
         goto done;
     retval = 0;
  done:

@@ -101,7 +101,7 @@ connect_netconf_ssh(clixon_handle h,
     if (device_state_set(dh, CS_CONNECTING) < 0)
         goto done;
     s = device_handle_socket_get(dh);
-    device_handle_framing_type_set(dh, NETCONF_SSH_EOM);
+    device_handle_framing_type_set(dh, NETCONF_SSH_EOM); // XXX
     cbuf_reset(cb); /* reuse cb for event dbg str */
     cprintf(cb, "Netconf ssh %s", addr);
     if (clixon_event_reg_fd(s, device_input_cb, dh, cbuf_get(cb)) < 0)
@@ -259,6 +259,17 @@ controller_connect(clixon_handle           h,
     }
     if (xb && (str = xml_body(xb)) != NULL && strcmp(str, "true") == 0)
         device_handle_flag_set(dh, DH_FLAG_PRIVATE_CANDIDATE);
+    if ((xb = xml_find_type(xn, NULL, "netconf-framing", CX_ELMNT)) == NULL ||
+        xml_flag(xb, XML_FLAG_DEFAULT)){
+        if (xdevprofile)
+            xb = xml_find_type(xdevprofile, NULL, "netconf-framing", CX_ELMNT);
+    }
+    if (xb && (str = xml_body(xb)) != NULL){
+        if (strcmp(str, "eom") == 0)
+            device_handle_flag_set(dh, DH_FLAG_NETCONF_BASE10);
+        else if (strcmp(str, "chunked") == 0)
+            device_handle_flag_set(dh, DH_FLAG_NETCONF_BASE11);
+    }
     /* Point of no return: assume errors handled in device_input_cb */
     device_handle_tid_set(dh, ct->ct_id);
     if (connect_netconf_ssh(h, dh, user, addr, port, ssh_stricthostkey) < 0) /* match */
