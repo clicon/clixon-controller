@@ -1416,9 +1416,9 @@ cli_show_connections(clixon_handle h,
                 continue;
             cligen_output(stdout, "%-24s",  name);
             if ((state = xml_find_body(xc, "netconf-framing-type")) != NULL){
-                if (strcmp(state, "eom") == 0)
+                if (strcmp(state, "1.0") == 0)
                     cligen_output(stdout, "%-2s", "0");
-                else if (strcmp(state, "chunked") == 0)
+                else if (strcmp(state, "1.1") == 0)
                     cligen_output(stdout, "%-2s", "1");
                 else
                     cligen_output(stdout, "%-2s", " ");

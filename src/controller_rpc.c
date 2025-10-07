@@ -265,9 +265,9 @@ controller_connect(clixon_handle           h,
             xb = xml_find_type(xdevprofile, NULL, "netconf-framing", CX_ELMNT);
     }
     if (xb && (str = xml_body(xb)) != NULL){
-        if (strcmp(str, "eom") == 0)
+        if (strcmp(str, "1.0") == 0)
             device_handle_flag_set(dh, DH_FLAG_NETCONF_BASE10);
-        else if (strcmp(str, "chunked") == 0)
+        else if (strcmp(str, "1.1") == 0)
             device_handle_flag_set(dh, DH_FLAG_NETCONF_BASE11);
     }
     /* Point of no return: assume errors handled in device_input_cb */
