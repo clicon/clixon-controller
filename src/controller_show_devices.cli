@@ -22,4 +22,3 @@ state("Show device state"), cli_show_device_state("name");{
 yang("Show yang revisions"), show_yang_revisions("name"); {
    @|pipe_show, show_yang_revisions("name");
 }
-

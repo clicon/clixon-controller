@@ -1,5 +1,5 @@
 # Controller initial connect and push when no devices are still present,
-# I.e., boostrapping from empty config
+# I.e., bootstrapping from empty config
 # See also https://github.com/clicon/clixon-controller/issues/5
 # The test is essentially a precursor to test-cli-edit-commit-push but with no pre-configuration
 # I.e., run reset-controller.sh from cli
@@ -7,6 +7,7 @@
 # 1. Open first device
 # 2. Open second device
 # Reset and do same with device-profile
+# Also start first in netconf 1.0, rest in 1.1
 
 # Magic line must be first in script (see README.md)
 s="$_" ; . ./lib.sh || if [ "$s" = $0 ]; then exit 0; else return 0; fi
@@ -110,7 +111,13 @@ for ip in $CONTAINERS; do
     new "$cmd"
     expectpart "$($clixon_cli -1 -m configure -f $CFG -E $CFD $cmd)" 0 "^$"
 
-    new "commit"
+    if [ $ii == 1 ]; then
+        cmd="set devices device $NAME netconf-framing 1.0"
+        new "$cmd"
+        expectpart "$($clixon_cli -1 -m configure -f $CFG -E $CFD $cmd)" 0 "^$"
+    fi
+
+    new "commit local"
     expectpart "$($clixon_cli -1 -m configure -f $CFG -E $CFD commit local)" 0 "^$"
 
     #    sleep $sleep
@@ -157,6 +164,9 @@ fi
 new "Check errmsg"
 expectpart "$($clixon_cli -1 -f $CFG -E $CFD show transaction)" 0 "<result>FAILED</result>" "<reason>wrong@" "Permission denied (publickey,password,keyboard-interactive).</reason>" || true
   
+new "Verify first device is framing 1.0"
+expectpart "$($clixon_cli -1 -f $CFG -E $CFD show state devices device openconfig1 netconf-framing)" 0 "netconf-framing 1.0"
+
 cmd="set devices device openconfig1 user $USER"
 new "Set right user: $cmd"
 expectpart "$($clixon_cli -1 -m configure -f $CFG -E $CFD $cmd)" 0 "^$"
