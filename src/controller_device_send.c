@@ -309,7 +309,6 @@ int
 device_send_get_schema_list(clixon_handle h,
                             device_handle dh,
                             int           s)
-
 {
     int   retval = -1;
     cbuf *cb = NULL;

@@ -484,7 +484,7 @@ controller_transaction_new(clixon_handle            h,
     }
     else
         lock_id = 0; /* Reuse existing lock */
-    if (if_feature(h, "ietf-netconf-private-candidate", "private-candidate")){
+    if (clicon_option_bool(h, "CLICON_XMLDB_PRIVATE_CANDIDATE")){
         /* First step, rebase private candidate with running */
         if ((*cberr = cbuf_new()) == NULL){
             clixon_err(OE_UNIX, errno, "cbuf_new");

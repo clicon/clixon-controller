@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 # Netconf private candidate functionality
+# Tests controller's own private candidate, ie not privcand of devices
 # See NETCONF and RESTCONF Private Candidate Datastores draft-ietf-netconf-privcand-07
 
 # Magic line must be first in script (see README.md)
@@ -25,6 +26,7 @@ cat<<EOF > $CFD/diff.xml
   <CLICON_CONFIGDIR>$CFD</CLICON_CONFIGDIR>
   <CLICON_FEATURE>ietf-netconf-private-candidate:private-candidate</CLICON_FEATURE>
   <CLICON_XMLDB_DIR>$dbdir</CLICON_XMLDB_DIR>
+  <CLICON_XMLDB_PRIVATE_CANDIDATE>true</CLICON_XMLDB_PRIVATE_CANDIDATE>
 </clixon-config>
 EOF
 
@@ -117,7 +119,7 @@ fi
 # Start two cli:s
 # (1) Edit device config in both in different parts
 # Commit one, and then second
-# (1) Edit device config in both in same parts
+# (2) Edit device config in both in same parts
 # Commit one, cause conflict in other
 # Revert, and commit again
 new "Spawn expect script to simulate two CLI sessions"
@@ -190,7 +192,6 @@ clifn $session2 "commit" ""
 
 puts "2 show running"
 clifn $session2 "op show config devices device openconfig1 config system config login-banner" "222"
-
 
 EOF
 
