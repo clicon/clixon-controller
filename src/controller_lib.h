@@ -132,6 +132,7 @@ int xdev2yang_library(cxobj *xdev, char *domain, cxobj **xyanglib);
 int controller_mount_xpath_get(char *devname, cbuf **cbxpath);
 int controller_mount_yspec_get(clixon_handle h, char *devname, yang_stmt **yspec1);
 int controller_mount_yspec_set(clixon_handle h, char *devname, yang_stmt *yspec1);
+int yang_mount_cleanup(clixon_handle h);
 int controller_version(clixon_handle h, FILE *f);
 
 #ifdef __cplusplus

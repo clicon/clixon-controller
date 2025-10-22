@@ -1074,8 +1074,12 @@ device_state_check_ok(clixon_handle           h,
     device_handle_tid_set(dh, 0);
     /* 2.2.2.2 If no devices in transaction, mark as OK and close it*/
     if (controller_transaction_nr_devices(h, tid) == 0){
-        if (ct->ct_state != TS_RESOLVED)
+        if (ct->ct_state != TS_RESOLVED){
             controller_transaction_state_set(ct, TS_RESOLVED, TR_SUCCESS);
+        /* Garbage-collect yspecs with no mount-points */
+        if (yang_mount_cleanup(h) < 0)
+            goto done;
+        }
         if (controller_transaction_done(h, ct, -1) < 0)
             goto done;
     }

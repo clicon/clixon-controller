@@ -18,6 +18,7 @@ Expected: October 2025
 
 ### Corrected Bugs
 
+* Fixed: [Memory leak after reopening connection](https://github.com/clicon/clixon-controller/issues/169)
 * Fixed: [commit on multiple devices with one device with not pulled local commit drops connection to subset of devices](https://github.com/clicon/clixon-controller/issues/223)
 * Fixed: Device closes when device out-of-sync (Only > 50 devices)
 * Fixed: set glob skip disabled devices correctly and warn of different YANGs

@@ -317,17 +317,26 @@ schema_list2yang_library(clixon_handle h,
         if (strcmp(xml_name(x), "schema") != 0)
             continue;
         if ((identifier = xml_find_body(x, "identifier")) == NULL ||
+#ifndef NEW_REVISION
             (version = xml_find_body(x, "version")) == NULL ||
+#endif
             (namespace = xml_find_body(x, "namespace")) == NULL ||
             (format = xml_find_body(x, "format")) == NULL)
-
             continue;
         if (strcmp(format, "yang") != 0)
             continue;
+#ifdef NEW_REVISION
+        version = xml_find_body(x, "version");
+        //        version = NULL; // XXX
+#endif
         location = xml_find_body(x, "location");
         cprintf(cb, "<module>");
         cprintf(cb, "<name>%s</name>", identifier);
+#ifdef NEW_REVISION
+        cprintf(cb, "<revision>%s</revision>", version?version:"");
+#else
         cprintf(cb, "<revision>%s</revision>", version);
+#endif
         cprintf(cb, "<namespace>%s</namespace>", namespace);
         if (location){
             cprintf(cb, "<location>%s</location>", location);
@@ -438,9 +447,8 @@ controller_mount_yang_get(clixon_handle h,
 
 /*! Get xpath of mountpoint given device name
  *
- * @param[in]  h        Clixon handle
  * @param[in]  devname  Name of device
- * @param[out] yspec1   yang spec
+ * @param[out] cbxpath  XPath in cbuf, created by function, free with cbuf_free()
  * @retval     0        OK
  * @retval    -1        Error
  */
@@ -520,6 +528,51 @@ controller_mount_yspec_set(clixon_handle h,
  done:
     if (cbxpath)
         cbuf_free(cbxpath);
+    return retval;
+}
+
+/*! Go through all yspecs and delete if there are no mounts
+ *
+ * Essentially a garbage collect.
+ * It can happen at reconnect that old yangs are left hanging and due to
+ * race-conditions you cannot delete them in the connect transaction due to existing
+ * yang bindings.
+ * see https://github.com/clicon/clixon-controller/issues/169
+ * @param[in]  h   Clixon handle
+ * @retval     0   OK
+ * @retval    -1   Error
+ * Only removes first empty in each domain
+ */
+int
+yang_mount_cleanup(clixon_handle h)
+{
+    int        retval = 1;
+    yang_stmt *ymounts;
+    yang_stmt *ydomain;
+    yang_stmt *yspec = NULL;
+    int        inext;
+    int        inext2;
+
+    if ((ymounts = clixon_yang_mounts_get(h)) == NULL){
+        clixon_err(OE_YANG, ENOENT, "Top-level yang mounts not found");
+        goto done;
+    }
+    inext = 0;
+    ydomain = NULL;
+    while ((ydomain = yn_iter(ymounts, &inext)) != NULL) {
+        inext2 = 0;
+        while ((yspec = yn_iter(ydomain, &inext2)) != NULL) {
+            if (yang_keyword_get(yspec) == Y_SPEC &&
+                yang_cvec_get(yspec) == NULL &&
+                yang_flag_get(yspec, YANG_FLAG_SPEC_MOUNT)){
+                ys_prune_self(yspec);
+                ys_free(yspec);
+                break;
+            }
+        }
+    }
+    retval = 0;
+ done:
     return retval;
 }
 
