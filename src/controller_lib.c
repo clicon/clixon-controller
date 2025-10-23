@@ -317,26 +317,16 @@ schema_list2yang_library(clixon_handle h,
         if (strcmp(xml_name(x), "schema") != 0)
             continue;
         if ((identifier = xml_find_body(x, "identifier")) == NULL ||
-#ifndef NEW_REVISION
-            (version = xml_find_body(x, "version")) == NULL ||
-#endif
             (namespace = xml_find_body(x, "namespace")) == NULL ||
             (format = xml_find_body(x, "format")) == NULL)
             continue;
         if (strcmp(format, "yang") != 0)
             continue;
-#ifdef NEW_REVISION
         version = xml_find_body(x, "version");
-        //        version = NULL; // XXX
-#endif
         location = xml_find_body(x, "location");
         cprintf(cb, "<module>");
         cprintf(cb, "<name>%s</name>", identifier);
-#ifdef NEW_REVISION
         cprintf(cb, "<revision>%s</revision>", version?version:"");
-#else
-        cprintf(cb, "<revision>%s</revision>", version);
-#endif
         cprintf(cb, "<namespace>%s</namespace>", namespace);
         if (location){
             cprintf(cb, "<location>%s</location>", location);

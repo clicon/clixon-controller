@@ -1077,8 +1077,9 @@ device_state_check_ok(clixon_handle           h,
         if (ct->ct_state != TS_RESOLVED){
             controller_transaction_state_set(ct, TS_RESOLVED, TR_SUCCESS);
         /* Garbage-collect yspecs with no mount-points */
-        if (yang_mount_cleanup(h) < 0)
-            goto done;
+            if (0) /* Causes SEGV when reconnect */
+                if (yang_mount_cleanup(h) < 0)
+                    goto done;
         }
         if (controller_transaction_done(h, ct, -1) < 0)
             goto done;

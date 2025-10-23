@@ -188,7 +188,7 @@ device_get_schema_sendit(clixon_handle h,
             NETCONF_BASE_NAMESPACE, seq);
     cprintf(cb, "<get-schema xmlns=\"%s\">", NETCONF_MONITORING_NAMESPACE);
     cprintf(cb, "<identifier>%s</identifier>", identifier);
-    cprintf(cb, "<version>%s</version>", version);
+    cprintf(cb, "<version>%s</version>", version?version:"");
     cprintf(cb, "<format>yang</format>");
     cprintf(cb, "</get-schema>");
     cprintf(cb, "</rpc>");

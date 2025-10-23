@@ -1058,13 +1058,16 @@ device_handle_schema_rev_get(device_handle dh)
  */
 int
 device_handle_schema_rev_set(device_handle dh,
-                              char        *schema_rev)
+                             char        *schema_rev)
 {
     struct controller_device_handle *cdh = devhandle(dh);
 
-    if (cdh->cdh_schema_rev)
+    if (cdh->cdh_schema_rev){
         free(cdh->cdh_schema_rev);
-    cdh->cdh_schema_rev = strdup(schema_rev);
+        cdh->cdh_schema_rev = NULL;
+    }
+    if (schema_rev)
+        cdh->cdh_schema_rev = strdup(schema_rev);
     return 0;
 }
 
