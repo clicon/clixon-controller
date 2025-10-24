@@ -1404,10 +1404,21 @@ show_connections_detail(clixon_handle h,
                         cxobj        *xn,
                         char         *pattern)
 {
-    int     retval = -1;
-    cxobj  *xc;
-    char   *name;
+    int              retval = -1;
+    cxobj           *xc;
+    cxobj           *xs;
+    yang_stmt       *ys;
+    char            *name;
+    enum format_enum format;
+    char            *formatstr;
+    int              ret;
 
+    formatstr = clicon_option_str(h, "CLICON_CLI_OUTPUT_FORMAT");
+    if ((ret = format_str2int(formatstr)) < 0){
+        clixon_err(OE_PLUGIN, 0, "Not valid format: %s", formatstr);
+        goto done;
+    }
+    format = ret;
     xc = NULL;
     while ((xc = xml_child_each(xn, xc, CX_ELMNT)) != NULL) {
         if (strcmp(xml_name(xc), "device") != 0)
@@ -1415,36 +1426,46 @@ show_connections_detail(clixon_handle h,
         name = xml_find_body(xc, "name");
         if (pattern != NULL && fnmatch(pattern, name, 0) != 0)
             continue;
-        //        cligen_output(stdout, "Name: \t%s\n", name);
-        cligen_output(stdout, "<device>\n");
+        if ((xs = xml_find(xc, "name")) != NULL)
+            xml_flag_set(xs, XML_FLAG_MARK);
+        xs = NULL;
+        while ((xs = xml_child_each(xc, xs, CX_ELMNT)) != NULL) {
+            if (strcmp(xml_name(xs), "capabilities") == 0) /* Too much output */
+                continue;
+            if ((ys = xml_spec(xs)) != NULL){
+                if (yang_config(ys) == 0)
+                    xml_flag_set(xs, XML_FLAG_MARK);
+            }
+        }
+    }
+    if (xml_tree_prune_flagged_sub(xn, XML_FLAG_MARK, 1, NULL) < 0)
+        goto done;
+    switch (format){
+    case FORMAT_DEFAULT:
+    case FORMAT_XML:
         clixon_xml2file1(stdout,
-                         xml_find(xc, "name"),
+                         xn,
                          0, 1, "   ",
                          cligen_output, 0, 0, WITHDEFAULTS_REPORT_ALL, 0, 0);
-        clixon_xml2file1(stdout,
-                         xml_find(xc, "conn-state"),
-                         0, 1, "   ",
-                         cligen_output, 0, 0, WITHDEFAULTS_REPORT_ALL, 0, 0);
-        clixon_xml2file1(stdout,
-                         xml_find(xc, "conn-state-timestamp"),
-                         0, 1, "   ",
-                         cligen_output, 0, 0, WITHDEFAULTS_REPORT_ALL, 0, 0);
-        clixon_xml2file1(stdout,
-                         xml_find(xc, "sync-timestamp"),
-                         0, 1, "   ",
-                         cligen_output, 0, 0, WITHDEFAULTS_REPORT_ALL, 0, 0);
-        clixon_xml2file1(stdout,
-                         xml_find(xc, "private-candidate-state"),
-                         0, 1, "   ",
-                         cligen_output, 0, 0, WITHDEFAULTS_REPORT_ALL, 0, 0);
-        clixon_xml2file1(stdout,
-                         xml_find(xc, "netconf-framing-type"),
-                         0, 1, "   ",
-                         cligen_output, 0, 0, WITHDEFAULTS_REPORT_ALL, 0, 0);
-        cligen_output(stdout, "</device>\n");
+        break;
+    case FORMAT_JSON:
+        if (clixon_json2file(stdout, xn, 1, cligen_output, 0, 0, 0) < 0)
+            goto done;
+
+        break;
+    case FORMAT_TEXT:
+        if (clixon_text2file(stdout, xn, 0, cligen_output, 0, 0) < 0)
+            goto done;
+        break;
+    case FORMAT_CLI:
+        if (clixon_cli2file(h, stdout, xn, "set ", cligen_output, 1) < 0) /* cli syntax */
+            goto done;
+        break;
+    default:
+        break;
     }
     retval = 0;
-    // done:
+ done:
     return retval;
 }
 

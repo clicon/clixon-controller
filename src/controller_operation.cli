@@ -51,7 +51,7 @@ show("Show a particular state of the system"){
                  ], cli_show_connections();{
                  @|pipe_common, cli_show_connections();
                  detail("Show detailed connection status"), cli_show_connections("detail");{
-                    @|pipe_common, cli_show_connections("detail");
+                    @|pipe_show, cli_show_connections("detail");
                  }
              }
     devices("Show state of devices"){
