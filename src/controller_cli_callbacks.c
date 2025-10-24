@@ -1305,6 +1305,149 @@ cli_connection_change(clixon_handle h,
     return retval;
 }
 
+/*! Show connection state using a pretty-printed table
+ *
+ * @param[in] h       Clixon handle
+ * @param[in] xn      XML devices node
+ * @param[in] pattern Glob pattern
+ * @retval    0       OK
+ * @retval   -1       Error
+ */
+int
+show_connections_pretty(clixon_handle h,
+                        cxobj        *xn,
+                        char         *pattern)
+{
+    int     retval = -1;
+    cxobj  *xc;
+    char   *name;
+    int     width;
+    char   *logstr = NULL;
+    char   *timestamp;
+    int     logw;
+    char   *state;
+    char   *logmsg;
+    char   *p;
+    int     i;
+
+    /* First run to see if no matches */
+    xc = NULL;
+    while ((xc = xml_child_each(xn, xc, CX_ELMNT)) != NULL) {
+        if (strcmp(xml_name(xc), "device") != 0)
+            continue;
+        name = xml_find_body(xc, "name");
+        if (pattern != NULL && fnmatch(pattern, name, 0) != 0)
+            continue;
+        break;
+    }
+    if (xc == NULL){
+        clixon_err(OE_CFG, errno, "No matching devices");
+        goto done;
+    }
+    width = cligen_terminal_width(cli_cligen(h));
+    logw = width - 59;
+    if (logw < 0)
+        logw = 1;
+    cligen_output(stdout, "%-23s %-10s %-22s %-*s\n", "Name", "State", "Time", logw, "Logmsg");
+    for (i=0; i<width; i++)
+        cligen_output(stdout, "=");
+    cligen_output(stdout, "\n");
+    xc = NULL;
+    while ((xc = xml_child_each(xn, xc, CX_ELMNT)) != NULL) {
+        if (strcmp(xml_name(xc), "device") != 0)
+            continue;
+        name = xml_find_body(xc, "name");
+        if (pattern != NULL && fnmatch(pattern, name, 0) != 0)
+            continue;
+        if (logstr){
+            free(logstr);
+            logstr = NULL;
+        }
+        if ((logstr = calloc(logw+1, sizeof(char))) == NULL){
+            clixon_err(OE_UNIX, errno, "calloc");
+            goto done;
+        }
+        cligen_output(stdout, "%-24s",  name);
+        state = xml_find_body(xc, "conn-state");
+        cligen_output(stdout, "%-11s",  state?state:"");
+        if ((timestamp = xml_find_body(xc, "conn-state-timestamp")) != NULL){
+            /* Remove 6 us digits */
+            if ((p = rindex(timestamp, '.')) != NULL)
+                *p = '\0';
+        }
+        cligen_output(stdout, "%-23s", timestamp?timestamp:"");
+        if ((logmsg = xml_find_body(xc, "logmsg")) != NULL){
+            strncpy(logstr, logmsg, logw);
+            if ((p = index(logstr, '\n')) != NULL)
+                *p = '\0';
+            cligen_output(stdout, "%s",  logstr);
+        }
+        cligen_output(stdout, "\n");
+    }
+    retval = 0;
+ done:
+    if (logstr)
+        free(logstr);
+    return retval;
+}
+
+/*! Show connection state using detailed
+ *
+ * @param[in] h       Clixon handle
+ * @param[in] xn      XML devices node
+ * @param[in] pattern Glob pattern
+ * @retval    0       OK
+ * @retval   -1       Error
+ */
+static int
+show_connections_detail(clixon_handle h,
+                        cxobj        *xn,
+                        char         *pattern)
+{
+    int     retval = -1;
+    cxobj  *xc;
+    char   *name;
+
+    xc = NULL;
+    while ((xc = xml_child_each(xn, xc, CX_ELMNT)) != NULL) {
+        if (strcmp(xml_name(xc), "device") != 0)
+            continue;
+        name = xml_find_body(xc, "name");
+        if (pattern != NULL && fnmatch(pattern, name, 0) != 0)
+            continue;
+        //        cligen_output(stdout, "Name: \t%s\n", name);
+        cligen_output(stdout, "<device>\n");
+        clixon_xml2file1(stdout,
+                         xml_find(xc, "name"),
+                         0, 1, "   ",
+                         cligen_output, 0, 0, WITHDEFAULTS_REPORT_ALL, 0, 0);
+        clixon_xml2file1(stdout,
+                         xml_find(xc, "conn-state"),
+                         0, 1, "   ",
+                         cligen_output, 0, 0, WITHDEFAULTS_REPORT_ALL, 0, 0);
+        clixon_xml2file1(stdout,
+                         xml_find(xc, "conn-state-timestamp"),
+                         0, 1, "   ",
+                         cligen_output, 0, 0, WITHDEFAULTS_REPORT_ALL, 0, 0);
+        clixon_xml2file1(stdout,
+                         xml_find(xc, "sync-timestamp"),
+                         0, 1, "   ",
+                         cligen_output, 0, 0, WITHDEFAULTS_REPORT_ALL, 0, 0);
+        clixon_xml2file1(stdout,
+                         xml_find(xc, "private-candidate-state"),
+                         0, 1, "   ",
+                         cligen_output, 0, 0, WITHDEFAULTS_REPORT_ALL, 0, 0);
+        clixon_xml2file1(stdout,
+                         xml_find(xc, "netconf-framing-type"),
+                         0, 1, "   ",
+                         cligen_output, 0, 0, WITHDEFAULTS_REPORT_ALL, 0, 0);
+        cligen_output(stdout, "</device>\n");
+    }
+    retval = 0;
+    // done:
+    return retval;
+}
+
 /*! Show connection state
  *
  * @param[in] h     Clixon handle
@@ -1321,21 +1464,12 @@ cli_show_connections(clixon_handle h,
     int     retval = -1;
     cvec   *nsc = NULL;
     cxobj  *xc;
+    char   *pattern = NULL;
     cxobj  *xerr;
     cbuf   *cb = NULL;
     cxobj  *xn = NULL; /* XML of senders */
-    char   *name;
-    char   *state;
-    char   *timestamp;
-    char   *logmsg;
-    char   *pattern = NULL;
     cg_var *cv;
     int     detail = 0;
-    int     width;
-    int     logw;
-    int     i;
-    char   *logstr = NULL;
-    char   *p;
 
     if (argv != NULL && cvec_len(argv) != 1){
         clixon_err(OE_PLUGIN, EINVAL, "optional argument: <detail>");
@@ -1364,7 +1498,7 @@ cli_show_connections(clixon_handle h,
     else{
         /* Avoid including moint-point which triggers a lot of extra traffic */
         if (clicon_rpc_get(h,
-                           "co:devices/co:device/co:name | co:devices/co:device/co:conn-state | co:devices/co:device/co:conn-state-timestamp | co:devices/co:device/co:logmsg | co:devices/co:device/co:private-candidate-state | co:devices/co:device/co:netconf-framing-type",
+                           "co:devices/co:device/co:name | co:devices/co:device/co:conn-state | co:devices/co:device/co:conn-state-timestamp | co:devices/co:device/co:logmsg",
                            nsc, CONTENT_ALL, -1, "explicit", &xn) < 0)
             goto done;
     }
@@ -1377,73 +1511,15 @@ cli_show_connections(clixon_handle h,
         if (xml_rootchild_node(xn, xc) < 0)
             goto done;
         xn = xc;
-        /* First run to see if no matches */
-        xc = NULL;
-        while ((xc = xml_child_each(xn, xc, CX_ELMNT)) != NULL) {
-            if (strcmp(xml_name(xc), "device") != 0)
-                continue;
-            name = xml_find_body(xc, "name");
-            if (pattern != NULL && fnmatch(pattern, name, 0) != 0)
-                continue;
-            break;
-        }
-        if (xc == NULL){
-            clixon_err(OE_CFG, errno, "No matching devices");
-            goto done;
-        }
-        width = cligen_terminal_width(cli_cligen(h));
-        logw = width - 61;
-        if (logw < 0)
-            logw = 1;
-        cligen_output(stdout, "%-23s %-12s %-22s %-*s\n", "Name", "F State", "Time", logw, "Logmsg");
-        for (i=0; i<width; i++)
-            cligen_output(stdout, "=");
-        cligen_output(stdout, "\n");
-        xc = NULL;
-        while ((xc = xml_child_each(xn, xc, CX_ELMNT)) != NULL) {
-            if (logstr){
-                free(logstr);
-                logstr = NULL;
-            }
-            if ((logstr = calloc(logw+1, sizeof(char))) == NULL){
-                clixon_err(OE_UNIX, errno, "calloc");
+        if (detail){
+            if (show_connections_detail(h, xn, pattern) < 0)
                 goto done;
-            }
-            if (strcmp(xml_name(xc), "device") != 0)
-                continue;
-            name = xml_find_body(xc, "name");
-            if (pattern != NULL && fnmatch(pattern, name, 0) != 0)
-                continue;
-            cligen_output(stdout, "%-24s",  name);
-            if ((state = xml_find_body(xc, "netconf-framing-type")) != NULL){
-                if (strcmp(state, "1.0") == 0)
-                    cligen_output(stdout, "%-2s", "0");
-                else if (strcmp(state, "1.1") == 0)
-                    cligen_output(stdout, "%-2s", "1");
-                else
-                    cligen_output(stdout, "%-2s", " ");
-            }
-            state = xml_find_body(xc, "conn-state");
-            cligen_output(stdout, "%-11s",  state?state:"");
-            if ((timestamp = xml_find_body(xc, "conn-state-timestamp")) != NULL){
-                /* Remove 6 us digits */
-                if ((p = rindex(timestamp, '.')) != NULL)
-                    *p = '\0';
-            }
-            cligen_output(stdout, "%-23s", timestamp?timestamp:"");
-            if ((logmsg = xml_find_body(xc, "logmsg")) != NULL){
-                strncpy(logstr, logmsg, logw);
-                if ((p = index(logstr, '\n')) != NULL)
-                    *p = '\0';
-                cligen_output(stdout, "%s",  logstr);
-            }
-            cligen_output(stdout, "\n");
         }
+        else if (show_connections_pretty(h, xn, pattern) < 0)
+            goto done;
     }
     retval = 0;
  done:
-    if (logstr)
-        free(logstr);
     if (nsc)
         cvec_free(nsc);
     if (xn)

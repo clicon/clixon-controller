@@ -50,6 +50,9 @@ show("Show a particular state of the system"){
                   <name:string expand_dbvar("running","/clixon-controller:devices/device/name")>("device pattern"))
                  ], cli_show_connections();{
                  @|pipe_common, cli_show_connections();
+                 detail("Show detailed connection status"), cli_show_connections("detail");{
+                    @|pipe_common, cli_show_connections("detail");
+                 }
              }
     devices("Show state of devices"){
        [(<name:string>("device pattern")
