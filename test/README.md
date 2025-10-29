@@ -9,6 +9,20 @@ github actions regression tests.
 
 You can also run test natively, in which case you need to set up some things manually
 
+### Native prerequisites
+
+You need to install the following:
+
+- cligen
+  - bison
+  - flex
+- clixon
+- clixon-util
+- clixon-pyapi
+- curl
+- expect
+- docker
+
 ### Devices
 
 Create site.sh, for example:

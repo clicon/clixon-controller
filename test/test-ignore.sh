@@ -25,7 +25,7 @@ cat<<EOF > $CFD/diff.xml
 <?xml version="1.0" encoding="utf-8"?>
 <clixon-config xmlns="http://clicon.org/config">
   <CLICON_CONFIGDIR>$CFD</CLICON_CONFIGDIR>
-  <CLICON_YANG_DIR>$dir</CLICON_YANG_DIR>
+  <CLICON_YANG_DIR>$mntdir</CLICON_YANG_DIR>
   <CLICON_YANG_DOMAIN_DIR>$mntdir</CLICON_YANG_DOMAIN_DIR>
   <CLICON_VALIDATE_STATE_XML>true</CLICON_VALIDATE_STATE_XML>
 </clixon-config>

@@ -298,7 +298,7 @@ set CFG [lindex $argv 1]
 set ADMIN [lindex $argv 2]
 set LIMITED [lindex $argv 3]
 
-set hostname [info hostname]
+set hostname [exec hostname]
 
 puts "Test Expect lock-exclusive"
 
