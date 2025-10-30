@@ -655,6 +655,34 @@ junos_native_modify_recv(device_handle dh,
         goto done;
 
 
+    /* junos-conf-policy-options.yang: grouping control_source_address_filter_type */
+    if (junos_native_enum_expand_both(xdata, "policy-options/policy-statement/term/from/source-address-filter/exact", "choice-ident", "choice-value") < 0)
+        goto done;
+    if (junos_native_enum_expand_both(xdata, "policy-options/policy-statement/term/from/source-address-filter/longer", "choice-ident", "choice-value") < 0)
+        goto done;
+    if (junos_native_enum_expand_both(xdata, "policy-options/policy-statement/term/from/source-address-filter/orlonger", "choice-ident", "choice-value") < 0)
+        goto done;
+    if (junos_native_enum_expand_both(xdata, "policy-options/policy-statement/term/from/source-address-filter/upto", "choice-ident", "choice-value") < 0)
+        goto done;
+    if (junos_native_enum_expand_both(xdata, "policy-options/policy-statement/term/from/source-address-filter/through", "choice-ident", "choice-value") < 0)
+        goto done;
+    if (junos_native_enum_expand_both(xdata, "policy-options/policy-statement/term/from/source-address-filter/prefix-length-range", "choice-ident", "choice-value") < 0)
+        goto done;
+
+    /* junos-conf-policy-options.yang: grouping control_source_address_filter_type no term*/
+    if (junos_native_enum_expand_both(xdata, "policy-options/policy-statement/from/source-address-filter/exact", "choice-ident", "choice-value") < 0)
+        goto done;
+    if (junos_native_enum_expand_both(xdata, "policy-options/policy-statement/from/source-address-filter/longer", "choice-ident", "choice-value") < 0)
+        goto done;
+    if (junos_native_enum_expand_both(xdata, "policy-options/policy-statement/from/source-address-filter/orlonger", "choice-ident", "choice-value") < 0)
+        goto done;
+    if (junos_native_enum_expand_both(xdata, "policy-options/policy-statement/from/source-address-filter/upto", "choice-ident", "choice-value") < 0)
+        goto done;
+    if (junos_native_enum_expand_both(xdata, "policy-options/policy-statement/from/source-address-filter/through", "choice-ident", "choice-value") < 0)
+        goto done;
+    if (junos_native_enum_expand_both(xdata, "policy-options/policy-statement/from/source-address-filter/prefix-length-range", "choice-ident", "choice-value") < 0)
+        goto done;
+
     /* martians */
     if (junos_native_enum_expand(xdata, "configuration/routing-options/martians/exact", "choice-ident", "choice-value") < 0)
         goto done;
@@ -965,6 +993,33 @@ junos_native_modify_send(device_handle dh,
     if (junos_native_enum_reduce_both(xdata, "policy-options/policy-statement/from/route-filter/choice-ident[.='address-mask']", "", "choice-ident", "choice-value") < 0)
         goto done;
 
+    /* junos-conf-policy-options.yang: grouping control_source_address_filter_type */
+    if (junos_native_enum_reduce_both(xdata, "policy-options/policy-statement/term/from/source-address-filter/choice-ident[.='exact']", "", "choice-ident", "choice-value") < 0)
+        goto done;
+    if (junos_native_enum_reduce_both(xdata, "policy-options/policy-statement/term/from/source-address-filter/choice-ident[.='longer']", "", "choice-ident", "choice-value") < 0)
+        goto done;
+    if (junos_native_enum_reduce_both(xdata, "policy-options/policy-statement/term/from/source-address-filter/choice-ident[.='orlonger']", "", "choice-ident", "choice-value") < 0)
+        goto done;
+    if (junos_native_enum_reduce_both(xdata, "policy-options/policy-statement/term/from/source-address-filter/choice-ident[.='upto']", "", "choice-ident", "choice-value") < 0)
+        goto done;
+    if (junos_native_enum_reduce_both(xdata, "policy-options/policy-statement/term/from/source-address-filter/choice-ident[.='through']", "", "choice-ident", "choice-value") < 0)
+        goto done;
+    if (junos_native_enum_reduce_both(xdata, "policy-options/policy-statement/term/from/source-address-filter/choice-ident[.='prefix-length-range']", "", "choice-ident", "choice-value") < 0)
+        goto done;
+
+    /* junos-conf-policy-options.yang: grouping control_source_address_filter_type no term */
+    if (junos_native_enum_reduce_both(xdata, "policy-options/policy-statement/from/source-address-filter/choice-ident[.='exact']", "", "choice-ident", "choice-value") < 0)
+        goto done;
+    if (junos_native_enum_reduce_both(xdata, "policy-options/policy-statement/from/source-address-filter/choice-ident[.='longer']", "", "choice-ident", "choice-value") < 0)
+        goto done;
+    if (junos_native_enum_reduce_both(xdata, "policy-options/policy-statement/from/source-address-filter/choice-ident[.='orlonger']", "", "choice-ident", "choice-value") < 0)
+        goto done;
+    if (junos_native_enum_reduce_both(xdata, "policy-options/policy-statement/from/source-address-filter/choice-ident[.='upto']", "", "choice-ident", "choice-value") < 0)
+        goto done;
+    if (junos_native_enum_reduce_both(xdata, "policy-options/policy-statement/from/source-address-filter/choice-ident[.='through']", "", "choice-ident", "choice-value") < 0)
+        goto done;
+    if (junos_native_enum_reduce_both(xdata, "policy-options/policy-statement/from/source-address-filter/choice-ident[.='prefix-length-range']", "", "choice-ident", "choice-value") < 0)
+        goto done;
 
  ok:
     retval = 0;
