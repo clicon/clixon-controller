@@ -333,6 +333,75 @@ junos_native_enum_reduce(cxobj *xdata,
     return retval;
 }
 
+/*! Helper function to apply enum expansion for both regular and logical-systems paths
+ */
+static int
+junos_native_enum_expand_both(cxobj *xdata,
+                              char  *base_xpath,
+                              char  *idtag,
+                              char  *valtag)
+{
+    int retval = -1;
+    cbuf *cb = NULL;
+
+    if ((cb = cbuf_new()) == NULL){
+        clixon_err(OE_XML, errno, "cbuf_new");
+        goto done;
+    }
+
+    /* Handle regular configuration path */
+    cprintf(cb, "configuration/%s", base_xpath);
+    if (junos_native_enum_expand(xdata, cbuf_get(cb), idtag, valtag) < 0)
+        goto done;
+
+    /* Handle logical-systems path */
+    cbuf_reset(cb);
+    cprintf(cb, "configuration/logical-systems/%s", base_xpath);
+    if (junos_native_enum_expand(xdata, cbuf_get(cb), idtag, valtag) < 0)
+        goto done;
+
+    retval = 0;
+ done:
+    if (cb)
+        cbuf_free(cb);
+    return retval;
+}
+
+/*! Helper function to apply enum reduction for both regular and logical-systems paths
+ */
+static int
+junos_native_enum_reduce_both(cxobj *xdata,
+                              char  *base_xpath,
+                              char  *filter,
+                              char  *idtag,
+                              char  *valtag)
+{
+    int retval = -1;
+    cbuf *cb = NULL;
+
+    if ((cb = cbuf_new()) == NULL){
+        clixon_err(OE_XML, errno, "cbuf_new");
+        goto done;
+    }
+
+    /* Handle regular configuration path */
+    cprintf(cb, "configuration/%s%s", base_xpath, filter);
+    if (junos_native_enum_reduce(xdata, cbuf_get(cb), idtag, valtag) < 0)
+        goto done;
+
+    /* Handle logical-systems path */
+    cbuf_reset(cb);
+    cprintf(cb, "configuration/logical-systems/%s%s", base_xpath, filter);
+    if (junos_native_enum_reduce(xdata, cbuf_get(cb), idtag, valtag) < 0)
+        goto done;
+
+    retval = 0;
+ done:
+    if (cb)
+        cbuf_free(cb);
+    return retval;
+}
+
 /*! Modify incoming XML config to match YANGs
  *
  * This is for junos native, ie without rfc and yang compliant setting
@@ -501,58 +570,73 @@ junos_native_modify_recv(device_handle dh,
 
     /* Replace enums */
     /* junos-conf-policy-options.yang: grouping route_filter_list_items */
-    if (junos_native_enum_expand(xdata, "configuration/policy-options/route-filter-list/rf_list/exact", "choice-ident", "choice-value") < 0)
+    if (junos_native_enum_expand_both(xdata, "policy-options/route-filter-list/rf_list/exact", "choice-ident", "choice-value") < 0)
         goto done;
-    if (junos_native_enum_expand(xdata, "configuration/policy-options/route-filter-list/rf_list/longer", "choice-ident", "choice-value") < 0)
+    if (junos_native_enum_expand_both(xdata, "policy-options/route-filter-list/rf_list/longer", "choice-ident", "choice-value") < 0)
         goto done;
-    if (junos_native_enum_expand(xdata, "configuration/policy-options/route-filter-list/rf_list/orlonger", "choice-ident", "choice-value") < 0)
+    if (junos_native_enum_expand_both(xdata, "policy-options/route-filter-list/rf_list/orlonger", "choice-ident", "choice-value") < 0)
         goto done;
-    if (junos_native_enum_expand(xdata, "configuration/policy-options/route-filter-list/rf_list/upto", "choice-ident", "choice-value") < 0)
+    if (junos_native_enum_expand_both(xdata, "policy-options/route-filter-list/rf_list/upto", "choice-ident", "choice-value") < 0)
         goto done;
-    if (junos_native_enum_expand(xdata, "configuration/policy-options/route-filter-list/rf_list/through", "choice-ident", "choice-value") < 0)
+    if (junos_native_enum_expand_both(xdata, "policy-options/route-filter-list/rf_list/through", "choice-ident", "choice-value") < 0)
         goto done;
-    if (junos_native_enum_expand(xdata, "configuration/policy-options/route-filter-list/rf_list/prefix-length-range", "choice-ident", "choice-value") < 0)
+    if (junos_native_enum_expand_both(xdata, "policy-options/route-filter-list/rf_list/prefix-length-range", "choice-ident", "choice-value") < 0)
         goto done;
-    if (junos_native_enum_expand(xdata, "configuration/policy-options/route-filter-list/rf_list/adress-mask", "choice-ident", "choice-value") < 0)
+    if (junos_native_enum_expand_both(xdata, "policy-options/route-filter-list/rf_list/adress-mask", "choice-ident", "choice-value") < 0)
         goto done;
 
     /* junos-conf-policy-options.yang: grouping control_prefix_list_filter_type */
-    if (junos_native_enum_expand(xdata, "configuration/policy-options/policy-statement/term/from/prefix-list-filter/exact", "choice-ident", "choice-value") < 0)
+    if (junos_native_enum_expand_both(xdata, "policy-options/policy-statement/term/from/prefix-list-filter/exact", "choice-ident", "choice-value") < 0)
         goto done;
-    if (junos_native_enum_expand(xdata, "configuration/policy-options/policy-statement/term/from/prefix-list-filter/longer", "choice-ident", "choice-value") < 0)
+    if (junos_native_enum_expand_both(xdata, "policy-options/policy-statement/term/from/prefix-list-filter/longer", "choice-ident", "choice-value") < 0)
         goto done;
-    if (junos_native_enum_expand(xdata, "configuration/policy-options/policy-statement/term/from/prefix-list-filter/orlonger", "choice-ident", "choice-value") < 0)
+    if (junos_native_enum_expand_both(xdata, "policy-options/policy-statement/term/from/prefix-list-filter/orlonger", "choice-ident", "choice-value") < 0)
         goto done;
 
     /* junos-conf-policy-options.yang: list community */
-    if (junos_native_enum_expand(xdata, "configuration/policy-options/policy-statement/term/then/community/equal-literal", "choice-ident", "choice-value") < 0)
+    if (junos_native_enum_expand_both(xdata, "policy-options/policy-statement/term/then/community/equal-literal", "choice-ident", "choice-value") < 0)
         goto done;
-    if (junos_native_enum_expand(xdata, "configuration/policy-options/policy-statement/term/then/community/set", "choice-ident", "choice-value") < 0)
+    if (junos_native_enum_expand_both(xdata, "policy-options/policy-statement/term/then/community/set", "choice-ident", "choice-value") < 0)
         goto done;
-    if (junos_native_enum_expand(xdata, "configuration/policy-options/policy-statement/term/then/community/plus-literal", "choice-ident", "choice-value") < 0)
+    if (junos_native_enum_expand_both(xdata, "policy-options/policy-statement/term/then/community/plus-literal", "choice-ident", "choice-value") < 0)
         goto done;
-    if (junos_native_enum_expand(xdata, "configuration/policy-options/policy-statement/term/then/community/add", "choice-ident", "choice-value") < 0)
+    if (junos_native_enum_expand_both(xdata, "policy-options/policy-statement/term/then/community/add", "choice-ident", "choice-value") < 0)
         goto done;
-    if (junos_native_enum_expand(xdata, "configuration/policy-options/policy-statement/term/then/community/minus-literal", "choice-ident", "choice-value") < 0)
+    if (junos_native_enum_expand_both(xdata, "policy-options/policy-statement/term/then/community/minus-literal", "choice-ident", "choice-value") < 0)
         goto done;
-    if (junos_native_enum_expand(xdata, "configuration/policy-options/policy-statement/term/then/community/delete", "choice-ident", "choice-value") < 0)
+    if (junos_native_enum_expand_both(xdata, "policy-options/policy-statement/term/then/community/delete", "choice-ident", "choice-value") < 0)
         goto done;
 
     /* junos-conf-policy-options.yang: grouping control_route_filter_type */
-    if (junos_native_enum_expand(xdata, "configuration/policy-options/policy-statement/term/from/route-filter/exact", "choice-ident", "choice-value") < 0)
+    if (junos_native_enum_expand_both(xdata, "policy-options/policy-statement/term/from/route-filter/exact", "choice-ident", "choice-value") < 0)
         goto done;
-    if (junos_native_enum_expand(xdata, "configuration/policy-options/policy-statement/term/from/route-filter/longer", "choice-ident", "choice-value") < 0)
+    if (junos_native_enum_expand_both(xdata, "policy-options/policy-statement/term/from/route-filter/longer", "choice-ident", "choice-value") < 0)
         goto done;
-    if (junos_native_enum_expand(xdata, "configuration/policy-options/policy-statement/term/from/route-filter/orlonger", "choice-ident", "choice-value") < 0)
+    if (junos_native_enum_expand_both(xdata, "policy-options/policy-statement/term/from/route-filter/orlonger", "choice-ident", "choice-value") < 0)
         goto done;
-    if (junos_native_enum_expand(xdata, "configuration/policy-options/policy-statement/term/from/route-filter/upto", "choice-ident", "choice-value") < 0)
+    if (junos_native_enum_expand_both(xdata, "policy-options/policy-statement/term/from/route-filter/upto", "choice-ident", "choice-value") < 0)
         goto done;
-    if (junos_native_enum_expand(xdata, "configuration/policy-options/policy-statement/term/from/route-filter/through", "choice-ident", "choice-value") < 0)
+    if (junos_native_enum_expand_both(xdata, "policy-options/policy-statement/term/from/route-filter/through", "choice-ident", "choice-value") < 0)
         goto done;
-    if (junos_native_enum_expand(xdata, "configuration/policy-options/policy-statement/term/from/route-filter/prefix-length-range", "choice-ident", "choice-value") < 0)
+    if (junos_native_enum_expand_both(xdata, "policy-options/policy-statement/term/from/route-filter/prefix-length-range", "choice-ident", "choice-value") < 0)
         goto done;
-    if (junos_native_enum_expand(xdata, "configuration/policy-options/policy-statement/term/from/route-filter/address-mask", "choice-ident", "choice-value") < 0)
+    if (junos_native_enum_expand_both(xdata, "policy-options/policy-statement/term/from/route-filter/address-mask", "choice-ident", "choice-value") < 0)
         goto done;
+
+    /* martians */
+    if (junos_native_enum_expand(xdata, "configuration/routing-options/martians/exact", "choice-ident", "choice-value") < 0)
+        goto done;
+    if (junos_native_enum_expand(xdata, "configuration/routing-options/martians/longer", "choice-ident", "choice-value") < 0)
+        goto done;
+    if (junos_native_enum_expand(xdata, "configuration/routing-options/martians/orlonger", "choice-ident", "choice-value") < 0)
+        goto done;
+    if (junos_native_enum_expand(xdata, "configuration/routing-options/martians/upto", "choice-ident", "choice-value") < 0)
+        goto done;
+    if (junos_native_enum_expand(xdata, "configuration/routing-options/martians/through", "choice-ident", "choice-value") < 0)
+        goto done;
+    if (junos_native_enum_expand(xdata, "configuration/routing-options/martians/prefix-length-range", "choice-ident", "choice-value") < 0)
+        goto done;
+
  ok:
     retval = 0;
  done:
@@ -766,57 +850,57 @@ junos_native_modify_send(device_handle dh,
 
     /* Replace enums */
     /* junos-conf-policy-options.yang: grouping route_filter_list_items */
-    if (junos_native_enum_reduce(xdata, "configuration/policy-options/route-filter-list/rf_list/choice-ident[.='exact']", "choice-ident", "choice-value") < 0)
+    if (junos_native_enum_reduce_both(xdata, "policy-options/route-filter-list/rf_list/choice-ident[.='exact']", "", "choice-ident", "choice-value") < 0)
         goto done;
-    if (junos_native_enum_reduce(xdata, "configuration/policy-options/route-filter-list/rf_list/choice-ident[.='longer']", "choice-ident", "choice-value") < 0)
+    if (junos_native_enum_reduce_both(xdata, "policy-options/route-filter-list/rf_list/choice-ident[.='longer']", "", "choice-ident", "choice-value") < 0)
         goto done;
-    if (junos_native_enum_reduce(xdata, "configuration/policy-options/route-filter-list/rf_list/choice-ident[.='orlonger']", "choice-ident", "choice-value") < 0)
+    if (junos_native_enum_reduce_both(xdata, "policy-options/route-filter-list/rf_list/choice-ident[.='orlonger']", "", "choice-ident", "choice-value") < 0)
         goto done;
-    if (junos_native_enum_reduce(xdata, "configuration/policy-options/route-filter-list/rf_list/choice-ident[.='upto']", "choice-ident", "choice-value") < 0)
+    if (junos_native_enum_reduce_both(xdata, "policy-options/route-filter-list/rf_list/choice-ident[.='upto']", "", "choice-ident", "choice-value") < 0)
         goto done;
-    if (junos_native_enum_reduce(xdata, "configuration/policy-options/route-filter-list/rf_list/choice-ident[.='through']", "choice-ident", "choice-value") < 0)
+    if (junos_native_enum_reduce_both(xdata, "policy-options/route-filter-list/rf_list/choice-ident[.='through']", "", "choice-ident", "choice-value") < 0)
         goto done;
-    if (junos_native_enum_reduce(xdata, "configuration/policy-options/route-filter-list/rf_list/choice-ident[.='prefix-length-range']", "choice-ident", "choice-value") < 0)
+    if (junos_native_enum_reduce_both(xdata, "policy-options/route-filter-list/rf_list/choice-ident[.='prefix-length-range']", "", "choice-ident", "choice-value") < 0)
         goto done;
-    if (junos_native_enum_reduce(xdata, "configuration/policy-options/route-filter-list/rf_list/choice-ident[.='adress-mask']", "choice-ident", "choice-value") < 0)
+    if (junos_native_enum_reduce_both(xdata, "policy-options/route-filter-list/rf_list/choice-ident[.='adress-mask']", "", "choice-ident", "choice-value") < 0)
         goto done;
 
     /* junos-conf-policy-options.yang: grouping control_prefix_list_filter_type */
-    if (junos_native_enum_reduce(xdata, "configuration/policy-options/policy-statement/term/from/prefix-list-filter/choice-ident[.='exact']", "choice-ident", "choice-value") < 0)
+    if (junos_native_enum_reduce_both(xdata, "policy-options/policy-statement/term/from/prefix-list-filter/choice-ident[.='exact']", "", "choice-ident", "choice-value") < 0)
         goto done;
-    if (junos_native_enum_reduce(xdata, "configuration/policy-options/policy-statement/term/from/prefix-list-filter/choice-ident[.='longer']", "choice-ident", "choice-value") < 0)
+    if (junos_native_enum_reduce_both(xdata, "policy-options/policy-statement/term/from/prefix-list-filter/choice-ident[.='longer']", "", "choice-ident", "choice-value") < 0)
         goto done;
-    if (junos_native_enum_reduce(xdata, "configuration/policy-options/policy-statement/term/from/prefix-list-filter/choice-ident[.='orlonger']", "choice-ident", "choice-value") < 0)
+    if (junos_native_enum_reduce_both(xdata, "policy-options/policy-statement/term/from/prefix-list-filter/choice-ident[.='orlonger']", "", "choice-ident", "choice-value") < 0)
         goto done;
 
     /* junos-conf-policy-options.yang: list community */
-    if (junos_native_enum_reduce(xdata, "configuration/policy-options/policy-statement/term/then/community/choice-ident[.='equal-literal']", "choice-ident", "choice-value") < 0)
+    if (junos_native_enum_reduce_both(xdata, "policy-options/policy-statement/term/then/community/choice-ident[.='equal-literal']", "", "choice-ident", "choice-value") < 0)
         goto done;
-    if (junos_native_enum_reduce(xdata, "configuration/policy-options/policy-statement/term/then/community/choice-ident[.='set']", "choice-ident", "choice-value") < 0)
+    if (junos_native_enum_reduce_both(xdata, "policy-options/policy-statement/term/then/community/choice-ident[.='set']", "", "choice-ident", "choice-value") < 0)
         goto done;
-    if (junos_native_enum_reduce(xdata, "configuration/policy-options/policy-statement/term/then/community/choice-ident[.='plus-literal']", "choice-ident", "choice-value") < 0)
+    if (junos_native_enum_reduce_both(xdata, "policy-options/policy-statement/term/then/community/choice-ident[.='plus-literal']", "", "choice-ident", "choice-value") < 0)
         goto done;
-    if (junos_native_enum_reduce(xdata, "configuration/policy-options/policy-statement/term/then/community/choice-ident[.='add']", "choice-ident", "choice-value") < 0)
+    if (junos_native_enum_reduce_both(xdata, "policy-options/policy-statement/term/then/community/choice-ident[.='add']", "", "choice-ident", "choice-value") < 0)
         goto done;
-    if (junos_native_enum_reduce(xdata, "configuration/policy-options/policy-statement/term/then/community/choice-ident[.='minus-literal']", "choice-ident", "choice-value") < 0)
+    if (junos_native_enum_reduce_both(xdata, "policy-options/policy-statement/term/then/community/choice-ident[.='minus-literal']", "", "choice-ident", "choice-value") < 0)
         goto done;
-    if (junos_native_enum_reduce(xdata, "configuration/policy-options/policy-statement/term/then/community/choice-ident[.='delete']", "choice-ident", "choice-value") < 0)
+    if (junos_native_enum_reduce_both(xdata, "policy-options/policy-statement/term/then/community/choice-ident[.='delete']", "", "choice-ident", "choice-value") < 0)
         goto done;
 
     /* junos-conf-policy-options.yang: grouping control_route_filter_type */
-    if (junos_native_enum_reduce(xdata, "configuration/policy-options/policy-statement/term/from/route-filter/choice-ident[.='exact']", "choice-ident", "choice-value") < 0)
+    if (junos_native_enum_reduce_both(xdata, "policy-options/policy-statement/term/from/route-filter/choice-ident[.='exact']", "", "choice-ident", "choice-value") < 0)
         goto done;
-    if (junos_native_enum_reduce(xdata, "configuration/policy-options/policy-statement/term/from/route-filter/choice-ident[.='longer']", "choice-ident", "choice-value") < 0)
+    if (junos_native_enum_reduce_both(xdata, "policy-options/policy-statement/term/from/route-filter/choice-ident[.='longer']", "", "choice-ident", "choice-value") < 0)
         goto done;
-    if (junos_native_enum_reduce(xdata, "configuration/policy-options/policy-statement/term/from/route-filter/choice-ident[.='orlonger']", "choice-ident", "choice-value") < 0)
+    if (junos_native_enum_reduce_both(xdata, "policy-options/policy-statement/term/from/route-filter/choice-ident[.='orlonger']", "", "choice-ident", "choice-value") < 0)
         goto done;
-    if (junos_native_enum_reduce(xdata, "configuration/policy-options/policy-statement/term/from/route-filter/choice-ident[.='upto']", "choice-ident", "choice-value") < 0)
+    if (junos_native_enum_reduce_both(xdata, "policy-options/policy-statement/term/from/route-filter/choice-ident[.='upto']", "", "choice-ident", "choice-value") < 0)
         goto done;
-    if (junos_native_enum_reduce(xdata, "configuration/policy-options/policy-statement/term/from/route-filter/choice-ident[.='through']", "choice-ident", "choice-value") < 0)
+    if (junos_native_enum_reduce_both(xdata, "policy-options/policy-statement/term/from/route-filter/choice-ident[.='through']", "", "choice-ident", "choice-value") < 0)
         goto done;
-    if (junos_native_enum_reduce(xdata, "configuration/policy-options/policy-statement/term/from/route-filter/choice-ident[.='prefix-length-range']", "choice-ident", "choice-value") < 0)
+    if (junos_native_enum_reduce_both(xdata, "policy-options/policy-statement/term/from/route-filter/choice-ident[.='prefix-length-range']", "", "choice-ident", "choice-value") < 0)
         goto done;
-    if (junos_native_enum_reduce(xdata, "configuration/policy-options/policy-statement/term/from/route-filter/choice-ident[.='address-mask']", "choice-ident", "choice-value") < 0)
+    if (junos_native_enum_reduce_both(xdata, "policy-options/policy-statement/term/from/route-filter/choice-ident[.='address-mask']", "", "choice-ident", "choice-value") < 0)
         goto done;
  ok:
     retval = 0;
