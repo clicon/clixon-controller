@@ -965,7 +965,7 @@ new "edit service C"
 expectpart "$(${clixon_cli} -m configure -1f $CFG -E $CFD set services testC foo)" 0 ""
 
 new "validate local"
-expectpart "$(${clixon_cli} -m configure -1f $CFG -E $CFD validate local 2>&1)" 255 "missing-element Mandatory variable of testC in module myyang <bad-element>extra</bad-element>"
+expectpart "$(${clixon_cli} -m configure -1f $CFG -E $CFD validate local 2>&1)" 255 "missing-element Missing mandatory XML extra node" "<bad-element>extra</bad-element>"
 
 new "discard"
 expectpart "$(${clixon_cli} -m configure -1f $CFG -E $CFD discard)" 0 "^$"
