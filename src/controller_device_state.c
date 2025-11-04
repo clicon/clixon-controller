@@ -1127,7 +1127,7 @@ device_state_check_sanity(device_handle           dh,
     return 1;
 }
 
-/*! Utility function to Commit a db to running
+/*! Commit db to running after pull transaction done
  *
  * @param[in] h     Clixon handle
  * @param[in] dh    Clixon device handle.
@@ -1137,14 +1137,15 @@ device_state_check_sanity(device_handle           dh,
  * @retval   -1     Error
  */
 static int
-device_commit_when_done(clixon_handle           h,
-                        device_handle           dh,
-                        controller_transaction *ct,
-                        const char             *db0)
+commit_after_pull(clixon_handle           h,
+                  device_handle           dh,
+                  controller_transaction *ct,
+                  const char             *db0)
 {
     int       retval = -1;
     cbuf     *cbret = NULL;
     char     *db = NULL;
+    char     *db1 = NULL;
     db_elmnt *de = NULL;
     uint32_t  ceid;
     int       ret;
@@ -1160,11 +1161,10 @@ device_commit_when_done(clixon_handle           h,
         goto done;
     }
     if (clicon_option_bool(h, "CLICON_XMLDB_PRIVATE_CANDIDATE")){
-        /* First step, rebase private candidate with running */
-        if ((ret = backend_update(h, ceid, de, cbret)) < 0)
+        if (xmldb_candidate_find(h, "candidate-orig", ceid, NULL, &db1) < 0)
             goto done;
-        if (ret == 0)
-            goto ok;
+        if (db1)
+            xmldb_delete(h, db1); /* Delete orig since its content may have been overwritten in device_recv_config */
     }
     if ((ret = candidate_commit(h, NULL, db, 0, 0, cbret)) < 0){
         /* Handle that candidate_commit can return < 0 if transaction ongoing */
@@ -1185,7 +1185,6 @@ device_commit_when_done(clixon_handle           h,
             goto done;
         goto failed;
     }
- ok:
     retval = 1;
  done:
     if (cbret)
@@ -1595,7 +1594,7 @@ device_state_handler(clixon_handle h,
         if (controller_transaction_nr_devices(h, tid) == 1 &&
             !ct->ct_pull_transient) {
             /* See puts from each device in device_recv_config() */
-            if ((ret = device_commit_when_done(h, dh, ct, "tmpdev")) < 0)
+            if ((ret = commit_after_pull(h, dh, ct, "tmpdev")) < 0)
                 goto done;
             if (ret == 0)
                 break;

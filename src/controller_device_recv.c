@@ -347,6 +347,9 @@ device_recv_config(clixon_handle h,
             goto done;
         goto closed;
     }
+    /* This is where existing config is overwritten
+     * One could have a warning here, but that would require a diff
+     */
     if ((ret = xmldb_put(h, db, OP_NONE, xt1, NULL, cbret)) < 0)
         goto done;
     if (ret && (ret = device_config_write(h, name, "SYNCED", xt, cbret)) < 0)
