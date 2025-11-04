@@ -1132,7 +1132,7 @@ device_state_check_sanity(device_handle           dh,
  * @param[in] h     Clixon handle
  * @param[in] dh    Clixon device handle.
  * @param[in] ct    Transaction
- * @param[in] db    Database name
+ * @param[in] db0   Database name
  * @retval    0     OK
  * @retval   -1     Error
  */
@@ -1140,21 +1140,39 @@ static int
 device_commit_when_done(clixon_handle           h,
                         device_handle           dh,
                         controller_transaction *ct,
-                        char                   *db)
+                        const char             *db0)
 {
-    int   retval = -1;
-    cbuf *cbret = NULL;
-    int   ret;
+    int       retval = -1;
+    cbuf     *cbret = NULL;
+    char     *db = NULL;
+    db_elmnt *de = NULL;
+    uint32_t  ceid;
+    int       ret;
 
+    ceid = ct->ct_client_id;
+    if (xmldb_candidate_find(h, "candidate", ceid, &de, &db) < 0)
+        goto done;
+    if (strcmp(db0, db) != 0)
+        if (xmldb_copy(h, db0, db) < 0)
+            goto done;
     if ((cbret = cbuf_new()) == NULL){
         clixon_err(OE_UNIX, errno, "cbuf_new");
         goto done;
+    }
+    if (clicon_option_bool(h, "CLICON_XMLDB_PRIVATE_CANDIDATE")){
+        /* First step, rebase private candidate with running */
+        if ((ret = backend_update(h, ceid, de, cbret)) < 0)
+            goto done;
+        if (ret == 0)
+            goto ok;
     }
     if ((ret = candidate_commit(h, NULL, db, 0, 0, cbret)) < 0){
         /* Handle that candidate_commit can return < 0 if transaction ongoing */
         cprintf(cbret, "Failed to commit: %s", clixon_err_reason());
         ret = 0;
     }
+    if (xmldb_post_commit(h, ceid) < 0)
+        goto done;
     if (clicon_option_bool(h, "CLICON_AUTOLOCK"))
         xmldb_unlock(h, db);
     if (ret == 0){ /* discard */
@@ -1167,6 +1185,7 @@ device_commit_when_done(clixon_handle           h,
             goto done;
         goto failed;
     }
+ ok:
     retval = 1;
  done:
     if (cbret)
@@ -1825,6 +1844,8 @@ device_state_handler(clixon_handle h,
                         goto done;
                     break;
                 }
+                if (xmldb_post_commit(h, ct->ct_client_id) < 0)
+                    goto done;
                 if (clicon_option_bool(h, "CLICON_AUTOLOCK"))
                     xmldb_unlock(h, candidate);
                 if (ret == 0){

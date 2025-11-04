@@ -80,7 +80,7 @@ static const map_str2int dtmap[] = {
     {"ACTIONS",   DT_ACTIONS},
     {"SYNCED",    DT_SYNCED},
     {"TRANSIENT", DT_TRANSIENT},
-    {NULL,        -1}
+    {NULL,       -1}
 };
 
 /*! Mapping between enum push_type_t and yang push-type

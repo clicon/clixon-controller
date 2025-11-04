@@ -490,7 +490,7 @@ controller_transaction_new(clixon_handle            h,
             clixon_err(OE_UNIX, errno, "cbuf_new");
             goto done;
         }
-        if ((ret = backend_update(h, ce, de, *cberr)) < 0)
+        if ((ret = backend_update(h, ce->ce_id, de, *cberr)) < 0)
             goto done;
         if (ret == 0)
             goto failed;
