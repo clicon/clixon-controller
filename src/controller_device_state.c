@@ -1325,6 +1325,7 @@ device_state_handler(clixon_handle h,
     cbuf       *cbmsg;
     cxobj      *xyanglib;
     char       *candidate = NULL;
+    db_elmnt   *de = NULL;
     int         ret;
 
     rpcname = xml_name(xmsg);
@@ -1820,7 +1821,7 @@ device_state_handler(clixon_handle h,
                     goto done;
                 }
                 /* What to copy to candidate and commit to running? */
-                if (xmldb_candidate_find(h, "candidate", ct->ct_client_id, NULL, &candidate) < 0)
+                if (xmldb_candidate_find(h, "candidate", ct->ct_client_id, &de, &candidate) < 0)
                     goto done;
                 if (candidate == NULL){
                     if (controller_transaction_failed(h, ct->ct_id, ct, dh, TR_FAILED_DEV_LEAVE, name, "Candidate does not exist (privcand exit?)") < 0)
@@ -1834,6 +1835,20 @@ device_state_handler(clixon_handle h,
                  * second in rpc_transactions_actions_done
                  * candidate should NOT have changed here
                  */
+                if (clicon_option_bool(h, "CLICON_XMLDB_PRIVATE_CANDIDATE")){
+                    /* Rebase private candidate with running */
+                    if ((ret = backend_update(h, ct->ct_client_id, de, cberr)) < 0)
+                        goto done;
+                    if (ret == 0){
+                        if (controller_transaction_failed(h, ct->ct_id, ct, dh, TR_FAILED_DEV_IGNORE, name, cbuf_get(cberr)) < 0)
+                            goto done;
+                        /* 1.1 The error is "recoverable" (eg validate fail) */
+                        /* --> 1.1.1 Trigger DISCARD of the device */
+                        if (device_state_set(dh, CS_PUSH_DISCARD) < 0)
+                            goto done;
+                        break;
+                    }
+                }
                 if ((ret = candidate_commit(h, NULL, candidate, 0, 0, cberr)) < 0){
                     /* Handle that candidate_commit can return < 0 if transaction ongoing */
                     cprintf(cberr, "Controller commit error");

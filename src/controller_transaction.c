@@ -459,7 +459,6 @@ controller_transaction_new(clixon_handle            h,
                 ce1 = NULL;
                 if (ct0->ct_client_id &&
                     (ce1 = backend_client_find(h, ct0->ct_client_id)) != NULL){
-
                 }
                 cprintf(*cberr, "Candidate db is locked by transaction \"%s\" initiated by user:%s with client-id:%d",
                         ct0->ct_description, ct0->ct_username, ct0->ct_client_id);
@@ -484,6 +483,7 @@ controller_transaction_new(clixon_handle            h,
     }
     else
         lock_id = 0; /* Reuse existing lock */
+#if 0 // XXX WHY REBASE? ONLY IF ACTUAL COMMIT
     if (clicon_option_bool(h, "CLICON_XMLDB_PRIVATE_CANDIDATE")){
         /* First step, rebase private candidate with running */
         if ((*cberr = cbuf_new()) == NULL){
@@ -495,6 +495,7 @@ controller_transaction_new(clixon_handle            h,
         if (ret == 0)
             goto failed;
     }
+#endif
     /* Exclusive lock of single active transaction */
     if (clicon_ptr_get(h, "controller-transaction-list", (void**)&ct_list) == 0 &&
         (ct = ct_list) != NULL) {

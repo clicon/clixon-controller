@@ -2306,7 +2306,6 @@ rpc_transactions_actions_done(clixon_handle h,
                               void         *regarg)
 {
     int                     retval = -1;
-    client_entry           *ce = (client_entry *)arg;
     char                   *tidstr;
     uint64_t                tid;
     controller_transaction *ct;
@@ -2333,7 +2332,7 @@ rpc_transactions_actions_done(clixon_handle h,
             goto done;
         goto ok;
     }
-    if (xmldb_find_create(h, "candidate", ce->ce_id, NULL, &candidate) < 0)
+    if (xmldb_find_create(h, "candidate", ct->ct_client_id, NULL, &candidate) < 0)
         goto done;
     switch (ct->ct_state){
     case TS_RESOLVED:
