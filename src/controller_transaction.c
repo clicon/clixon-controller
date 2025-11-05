@@ -430,7 +430,6 @@ controller_transaction_new(clixon_handle            h,
     uint32_t                ceid;
     db_elmnt               *de = NULL;
     char                   *db = NULL;
-    int                     ret;
 
     clixon_debug(CLIXON_DBG_CTRL, "");
     if (ctp == NULL){
