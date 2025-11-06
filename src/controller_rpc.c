@@ -1178,8 +1178,6 @@ commit_push_after_actions(clixon_handle           h,
                     cprintf(cberr, "%s", clixon_err_reason()); // XXX encode
                     ret = 0;
                 }
-                if (xmldb_post_commit(h, ct->ct_client_id) < 0)
-                    goto done;
                 if (clicon_option_bool(h, "CLICON_AUTOLOCK"))
                     xmldb_unlock(h, candidate);
                 if (ret == 0){ // XXX awkward, cb ->xml->cb

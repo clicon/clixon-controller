@@ -1135,27 +1135,26 @@ device_state_check_sanity(device_handle           dh,
  * @param[in] db0   Database name
  * @retval    0     OK
  * @retval   -1     Error
+ * @note some complexities: db is a special candidate (eg tmpdev) with some potential changes of device config
+ *       One cannot use (or overwrite) candidate itself since it may have changes you dont want overwritten that
+ *       are in the parts that were NOT pulled, ie other devices or top-level.
+ *       Also, using privcand, if a connection has been opened, pre-open device config can be stale so the
+ *       orig cand is deleted. Maybe this should be done only under certain circumstances, and maybe it should be
+ *       copied from candidate instead?
  */
 static int
 commit_after_pull(clixon_handle           h,
                   device_handle           dh,
                   controller_transaction *ct,
-                  const char             *db0)
+                  const char             *db)
 {
     int       retval = -1;
     cbuf     *cbret = NULL;
-    char     *db = NULL;
     char     *db1 = NULL;
-    db_elmnt *de = NULL;
     uint32_t  ceid;
     int       ret;
 
     ceid = ct->ct_client_id;
-    if (xmldb_candidate_find(h, "candidate", ceid, &de, &db) < 0)
-        goto done;
-    if (strcmp(db0, db) != 0)
-        if (xmldb_copy(h, db0, db) < 0)
-            goto done;
     if ((cbret = cbuf_new()) == NULL){
         clixon_err(OE_UNIX, errno, "cbuf_new");
         goto done;
@@ -1171,8 +1170,6 @@ commit_after_pull(clixon_handle           h,
         cprintf(cbret, "Failed to commit: %s", clixon_err_reason());
         ret = 0;
     }
-    if (xmldb_post_commit(h, ceid) < 0)
-        goto done;
     if (clicon_option_bool(h, "CLICON_AUTOLOCK"))
         xmldb_unlock(h, db);
     if (ret == 0){ /* discard */
@@ -1858,8 +1855,6 @@ device_state_handler(clixon_handle h,
                         goto done;
                     break;
                 }
-                if (xmldb_post_commit(h, ct->ct_client_id) < 0)
-                    goto done;
                 if (clicon_option_bool(h, "CLICON_AUTOLOCK"))
                     xmldb_unlock(h, candidate);
                 if (ret == 0){

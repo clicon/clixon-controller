@@ -482,19 +482,6 @@ controller_transaction_new(clixon_handle            h,
     }
     else
         lock_id = 0; /* Reuse existing lock */
-#if 0 // XXX WHY REBASE? ONLY IF ACTUAL COMMIT
-    if (clicon_option_bool(h, "CLICON_XMLDB_PRIVATE_CANDIDATE")){
-        /* First step, rebase private candidate with running */
-        if ((*cberr = cbuf_new()) == NULL){
-            clixon_err(OE_UNIX, errno, "cbuf_new");
-            goto done;
-        }
-        if ((ret = backend_update(h, ce->ce_id, de, *cberr)) < 0)
-            goto done;
-        if (ret == 0)
-            goto failed;
-    }
-#endif
     /* Exclusive lock of single active transaction */
     if (clicon_ptr_get(h, "controller-transaction-list", (void**)&ct_list) == 0 &&
         (ct = ct_list) != NULL) {

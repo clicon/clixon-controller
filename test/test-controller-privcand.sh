@@ -206,13 +206,16 @@ proc clifn { session command reply } {
     }
 }
 
-puts "1 cli1 configure login-banner on openconfig1"
+puts "1 cli1 configure login-banner 111 on openconfig1"
 clifn $session1 "set devices device openconfig1 config system config login-banner 111" ""
 
-puts "2 cli2 configure login-banner on openconfig1"
+puts "2 cli2 configure login-banner 222 on openconfig1"
 clifn $session2 "set devices device openconfig1 config system config login-banner 222" ""
 
-puts "3 cli2 show compare"
+puts "3a cli1 show compare"
+clifn $session1 "show compare" "111"
+
+puts "3b cli2 show compare"
 clifn $session2 "show compare" "222"
 
 puts "4 cli1 commit"
@@ -260,6 +263,18 @@ clifn $session1 "op show config devices device openconfig1 config interfaces int
 
 puts "18 cli2 show"
 clifn $session2 "op show config devices device openconfig1 config interfaces interface A0x config" "<name>A0x</name>"
+
+puts "19 cli1 configure top-level description"
+clifn $session1 "set devices device openconfig1 description newdesc" ""
+
+puts "20 cli1 show compare"
+clifn $session1 "show compare" "<description>newdesc</description>"
+
+puts "21 pull"
+clifn $session1 "op pull" ""
+
+puts "22 cli1 show compare"
+clifn $session1 "show compare" "<description>newdesc</description>"
 
 EOF
 
