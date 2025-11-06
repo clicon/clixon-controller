@@ -177,7 +177,7 @@ fi
 new "Spawn expect script to simulate two CLI sessions"
 
 # -d to debug matching info
-sudo expect -d - "$clixon_cli" "$CFG" "$CFD" $(whoami) <<'EOF'
+sudo expect - "$clixon_cli" "$CFG" "$CFD" $(whoami) <<'EOF'
 # Use of expect to start two NETCONF sessions
 log_user 0
 set timeout 5
@@ -188,12 +188,12 @@ set USER [lindex $argv 3]
 
 puts "Spawn First CLI session"
 global session1
-spawn {*}sudo -u $USER clixon_cli -f $CFG -E $CFD -m configure
+spawn {*}sudo -u $USER clixon_cli -f $CFG -E $CFD -m configure -o CLICON_CLI_LINES_DEFAULT=0
 set session1 $spawn_id
 
 puts "Spawn Second CLI session"
 global session2
-spawn {*}sudo -u $USER clixon_cli -f $CFG -E $CFD -m configure
+spawn {*}sudo -u $USER clixon_cli -f $CFG -E $CFD -m configure -o CLICON_CLI_LINES_DEFAULT=0
 set session2 $spawn_id
 
 proc clifn { session command reply } {
