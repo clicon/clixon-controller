@@ -22,4 +22,4 @@ jobs:
     - name: Start containers
       run: (cd docker; docker compose -f docker-compose-test.yml up --build -d)
     - name: Run tests
-      run: sleep 5; docker exec -t controller-test bash -c 'cd clixon-controller/test/;detail=true ./sum.sh'
+      run: sleep 5; docker exec -t controller-test bash -c 'cd clixon-controller/test/;detail=true ./test-controller-privcand.sh'

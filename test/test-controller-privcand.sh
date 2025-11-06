@@ -177,7 +177,7 @@ fi
 new "Spawn expect script to simulate two CLI sessions"
 
 # -d to debug matching info
-sudo expect - "$clixon_cli" "$CFG" "$CFD" $(whoami) <<'EOF'
+sudo expect -d - "$clixon_cli" "$CFG" "$CFD" $(whoami) <<'EOF'
 # Use of expect to start two NETCONF sessions
 log_user 0
 set timeout 5
@@ -205,13 +205,14 @@ proc clifn { session command reply } {
 	    eof { puts "\n\neof"; exit 3 }
     }
 }
-
+sleep 1
 puts "1 cli1 configure login-banner 111 on openconfig1"
 clifn $session1 "set devices device openconfig1 config system config login-banner 111" ""
 
+sleep 1
 puts "2 cli2 configure login-banner 222 on openconfig1"
 clifn $session2 "set devices device openconfig1 config system config login-banner 222" ""
-
+sleep 1
 puts "3a cli1 show compare"
 clifn $session1 "show compare" "111"
 
