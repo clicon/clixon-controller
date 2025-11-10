@@ -61,9 +61,11 @@
  */
 #undef NETCONF_LOCK_EXTRA_NAMESPACE
 
-/*! Action-db in-mem is good for performance, but hard to debug
+/*! Keep actions datastore in memory, do not sync to file.
  *
- * Maybe should be in controller config?
+ * In-mem is good for performance, but difficult to debug
+ * Also may be unnecesary due to other optimizations
+ * See also XMLDB_CANDIDATE_INMEM
  */
 #define XMLDB_ACTION_INMEM 1
 

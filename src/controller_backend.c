@@ -560,6 +560,12 @@ controller_start(clixon_handle h)
         clixon_err(OE_DAEMON, errno, "'%s' is not a valid group", backend_group);
         goto done;
     }
+    /* Used by controller for action process */
+    if (xmldb_exists(h, "actions") != 1)
+        if (xmldb_create(h, "actions") < 0)
+            goto done;
+    if (xmldb_drop_priv(h, "actions", uid, gid) < 0)
+        goto done;
     /* Used by controller must drop priv on datastore dir */
     if (xmldb_exists(h, "tmpdev") != 1)
         if (xmldb_create(h, "tmpdev") < 0)

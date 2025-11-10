@@ -1315,6 +1315,7 @@ controller_commit_actions(clixon_handle           h,
         if ((de = xmldb_new(h, "actions")) == NULL)
             goto done;
 #ifdef XMLDB_ACTION_INMEM
+    xmldb_clear(h, "actions");
     xmldb_volatile_set(de, 1);
 #endif
     if (xmldb_copy(h, candidate, "actions") < 0)
@@ -2822,6 +2823,7 @@ rpc_datastore_diff(clixon_handle h,
             goto done;
         if (xmldb_find_create(h, id2, ce->ce_id, NULL, &db2) < 0)
             goto done;
+        clixon_debug(CLIXON_DBG_CTRL, "diff: %s vs %s", db1, db2);
         if (datastore_diff_dsref(h, xpath, db1, db2, format, cbret) < 0)
             goto done;
     }
@@ -2856,6 +2858,7 @@ rpc_datastore_diff(clixon_handle h,
                 goto done;
             goto ok;
         }
+        clixon_debug(CLIXON_DBG_CTRL, "%s diff: %s vs %s", pattern, ds1, ds2);
         if (datastore_diff_device(h, groups, pattern, dt1, dt2, format, ce->ce_id, cbret) < 0)
             goto done;
     }
