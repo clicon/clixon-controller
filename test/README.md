@@ -59,7 +59,7 @@ To stop the device containers:
 
 There is some support for SSH certs when testing natively. Instead of `start-devices.sh` and `copy-keys-sh` do:
 ```
-    ./cert-keys.sh
+    ./cert-devices.sh
 ```
 
 and in site.sh:

@@ -298,11 +298,20 @@ device_recv_config(clixon_handle h,
     if (xml_sort(xroot) < 0)
         goto done;
     /* Special handling if part of transaction. XXX: currently not activated */
-    if ((tid = device_handle_tid_get(dh)) != 0 &&
-        (ct = controller_transaction_find(h, tid)) != NULL){
-        merge = ct->ct_pull_merge;
-        transient = ct->ct_pull_transient;
+    if ((tid = device_handle_tid_get(dh)) == 0) {
+        clixon_debug(CLIXON_DBG_CTRL, "tid is 0, shouldnt happen");
+        if (device_close_connection(dh, "Tid is zero") < 0)
+            goto done;
+        goto closed;
     }
+    if ((ct = controller_transaction_find(h, tid)) == NULL){
+        clixon_debug(CLIXON_DBG_CTRL, "ct is NULL, shouldnt happen");
+        if (device_close_connection(dh, "ct is NULL") < 0)
+            goto done;
+        goto closed;
+    }
+    merge = ct->ct_pull_merge;
+    transient = ct->ct_pull_transient;
     if (force_transient)
         transient = 1;
     if (force_merge)

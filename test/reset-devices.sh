@@ -66,6 +66,16 @@ for ip in $CONTAINERS; do
 </rpc>]]>]]>
 EOF
 )
+    r=$?
+    if [ $r -ne 0 ]; then
+        err1 "0" "$r"
+        exit 1
+    fi
+    echo "ret:$ret"
+    if [ -z "$ret" ]; then
+        err1 "rpc-reply" "No reply"
+        exit 1
+    fi
     match=$(echo $ret | grep --null -Eo "<rpc-error>") || true
     if [ -n "$match" ]; then
         echo "netconf system rpc-error detected"

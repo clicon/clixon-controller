@@ -48,6 +48,10 @@ test: docker-test
 	./cleanup.sh ; ./start.sh # kill (ignore error) and start it
 	sudo docker exec -t controller-test bash -c 'cd clixon-controller/test && sleep 1 && detail=true ./sum.sh'
 
+mem:  docker-test
+	./cleanup.sh ; ./start.sh # kill (ignore error) and the start it
+	sudo docker exec -t controller-test bash -c 'sudo apt install valgrind; cd clixon-controller/test && sleep 1 && pattern=test-*.sh ./mem.sh backend'
+
 depend:
 
 install: 
