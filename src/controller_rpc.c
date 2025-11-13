@@ -3692,7 +3692,7 @@ creator_applyfn(cxobj *x,
                 goto ok;
             if (xpath_first(xc, 0, "path[.='%s']", xpath) != NULL)
                 goto ok; /* duplicate: silently drop */
-            clixon_debug(CLIXON_DBG_CTRL, "Created path: %s %s", xpath, creator);
+            clixon_debug(CLIXON_DBG_CTRL | CLIXON_DBG_DETAIL, "Created path: %s %s", xpath, creator);
             if ((ret = clixon_xml_parse_va(YB_PARENT, NULL, &xc, NULL, "<path>%s</path>", xpath)) < 0)
                 goto done;
             if (ret == 0)
@@ -3739,7 +3739,7 @@ creator_applyfn(cxobj *x,
             }
             if ((ns = yang_find_mynamespace(yi)) == NULL)
                 goto ok;
-            clixon_debug(CLIXON_DBG_CTRL, "Created path: %s %s", xpath, creator);
+            clixon_debug(CLIXON_DBG_CTRL | CLIXON_DBG_DETAIL, "Created path: %s %s", xpath, creator);
             if ((ret = clixon_xml_parse_va(YB_PARENT, NULL, &xserv, NULL,
                                            "<%s xmlns=\"%s\"><%s>%s</%s>"
                                            "<created nc:operation=\"merge\">"

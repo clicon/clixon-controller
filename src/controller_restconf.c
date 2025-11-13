@@ -250,10 +250,12 @@ controller_restconf_yang_mount(clixon_handle   h,
             name = xml_body(xname);
             if ((ret = device_check_open(h, name)) < 0)
                 goto done;
-            if (ret == 0)
-                clixon_err(OE_YANG, 0, "No yanglib from closed device %s", name);
-            else
+            if (ret == 0){
+                clixon_err(OE_YANG, 0, "Mountpoint operation on closed device %s", name);
+            }
+            else{
                 clixon_err(OE_YANG, 0, "No yanglib from open device %s", name);
+            }
         }
         else
             clixon_err(OE_YANG, 0, "No yanglib from device, unknown");

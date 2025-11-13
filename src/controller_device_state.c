@@ -275,7 +275,7 @@ device_input_cb(int   s,
     int                     sockerr;
     int                     ret;
 
-    clixon_debug(CLIXON_DBG_CTRL | CLIXON_DBG_DETAIL, "");
+    clixon_debug(CLIXON_DBG_MSG | CLIXON_DBG_DETAIL, "");
     h = device_handle_handle_get(dh);
     frame_state = device_handle_frame_state_get(dh);
     frame_size = device_handle_frame_size_get(dh);
@@ -334,7 +334,7 @@ device_input_cb(int   s,
                                &eom) < 0)
             goto done;
         if (eom == 0){ /* frame not complete */
-            clixon_debug(CLIXON_DBG_CTRL | CLIXON_DBG_DETAIL, "frame: %lu", cbuf_len(cbmsg));
+            clixon_debug(CLIXON_DBG_MSG | CLIXON_DBG_DETAIL, "frame: %lu", cbuf_len(cbmsg));
             /* Extra data to read, save data and continue on next round */
             break;
         }
@@ -373,7 +373,7 @@ device_input_cb(int   s,
  ok:
     retval = 0;
  done:
-    clixon_debug(CLIXON_DBG_CTRL | CLIXON_DBG_DETAIL, "retval:%d", retval);
+    clixon_debug(CLIXON_DBG_MSG | CLIXON_DBG_DETAIL, "retval:%d", retval);
     if (buferr)
         free(buferr);
     if (cberr)

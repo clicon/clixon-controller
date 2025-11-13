@@ -50,7 +50,7 @@ test: docker-test
 
 mem:  docker-test
 	./cleanup.sh ; ./start.sh # kill (ignore error) and the start it
-	sudo docker exec -t controller-test bash -c 'sudo apt install valgrind; cd clixon-controller/test && sleep 1 && pattern=test-*.sh ./mem.sh backend'
+	sudo docker exec -t controller-test bash -c 'sudo apt update -y && sudo apt install valgrind -y; cd clixon-controller/test && sleep 1 && pattern=test-*.sh ./mem.sh backend'
 
 depend:
 

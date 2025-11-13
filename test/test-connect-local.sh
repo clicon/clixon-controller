@@ -20,7 +20,7 @@ fi
 dockerbin=$(which docker)
 if [ -z "$dockerbin" ]; then
     echo "Skip test since inside docker"
-    exit 0
+    if [ "$s" = $0 ]; then exit 0; else return 0; fi
 fi
 # XXX: SKIP TEST SINCE UNCLEAR AND DONT WORK WITH ISOLATED DOMAINS
 if [ "$s" = $0 ]; then exit 0; else return 0; fi
