@@ -215,6 +215,16 @@ device_recv_config(clixon_handle h,
     char                   *db = NULL;
     int                     ret;
 
+    /* variable for check diff xml between device and datastore */
+    cxobj                   *xcurrent_config = NULL;
+    cxobj                   **first = NULL;
+    cxobj                   **second = NULL;
+    cxobj                   **changed_x0 = NULL;
+    cxobj                   **changed_x1 = NULL;
+    size_t                  firstlen = 0;
+    size_t                  secondlen = 0;
+    size_t                  changedlen = 0;
+
     clixon_debug(CLIXON_DBG_CTRL | CLIXON_DBG_DETAIL, "");
     if ((ret = rpc_reply_sanity(dh, xmsg, rpcname, conn_state)) < 0)
         goto done;
@@ -356,9 +366,37 @@ device_recv_config(clixon_handle h,
             goto done;
         goto closed;
     }
-    /* This is where existing config is overwritten
-     * One could have a warning here, but that would require a diff
-     */
+
+    /* get current clixon_controller device configuration are store in datastore (cbd) */
+    if (xmldb_get0(h, db, YB_NONE, NULL, NULL, 1, WITHDEFAULTS_EXPLICIT, &xcurrent_config, NULL, NULL) < 0) {
+        goto done;
+    }
+
+    if (xcurrent_config != NULL) {
+        /* compare device(xt1) and clixon_controller data (xcurrent_config) */
+        if (xml_diff(xcurrent_config, xt1, &first, &firstlen, &second, &secondlen, &changed_x0, &changed_x1, &changedlen) < 0) {
+            printf("xml_diff fail\n");
+            free(first);
+            free(second);
+            free(changed_x0);
+            free(changed_x1);
+            goto done;
+        }
+
+        if (changedlen > 0) {
+            clixon_log(h, LOG_WARNING, "Local changes for device '%s' overwritten by sync from device.", name);
+        }
+
+        free(first);
+        free(second);
+        free(changed_x0);
+        free(changed_x1);
+
+        first = NULL; second = NULL; changed_x0 = NULL; changed_x1 = NULL;
+        xml_free(xcurrent_config);
+        xcurrent_config = NULL;
+    }
+
     if ((ret = xmldb_put(h, db, OP_NONE, xt1, NULL, cbret)) < 0)
         goto done;
     if (ret && (ret = device_config_write(h, name, "SYNCED", xt, cbret)) < 0)
@@ -382,6 +420,19 @@ device_recv_config(clixon_handle h,
         cbuf_free(cberr);
     if (cbret)
         cbuf_free(cbret);
+
+    if (first) 
+        free(first);
+    if (second) 
+        free(second);
+    if (changed_x0) 
+        free(changed_x0);
+    if (changed_x1) 
+        free(changed_x1);
+    
+    if (xcurrent_config)
+        xml_free(xcurrent_config);
+
     return retval;
  closed:
     retval = 0;
