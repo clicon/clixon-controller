@@ -1,7 +1,7 @@
 # Clixon Controller Changelog
 
 ## 1.6.0
-Expected: October 2025
+21 November 2025
 
 ### New features
 
