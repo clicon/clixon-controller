@@ -672,19 +672,19 @@ int
 main(int    argc,
      char **argv)
 {
-    int                  retval = -1;
-    int                  c;
-    int                  dbg = 0;
-    int                  logdst = CLIXON_LOG_SYSLOG|CLIXON_LOG_STDERR;
-    clixon_handle        h = NULL; /* clixon handle */
-    int                  s = -1;
-    int                  eof = 0;
-    char                *service_pattern = "*";
-    int                  send_err = SEND_ERROR_NONE;
-    char                *send_arg = NULL;
-    int                  once = 0;
-    struct passwd       *pw;
-    cbuf                *cb = NULL;
+    int            retval = -1;
+    int            c;
+    int            dbg = 0;
+    int            logdst = CLIXON_LOG_SYSLOG|CLIXON_LOG_STDERR;
+    clixon_handle  h = NULL; /* clixon handle */
+    int            s = -1;
+    int            eof = 0;
+    char          *service_pattern = "*";
+    int            send_err = SEND_ERROR_NONE;
+    char          *send_arg = NULL;
+    int            once = 0;
+    struct passwd *pw;
+    cbuf          *cb = NULL;
 
     if ((h = clixon_handle_init()) == NULL)
         goto done;;

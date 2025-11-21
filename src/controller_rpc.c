@@ -637,7 +637,7 @@ rpc_config_pull(clixon_handle h,
     if ((ret = controller_transaction_new(h, ce, clicon_username_get(h), "pull", &ct, &cberr)) < 0)
         goto done;
     if (ret == 0){
-        if (netconf_operation_failed(cbret, "application", cbuf_get(cberr))< 0)
+        if (netconf_operation_failed(cbret, "application", "%s", cbuf_get(cberr))< 0)
             goto done;
         goto ok;
     }
@@ -1569,7 +1569,7 @@ device_error(clixon_handle           h,
         cprintf(cb, "No change to devices");
         break;
     }
-    if (netconf_operation_failed(cbret, "application", cbuf_get(cb))< 0)
+    if (netconf_operation_failed(cbret, "application", "%s", cbuf_get(cb))< 0)
         goto done;
     if (controller_transaction_done(h, ct, TR_FAILED) < 0)
         goto done;
@@ -1692,7 +1692,7 @@ rpc_controller_commit(clixon_handle h,
     if ((ret = controller_transaction_new(h, ce, clicon_username_get(h), cbuf_get(cbtr), &ct, &cberr)) < 0)
         goto done;
     if (ret == 0){
-        if (netconf_operation_failed(cbret, "application", cbuf_get(cberr))< 0)
+        if (netconf_operation_failed(cbret, "application", "%s", cbuf_get(cberr))< 0)
             goto done;
         goto ok;
     }
@@ -1784,7 +1784,7 @@ rpc_controller_commit(clixon_handle h,
         if ((ret = controller_commit_push(h, ct, "running", &cberr)) < 0)
             goto done;
         if (ret == 0){
-            if (netconf_operation_failed(cbret, "application", cbuf_get(cberr))< 0)
+            if (netconf_operation_failed(cbret, "application", "%s", cbuf_get(cberr))< 0)
                 goto done;
             if (controller_transaction_done(h, ct, TR_FAILED) < 0)
                 goto done;
@@ -1959,7 +1959,7 @@ rpc_get_device_config(clixon_handle h,
             if ((ret = device_config_read_cache(h, devname, config_type, &xroot, &cberr)) < 0)
                 goto done;
             if (ret == 0){
-                if (netconf_operation_failed(cbret, "application", cbuf_get(cberr))< 0)
+                if (netconf_operation_failed(cbret, "application", "%s", cbuf_get(cberr))< 0)
                     goto done;
                 goto ok;
             }
@@ -2047,7 +2047,7 @@ connection_change_one(clixon_handle           h,
             if ((ret = controller_connect(h, xn, ct, &reason)) < 0)
                 goto done;
             if (ret == 0){
-                if (netconf_operation_failed(cbret, "application", reason)< 0)
+                if (netconf_operation_failed(cbret, "application", "%s", reason)< 0)
                     goto done;
                 goto ok;
             }
@@ -2065,7 +2065,7 @@ connection_change_one(clixon_handle           h,
             if ((ret = controller_connect(h, xn, ct, &reason)) < 0)
                 goto done;
             if (ret == 0){
-                if (netconf_operation_failed(cbret, "application", reason)< 0)
+                if (netconf_operation_failed(cbret, "application", "%s", reason)< 0)
                     goto done;
                 goto ok;
             }
@@ -2145,7 +2145,7 @@ rpc_connection_change(clixon_handle h,
     if ((ret = controller_transaction_new(h, ce, clicon_username_get(h), cbuf_get(cbtr), &ct, &cberr)) < 0)
         goto done;
     if (ret == 0){
-        if (netconf_operation_failed(cbret, "application", cbuf_get(cberr))< 0)
+        if (netconf_operation_failed(cbret, "application", "%s", cbuf_get(cberr))< 0)
             goto done;
         goto ok;
     }
@@ -2635,7 +2635,7 @@ datastore_diff_device(clixon_handle      h,
                 goto done;
             if (ret == 0){
                 cbuf_reset(cbret);
-                if (netconf_operation_failed(cbret, "application", cbuf_get(cberr))< 0)
+                if (netconf_operation_failed(cbret, "application", "%s", cbuf_get(cberr))< 0)
                     goto done;
                 goto ok;
             }
@@ -2687,7 +2687,7 @@ datastore_diff_device(clixon_handle      h,
                 goto done;
             if (ret == 0){
                 cbuf_reset(cbret);
-                if (netconf_operation_failed(cbret, "application", cbuf_get(cberr))< 0)
+                if (netconf_operation_failed(cbret, "application", "%s", cbuf_get(cberr))< 0)
                     goto done;
                 goto ok;
             }
@@ -3330,7 +3330,7 @@ rpc_device_rpc_template_apply(clixon_handle h,
     if ((ret = controller_transaction_new(h, ce, clicon_username_get(h), "rpc", &ct, &cberr)) < 0)
         goto done;
     if (ret == 0){
-        if (netconf_operation_failed(cbret, "application", cbuf_get(cberr))< 0)
+        if (netconf_operation_failed(cbret, "application", "%s", cbuf_get(cberr))< 0)
             goto done;
         goto ok;
     }
@@ -3518,7 +3518,7 @@ rpc_device_rpc(clixon_handle h,
     if ((ret = controller_transaction_new(h, ce, clicon_username_get(h), "rpc", &ct, &cberr)) < 0)
         goto done;
     if (ret == 0){
-        if (netconf_operation_failed(cbret, "application", cbuf_get(cberr))< 0)
+        if (netconf_operation_failed(cbret, "application", "%s", cbuf_get(cberr))< 0)
             goto done;
         goto ok;
     }
@@ -3844,7 +3844,7 @@ controller_edit_config(clixon_handle h,
         goto ok;
     clixon_debug_xml(CLIXON_DBG_CTRL, xserv, "Objects created in %s-db", target);
     if ((ret = xmldb_put(h, target, OP_NONE, xconfig, NULL, cbret)) < 0){
-        if (netconf_operation_failed(cbret, "protocol", clixon_err_reason())< 0)
+        if (netconf_operation_failed(cbret, "protocol", "%s", clixon_err_reason())< 0)
             goto done;
         goto ok;
     }
