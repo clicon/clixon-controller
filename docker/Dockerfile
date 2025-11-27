@@ -30,7 +30,7 @@ RUN mkdir /clixon
 WORKDIR /clixon
 
 RUN git clone https://github.com/clicon/cligen.git
-RUN git clone https://github.com/clicon/clixon.git
+RUN git clone -b clixon-cache https://github.com/clicon/clixon.git
 RUN git clone https://github.com/clicon/clixon-pyapi.git
 
 RUN useradd -m -d /home/clicon clicon

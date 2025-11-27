@@ -234,30 +234,32 @@ xpath2yanglib(clixon_handle h,
     goto done;
 }
 
-/*! Get yanglib, mount and parse it
+/*! Given device XML, get yanglib, create xmount and return yspec
  *
- * @param[in]  h      Clixon handle
- * @param[in]
- * @retval  1  OK
- * @retval  0  Skip
- * @retval -1  Error
+ * Given xdev,
+ * Get xpath, and yanglib,
+ * Create and add xmnt to xdev, yang bind
+ * Given yanglib get yspec
+ * @param[in]  h        Clixon handle
+ * @param[in]  xdev     Device XML on form: <device><name>...
+ * @param[out] xyanglib Yang library in XML form
+ * @retval     0        OK
+ * @retval    -1        Error
  */
 static int
-controller_yanglib2yspec(clixon_handle h,
-                         cxobj        *xdev,
-                         char         *devname,
-                         yang_stmt   **yspec1)
+controller_xdev2yanglib(clixon_handle h,
+                        cxobj        *xdev,
+                        cxobj       **xyanglib)
 {
     int        retval = -1;
     cvec      *nsc = NULL;
     cbuf      *cb = NULL;
-    cxobj     *xyanglib = NULL;
     char      *xpath;
-    cxobj     *xmnt;
-    yang_stmt *y;
-    yang_stmt *ymod;
+    char      *devname;
     int        ret;
 
+    if ((devname = xml_find_body(xdev,"name")) == NULL)
+        goto ok;
     if (xml_nsctx_node(xdev, &nsc) < 0)
         goto done;
     if ((cb = cbuf_new()) == NULL){
@@ -266,36 +268,18 @@ controller_yanglib2yspec(clixon_handle h,
     }
     cprintf(cb, "/devices/device[name='%s']/config", devname);
     xpath = cbuf_get(cb);
-    if ((ret = xpath2yanglib(h, xpath, nsc, &xyanglib)) < 0)
+    if ((ret = xpath2yanglib(h, xpath, nsc, xyanglib)) < 0)
         goto done;
     if (ret == 0)
-        goto skip;
-    if ((xmnt = xml_new("config", xdev, CX_ELMNT)) == NULL)
-        goto done;
-    if ((y = xml_spec(xdev)) == NULL)
-        goto skip;
-    if ((ymod = ys_module(y)) == NULL)
-        goto skip;
-    if (xml_bind_special(xmnt, ymod, "/devices/device/config") < 0)
-        goto done;
-    if ((ret = yang_schema_yanglib_mount_parse(h, xmnt, xyanglib, yspec1)) < 0)
-        goto done;
-    if (ret == 0)
-        goto skip;
-    if (*yspec1 == NULL)
-        goto skip;
-    retval = 1;
+        goto ok;
+ ok:
+    retval = 0;
  done:
-    if (xyanglib)
-        xml_free(xyanglib);
     if (cb)
         cbuf_free(cb);
     if (nsc)
         cvec_free(nsc);
     return retval;
- skip:
-    retval = 0;
-    goto done;
 }
 
 /*! Generate clispec tree for devices matching pattern
@@ -319,7 +303,7 @@ controller_gentree_pattern(cligen_handle ch,
     clixon_handle h;
     cbuf         *cb = NULL;
     cxobj        *xdevs0 = NULL;
-    cxobj        *xdev0;
+    cxobj        *xdev;
     char         *devname;
     pt_head      *ph;
     char         *newtree;
@@ -328,6 +312,10 @@ controller_gentree_pattern(cligen_handle ch,
     int           allequal = 1; /* if 0, at least 2 trees and at least two of the trees are !eq */
     parse_tree   *pt0;
     parse_tree   *pt1;
+    cxobj        *xyanglib = NULL;
+    cxobj        *xmnt;
+    yang_stmt    *ydev;
+    yang_stmt    *ymod;
     int           ret;
 
     clixon_debug(CLIXON_DBG_CTRL, "%s", pattern);
@@ -342,9 +330,9 @@ controller_gentree_pattern(cligen_handle ch,
     /* Loop through all matching devices, check if clispec exists, if not generate
      * But only for first match
      */
-    xdev0 = NULL;
-    while ((xdev0 = xml_child_each(xml_find(xdevs0, "devices"), xdev0, CX_ELMNT)) != NULL) {
-        if ((devname = xml_find_body(xdev0, "name")) == NULL)
+    xdev = NULL;
+    while ((xdev = xml_child_each(xml_find(xdevs0, "devices"), xdev, CX_ELMNT)) != NULL) {
+        if ((devname = xml_find_body(xdev, "name")) == NULL)
             continue;
         if (pattern != NULL && fnmatch(pattern, devname, 0) != 0)
             continue;
@@ -358,9 +346,38 @@ controller_gentree_pattern(cligen_handle ch,
             }
         }
         if ((ph = cligen_ph_find(ch, newtree)) == NULL){
-            /* No such cligen parse-tree, do yang mount stuff */
-            if ((ret = controller_yanglib2yspec(h, xdev0, devname, &yspec1)) < 0)
+            /* No such cligen parse-tree, create xmnt, get yanglib, get yspec */
+            if ((xmnt = xml_new("config", xdev, CX_ELMNT)) == NULL)
                 goto done;
+            xyanglib = NULL;
+            /* Get xyanglib using xdev from backend */
+            if (controller_xdev2yanglib(h, xdev, &xyanglib) < 0)
+                goto done;
+            if (xyanglib == NULL){
+                if (firsttree){
+                    free(firsttree);
+                    firsttree = NULL;
+                }
+                continue;
+            }
+            /* Bind xmnt to yang */
+            if ((ydev = xml_spec(xdev)) == NULL){
+                clixon_err(OE_YANG, 0, "device not bound to yang");
+                goto done;
+            }
+            if ((ymod = ys_module(ydev)) == NULL){
+                clixon_err(OE_YANG, 0, "No module");
+                goto done;
+            }
+            if (xml_bind_special(xmnt, ymod, "/devices/device/config") < 0)
+                goto done;
+            /* Parse yanglib and get yspec */
+            if ((ret = yang_schema_yanglib_mount_parse(h, xmnt, xyanglib, &yspec1)) < 0)
+                goto done;
+            if (xyanglib){
+                xml_free(xyanglib);
+                xyanglib = NULL;
+            }
             if (ret == 0 || yspec1 == NULL){ /* Skip if disabled */
                 if (firsttree){
                     free(firsttree);
@@ -414,6 +431,8 @@ controller_gentree_pattern(cligen_handle ch,
                    pattern, firsttree);
     retval = 0;
  done:
+    if (xyanglib)
+        xml_free(xyanglib);
     if (cb)
         cbuf_free(cb);
     if (xdevs0)
@@ -429,10 +448,10 @@ controller_gentree_pattern(cligen_handle ch,
  * @param[in]  name  Base tree name
  * @param[in]  cvt   Tokenized string: vector of tokens
  * @param[in]  arg   Argument given when registering wrap function (maybe not needed?)
- * @param[out] namep New (malloced) name
- * @retval     1     New malloced name in namep
- * @retval     0     No wrapper, use existing
+ * @param[out] namep New (malloced) name, if changed
+ * @retval     0     OK
  * @retval    -1     Error
+ * @note: contains ad-hoc algorithm to find moint-point
  */
 static int
 controller_yang2cli_mount(cligen_handle ch,
@@ -459,24 +478,18 @@ controller_yang2cli_mount(cligen_handle ch,
             if (strcmp(cv_string_get(cv), "device") == 0)
                 break;
         }
-        if (cv == NULL)
-            goto ok;
-        if ((cvdev = cvec_next(cvt, cv)) == NULL)
-            goto ok;
+        if (cv != NULL)
+            cvdev = cvec_next(cvt, cv);
     }
     /* Pattern can be globbed, its the <name> argument to devices */
-    if ((pattern = cv_string_get(cvdev)) == NULL)
-        goto ok;
-    if (controller_gentree_pattern(ch, pattern, namep) < 0)
-        goto done;
-    if (*namep == NULL)
-        goto ok;
-    retval = 1;
+    if (cvdev != NULL &&
+        (pattern = cv_string_get(cvdev)) != NULL){
+        if (controller_gentree_pattern(ch, pattern, namep) < 0)
+            goto done;
+    }
+    retval = 0;
  done:
     return retval;
- ok:
-    retval = 0;
-    goto done;
 }
 
 /*! CLIgen wrap function for making treeref lookup: generate clispec tree from YANG
@@ -502,16 +515,43 @@ controller_yang2cli_wrap(cligen_handle ch,
                          void         *arg,
                          char        **namep)
 {
+    int   retval = -1;
+    char *keyword = NULL;
+    int   ret;
+
+    clixon_debug(CLIXON_DBG_CLI, "%s", name);
     if (namep == NULL){
         clixon_err(OE_UNIX, EINVAL, "Missing namep");
-        return -1;
+        goto done;
     }
-    if (strcmp(name, "mountpoint") == 0)
-        return controller_yang2cli_mount(ch, name, cvt, arg, namep);
-    else if (strncmp(name, "grouping", strlen("grouping")) == 0)
-        return yang2cli_grouping_wrap(ch, name, cvt, arg, namep);
+    if (strcmp(name, "mountpoint") == 0){
+        if ((ret = controller_yang2cli_mount(ch, name, cvt, arg, namep)) < 0)
+            goto done;
+        if (namep && *namep){
+            retval = 1;
+            goto done;
+        }
+    }
+    else {
+        if (yang2cli_treeref_decode(name, AUTOCLI_CMD_DELIM,
+                                    NULL, NULL, NULL, NULL, &keyword, NULL) < 0)
+            goto done;
+        if (keyword && strcmp(keyword, "grouping") == 0){
+            if (yang2cli_grouping_wrap(ch, name, cvt, arg, namep) < 0)
+                goto done;
+        }
+    }
+#if 1 /* Backward compatible with cligen 7.6 tree-resolve() */
+    if (namep && *namep){
+        retval = 1;
+    }
     else
-        return 0;
+#endif
+        retval = 0;
+ done:
+    if (keyword)
+        free(keyword);
+    return retval;
 }
 
 /*! YANG schema mount, query backend of yangs

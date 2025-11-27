@@ -5,7 +5,7 @@ on:
     branches:
       - main
       - test-actions
-      - delete-service
+      - clixon-cache
   pull_request:
     branches:
       - main

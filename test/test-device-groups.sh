@@ -226,7 +226,7 @@ expectpart "$($clixon_cli -1 -m configure -f $CFG -E $CFD set devices device ope
 
 new "CLI load rpc template ping"
 # quote EOFfor $NAME
-ret=$(${clixon_cli} -1f $CFG -m configure load merge xml <<'EOF'
+ret=$(${clixon_cli} -1f $CFG -E $CFD -m configure load merge xml <<'EOF'
       <config>
          <devices xmlns="http://clicon.org/controller">
             <rpc-template nc:operation="replace">
@@ -265,7 +265,7 @@ expectpart "$($clixon_cli -1 -f $CFG -E $CFD rpc ping group mygroup1)" 0 "<name>
 
 new "CLI load template xml"
 # quote EOFfor $NAME
-ret=$(${clixon_cli} -1f $CFG -m configure load merge xml <<'EOF'
+ret=$(${clixon_cli} -1f $CFG -E $CFD -m configure load merge xml <<'EOF'
       <config>
          <devices xmlns="http://clicon.org/controller">
             <template nc:operation="replace">
@@ -299,13 +299,13 @@ if [ -n "$ret" ]; then
 fi
 
 new "commit template local"
-expectpart "$($clixon_cli -1f $CFG -m configure commit local 2>&1)" 0 "^$"
+expectpart "$($clixon_cli -1f $CFG -E $CFD -m configure commit local 2>&1)" 0 "^$"
 
 new "Apply template CLI 1"
-expectpart "$($clixon_cli -1 -f $CFG -m configure apply template interfaces group mygroup1 variables NAME z TYPE ianaift:v35)" 0 "^$"
+expectpart "$($clixon_cli -1 -f $CFG -E $CFD -m configure apply template interfaces group mygroup1 variables NAME z TYPE ianaift:v35)" 0 "^$"
 
 new "Verify compare"
-expectpart "$($clixon_cli -1 -f $CFG -m configure -o CLICON_CLI_OUTPUT_FORMAT=text show compare)" 0 "^+\ *interface z {" "^+\ *type ianaift:v35;" "^+\ *description \"Config of interface z,z and ianaift:v35 type\";" --not-- "^\-"
+expectpart "$($clixon_cli -1 -f $CFG -E $CFD -m configure -o CLICON_CLI_OUTPUT_FORMAT=text show compare)" 0 "^+\ *interface z {" "^+\ *type ianaift:v35;" "^+\ *description \"Config of interface z,z and ianaift:v35 type\";" --not-- "^\-"
 
 new "connection close"
 expectpart "$($clixon_cli -1 -f $CFG -E $CFD connection close)" 0 "^$"

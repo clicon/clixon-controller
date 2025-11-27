@@ -212,11 +212,11 @@ new "Sleep and verify devices are open"
 sleep_open
 
 new "Show device diff, should be empty"
-expectpart "$($clixon_cli -1 -f $CFG show devices diff)" 0 "^$"
+expectpart "$($clixon_cli -1 -f $CFG -E $CFD show devices diff)" 0 "^$"
 
 # Verify that service processes are running
 new "Verify service processes are running"
-expectpart "$($clixon_cli -1 -f $CFG processes service status)" 0 ".*running.*" ""
+expectpart "$($clixon_cli -1 -f $CFG -E $CFD processes service status)" 0 ".*running.*" ""
 
 nacm_init
 
@@ -327,7 +327,7 @@ expectpart "$($clixon_cli -1 -f $CFG -E $CFD -m configure set nacm rule-list tes
 expectpart "$($clixon_cli -1 -f $CFG -E $CFD -m configure set nacm rule-list test-rules rule test-rule action deny)" 0 ""
 expectpart "$($clixon_cli -1 -f $CFG -E $CFD -m configure set nacm rule-list test-rules rule test-rule rpc-name config-pull)" 0 ""
 expectpart "$($clixon_cli -1 -f $CFG -E $CFD -m configure commit local)" 0 ""
-expectpart "$($clixon_cli -1 -f $CFG pull 2>&1)" 255 ".*application access-denied access denied"
+expectpart "$($clixon_cli -1 -f $CFG -E $CFD pull 2>&1)" 255 ".*application access-denied access denied"
 
 nacm_init
 
@@ -336,7 +336,7 @@ expectpart "$($clixon_cli -1 -f $CFG -E $CFD -m configure set nacm rule-list tes
 expectpart "$($clixon_cli -1 -f $CFG -E $CFD -m configure set nacm rule-list test-rules rule test-rule action permit)" 0 ""
 expectpart "$($clixon_cli -1 -f $CFG -E $CFD -m configure set nacm rule-list test-rules rule test-rule rpc-name config-pull)" 0 ""
 expectpart "$($clixon_cli -1 -f $CFG -E $CFD -m configure commit local)" 0 ""
-expectpart "$($clixon_cli -1 -f $CFG pull 2>&1)" 0 "OK"
+expectpart "$($clixon_cli -1 -f $CFG -E $CFD pull 2>&1)" 0 "OK"
 
 if $BE; then
      new "Kill old backend"

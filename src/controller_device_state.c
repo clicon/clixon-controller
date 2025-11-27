@@ -956,22 +956,25 @@ device_config_compare(clixon_handle           h,
  * If found, re-use that YANG-SPEC.
  * @param[in]  h         Clixon handle
  * @param[in]  dh        Clixon device handle.
- * @param[in]  xyanglib0 Yang-lib in XML format
+ * @param[in]  xylib1    Yang-lib in XML format
  * @param[out] yspec1    New or shared yang-spec
  * @retval     0         OK
  * @retval    -1         Error
+ * @see yang_schema_find_share  Similar
  */
 static int
 device_shared_yspec(clixon_handle h,
                     device_handle dh0,
-                    cxobj        *xyanglib0,
+                    cxobj        *xylib1,
+                    const char   *digest1,
                     yang_stmt   **yspec1)
 {
     int           retval = -1;
     yang_stmt    *yspec = NULL;
     device_handle dh1;
-    cxobj        *xyanglib;
+    cxobj        *xylib2;
     char         *domain0;
+    char         *digest2 = NULL;
 
     if (clicon_option_bool(h, "CLICON_YANG_SCHEMA_MOUNT_SHARE")) {
         domain0 = device_handle_domain_get(dh0);
@@ -980,11 +983,17 @@ device_shared_yspec(clixon_handle h,
         while ((dh1 = device_handle_each(h, dh1)) != NULL){
             if (dh1 == dh0)
                 continue;
-            if ((xyanglib = device_handle_yang_lib_get(dh1)) == NULL)
+            if ((xylib2 = device_handle_yang_lib_get(dh1)) == NULL)
                 continue;
             if (strcmp(domain0, device_handle_domain_get(dh1)) != 0)
                 continue;
-            if (xml_tree_equal(xyanglib0, xyanglib) == 0)
+            if (digest2){
+                free(digest2);
+                digest2 = NULL;
+            }
+            if (xyanglib_digest(xylib2, &digest2) < 0)
+                goto done;
+            if (clicon_strcmp(digest1, digest2) == 0)
                 break;
         }
         if (dh1 != NULL){
@@ -996,6 +1005,8 @@ device_shared_yspec(clixon_handle h,
         *yspec1 = yspec;
     retval = 0;
  done:
+    if (digest2)
+        free(digest2);
     return retval;
 }
 
@@ -1313,7 +1324,7 @@ device_state_handler(clixon_handle h,
     char       *name;
     conn_state  conn_state;
     yang_stmt  *yspec0;
-    yang_stmt  *yspec_orig = NULL;
+    int         new = 0;
     yang_stmt  *yspec1 = NULL;
     int         nr;
     uint64_t    tid;
@@ -1323,6 +1334,7 @@ device_state_handler(clixon_handle h,
     cxobj      *xyanglib;
     char       *candidate = NULL;
     db_elmnt   *de = NULL;
+    char       *digest = NULL;
     int         ret;
 
     rpcname = xml_name(xmsg);
@@ -1388,7 +1400,7 @@ device_state_handler(clixon_handle h,
                 break;
             }
             /* Check if there is another equivalent xyanglib */
-            yspec_orig = NULL;
+            new = 0;
             yspec1 = NULL;
             if (controller_mount_yspec_get(h, name, &yspec1) < 0)
                 goto done;
@@ -1409,9 +1421,17 @@ device_state_handler(clixon_handle h,
                     if ((ydomain = ydomain_new(h, domain)) == NULL)
                         goto done;
                 }
-                if (device_shared_yspec(h, dh, xyanglib, &yspec_orig) < 0)
+                if (xyanglib_digest(xyanglib, &digest) < 0)
                     goto done;
-                if ((yspec1 = yspec_new_shared(h, cbuf_get(cbxpath), domain, name, yspec_orig)) == NULL)
+                if (device_shared_yspec(h, dh, xyanglib, digest, &yspec1) < 0)
+                    goto done;
+                if (yspec1 == NULL){
+                    if ((yspec1 = yspec_new1(h, domain, digest)) == NULL)
+                        goto done;
+                    new++;
+                    yang_flag_set(yspec1, YANG_FLAG_SPEC_MOUNT);
+                }
+                if (yang_cvec_add(yspec1, CGV_STRING, cbuf_get(cbxpath)) == NULL)
                     goto done;
                 if (cbxpath)
                     cbuf_free(cbxpath);
@@ -1419,7 +1439,7 @@ device_state_handler(clixon_handle h,
                     goto done;
             }
             /* All schemas ready, parse them (may do device_close) */
-            if (yspec_orig == NULL){
+            if (new){
                 if ((ret = device_schemas_mount_parse(h, dh, xyanglib)) < 0)
                     goto done;
                 if (ret == 0){
@@ -1465,7 +1485,7 @@ device_state_handler(clixon_handle h,
         }
         /* Check if there is another equivalent xyanglib
          */
-        yspec_orig = NULL;
+        new = 0;
         yspec1 = NULL;
         if (controller_mount_yspec_get(h, name, &yspec1) < 0)
             goto done;
@@ -1486,9 +1506,17 @@ device_state_handler(clixon_handle h,
                 if ((ydomain = ydomain_new(h, domain)) == NULL)
                     goto done;
             }
-            if (device_shared_yspec(h, dh, xyanglib, &yspec_orig) < 0)
+            if (xyanglib_digest(xyanglib, &digest) < 0)
                 goto done;
-            if ((yspec1 = yspec_new_shared(h, cbuf_get(cbxpath), domain, name, yspec_orig)) == NULL) // # 1
+            if (device_shared_yspec(h, dh, xyanglib, digest, &yspec1) < 0)
+                goto done;
+            if (yspec1 == NULL){
+                if ((yspec1 = yspec_new1(h, domain, digest)) == NULL)
+                    goto done;
+                yang_flag_set(yspec1, YANG_FLAG_SPEC_MOUNT);
+                new++;
+            }
+            if (yang_cvec_add(yspec1, CGV_STRING, cbuf_get(cbxpath)) == NULL)
                 goto done;
             if (cbxpath)
                 cbuf_free(cbxpath);
@@ -1504,7 +1532,7 @@ device_state_handler(clixon_handle h,
             break;
         }
         else if (ret == 0){ /* None found */
-            if (yspec_orig == NULL){
+            if (new){
                 /* All schemas ready, parse them */
                 if ((ret = device_schemas_mount_parse(h, dh, xyanglib)) < 0)
                     goto done;
@@ -2070,6 +2098,8 @@ device_state_handler(clixon_handle h,
     retval = 0;
  done:
     clixon_debug(CLIXON_DBG_CTRL|CLIXON_DBG_DETAIL, "retval:%d", retval);
+    if (digest)
+        free(digest);
     if (cberr)
         cbuf_free(cberr);
     return retval;

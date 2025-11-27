@@ -242,20 +242,20 @@ new "Verify restconf"
 expectpart "$(curl $CURLOPTS --key $certdir/andy.key --cert $certdir/andy.crt -X POST -H "Content-Type: application/yang-data+json" $RCPROTO://localhost/restconf/operations/clixon-lib:process-control -d '{"clixon-lib:input":{"name":"restconf","operation":"status"}}')" 0 "HTTP/$HVER 200" '{"clixon-lib:output":{"active":true,"description":"Clixon RESTCONF process"'
 
 new "Close all devices"
-expectpart "$($clixon_cli -1 -f $CFG connection close)" 0 ""
+expectpart "$($clixon_cli -1 -f $CFG -E $CFD connection close)" 0 ""
 
 new "Connect to devices"
-expectpart "$($clixon_cli -1 -f $CFG connection open)" 0 ""
+expectpart "$($clixon_cli -1 -f $CFG -E $CFD connection open)" 0 ""
 
 new "Sleep and verify devices are open"
 sleep_open
 
 new "Show device diff, should be empty"
-expectpart "$($clixon_cli -1 -f $CFG show devices diff)" 0 "^$"
+expectpart "$($clixon_cli -1 -f $CFG -E $CFD show devices diff)" 0 "^$"
 
 # Verify that service processes are running
 new "Verify service processes are running"
-expectpart "$($clixon_cli -1 -f $CFG processes service status)" 0 ".*running.*" ""
+expectpart "$($clixon_cli -1 -f $CFG -E $CFD processes service status)" 0 ".*running.*" ""
 
 nacm_init
 

@@ -218,7 +218,7 @@ actions_type_str2int(char *str)
 
 /*! Given a yang-library/module-set, bind it to yang
  *
- * The yang-library has several different sources with different XML structure,
+ * The RFC 8525 yang-library has several different sources with different XML structure,
  * (top-level is different)
  * in order to bind yang to it, the following must be done (if not already done):
  * - Bind top-level XML to yang-library

@@ -68,7 +68,7 @@ function testrun()
     new "Show devices diff, should be empty"
     expectpart "$($clixon_cli -1 -f $CFG -E $CFD show devices diff)" 0 ""
 
-    new "Show devices openconfig* diff, should be empty XXX2"
+    new "Show devices openconfig* diff, should be empty"
     expectpart "$($clixon_cli -1 -f $CFG -E $CFD 'show devices openconfig* diff')" 0 ""
 
     new "Show devices openconfig1 diff, should be empty"
