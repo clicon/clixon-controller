@@ -74,6 +74,13 @@
  */
 #define SERVICES_PROCESS "Services process"
 
+/*! Default top-level default-operation in outgoing NETCONF edit-config messages
+ *
+ * Only for trees with merge/replace/create specific operations (not delete/remove)
+ * Some devices may not support "none" but requires "merge"
+ */
+#define NETCONF_EDIT_CONFIG_ADD_DEFAULT_OPERATION "none"
+
 /*! Controller debug levels
  */
 #define CLIXON_DBG_CTRL CLIXON_DBG_APP

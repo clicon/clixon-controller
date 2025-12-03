@@ -496,11 +496,9 @@ device_create_edit_config_diff(clixon_handle h,
         cprintf(cb, "<target><candidate/></target>");
         cprintf(cb, "<default-operation>none</default-operation>");
         cprintf(cb, "<config>");
-#ifdef CLIXON_PLUGIN_USERDEF
         /* Rewrite x0 */
         if (clixon_plugin_userdef_all(h, CTRL_NX_SEND, x0, dh) < 0)
             goto done;
-#endif
         if (clixon_xml2cbuf(cb, x0, 0, 0, NULL, -1, 1) < 0)
             goto done;
         cprintf(cb, "</config>");
@@ -521,12 +519,10 @@ device_create_edit_config_diff(clixon_handle h,
                 );
         cprintf(cb, "<edit-config>");
         cprintf(cb, "<target><candidate/></target>");
-        cprintf(cb, "<default-operation>none</default-operation>");
-#ifdef CLIXON_PLUGIN_USERDEF
+        cprintf(cb, "<default-operation>%s</default-operation>", NETCONF_EDIT_CONFIG_ADD_DEFAULT_OPERATION);
         /* Rewrite x1 */
         if (clixon_plugin_userdef_all(h, CTRL_NX_SEND, x1, dh) < 0)
             goto done;
-#endif
         cprintf(cb, "<config>");
         if (clixon_xml2cbuf(cb, x1, 0, 0, NULL, -1, 1) < 0)
             goto done;

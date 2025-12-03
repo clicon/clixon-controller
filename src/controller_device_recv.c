@@ -224,10 +224,8 @@ device_recv_config(clixon_handle h,
         device_close_connection(dh, "No data in get reply");
         goto closed;
     }
-#ifdef CLIXON_PLUGIN_USERDEF
-    if (clixon_plugin_userdef_all(h, 0, xdata, dh) < 0)
+    if (clixon_plugin_userdef_all(h, CTRL_NX_RECV, xdata, dh) < 0)
         goto done;
-#endif
     /* Move all xmlns declarations to <data> */
     if (xmlns_set_all(xdata, nsc) < 0)
         goto done;
