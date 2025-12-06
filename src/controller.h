@@ -74,12 +74,15 @@
  */
 #define SERVICES_PROCESS "Services process"
 
-/*! Default top-level default-operation in outgoing NETCONF edit-config messages
+/*! Default top-level default-operation in outgoing NETCONF edit-config merge/replace/create messages
  *
  * Only for trees with merge/replace/create specific operations (not delete/remove)
- * Some devices may not support "none" but requires "merge"
+ * (the controller separates adding and removing device nodes with two separate edit-config messages)
+ * Some devices may not support "none" but requires "merge", such as JUNOS >= 24
+ * Decided to set it to "merge" as default, although the correct is "none"
+ * But for merge/replace/create as used in the controller, there should be no difference.
  */
-#define NETCONF_EDIT_CONFIG_ADD_DEFAULT_OPERATION "none"
+#define NETCONF_EDIT_CONFIG_ADD_DEFAULT_OPERATION "merge"
 
 /*! Controller debug levels
  */
