@@ -1,0 +1,6 @@
+CLICON_MODE="operation";
+CLICON_PLUGIN="controller_cli_command";
+
+test("Test") {
+    foo("Test"), cli_command_run("/home/debian/test.py", "foo", "bar");
+}

@@ -212,6 +212,7 @@ AC_CONFIG_FILES([Makefile
 		 extensions/Makefile
                  extensions/plugins/Makefile
  		 extensions/plugins/junos-native/Makefile
+ 		 extensions/plugins/cli-command/Makefile		 
 		 extensions/yang/Makefile
 		 extensions/yang/junos-bgp/Makefile
 		 extensions/yang/junos-macsec/Makefile
