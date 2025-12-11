@@ -4939,7 +4939,7 @@ if test "x$with_systemdsystemunitdir" != "xno" ; then
       HAVE_SYSTEMD=true
 fi
 
-ac_config_files="$ac_config_files Makefile clixon-controller.service src/Makefile src/controller.xml yang/Makefile util/Makefile docker/Makefile test/config.sh doc/Makefile extensions/Makefile extensions/plugins/Makefile extensions/plugins/junos-native/Makefile extensions/yang/Makefile extensions/yang/junos-bgp/Makefile extensions/yang/junos-macsec/Makefile extensions/yang/junos-users/Makefile"
+ac_config_files="$ac_config_files Makefile clixon-controller.service src/Makefile src/controller.xml yang/Makefile util/Makefile docker/Makefile test/config.sh doc/Makefile extensions/Makefile extensions/plugins/Makefile extensions/plugins/junos-native/Makefile extensions/plugins/cli-command/Makefile extensions/yang/Makefile extensions/yang/junos-bgp/Makefile extensions/yang/junos-macsec/Makefile extensions/yang/junos-users/Makefile"
 
 cat >confcache <<\_ACEOF
 # This file is a shell script that caches the results of configure
@@ -5654,6 +5654,7 @@ do
     "extensions/Makefile") CONFIG_FILES="$CONFIG_FILES extensions/Makefile" ;;
     "extensions/plugins/Makefile") CONFIG_FILES="$CONFIG_FILES extensions/plugins/Makefile" ;;
     "extensions/plugins/junos-native/Makefile") CONFIG_FILES="$CONFIG_FILES extensions/plugins/junos-native/Makefile" ;;
+    "extensions/plugins/cli-command/Makefile") CONFIG_FILES="$CONFIG_FILES extensions/plugins/cli-command/Makefile" ;;
     "extensions/yang/Makefile") CONFIG_FILES="$CONFIG_FILES extensions/yang/Makefile" ;;
     "extensions/yang/junos-bgp/Makefile") CONFIG_FILES="$CONFIG_FILES extensions/yang/junos-bgp/Makefile" ;;
     "extensions/yang/junos-macsec/Makefile") CONFIG_FILES="$CONFIG_FILES extensions/yang/junos-macsec/Makefile" ;;
