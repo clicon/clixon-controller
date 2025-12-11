@@ -1,22 +1,18 @@
-# Junos native plugin
+# CLI command plugin
 
-Backend plugin for Junos native for NON rfc- and yang-compliant
-Juniper PTX,MX and QFX (possibly others). The plugin rewrites
-the XML config on pull/sync and push/commit.
+The CLI command plugin allows mapping of CLI commands to arbitrary shell commands on the server side.
+To build and install the CLI command plugin, follow these steps:
 
-No configuration is necessary.
+```bash
+cd cli-command
+make
+make install
+```
 
-The extension allocates three device flags to keep track of whether the device is a
-JunOS device, a QFX JunOS device and if the check has been made or not.
+You have to create a CLI specification file that maps CLI commands to shell commands.
+An example specification named example.cli is provided in the cli-command directory.
+The CLI specification file should be installed in the Clixon CLI specification directory:
 
-It then intercepts incoming NETCONF/XML messages from the device,
-detects if it is a JusOS device in need of rewrite by examining its
-system compliance settings, and then potentially rewrites the XML to RFC
-and YANG compliant.
-
-If flags are set appropriately, the extension also intercepts outgoing
-NETCONF/XML messages from RFC/YANG compliant to Junos non-compliant
-native mode.
-
-The interception uses the user-defined callback which in the controller is placed in
-the path of incoming and outgoing NETCONF messages.
+```bash
+cp example.cli /usr/local/lib/controller/clispec/
+```

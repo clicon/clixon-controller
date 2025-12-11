@@ -11,7 +11,11 @@ The following plugins exist:
                  Juniper PTX,MX and QFX (possibly others). The plugin rewrites
                  the XML config on pull/sync and push/commit
 
-To build and install a plugin, for example junos_native, do
+- cli-command   CLI plugin to run arbitrary shell commands on the server side.
+                The plugin maps CLI commands to shell commands and returns
+                the output as CLI output.
+
+To build and install a plugin, for example junos_native, do:
 
 cd junos-native
 make
