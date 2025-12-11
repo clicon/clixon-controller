@@ -1,0 +1,64 @@
+#
+# ***** BEGIN LICENSE BLOCK *****
+#
+# Copyright (C) 2025 Olof Hagsand
+#
+# This file is part of CLIXON
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+# ***** END LICENSE BLOCK *****
+#
+
+srcdir          = .
+top_srcdir      = ..
+srcdir  		= @srcdir@
+bindir 			= @bindir@
+includedir		= @includedir@
+datarootdir     = @datarootdir@
+sysconfdir      = @sysconfdir@
+localstatedir   = @localstatedir@
+runstatedir     = @runstatedir@
+libdir          = @libdir@
+version         = @CONTROLLER_VERSION@
+
+APPNAME         = controller
+
+CC				= @CC@
+CFLAGS  		= @CFLAGS@ -fPIC
+LDFLAGS 		= @LDFLAGS@
+INSTALLFLAGS  	= @INSTALLFLAGS@
+
+CPPFLAGS  		= @CPPFLAGS@ -fPIC -DCONTROLLER_VERSION=\"$(version)\"
+
+CLI_PLUGIN      = $(APPNAME)_cli_command.so
+CLI_SRC         = $(APPNAME)_cli_command.c
+CLI_OBJ         = $(CLI_SRC:%.c=%.o)
+
+$(CLI_PLUGIN): $(CLI_OBJ) $(GENOBJS)
+	$(CC) -Wall -shared $(LDFLAGS) -o $@ -lc $^ -lclixon -lclixon_cli
+
+PLUGINS = $(CLI_PLUGIN)
+OBJS = $(CLI_OBJ)
+
+all: $(PLUGINS)
+
+clean:
+	rm -f $(PLUGINS) $(OBJS)
+
+install: $(PLUGINS)
+	install -d -m 0755 $(DESTDIR)$(libdir)/$(APPNAME)/cli	
+	install -m 0644 $(INSTALLFLAGS) $(CLI_PLUGIN) $(DESTDIR)$(libdir)/$(APPNAME)/cli
+
+depend:
+	$(CC) $(DEPENDFLAGS) $(INCLUDES) $(CFLAGS) -MM $(SRC) > .depend
