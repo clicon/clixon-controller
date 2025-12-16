@@ -1335,6 +1335,8 @@ device_state_handler(clixon_handle h,
     char       *candidate = NULL;
     db_elmnt   *de = NULL;
     char       *digest = NULL;
+    char       *domain;
+    cbuf       *cbxpath = NULL;
     int         ret;
 
     rpcname = xml_name(xmsg);
@@ -1402,15 +1404,19 @@ device_state_handler(clixon_handle h,
             /* Check if there is another equivalent xyanglib */
             new = 0;
             yspec1 = NULL;
-            if (controller_mount_yspec_get(h, name, &yspec1) < 0)
+            domain = device_handle_domain_get(dh);
+            if (xyanglib_digest(xyanglib, &digest) < 0)
                 goto done;
-            if (yspec1 == NULL){ /* It may already exist? */
-                cbuf *cbxpath = NULL;
-                char *domain;
+            if (yang_mount_get_xpath(h, domain, digest, &yspec1, NULL) < 0)
+                goto done;
+            if (yspec1 != NULL){
+                if (controller_mount_xpath_get(name, &cbxpath) < 0)
+                    goto done;
+            }
+            else { /* It may already exist? */
                 yang_stmt *ymounts;
                 yang_stmt *ydomain;
 
-                domain = device_handle_domain_get(dh);
                 if (controller_mount_xpath_get(name, &cbxpath) < 0)
                     goto done;
                 if ((ymounts = clixon_yang_mounts_get(h)) == NULL){
@@ -1421,8 +1427,6 @@ device_state_handler(clixon_handle h,
                     if ((ydomain = ydomain_new(h, domain)) == NULL)
                         goto done;
                 }
-                if (xyanglib_digest(xyanglib, &digest) < 0)
-                    goto done;
                 if (device_shared_yspec(h, dh, xyanglib, digest, &yspec1) < 0)
                     goto done;
                 if (yspec1 == NULL){
@@ -1433,8 +1437,6 @@ device_state_handler(clixon_handle h,
                 }
                 if (yang_cvec_add(yspec1, CGV_STRING, cbuf_get(cbxpath)) == NULL)
                     goto done;
-                if (cbxpath)
-                    cbuf_free(cbxpath);
                 if (controller_mount_yspec_set(h, name, yspec1) < 0)
                     goto done;
             }
@@ -1487,15 +1489,19 @@ device_state_handler(clixon_handle h,
          */
         new = 0;
         yspec1 = NULL;
-        if (controller_mount_yspec_get(h, name, &yspec1) < 0)
+        domain =  device_handle_domain_get(dh);
+        if (xyanglib_digest(xyanglib, &digest) < 0)
             goto done;
-        if (yspec1 == NULL){
-            cbuf      *cbxpath = NULL;
-            char      *domain;
+        if (yang_mount_get_xpath(h, domain, digest, &yspec1, NULL) < 0)
+            goto done;
+        if (yspec1 != NULL){
+            if (controller_mount_xpath_get(name, &cbxpath) < 0)
+                goto done;
+        }
+        else {
             yang_stmt *ymounts;
             yang_stmt *ydomain;
 
-            domain =  device_handle_domain_get(dh);
             if (controller_mount_xpath_get(name, &cbxpath) < 0)
                 goto done;
             if ((ymounts = clixon_yang_mounts_get(h)) == NULL){
@@ -1506,8 +1512,6 @@ device_state_handler(clixon_handle h,
                 if ((ydomain = ydomain_new(h, domain)) == NULL)
                     goto done;
             }
-            if (xyanglib_digest(xyanglib, &digest) < 0)
-                goto done;
             if (device_shared_yspec(h, dh, xyanglib, digest, &yspec1) < 0)
                 goto done;
             if (yspec1 == NULL){
@@ -1516,13 +1520,11 @@ device_state_handler(clixon_handle h,
                 yang_flag_set(yspec1, YANG_FLAG_SPEC_MOUNT);
                 new++;
             }
-            if (yang_cvec_add(yspec1, CGV_STRING, cbuf_get(cbxpath)) == NULL)
-                goto done;
-            if (cbxpath)
-                cbuf_free(cbxpath);
-            if (controller_mount_yspec_set(h, name, yspec1) < 0)
-                goto done;
         }
+        if (yang_cvec_add(yspec1, CGV_STRING, cbuf_get(cbxpath)) == NULL)
+            goto done;
+        if (controller_mount_yspec_set(h, name, yspec1) < 0)
+            goto done;
         nr = 0;
         if ((ret = device_send_get_schema_next(h, dh, s, &nr)) < 0)
             goto done;
@@ -2098,6 +2100,8 @@ device_state_handler(clixon_handle h,
     retval = 0;
  done:
     clixon_debug(CLIXON_DBG_CTRL|CLIXON_DBG_DETAIL, "retval:%d", retval);
+    if (cbxpath)
+        cbuf_free(cbxpath);
     if (digest)
         free(digest);
     if (cberr)

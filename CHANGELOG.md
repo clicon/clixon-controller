@@ -1,5 +1,12 @@
 # Clixon Controller Changelog
 
+## 1.7.0
+Planned: February 2026
+
+### Corrected Bugs
+
+* Fixed [Memory leak after reopening connection](https://github.com/clicon/clixon-controller/issues/169)
+
 ## 1.6.0
 21 November 2025
 

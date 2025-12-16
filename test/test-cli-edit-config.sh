@@ -176,17 +176,28 @@ if ${early}; then
     exit # for starting controller with devices and debug
 fi
 
+new "Check YANG memory before reconnect"
+premem=$($clixon_cli -1f $CFG -E $CFD show mem backend|grep "YANG Total")
+
 new "Close all devices"
 expectpart "$($clixon_cli -1 -f $CFG -E $CFD connection close)" 0 ""
 
 new "Ensure closed"
 expectpart "$($clixon_cli -1 -f $CFG -E $CFD show connections)" 0 "openconfig1.*CLOSED" "openconfig2.*CLOSED"
 
+echo "$clixon_cli -1 -f $CFG -E $CFD connection open"
+#exit
 new "Connect to devices"
 expectpart "$($clixon_cli -1 -f $CFG -E $CFD connection open)" 0 ""
 
 new "Sleep and verify devices are open 1"
 sleep_open
+
+new "Check YANG memory after reconnect"
+postmem=$($clixon_cli -1f $CFG -E $CFD show mem backend|grep "YANG Total")
+if [ "$premem" != "$postmem" ]; then
+    err "$premem" "$postmem"
+fi
 
 new "Reconnect to devices"
 expectpart "$($clixon_cli -1 -f $CFG -E $CFD connection reconnect)" 0 ""

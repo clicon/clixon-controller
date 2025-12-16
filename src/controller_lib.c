@@ -465,6 +465,7 @@ controller_mount_xpath_get(char  *devname,
  * @param[out] yspec1   yang spec
  * @retval     0        OK
  * @retval    -1        Error
+ * @see yang_mount_get
  */
 int
 controller_mount_yspec_get(clixon_handle h,
