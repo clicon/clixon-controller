@@ -43,6 +43,8 @@ cat<<EOF > $CFD/diff.xml
 </clixon-config>
 EOF
 
+cp ../src/autocli.xml $CFD/
+
 # Reset devices with initial config
 (. ./reset-devices.sh)
 

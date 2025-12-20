@@ -42,10 +42,10 @@ dir=/var/tmp/$0
 modules=$dir/modules
 fyang=$dir/example.yang
 CFG=$dir/controller.xml
-#CFD=$dir/conf.d
+CFD=$dir/conf.d
 test -d $dir || mkdir -p $dir
 test -d $modules || mkdir -p $modules
-#test -d $CFD || mkdir -p $CFD
+test -d $CFD || mkdir -p $CFD
 pycode=$modules/example.py
 
 # Use two users
@@ -76,7 +76,7 @@ cat <<EOF > $CFG
   <CLICON_FEATURE>clixon-restconf:allow-auth-none</CLICON_FEATURE>
   <CLICON_FEATURE>clixon-restconf:fcgi</CLICON_FEATURE>
   <CLICON_CONFIGFILE>$CFG</CLICON_CONFIGFILE>
-  <!--CLICON_CONFIGDIR>$CFD</CLICON_CONFIGDIR-->
+  <CLICON_CONFIGDIR>$CFD</CLICON_CONFIGDIR>
   <CLICON_CONFIG_EXTEND>clixon-controller-config</CLICON_CONFIG_EXTEND>
   <CLICON_YANG_DIR>${DATADIR}/clixon</CLICON_YANG_DIR>
   <CLICON_YANG_DIR>${DATADIR}/controller/common</CLICON_YANG_DIR>
@@ -118,6 +118,8 @@ cat <<EOF > $CFG
   <CONTROLLER_PYAPI_PIDFILE xmlns="http://clicon.org/controller-config">/tmp/clixon_pyapi.pid</CONTROLLER_PYAPI_PIDFILE>  <!-- clicon goup cannot write in ${LOCALSTATEDIR} -->
 </clixon-config>
 EOF
+
+cp ../src/autocli.xml $CFD/
 
 cat <<EOF > $fyang
 module example {
