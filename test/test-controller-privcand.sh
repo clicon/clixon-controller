@@ -41,6 +41,8 @@ cat<<EOF > $CFD/action-command.xml
 </clixon-config>
 EOF
 
+cp ../src/autocli.xml $CFD/
+
 ip1=$(echo $CONTAINERS | awk '{print $1}')
 ip2=$(echo $CONTAINERS | awk '{print $2}')
 

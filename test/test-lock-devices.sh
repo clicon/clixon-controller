@@ -31,6 +31,8 @@ cat<<EOF > $CFD/diff.xml
 </clixon-config>
 EOF
 
+cp ../src/autocli.xml $CFD/
+
 cat<<EOF > $dir/controller_operation.cli
 CLICON_MODE="operation";
 CLICON_PROMPT="%U@%H> ";

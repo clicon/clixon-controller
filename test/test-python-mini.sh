@@ -76,6 +76,8 @@ cat <<EOF > $CFG
 </clixon-config>
 EOF
 
+cp ../src/autocli.xml $CFD/
+
 cat <<EOF > $fyang
 module example {
     namespace "http://clicon.org/example";

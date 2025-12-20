@@ -74,6 +74,7 @@ cat <<EOF > $CFD/autocli.xml
      <list-keyword-default>kw-nokey</list-keyword-default>
      <treeref-state-default>true</treeref-state-default>
      <grouping-treeref>true</grouping-treeref>
+     <clispec-cache>read</clispec-cache>
      <rule>
        <name>exclude ietf interfaces</name>
        <module-name>ietf-interfaces</module-name>
