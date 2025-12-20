@@ -31,6 +31,8 @@ cat<<EOF > $CFD/diff.xml
 </clixon-config>
 EOF
 
+cp ../src/autocli.xml $CFD/
+
 cat <<EOF > $fyang
 module clixon-ext {
    namespace "http://clicon.org/ext";

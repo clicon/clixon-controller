@@ -316,12 +316,16 @@ controller_gentree_pattern(cligen_handle ch,
     cxobj        *xmnt;
     yang_stmt    *ydev;
     yang_stmt    *ymod;
+    char         *digest = NULL;
+    autocli_cache_t cache = AUTOCLI_CACHE_DISABLED;
     int           ret;
 
     clixon_debug(CLIXON_DBG_CTRL, "%s", pattern);
     h = cligen_userhandle(ch);
     /* Get all device names in pattern */
     if (rpc_get_yanglib_mount_match(h, pattern, 0, 0, &xdevs0) < 0)
+        goto done;
+    if (autocli_cache(h, &cache, NULL) < 0)
         goto done;
     if ((cb = cbuf_new()) == NULL){
         clixon_err(OE_UNIX, errno, "cbuf_new");
@@ -374,20 +378,38 @@ controller_gentree_pattern(cligen_handle ch,
             /* Parse yanglib and get yspec */
             if ((ret = yang_schema_yanglib_mount_parse(h, xmnt, xyanglib, &yspec1)) < 0)
                 goto done;
-            if (xyanglib){
-                xml_free(xyanglib);
-                xyanglib = NULL;
-            }
             if (ret == 0 || yspec1 == NULL){ /* Skip if disabled */
                 if (firsttree){
                     free(firsttree);
                     firsttree = NULL;
                 }
+                if (xyanglib){
+                    xml_free(xyanglib);
+                    xyanglib = NULL;
+                }
                 continue;
             }
             /* Generate auto-cligen tree from the specs */
-            if (yang2cli_yspec(h, yspec1, newtree) < 0)
-                goto done;
+            switch (cache){
+            case AUTOCLI_CACHE_DISABLED: /* Generate locally */
+                if (yang2cli_yspec(h, yspec1, newtree) < 0)
+                    goto done;
+            break;
+            case AUTOCLI_CACHE_READ: /* Query backend */
+                if (xyanglib_digest(xyanglib, &digest) < 0)
+                    goto done;
+                if (yang2cli_yanglib(h, digest, xyanglib, newtree) < 0)
+                    goto done;
+                if (xyanglib){
+                    xml_free(xyanglib);
+                    xyanglib = NULL;
+                }
+                if (digest){
+                    free(digest);
+                    digest = NULL;
+                }
+                break;
+            }
             /* Sanity (ph needed further down) */
             if ((ph = cligen_ph_find(ch, newtree)) == NULL){
                 clixon_err(OE_YANG, 0, "autocli should have been generated but is not?");
@@ -431,6 +453,8 @@ controller_gentree_pattern(cligen_handle ch,
                    pattern, firsttree);
     retval = 0;
  done:
+    if (digest)
+        free(digest);
     if (xyanglib)
         xml_free(xyanglib);
     if (cb)

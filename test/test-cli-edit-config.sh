@@ -31,6 +31,7 @@ cat <<EOF > $CFD/autocli.xml
      <list-keyword-default>kw-nokey</list-keyword-default>
      <treeref-state-default>true</treeref-state-default>
      <grouping-treeref>true</grouping-treeref>
+     <clispec-cache>read</clispec-cache>
      <rule>
        <name>exclude ietf interfaces</name>
        <module-name>ietf-interfaces</module-name>
@@ -185,8 +186,6 @@ expectpart "$($clixon_cli -1 -f $CFG -E $CFD connection close)" 0 ""
 new "Ensure closed"
 expectpart "$($clixon_cli -1 -f $CFG -E $CFD show connections)" 0 "openconfig1.*CLOSED" "openconfig2.*CLOSED"
 
-echo "$clixon_cli -1 -f $CFG -E $CFD connection open"
-#exit
 new "Connect to devices"
 expectpart "$($clixon_cli -1 -f $CFG -E $CFD connection open)" 0 ""
 

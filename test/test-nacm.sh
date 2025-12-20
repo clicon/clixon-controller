@@ -36,6 +36,8 @@ cat<<EOF > $diff
 </clixon-config>
 EOF
 
+cp ../src/autocli.xml $CFD/
+
 cat <<EOF > $fyang
 module ssh-users {
     namespace "http://clicon.org/ssh-users";

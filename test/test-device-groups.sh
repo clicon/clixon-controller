@@ -42,6 +42,8 @@ cat<<EOF > $CFD/diff.xml
 </clixon-config>
 EOF
 
+cp ../src/autocli.xml $CFD/
+
 cat <<EOF > $fyang
 module myyang {
     yang-version 1.1;

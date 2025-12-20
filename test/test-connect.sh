@@ -47,6 +47,8 @@ cat<<EOF > $CFD/diff.xml
 </clixon-config>
 EOF
 
+cp ../src/autocli.xml $CFD/
+
 cat <<EOF > $fyang
 module clixon-test {
     namespace "http://clicon.org/test";
