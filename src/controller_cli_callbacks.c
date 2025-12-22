@@ -115,18 +115,25 @@ cli_apipath2xpath(clixon_handle h,
                   cvec        **nsc)
 {
     int        retval = -1;
-    yang_stmt *yspec0;
     char      *api_path = NULL;
     int        cvvi = 0;
+#ifndef EXPAND_USE_SERVER_YANG
+    yang_stmt *yspec0;
+#endif
 
     if (cli_apipath(h, cvv, domain, spec, api_path_fmt, &cvvi, &api_path) < 0)
         goto done;
+#ifdef EXPAND_USE_SERVER_YANG
+    if (clixon_rpc_yang_api_path(h, api_path, 0, NULL, NULL, xpath, nsc) < 0)
+        goto done;
+#else
     if ((yspec0 = clicon_dbspec_yang(h)) == NULL){
         clixon_err(OE_FATAL, 0, "No DB_SPEC");
         goto done;
     }
     if (api_path2xpath(api_path, yspec0, xpath, nsc, NULL) < 0)
         goto done;
+#endif
     if (*xpath == NULL){
         clixon_err(OE_FATAL, 0, "Invalid api-path: %s", api_path);
         goto done;
@@ -456,13 +463,13 @@ cli_show_config_detail(clixon_handle h,
     int        i;
     yang_stmt *yspec0;
     yang_stmt *ys = NULL;
-    yang_stmt *ymod;
+    yang_stmt *ymod = NULL;
     cxobj     *xbot = NULL;     /* xpath, NULL if datastore */
     cxobj     *xtop = NULL;     /* xpath root */
     cxobj     *xerr = NULL;
     int        cvvi = 0;
-    char      *ns;
-    char      *prefix;
+    char      *ns = NULL;
+    char      *prefix = NULL;
     int        ret;
 
     if ((api_path_fmt_cb = cbuf_new()) == NULL){
@@ -494,13 +501,17 @@ cli_show_config_detail(clixon_handle h,
     api_path_fmt = cbuf_get(api_path_fmt_cb);
     if (cli_apipath2xpath(h, cvv, mtdomain, mtspec, api_path_fmt, &xpath, &nsc) < 0)
         goto done;
-    if ((xtop = xml_new(NETCONF_INPUT_CONFIG, NULL, CX_ELMNT)) == NULL)
-        goto done;
     if (cli_apipath(h, cvv, mtdomain, mtspec, api_path_fmt, &cvvi, &api_path) < 0)
+        goto done;
+    if ((xtop = xml_new(NETCONF_INPUT_CONFIG, NULL, CX_ELMNT)) == NULL)
         goto done;
     xbot = xtop;
     if ((ret = api_path2xml(api_path, yspec0, xtop, YC_DATANODE, 1, &xbot, &ys, &xerr)) < 0)
        goto done;
+#ifdef EXPAND_USE_SERVER_YANG
+    if (ret == 1 && ys)
+        ymod = ys_module(ys);
+#else
     if (ret == 0){
         clixon_err_netconf(h, OE_XML, 0, xerr, "Get devices config");
         goto done;
@@ -512,13 +523,19 @@ cli_show_config_detail(clixon_handle h,
     ymod = ys_module(ys);
     ns = yang_find_mynamespace(ys);
     prefix = yang_find_myprefix(ys);
-    cligen_output(stdout, "Symbol:     %s\n", yang_argument_get(ys));
-    cligen_output(stdout, "Module:     %s\n", yang_argument_get(ymod));
-    cligen_output(stdout, "File:       %s\n", yang_filename_get(ymod));
-    cligen_output(stdout, "Namespace:  %s\n", ns);
-    cligen_output(stdout, "Prefix:     %s\n", prefix);
-    cligen_output(stderr, "XPath:      %s\n", xpath);
-    cligen_output(stderr, "APIpath:    %s\n", api_path);
+#endif
+    if (ys)
+        cligen_output(stdout, "Symbol:     %s\n", yang_argument_get(ys));
+    if (ymod)
+        cligen_output(stdout, "Module:     %s\n", yang_argument_get(ymod));
+    if (ymod)
+        cligen_output(stdout, "File:       %s\n", yang_filename_get(ymod));
+    if (ns)
+        cligen_output(stdout, "Namespace:  %s\n", ns);
+    if (prefix)
+        cligen_output(stdout, "Prefix:     %s\n", prefix);
+    cligen_output(stdout, "XPath:      %s\n", xpath);
+    cligen_output(stdout, "APIpath:    %s\n", api_path);
 
     retval = 0;
  done:
@@ -2098,13 +2115,14 @@ check_device_db(clixon_handle h,
 
 /*! Sub-routine for device dbxml: api-path to xml and send edit-config
  *
- * @param[in]  h     Clixon handle
- * @param[in]  cvv   Vector of cli string and instantiated variables
- * @param[in]  op    Operation to perform on datastore
- * @param[in]  nsctx Namespace context for last value added
- * @param[in]  api_path
- * @retval     0     OK
- * @retval    -1     Error
+ * @param[in]  h        Clixon handle
+ * @param[in]  cvv      Vector of cli string and instantiated variables
+ * @param[in]  op       Operation to perform on datastore
+ * @param[in]  nsctx    Namespace context for last value added
+ * @param[in]  cvvi
+ * @param[in]  api_path API-path
+ * @retval     0        OK
+ * @retval    -1        Error
  */
 static int
 cli_dbxml_devs_sub(clixon_handle       h,
@@ -2119,12 +2137,16 @@ cli_dbxml_devs_sub(clixon_handle       h,
     cxobj     *xbot = NULL;     /* xpath, NULL if datastore */
     cxobj     *xerr = NULL;
     yang_stmt *yspec0;
-    yang_stmt *yspec;
     cbuf      *cb = NULL;
-    yang_stmt *y = NULL;        /* yang spec of xpath */
     cg_var    *cv;
+#ifdef EXPAND_USE_SERVER_YANG
+    char      *xpath = NULL;
+    cvec      *nsc = NULL;
+#else
+    yang_stmt *y = NULL;        /* yang spec of xpath */
+    yang_stmt *yspec;
     int        ret;
-
+#endif
     /* Top-level yspec */
     if ((yspec0 = clicon_dbspec_yang(h)) == NULL){
         clixon_err(OE_FATAL, 0, "No DB_SPEC");
@@ -2134,19 +2156,45 @@ cli_dbxml_devs_sub(clixon_handle       h,
     if ((xtop = xml_new(NETCONF_INPUT_CONFIG, NULL, CX_ELMNT)) == NULL)
         goto done;
     xbot = xtop;
-    if (api_path){
+    if (api_path) {
+#ifdef EXPAND_USE_SERVER_YANG
+        size_t len;
+        char *body = NULL;
+
+        if ((len = cvec_len(cvv)) > 1 && cvvi != len){
+            cv = cvec_i(cvv, len-1);
+            if ((body = cv2str_dup(cv)) == NULL){
+                clixon_err(OE_UNIX, errno, "cv2str_dup");
+                goto done;
+            }
+        }
+        if (clixon_rpc_yang_api_path(h, api_path,
+                                     0,
+                                     body,
+                                     xtop, &xpath, &nsc) < 0)
+            goto done;
+        if ((xbot = xpath_first(xtop, nsc, "%s", xpath)) == NULL){
+            clixon_err(OE_XML, 0, "No XML from XPath %s", xpath);
+            goto done;
+        }
+        if (body)
+            free(body);
+#else
         if ((ret = api_path2xml(api_path, yspec0, xtop, YC_DATANODE, 1, &xbot, &y, &xerr)) < 0)
             goto done;
         if (ret == 0){
             clixon_err_netconf(h, OE_CFG, EINVAL, xerr, "api-path syntax error \"%s\": ", api_path);
             goto done;
         }
+#endif
     }
     if (xml_add_attr(xbot, "operation", xml_operation2str(op), NETCONF_BASE_PREFIX, NULL) == NULL)
         goto done;
+#ifndef EXPAND_USE_SERVER_YANG // XXX?
     /* Add body last in case of leaf */
-    if (cvec_len(cvv) > 1 &&
-        (yang_keyword_get(y) == Y_LEAF)){
+    if (cvec_len(cvv) > 1
+        && (yang_keyword_get(y) == Y_LEAF)
+        ){
         /* Add the body last if there is remaining element that was not used in the
          * earlier api-path transformation.
          * This is to handle differences between:
@@ -2168,6 +2216,8 @@ cli_dbxml_devs_sub(clixon_handle       h,
                 goto done;
         }
     }
+#endif
+#ifndef EXPAND_USE_SERVER_YANG
     /* Special handling of identityref:s whose body may be: <namespace prefix>:<id>
      * Ensure the namespace is declared if it exists in YANG
      */
@@ -2177,6 +2227,7 @@ cli_dbxml_devs_sub(clixon_handle       h,
         yspec = yspec0;
     if ((ret = xml_apply0(xbot, CX_ELMNT, identityref_add_ns, yspec)) < 0)
         goto done;
+#endif
     if ((cb = cbuf_new()) == NULL){
         clixon_err(OE_XML, errno, "cbuf_new");
         goto done;
@@ -2187,6 +2238,10 @@ cli_dbxml_devs_sub(clixon_handle       h,
         goto done;
     retval = 0;
  done:
+    if (xpath)
+        free(xpath);
+    if (nsc)
+        cvec_free(nsc);
     if (cb)
         cbuf_free(cb);
     if (xtop)

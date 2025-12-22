@@ -47,6 +47,10 @@
 #include "controller_lib.h"
 #include "controller_cli_callbacks.h"
 
+#ifdef EXPAND_USE_SERVER_YANG
+extern int noyang_dont_parse; // XXX
+#endif
+
 /*! Start cli with -- -g
  *
  * Expand of all clispec:s for all open devices at startup
@@ -376,8 +380,17 @@ controller_gentree_pattern(cligen_handle ch,
             if (xml_bind_special(xmnt, ymod, "/devices/device/config") < 0)
                 goto done;
             /* Parse yanglib and get yspec */
+#ifdef EXPAND_USE_SERVER_YANG
+            noyang_dont_parse = 1;
+            if ((ret = yang_schema_yanglib_mount_parse(h, xmnt, xyanglib, &yspec1)) < 0){
+                noyang_dont_parse = 0;
+                goto done;
+            }
+            noyang_dont_parse = 0;
+#else
             if ((ret = yang_schema_yanglib_mount_parse(h, xmnt, xyanglib, &yspec1)) < 0)
                 goto done;
+#endif
             if (ret == 0 || yspec1 == NULL){ /* Skip if disabled */
                 if (firsttree){
                     free(firsttree);

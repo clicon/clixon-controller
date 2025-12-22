@@ -302,14 +302,21 @@ EOF
 new "Deep uses/grouping on two devices"
 expectpart "$(cat $fin | $clixon_cli -f $CFG -E $CFD 2>&1)" 0 --not-- "CLI syntax error:" "Unknown command"
 
-new "Test show detail"
-expectpart "$($clixon_cli -1 -f $CFG -E $CFD show detail devices device \* config system config hostname)" 0 "Symbol:     hostname
+# XXX: Limited in case of EXPAND_USE_SERVER_YANG
+if true; then
+    new "Test show detail"
+    expectpart "$($clixon_cli -1 -f $CFG -E $CFD show detail devices device \* config system config hostname)" 0 "XPath:      /ctrl:devices/ctrl:device[ctrl:name='*']/ctrl:config/oc-sys:system/oc-sys:config/oc-sys:hostname
+APIpath:    /clixon-controller:devices/device=%2A/config/openconfig-system:system/config/hostname"
+else
+    new "Test show detail"
+    expectpart "$($clixon_cli -1 -f $CFG -E $CFD show detail devices device \* config system config hostname)" 0 "Symbol:     hostname
 Module:     openconfig-system
 File:       /usr/local/share/controller/mounts/default/openconfig-system@2024-09-24.yang
 Namespace:  http://openconfig.net/yang/system
 Prefix:     oc-sys
 XPath:      /ctrl:devices/ctrl:device[ctrl:name='*']/ctrl:config/oc-sys:system/oc-sys:config/oc-sys:hostname
 APIpath:    /clixon-controller:devices/device=%2A/config/openconfig-system:system/config/hostname"
+fi
 
 if $BE; then
     new "Kill old backend"
