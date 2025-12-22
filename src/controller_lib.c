@@ -261,7 +261,7 @@ controller_yang_library_bind(clixon_handle h,
         goto done;
     if (namespace == NULL)
         xmlns_set(xylib, NULL, "urn:ietf:params:xml:ns:yang:ietf-yang-library");
-    if ((ret = xml_bind_yang0(h, xmodset, YB_PARENT, NULL, 0, &xerr)) < 0)
+    if ((ret = xml_bind_yang0(h, xmodset, YB_PARENT, NULL, 0, 0, &xerr)) < 0)
         goto done;
     if (ret == 0){
         if ((cberr = cbuf_new()) == NULL){

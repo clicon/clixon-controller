@@ -1949,7 +1949,7 @@ rpc_get_device_config(clixon_handle h,
         case DT_CANDIDATE:
         case DT_ACTIONS:
             xroot1 = xpath_first(xn, nsc, "config");
-            if (clixon_xml2cbuf1(cb, xroot1, 0, 0, NULL, -1, 0, 0) < 0)
+            if (clixon_xml2cbuf1(cb, xroot1, 0, 0, NULL, -1, 0, 0, WITHDEFAULTS_REPORT_ALL) < 0)
                 goto done;
             break;
         case DT_SYNCED:
@@ -1961,7 +1961,7 @@ rpc_get_device_config(clixon_handle h,
                     goto done;
                 goto ok;
             }
-            if (clixon_xml2cbuf1(cb, xroot, 0, 0, NULL, -1, 0, WITHDEFAULTS_EXPLICIT) < 0)
+            if (clixon_xml2cbuf1(cb, xroot, 0, 0, NULL, -1, 0, 0, WITHDEFAULTS_EXPLICIT) < 0)
                 goto done;
             if (xroot)
                 xroot = NULL;
@@ -3128,7 +3128,7 @@ rpc_device_config_template_apply(clixon_handle h,
         if ((ret = xml_bind_yang(h, xtc, YB_MODULE, yspec1, 0, &xerr)) < 0)
             goto done;
         if (ret == 0){
-            if (clixon_xml2cbuf1(cbret, xerr, 0, 0, NULL, -1, 0, 0) < 0)
+            if (clixon_xml2cbuf1(cbret, xerr, 0, 0, NULL, -1, 0, 0, WITHDEFAULTS_REPORT_ALL) < 0)
                 goto done;
             goto ok;
         }
@@ -3825,7 +3825,7 @@ controller_edit_config(clixon_handle h,
     }
     if ((xserv = xml_find_type(xconfig, NULL, "services", CX_ELMNT)) == NULL)
         goto ok;
-    if ((ret = xml_bind_yang0(h, xserv, YB_MODULE, yspec, 0, NULL)) < 0)
+    if ((ret = xml_bind_yang0(h, xserv, YB_MODULE, yspec, 0, 0, NULL)) < 0)
         goto done;
     if (ret == 0)
         goto ok;

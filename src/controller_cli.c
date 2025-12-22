@@ -202,7 +202,7 @@ xpath2yanglib(clixon_handle h,
     /* XXX: why not use /yanglib:yang-library directly ?
      * A: because you cannot get state-only (across mount-point?)
      */
-    if (clicon_rpc_get2(h, cbuf_get(cb), nsc, CONTENT_ALL, -1, "explicit", 0, &xt) < 0)
+    if (clixon_rpc_get1(h, cbuf_get(cb), nsc, CONTENT_ALL, -1, "explicit", YB_NONE, &xt) < 0)
         goto done;
     if ((xerr = xpath_first(xt, NULL, "/rpc-error")) != NULL){
         clixon_err_netconf(h, OE_XML, 0, xerr, "clicon_rpc_get");
@@ -376,7 +376,7 @@ controller_gentree_pattern(cligen_handle ch,
             if (xml_bind_special(xmnt, ymod, "/devices/device/config") < 0)
                 goto done;
             /* Parse yanglib and get yspec */
-            if ((ret = yang_schema_yanglib_mount_parse(h, xmnt, xyanglib, &yspec1)) < 0)
+            if ((ret = yang_schema_yanglib_mount_parse(h, xmnt, xyanglib, 1, &yspec1)) < 0)
                 goto done;
             if (ret == 0 || yspec1 == NULL){ /* Skip if disabled */
                 if (firsttree){

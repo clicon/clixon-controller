@@ -968,7 +968,7 @@ controller_transaction_statedata(clixon_handle   h,
             }
             if (ct->ct_devdata){
                 cprintf(cb, "<devices>");
-                if (clixon_xml2cbuf1(cb, ct->ct_devdata, 0, 0, NULL, -1, 1, 0) < 0)
+                if (clixon_xml2cbuf1(cb, ct->ct_devdata, 0, 0, NULL, -1, 1, 0, WITHDEFAULTS_REPORT_ALL) < 0)
                     goto done;
                 cprintf(cb, "</devices>");
             }

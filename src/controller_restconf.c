@@ -169,7 +169,7 @@ controller_xpath2yanglib(clixon_handle h,
     /* XXX: why not use /yanglib:yang-library directly ?
      * A: because you cannot get state-only (across mount-point?)
      */
-    if (clicon_rpc_get2(h, cbuf_get(cb), nsc, CONTENT_ALL, -1, "explicit", 0, &xt) < 0)
+    if (clixon_rpc_get1(h, cbuf_get(cb), nsc, CONTENT_ALL, -1, "explicit", YB_NONE, &xt) < 0)
         goto done;
     if ((xerr = xpath_first(xt, NULL, "/rpc-error")) != NULL){
         clixon_err_netconf(h, OE_XML, 0, xerr, "clicon_rpc_get");
