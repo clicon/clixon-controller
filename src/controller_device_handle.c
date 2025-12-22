@@ -161,7 +161,7 @@ device_handle_new(clixon_handle h,
     struct controller_device_handle *cdh_list = NULL;
     size_t                           sz;
 
-    clixon_debug(CLIXON_DBG_CTRL, "");
+    clixon_debug(CLIXON_DBG_CTRL, "%s", name);
     sz = sizeof(struct controller_device_handle);
     if ((cdh = malloc(sz)) == NULL){
         clixon_err(OE_NETCONF, errno, "malloc");

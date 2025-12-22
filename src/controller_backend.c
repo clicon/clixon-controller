@@ -189,6 +189,7 @@ controller_commit_device(clixon_handle h,
             clixon_err(OE_UNIX, errno, "error parsing limit:%s", body);
             goto done;
         }
+        clixon_debug(CLIXON_DBG_CTRL, "controller-device-timeout: %u", dt);
         clicon_data_int_set(h, "controller-device-timeout", dt);
     }
 
@@ -268,7 +269,7 @@ controller_commit(clixon_handle    h,
     yang_stmt *yspec;
     cvec      *nsc = NULL;
 
-    clixon_debug(CLIXON_DBG_CTRL, "");
+    clixon_debug(CLIXON_DBG_CTRL | CLIXON_DBG_DETAIL, "");
     src = transaction_src(td);    /* existing XML tree */
     target = transaction_target(td); /* wanted XML tree */
     yspec = clicon_dbspec_yang(h);
@@ -282,7 +283,7 @@ controller_commit(clixon_handle    h,
         goto done;
     retval = 0;
  done:
-    clixon_debug(CLIXON_DBG_CTRL, "retval:%d", retval);
+    clixon_debug(CLIXON_DBG_CTRL | CLIXON_DBG_DETAIL, "retval:%d", retval);
     if (nsc)
         cvec_free(nsc);
     return retval;
@@ -416,7 +417,6 @@ services_daemon_init(clixon_handle h)
     char       *group;
     char       *user;
 
-    clixon_debug(CLIXON_DBG_CTRL, "");
     /* Add pyapi user as NACM proxy user */
     user = clicon_backend_user(h);
     if (user && nacm_proxyuser_add(h, user) < 0)
@@ -463,6 +463,7 @@ services_daemon_init(clixon_handle h)
         clixon_err(OE_UNIX, 0, "calloc mismatatch i:%d nr:%d", i, nr);
         goto done;
     }
+    clixon_debug(CLIXON_DBG_CTRL, "%s %s", SERVICES_PROCESS, cmd);
     /* The actual fork/exec is made in clixon_process_operation/clixon_proc_background */
     if (clixon_process_register(h, SERVICES_PROCESS,
                                 "Controller action daemon process",
@@ -677,6 +678,11 @@ clixon_plugin_init(clixon_handle h)
         goto done;
     /* Reset dynamic device handle flag plugin allocation */
     clicon_data_int_set(h, "controller-device-flags", 0);
+
+    /* Set explicit debug limit */
+#ifdef CLIXON_DBG_EXPLICIT_TRUNC_DEFAULT /* Backward-compatible 7.6 */
+    clixon_debug_explicit_trunc_set(320);
+#endif
     return &api;
  done:
     return NULL;
