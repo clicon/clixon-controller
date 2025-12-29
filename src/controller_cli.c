@@ -685,6 +685,9 @@ clixon_plugin_init(clixon_handle h)
     }
     /* Log CLI commands (note filtering in cli_history_cb to stderr */
     cligen_hist_fn_set(cli_cligen(h), cli_history_cb, h);
+    /* Register "ctrl" as a debug key */
+    if (clixon_debug_key_add("ctrl", CLIXON_DBG_APP) < 0)
+        goto done;
     return &api;
  done:
     return NULL;

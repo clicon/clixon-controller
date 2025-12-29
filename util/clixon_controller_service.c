@@ -624,6 +624,7 @@ service_action_terminate(clixon_handle h)
 {
     clixon_event_exit();
     clixon_debug(CLIXON_DBG_CTRL, "done");
+    clixon_debug_exit();
     clixon_err_exit();
     clixon_log_exit();
     clixon_handle_exit(h);

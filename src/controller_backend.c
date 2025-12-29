@@ -679,10 +679,12 @@ clixon_plugin_init(clixon_handle h)
     /* Reset dynamic device handle flag plugin allocation */
     clicon_data_int_set(h, "controller-device-flags", 0);
 
+    /* Register "ctrl" as a debug key */
+    if (clixon_debug_key_add("ctrl", CLIXON_DBG_APP) < 0)
+        goto done;
     /* Set explicit debug limit */
-#ifdef CLIXON_DBG_EXPLICIT_TRUNC_DEFAULT /* Backward-compatible 7.6 */
     clixon_debug_explicit_trunc_set(320);
-#endif
+
     return &api;
  done:
     return NULL;

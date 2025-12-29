@@ -9,13 +9,14 @@ configure("Change to configure mode"), cli_set_mode("configure");
 exit("Quit"), cli_quit();
 quit("Quit"), cli_quit();
 
-debug("Debugging parts of the system") {
-    level("Set debug level: 1..n") <level:int32>("Set debug level (0..n)"), cli_debug_backend();
-    cli("Set cli debug")	 <level:int32>("Set debug level (0..n)"), cli_debug_cli();
-    backend("Set backend debug") <level:int32>("Set debug level (0..n)"), cli_debug_backend();
-    restconf("Set restconf debug") <level:int32>("Set debug level (0..n)"), cli_debug_restconf();
+debug("Debugging system"){
+    cli("Set cli debug")	 (<level:uint32>("Set debug level")|
+                                  <level:string expand_yang_bits("/cc:clixon-config/cc:CLICON_DEBUG")>("Set debug level")), cli_debug_cli("/cc:clixon-config/cc:CLICON_DEBUG");
+    backend("Set backend debug") (<level:uint32>("Set debug level (0..n)")|
+                                  <level:string expand_yang_bits("/cc:clixon-config/cc:CLICON_DEBUG")>("Set debug level")), cli_debug_backend("/cc:clixon-config/cc:CLICON_DEBUG");
+    restconf("Set restconf debug") (<level:uint32>("Set debug level (0..n)")|
+                                    <level:string expand_yang_bits("/cc:clixon-config/cc:CLICON_DEBUG")>("Set debug level")), cli_debug_restconf("/cc:clixon-config/cc:CLICON_DEBUG");
 }
-
 default("Set CLI default values") {
    format("Set default output format") <fmt:string choice:xml|json|text|cli>("CLI output format"), cli_format_set();
 }
