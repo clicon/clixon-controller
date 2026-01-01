@@ -48,7 +48,7 @@
 #define CONTROLLER_NAMESPACE "http://clicon.org/controller"
 
 /* Command line options to be passed to getopt(3) */
-#define SERVICE_ACTION_OPTS "hD:f:l:s:e:E:1"
+#define SERVICE_ACTION_OPTS "hD:f:l:s:e:E:d:1"
 
 enum {
     SEND_ERROR_NONE=0,
@@ -536,7 +536,8 @@ service_action_handler(clixon_handle h,
                        char         *notification,
                        char         *pattern,
                        int           send_err,
-                       char         *send_arg)
+                       char         *send_arg,
+                       int           drop_transaction)
 {
     int     retval = -1;
     cxobj  *xt = NULL;
@@ -600,8 +601,14 @@ service_action_handler(clixon_handle h,
                 goto done;
         }
     }
-    if (send_transaction_actions_done(h, tidstr) < 0)
-        goto done;
+    {
+        static int nr = 0;
+
+        if (drop_transaction == 0 || nr != drop_transaction)
+            if (send_transaction_actions_done(h, tidstr) < 0)
+                goto done;
+        nr++;
+    }
  ok:
     retval = 0;
  done:
@@ -660,6 +667,7 @@ usage(clixon_handle h,
             "\t-s <pattern> \tGlob pattern of services served, (default *)\n"
             "\t-e <nr> \tSend a transaction-error instead of transaction-done(trigger error)\n"
             "\t-E <msg> \tError argument, eg tag\n"
+            "\t-d <nr>  \tDrop transaction-done for transaction <nr>\n"
             "\t-1\t\tRun once and then quit (dont wait for events)\n",
             argv0
             );
@@ -683,6 +691,7 @@ main(int    argc,
     char          *service_pattern = "*";
     int            send_err = SEND_ERROR_NONE;
     char          *send_arg = NULL;
+    int            drop_transaction = 0;
     int            once = 0;
     struct passwd *pw;
     cbuf          *cb = NULL;
@@ -741,6 +750,9 @@ main(int    argc,
         case 'E': /* tag */
             send_arg = optarg;
             break;
+        case 'd': /* drop transaction-done */
+            drop_transaction = atoi(optarg);
+            break;
         case '1' : /* Quit after reading database once - dont wait for events */
             once = 1;
             break;
@@ -782,7 +794,7 @@ main(int    argc,
         while (clixon_msg_rcv11(s, NULL, 0, &cb, &eof) == 0){
             if (eof)
                 break;
-            if (service_action_handler(h, s, cbuf_get(cb), service_pattern, send_err, send_arg) < 0)
+            if (service_action_handler(h, s, cbuf_get(cb), service_pattern, send_err, send_arg, drop_transaction) < 0)
                 goto done;
             if (send_err == SEND_ERROR_DUP)
                 send_err = SEND_ERROR_NONE; /* just once */

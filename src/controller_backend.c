@@ -100,7 +100,7 @@ disconnect_device_byxml(clixon_handle h,
     return 0;
 }
 
-/*! Changes in processes
+/*! Changes in processes config
  *
  * Start/stop services daemon
  * @retval    0    OK
@@ -140,7 +140,50 @@ controller_commit_processes(clixon_handle h,
     return retval;
 }
 
-/*! Commit device config
+/*! Changes in services config
+ *
+ * Start/stop services daemon
+ * @retval    0    OK
+ * @retval   -1    Error
+ * @see clixon-controller.yang: processes/services
+ */
+static int
+controller_commit_services(clixon_handle h,
+                           cvec         *nsc,
+                           cxobj        *src,
+                           cxobj        *target)
+{
+    int      retval = -1;
+    cxobj  **vec = NULL;
+    size_t   veclen;
+    cxobj   *x;
+    char    *body;
+    uint32_t dt;
+    int      i;
+
+    if (xpath_vec_flag(target, nsc, "services/service-timeout",
+                       XML_FLAG_ADD | XML_FLAG_CHANGE,
+                       &vec, &veclen) < 0)
+        goto done;
+    for (i=0; i<veclen; i++){ /* veclen should be 1 */
+        x = vec[i];
+        if ((body = xml_body(x)) == NULL)
+            continue;
+        if (parse_uint32(body, &dt, NULL) < 1){
+            clixon_err(OE_UNIX, errno, "error parsing limit:%s", body);
+            goto done;
+        }
+        clixon_debug(CLIXON_DBG_CTRL, "controller-service-timeout: %u", dt);
+        clicon_data_int_set(h, "controller-service-timeout", dt);
+    }
+    retval = 0;
+ done:
+    if (vec)
+        free(vec);
+    return retval;
+}
+
+/*! Changes in devices config
  *
  * @param[in] h    Clixon handle
  * @param[in] nsc  Namespace context
@@ -156,13 +199,13 @@ controller_commit_processes(clixon_handle h,
  * 2d) if device changed domain,profile: disconnect, reset xml, yang
  */
 static int
-controller_commit_device(clixon_handle h,
-                         cvec         *nsc,
-                         cxobj        *src,
-                         cxobj        *target)
+controller_commit_devices(clixon_handle h,
+                          cvec         *nsc,
+                          cxobj        *src,
+                          cxobj        *target)
 {
     int       retval = -1;
-    cxobj   **vec0= NULL;
+    cxobj   **vec0 = NULL;
     cxobj   **vec1 = NULL;
     cxobj   **vec2 = NULL;
     cxobj   **vec3 = NULL;
@@ -181,7 +224,7 @@ controller_commit_device(clixon_handle h,
                        XML_FLAG_ADD | XML_FLAG_CHANGE,
                        &vec0, &veclen0) < 0)
         goto done;
-    for (i=0; i<veclen0; i++){
+    for (i=0; i<veclen0; i++){ /* veclen0 should be 1 */
         x = vec0[i];
         if ((body = xml_body(x)) == NULL)
             continue;
@@ -277,7 +320,9 @@ controller_commit(clixon_handle    h,
         goto done;
     if (xml_nsctx_add(nsc, NULL, CONTROLLER_NAMESPACE) < 0)
         goto done;
-    if (controller_commit_device(h, nsc, src, target) < 0)
+    if (controller_commit_services(h, nsc, src, target) < 0)
+        goto done;
+    if (controller_commit_devices(h, nsc, src, target) < 0)
         goto done;
     if (controller_commit_processes(h, nsc, src, target) < 0)
         goto done;

@@ -816,7 +816,7 @@ if [ -n "$match" ]; then
 fi
 
 new "show compare service"
-expectpart "$($clixon_cli -1 -f $CFG -E $CFD -m configure show compare xml)" 0 "^+\ *<services xmlns=\"http://clicon.org/controller\">" "^+\ *<testA xmlns=\"urn:example:test\">" "^+\ *<a_name>fie</a_name>" "^+\ *<params>ZZ</params>"
+expectpart "$($clixon_cli -1 -f $CFG -E $CFD -m configure show compare xml)" 0 "^\ *<services xmlns=\"http://clicon.org/controller\">" "^+\ *<testA xmlns=\"urn:example:test\">" "^+\ *<a_name>fie</a_name>" "^+\ *<params>ZZ</params>"
 
 new "discard"
 expectpart "$(${clixon_cli} -1f $CFG -E $CFD -m configure discard)" 0 ""

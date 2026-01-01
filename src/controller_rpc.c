@@ -776,8 +776,8 @@ service_timeout_register(controller_transaction *ct)
 
     clixon_debug(CLIXON_DBG_CTRL, "");
     gettimeofday(&t, NULL);
-    if ((d = clicon_data_int_get(ct->ct_h, "controller-device-timeout")) < 0)
-        t1.tv_sec = CONTROLLER_DEVICE_TIMEOUT_DEFAULT;
+    if ((d = clicon_data_int_get(ct->ct_h, "controller-service-timeout")) < 0)
+        t1.tv_sec = CONTROLLER_SERVICE_TIMEOUT_DEFAULT;
     else
         t1.tv_sec = d;
     t1.tv_usec = 0;
