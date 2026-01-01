@@ -728,7 +728,7 @@ rpc_config_pull(clixon_handle h,
     return retval;
 }
 
-/*! Timeout callback of service actions
+/*! Timeout callback of service action daemon
  *
  * @param[in] s     Socket
  * @param[in] arg   Transaction handle
@@ -736,7 +736,7 @@ rpc_config_pull(clixon_handle h,
  * @retval   -1     Error
  */
 static int
-actions_timeout(int   s,
+service_timeout(int   s,
                 void *arg)
 {
     int                     retval = -1;
@@ -748,12 +748,11 @@ actions_timeout(int   s,
     if (ct->ct_state == TS_DONE)
         goto ok;
     if (ct->ct_state != TS_RESOLVED){ /* 1.3 The transition is not in an error state */
-        if (controller_transaction_failed(h, ct->ct_id, ct, NULL, TR_FAILED_DEV_IGNORE, "Actions", "Timeout waiting for action daemon") < 0)
+        clixon_log(h, LOG_NOTICE, "%s Service timeout. Waiting for transaction-actions-done rpc from service daemon for transaction %" PRIu64, __func__, ct->ct_id);
+        if (controller_transaction_failed(h, ct->ct_id, ct, NULL, TR_FAILED_DEV_IGNORE, "Actions", "Timeout waiting for service daemon") < 0)
             goto done;
-        if (controller_transaction_nr_devices(h, ct->ct_id) == 0){
-            if (controller_transaction_done(h, ct, TR_FAILED) < 0)
-                goto done;
-        }
+        if (controller_transaction_done(h, ct, TR_FAILED) < 0)
+            goto done;
     }
  ok:
     retval = 0;
@@ -761,14 +760,14 @@ actions_timeout(int   s,
     return retval;
 }
 
-/*! Set timeout of services action
+/*! Set timeout of service daemon
  *
  * @param[in] h   Clixon handle
  * @retval    0   OK
  * @retval   -1   Error
  */
 static int
-actions_timeout_register(controller_transaction *ct)
+service_timeout_register(controller_transaction *ct)
 {
     int            retval = -1;
     struct timeval t;
@@ -777,29 +776,28 @@ actions_timeout_register(controller_transaction *ct)
 
     clixon_debug(CLIXON_DBG_CTRL, "");
     gettimeofday(&t, NULL);
-    d = clicon_data_int_get(ct->ct_h, "controller-device-timeout");
-    if (d != -1)
-        t1.tv_sec = d;
-    else
+    if ((d = clicon_data_int_get(ct->ct_h, "controller-device-timeout")) < 0)
         t1.tv_sec = CONTROLLER_DEVICE_TIMEOUT_DEFAULT;
+    else
+        t1.tv_sec = d;
     t1.tv_usec = 0;
     clixon_debug(CLIXON_DBG_CTRL, "timeout:%ld s", t1.tv_sec);
     timeradd(&t, &t1, &t);
-    if (clixon_event_reg_timeout(t, actions_timeout, ct, "Controller service actions") < 0)
+    if (clixon_event_reg_timeout(t, service_timeout, ct, "Controller service timeout") < 0)
         goto done;
     retval = 0;
  done:
     return retval;
 }
 
-/*! Cancel timeout
+/*! Cancel service timeout
  *
  * @param[in] h   Clixon handle
  */
 static int
-actions_timeout_unregister(controller_transaction *ct)
+service_timeout_unregister(controller_transaction *ct)
 {
-    (void)clixon_event_unreg_timeout(actions_timeout, ct);
+    (void)clixon_event_unreg_timeout(service_timeout, ct);
     return 0;
 }
 
@@ -1339,7 +1337,7 @@ controller_commit_actions(clixon_handle           h,
         if (strip_service_data_from_device_config(h, "actions", cvv) < 0)
             goto done;
         controller_transaction_state_set(ct, TS_ACTIONS, -1);
-        if (actions_timeout_register(ct) < 0)
+        if (service_timeout_register(ct) < 0)
             goto done;
     }
     else{ /* No services, proceed to next step */
@@ -2340,7 +2338,7 @@ rpc_transactions_actions_done(clixon_handle h,
             goto done;
         break;
     case TS_ACTIONS:
-        actions_timeout_unregister(ct);
+        service_timeout_unregister(ct);
         cprintf(cbret, "<rpc-reply xmlns=\"%s\">", NETCONF_BASE_NAMESPACE);
         cprintf(cbret, "<ok/>");
         cprintf(cbret, "</rpc-reply>");
