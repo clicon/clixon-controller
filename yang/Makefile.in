@@ -43,7 +43,7 @@ YANG_INSTALLDIR  = @DATADIR@/controller
 
 # Local yang files to install
 # IETF
-YANGSPECS_DATA  = clixon-controller@2025-08-01.yang # 1.6.0
+YANGSPECS_DATA  = clixon-controller@2025-12-01.yang # 1.7.0
 
 # Extends config (not data)
 YANGSPECS_CFG  = clixon-controller-config@2025-05-01.yang # 1.5.0

@@ -37,6 +37,11 @@ module clixon-controller {
     }
     description
         "Clixon controller";
+    revision 2025-12-01 {
+        description
+            "Added service-timeout, differentiated from device timeout
+             Released in 1.7.0";
+    }
     revision 2025-08-01 {
         description
             "Added the following fields to device-common:
@@ -562,15 +567,29 @@ module clixon-controller {
              Note 2: The alternative design:    services { list service { key name; ...}}
              does not work since augments would then act under service, and you want different
              services in different trees not in the same service branch.";
-         container properties {
-         }
+        leaf service-timeout{
+            description
+                "Service (action) daemon timeout in seconds.
+                 When the backend issues a services-commit notification, it waits until a rpc transaction-actions-done
+                 is received, and then continues with the transaction, specifically by updating devices.
+                 If no such rpc is received within this timeout, a transaction error is sent using a
+                 controller-transaction notification with result = ERROR
+                 When the timeout occurs a syslog with level NOTICE is sent";
+            type uint32;
+            default 10;
+            units s;
+        }
+        container properties {
+        }
     }
     container devices{
         description "Device configuration";
         leaf device-timeout{
             description
-                "Device transient state timeout in seconds.
-                 Also used for actions timeout";
+                "Device transient state timeout in seconds, ie all states except 'open' and 'close'
+                 Every time a device state is changed to a 'transient' state, this timer is set, if the device
+                 has not left the state within this timeout, a transaction failure 'waiting for remote peer' will be
+                 sent as a notification.";
             type uint32;
             default 60;
             units s;

@@ -565,9 +565,11 @@ device_state_timeout(int   s,
     name = device_handle_name_get(dh);
     clixon_debug(CLIXON_DBG_CTRL, "%s", name);
     h = device_handle_handle_get(dh);
-
-    if ((tid = device_handle_tid_get(dh)) != 0)
+    clixon_log(h, LOG_NOTICE, "%s Device state timeout. Waiting for device %s to change state from %s",
+               __func__, name, device_state_int2str(device_handle_conn_state_get(dh)));
+    if ((tid = device_handle_tid_get(dh)) != 0){
         ct = controller_transaction_find(h, tid);
+    }
     if (ct){
         if (controller_transaction_failed(device_handle_handle_get(dh), tid, ct, dh, TR_FAILED_DEV_CLOSE, name, "Timeout waiting for remote peer") < 0)
             goto done;
@@ -599,11 +601,10 @@ device_state_timeout_register(device_handle dh)
     name = device_handle_name_get(dh);
     gettimeofday(&t, NULL);
     h = device_handle_handle_get(dh);
-    d = clicon_data_int_get(h, "controller-device-timeout");
-    if (d != -1)
-        t1.tv_sec = d;
+    if ((d = clicon_data_int_get(h, "controller-device-timeout")) < 0)
+        t1.tv_sec = CONTROLLER_DEVICE_TIMEOUT_DEFAULT;
     else
-        t1.tv_sec = 60;
+        t1.tv_sec = d;
     t1.tv_usec = 0;
     clixon_debug(CLIXON_DBG_CTRL | CLIXON_DBG_DETAIL, "timeout:%ld s", t1.tv_sec);
     timeradd(&t, &t1, &t);
