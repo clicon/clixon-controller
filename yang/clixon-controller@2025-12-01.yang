@@ -576,7 +576,7 @@ module clixon-controller {
                  controller-transaction notification with result = ERROR
                  When the timeout occurs a syslog with level NOTICE is sent";
             type uint32;
-            default 10;
+            default 300;
             units s;
         }
         container properties {
