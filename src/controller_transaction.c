@@ -336,12 +336,6 @@ controller_transaction_notify(clixon_handle           h,
             goto done;
         cprintf(cb, "</reason>");
     }
-    if (ct->ct_devdata){
-        cprintf(cb, "<devices>");
-        if (clixon_xml2cbuf1(cb, ct->ct_devdata, 0, 0, NULL, -1, 1, 0) < 0)
-            goto done;
-        cprintf(cb, "</devices>");
-    }
     cprintf(cb, "</controller-transaction>");
     /* This is set in from-client rpc call, which means it is synchronous */
     if (clicon_data_int_get(h, "clixon-client-rpc") == 1){
@@ -1008,4 +1002,48 @@ controller_transaction_statedata(clixon_handle   h,
     if (cb)
         cbuf_free(cb);
     return retval;
+}
+
+/*! Transactions periodic handler,
+ *
+ * Remove device data after TRANSACTION_DEVICES_TIMEOUT ( these can be very large)
+ * Save at most TRANSACTION_MAX_NR
+ * @param[in]  h   Clixon  handle
+ * @retval     0   OK
+ * @retval    -1   Error
+
+ */
+int
+controller_transaction_periodic(clixon_handle  h)
+{
+    controller_transaction *ct_list = NULL;
+    controller_transaction *ct = NULL;
+    controller_transaction *ct1;
+    struct timeval          t0;
+    struct timeval          t;
+    int                     i;
+
+    gettimeofday(&t0, NULL);
+    if (clicon_ptr_get(h, "controller-transaction-list", (void**)&ct_list) == 0 &&
+        (ct = ct_list) != NULL) {
+        ct = PREVQ(controller_transaction *, ct);
+        i = 0;
+        do {
+            ct1 = NULL;
+            timersub(&t0, &ct->ct_timestamp, &t);
+            if (TRANSACTION_MAX_NR && i > TRANSACTION_MAX_NR-1){
+                ct1 = ct;  /* delete later */
+            }
+            else if (TRANSACTION_DEVICES_TIMEOUT && ct->ct_devdata && t.tv_sec > TRANSACTION_DEVICES_TIMEOUT){
+                xml_free(ct->ct_devdata);
+                ct->ct_devdata = NULL;
+            }
+            ct = PREVQ(controller_transaction *, ct);
+            i++;
+            if (ct1){
+                controller_transaction_free(h, ct1);
+            }
+        } while (ct && ct != ct_list);
+    }
+    return 0;
 }

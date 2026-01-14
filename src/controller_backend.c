@@ -575,6 +575,51 @@ controller_reset(clixon_handle h,
     return retval;
 }
 
+/* Forward */
+static int periodic_timer_setup(clixon_handle h);
+
+/*! Handle input data from device, whole or part of a frame, called by event loop
+ *
+ * FOr now only cleanup transactions
+ * @param[in] s    Socket
+ * @param[in] arg  Device handle
+ * @retval    0    OK
+ * @retval   -1    Error
+ */
+static int
+periodic_timer(int   s,
+               void *arg)
+{
+    int           retval = -1;
+    clixon_handle h = (clixon_handle)arg;
+
+    if (controller_transaction_periodic(h) < 0)
+        goto done;
+    if (periodic_timer_setup(h) < 0)
+        goto done;
+    retval = 0;
+ done:
+    return retval;
+}
+
+static int
+periodic_timer_setup(clixon_handle h)
+{
+    int            retval = -1;
+    struct timeval t;
+    struct timeval t1;
+
+    gettimeofday(&t, NULL);
+    t1.tv_sec = CONTROLLER_PERIODIC_TIMER;
+    t1.tv_usec = 0;
+    timeradd(&t, &t1, &t);
+    if (clixon_event_reg_timeout(t, periodic_timer, h, "controller periodic timer") < 0)
+        goto done;
+    retval = 0;
+ done:
+    return retval;
+}
+
 /*! Called when application is "started", (almost) all initialization is complete
  *
  * Backend: daemon is in the background. If daemon privileges are dropped
@@ -584,11 +629,11 @@ controller_reset(clixon_handle h,
 static int
 controller_start(clixon_handle h)
 {
-    int   retval = -1;
-    char *backend_user;
-    char *backend_group;
-    uid_t uid;
-    gid_t gid;
+    int            retval = -1;
+    char          *backend_user;
+    char          *backend_group;
+    uid_t          uid;
+    gid_t          gid;
 
     if ((backend_user = clicon_backend_user(h)) == NULL){
         clixon_err(OE_DAEMON, EPERM, "Privileges cannot be dropped without specifying CLICON_BACKEND_USER\n");
@@ -617,6 +662,8 @@ controller_start(clixon_handle h)
         if (xmldb_create(h, "tmpdev") < 0)
             goto done;
     if (xmldb_drop_priv(h, "tmpdev", uid, gid) < 0)
+        goto done;
+    if (periodic_timer_setup(h) < 0)
         goto done;
     retval = 0;
  done:

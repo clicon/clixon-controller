@@ -525,6 +525,10 @@ module clixon-controller {
             type string;
         }
         container devices {
+            description
+                "List of data from devices as replies frm a device rpc or state request.
+                 This data can be very large and has some special handling ncluding that it
+                 is not sent in notifications, a client must request it via a state request";
             list devdata {
                 description
                     "Replies from device, can be rpc reply for rpc-template transaction";

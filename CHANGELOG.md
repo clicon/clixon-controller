@@ -5,11 +5,15 @@ Planned: February 2026
 
 ### New features
 
+* Added transaction garbage-collect
+  * Keep only a limited nr of transactions structures (default 100)
+  * Remove "devices" struct used for device rpc and state replies after timeout (default 300s) 
 * New `clixon-controller@2025-12-01.yang` revision
   * Added `service-timeout`
 
 ### Corrected Bugs
 
+* Fixed: [device rpc hangs in notification when devices return large amount of data](https://github.com/clicon/clixon-controller/issues/237)
 * Fixed: [Candidate datastore lock prevents sequential commit operations via RESTCONF](https://github.com/clicon/clixon-controller/issues/236)
 * Fixed: [Memory leak after reopening connection](https://github.com/clicon/clixon-controller/issues/169)
 

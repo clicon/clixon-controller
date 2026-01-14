@@ -596,7 +596,7 @@ device_state_timeout_register(device_handle dh)
     int            d;
     clixon_handle  h;
     cbuf          *cb = NULL;
-    char                   *name;
+    char          *name;
 
     name = device_handle_name_get(dh);
     gettimeofday(&t, NULL);

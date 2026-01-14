@@ -40,6 +40,12 @@
 /* Controller transaction id beyond 16-bit to != pid? */
 #define TRANSACTION_CLIENT_ID 0x199999
 
+/* Keep transaction devices data structures (replies from device rpc or state requests) in s, 0 means no limit */
+#define TRANSACTION_DEVICES_TIMEOUT 300
+
+/*! Keep this many transactions in list, 0 means unlimited */
+#define TRANSACTION_MAX_NR 100
+
 /*! Clixon controller distributed transactions spanning device operation
  */
 struct controller_transaction_t{
@@ -106,6 +112,7 @@ int   controller_transaction_failed_fn(clixon_handle h, const char *func, const 
 int   controller_transaction_wait(clixon_handle h, uint64_t tid);
 int   controller_transaction_wait_trigger(clixon_handle h, uint64_t tid, int commit);
 int   controller_transaction_statedata(clixon_handle h, cvec *nsc, char *xpath, cxobj *xstate);
+int   controller_transaction_periodic(clixon_handle h);
 
 #ifdef __cplusplus
 }

@@ -48,6 +48,9 @@
 #include "controller_lib.h"
 #include "controller_cli_callbacks.h"
 
+/* Forward */
+static int transaction_exist(clixon_handle h, char *tidstr, cxobj **devices);
+
 /*! Given mount-point and api_path_fmt, find api_path
  *
  * @param[in]  h            Clixon handle
@@ -570,11 +573,12 @@ transaction_notification_handler(clixon_handle       h,
     transaction_result result;
     void              *wh = NULL;
     cbuf              *cb = NULL;
-    cxobj             *xdevdata;
+    cxobj             *xdevdata = NULL;
     cvec              *nsc = NULL;
     cxobj            **vec = NULL;
     size_t             veclen;
     int                i;
+    int                ret;
 
     clixon_debug(CLIXON_DBG_CTRL, "tid:%s", tidstr0?tidstr0:"");
     /* Need to set "intr" to enable ^C */
@@ -621,16 +625,19 @@ transaction_notification_handler(clixon_handle       h,
             clixon_log(h, LOG_NOTICE, "%s: pid: %u Transaction %s failed in %s: %s",
                        __func__, getpid(), tidstr, origin?origin:"unknown", reason?reason:"no reason");
         }
-        if ((xdevdata = xml_find_type(xn, NULL, "devices", CX_ELMNT)) != NULL){
-            if (clixon_xml2file(stdout, xdevdata, 0, 1, NULL, cligen_output, 1, 0) < 0)
-                goto done;
-        }
+        if ((ret = transaction_exist(h, tidstr0, &xdevdata)) < 0)
+            goto done;
+        if (ret == 1 &&
+            clixon_xml2file(stdout, xdevdata, 0, 1, NULL, cligen_output, 1, 0) < 0)
+            goto done;
         if (result)
             *resultp = result;
     }
     retval = 0;
  done:
     clixon_debug(CLIXON_DBG_CTRL, "%d", retval);
+    if (xdevdata)
+        xml_free(xdevdata);
     if (vec)
         free(vec);
     if (cb)
@@ -755,24 +762,25 @@ transaction_notification_poll(clixon_handle       h,
     return retval;
 }
 
-/*! Query backend if transaction exists. call this before polling
+/*! Query backend if transaction exists. call this before polling, optinal get result
  *
- * @param[in]  h      Clixon handle
- * @param[in]  tidstr Transaction id
- * @param[out] exists 1 if exists
- * @retval     0      OK
- * @retval    -1      Error
+ * @param[in]  h       Clixon handle
+ * @param[in]  tidstr  Transaction id
+ * @param[out] devices Transaction devices result, free with xml_free
+ * @retval     1       OK, exists
+ * @retval     0       Dont exist
+ * @retval    -1       Error
  */
 static int
 transaction_exist(clixon_handle h,
                   char         *tidstr,
-                  int          *exists)
+                  cxobj       **devices)
 {
     int    retval = -1;
     cxobj *xn = NULL; /* XML of transactions */
     cxobj *xerr;
-    cxobj *xt;
     cvec  *nsc = NULL;
+    cxobj *xdevdata;
     cbuf  *cb = NULL;
 
     if ((nsc = xml_nsctx_init("co", CONTROLLER_NAMESPACE)) == NULL)
@@ -788,11 +796,15 @@ transaction_exist(clixon_handle h,
         clixon_err_netconf(h, OE_XML, 0, xerr, "Get transactions");
         goto done;
     }
-    (*exists) = 0;
-    if ((xt = xpath_first(xn, nsc, "transactions/transaction[tid='%s']", tidstr)) != NULL){
-        *exists = 1;
+    if (xpath_first(xn, nsc, "transactions/transaction[tid='%s']", tidstr) != NULL){
+        if (devices && (xdevdata = xpath_first(xn, nsc, "transactions/transaction[tid='%s']/devices", tidstr)) != NULL){
+            xml_rm(xdevdata);
+            *devices = xdevdata;
+        }
+        retval = 1;
     }
-    retval = 0;
+    else
+        retval = 0;
  done:
     if (cb)
         cbuf_free(cb);
@@ -830,7 +842,7 @@ cli_rpc_pull(clixon_handle h,
     cxobj             *xid;
     char              *tidstr;
     transaction_result result = 0;
-    int                exists = 0;
+    int                ret;
 
     if (argv == NULL || cvec_len(argv) != 1){
         clixon_err(OE_PLUGIN, EINVAL, "requires argument: replace/merge");
@@ -886,9 +898,9 @@ cli_rpc_pull(clixon_handle h,
         goto done;
     }
     tidstr = xml_body(xid);
-    if (transaction_exist(h, tidstr, &exists) < 0)
+    if ((ret = transaction_exist(h, tidstr, NULL)) < 0)
         goto done;
-    if (exists){
+    if (ret == 1){
         if (transaction_notification_poll(h, tidstr, &result) < 0)
             goto done;
         if (result == TR_SUCCESS)
@@ -1093,7 +1105,7 @@ cli_rpc_controller_commit(clixon_handle h,
     char              *instance = NULL;
     yang_stmt         *yspec;
     char              *keyname = NULL;
-    int                exists = 0;
+    int                ret;
 
     if (argv == NULL || cvec_len(argv) != 3){
         clixon_err(OE_PLUGIN, EINVAL, "requires arguments: <datastore> <actions-type> <push-type>");
@@ -1188,9 +1200,9 @@ cli_rpc_controller_commit(clixon_handle h,
     }
     if ((xid = xpath_first(xreply, NULL, "tid")) != NULL){
         tidstr = xml_body(xid);
-        if (transaction_exist(h, tidstr, &exists) < 0)
+        if ((ret = transaction_exist(h, tidstr, NULL)) < 0)
             goto done;
-        if (exists){
+        if (ret == 1){
             if (transaction_notification_poll(h, tidstr, &result) < 0)
                 goto done;
             if (result != TR_SUCCESS)
@@ -1246,7 +1258,7 @@ cli_connection_change(clixon_handle h,
     cxobj             *xid;
     char              *tidstr;
     transaction_result result = 0;
-    int                exists = 0;
+    int                ret;
 
     if (argv == NULL || cvec_len(argv) != 1){
         clixon_err(OE_PLUGIN, EINVAL, "requires argument: <operation>");
@@ -1300,9 +1312,9 @@ cli_connection_change(clixon_handle h,
             goto done;
         }
         tidstr = xml_body(xid);
-        if (transaction_exist(h, tidstr, &exists) < 0)
+        if ((ret = transaction_exist(h, tidstr, NULL)) < 0)
             goto done;
-        if (exists){
+        if (ret == 1){
             if (transaction_notification_poll(h, tidstr, &result) < 0)
                 goto done;
             if (result != TR_SUCCESS)
@@ -1831,7 +1843,7 @@ compare_device_config_type(clixon_handle      h,
     cxobj            **vec = NULL;
     size_t             veclen;
     int                i;
-    int                exists = 0;
+    int                ret;
 
     if (cvec_len(argv) > 1){
         clixon_err(OE_PLUGIN, EINVAL, "Received %d arguments. Expected: <format>]", cvec_len(argv));
@@ -1864,9 +1876,9 @@ compare_device_config_type(clixon_handle      h,
         /* Send pull <transient> */
         if (send_pull_transient(h, group, pattern, &tidstr) < 0)
             goto done;
-        if (transaction_exist(h, tidstr, &exists) < 0)
+        if ((ret = transaction_exist(h, tidstr, NULL)) < 0)
             goto done;
-        if (exists){
+        if (ret == 1){
             /* Wait to complete transaction try ^C here */
             if (transaction_notification_poll(h, tidstr, &result) < 0)
                 goto done;
@@ -2833,8 +2845,8 @@ cli_device_rpc_template(clixon_handle h,
     char              *var;
     cxobj             *xid;
     char              *tidstr;
-    int                exists = 0;
     transaction_result result = 0;
+    int                ret;
 
     if (argv == NULL || cvec_len(argv) < 1 || cvec_len(argv) > 2){
         clixon_err(OE_PLUGIN, EINVAL, "requires arguments: <templ> [<devpattern>]");
@@ -2911,9 +2923,9 @@ cli_device_rpc_template(clixon_handle h,
         goto done;
     }
     tidstr = xml_body(xid);
-    if (transaction_exist(h, tidstr, &exists) < 0)
+    if ((ret = transaction_exist(h, tidstr, NULL)) < 0)
         goto done;
-    if (exists){
+    if (ret == 1){
         if (transaction_notification_poll(h, tidstr, &result) < 0)
             goto done;
         if (result != TR_SUCCESS)
@@ -3158,8 +3170,8 @@ cli_show_device_state(clixon_handle h,
     char              *devpattern = "*";
     cxobj             *xid;
     char              *tidstr;
-    int                exists = 0;
     transaction_result result = 0;
+    int                ret;
 
     if (argv == NULL || cvec_len(argv) < 0 || cvec_len(argv) > 1){
         clixon_err(OE_PLUGIN, EINVAL, "requires arguments: [<devpattern>]");
@@ -3219,9 +3231,9 @@ cli_show_device_state(clixon_handle h,
         goto done;
     }
     tidstr = xml_body(xid);
-    if (transaction_exist(h, tidstr, &exists) < 0)
+    if ((ret = transaction_exist(h, tidstr, NULL)) < 0)
         goto done;
-    if (exists){
+    if (ret == 1){
         if (transaction_notification_poll(h, tidstr, &result) < 0)
             goto done;
         if (result != TR_SUCCESS)
