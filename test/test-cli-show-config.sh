@@ -86,8 +86,8 @@ show("Show a particular state of the system"){
            @datamodelshow, cli_show_auto_devs("running", "cli", false, false, "explicit", "set ");
       }
     }
-    detail("Show details about a configured node: yang, namespaces, etc"){
-        @basemodel, @remove:act-list, cli_show_config_detail();
+    info("Show details about a configured node: yang, namespaces, etc"){
+        @basemodel, @remove:act-list, cli_show_config_info();
     }
     connections("Show state of connection state of devices")[
                  (<name:string>("device pattern")|
@@ -303,7 +303,7 @@ new "Deep uses/grouping on two devices"
 expectpart "$(cat $fin | $clixon_cli -f $CFG -E $CFD 2>&1)" 0 --not-- "CLI syntax error:" "Unknown command"
 
 new "Test show detail"
-expectpart "$($clixon_cli -1 -f $CFG -E $CFD show detail devices device \* config system config hostname)" 0 "Symbol:     hostname
+expectpart "$($clixon_cli -1 -f $CFG -E $CFD show info devices device \* config system config hostname)" 0 "Symbol:     hostname
 Module:     openconfig-system
 File:       /usr/local/share/controller/mounts/default/openconfig-system@2024-09-24.yang
 Namespace:  http://openconfig.net/yang/system

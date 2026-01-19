@@ -39,8 +39,8 @@ show("Show a particular state of the system"){
        xml("Show comparison in xml"), compare_dbs_rpc("running", "candidate","xml");
 #       text("Show comparison in text"), compare_dbs_rpc("running", "candidate", "text");
     }
-    detail("Show details about a configured node: yang, namespaces, etc"){
-        @basemodel, @remove:act-list, cli_show_config_detail();
+    info("Show info about a configured node: yang, namespaces, etc"){
+        @basemodel, @remove:act-list, cli_show_config_info();
     }
     configuration("Show configuration"), cli_show_auto_mode("running", "default", true, false);{
        @|pipe_show, cli_show_auto_mode("running", "xml", true, false);
