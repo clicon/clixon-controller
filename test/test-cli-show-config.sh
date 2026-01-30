@@ -98,6 +98,7 @@ show("Show a particular state of the system"){
                  detail("Show detailed state"), cli_show_connections("detail");
              }
     state("Show configuration and state"), cli_show_auto_mode("running", "xml", false, true);
+    xpath("Show configuration") <xpath:string>("XPATH expression"), show_conf_xpath("running");
 }
 pull("sync config from one or multiple devices")[
                  (<name:string>("device pattern")|
@@ -302,14 +303,18 @@ EOF
 new "Deep uses/grouping on two devices"
 expectpart "$(cat $fin | $clixon_cli -f $CFG -E $CFD 2>&1)" 0 --not-- "CLI syntax error:" "Unknown command"
 
-new "Test show detail"
+new "Test show info across mountpoint"
 expectpart "$($clixon_cli -1 -f $CFG -E $CFD show info devices device \* config system config hostname)" 0 "Symbol:     hostname
 Module:     openconfig-system
 File:       /usr/local/share/controller/mounts/default/openconfig-system@2024-09-24.yang
 Namespace:  http://openconfig.net/yang/system
 Prefix:     oc-sys
 XPath:      /ctrl:devices/ctrl:device[ctrl:name='*']/ctrl:config/oc-sys:system/oc-sys:config/oc-sys:hostname
+XPath-ns:   xmlns:ctrl=\"http://clicon.org/controller\" xmlns:oc-sys=\"http://openconfig.net/yang/system\"
 APIpath:    /clixon-controller:devices/device=%2A/config/openconfig-system:system/config/hostname"
+
+new "Test show xpath across mountpoint"
+expectpart "$($clixon_cli -1 -f $CFG -E $CFD show xpath /ctrl:devices/ctrl:device\[ctrl:name=\"openconfig1\"\]/ctrl:config/oc-sys:system)" 0 "<system xmlns=\"http://openconfig.net/yang/system\">" "<hostname>openconfig1</hostname>"
 
 if $BE; then
     new "Kill old backend"
