@@ -405,7 +405,8 @@ xyanglib_dup_rm(cxobj *xyanglib)
     char  *rev;
     char  *prevrev;
 
-    if ((xms = xml_find_type(xyanglib, NULL, "module-set", CX_ELMNT)) != NULL)
+    if ((xms = xml_find_type(xyanglib, NULL, "module-set", CX_ELMNT)) != NULL){
+        x = NULL;
         while ((x = xml_child_each(xms , x, CX_ELMNT)) != NULL) {
             if (strcmp(xml_name(x), "module") != 0)
                 continue;
@@ -427,6 +428,7 @@ xyanglib_dup_rm(cxobj *xyanglib)
             }
             xprev = x;
         }
+    }
     if (xml_tree_prune_flags(xyanglib, XML_FLAG_MARK, XML_FLAG_MARK) < 0)
         goto done;
     retval = 0;
