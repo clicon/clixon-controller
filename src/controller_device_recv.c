@@ -108,7 +108,7 @@ rpc_reply_sanity(device_handle dh,
     goto done;
 }
 
-/*! Receive hello from device, send hello
+/*! Receive hello from device, save capabilities
  *
  * @param[in] h          Clixon handle.
  * @param[in] dh         Clixon client handle.
@@ -386,6 +386,54 @@ device_recv_config(clixon_handle h,
     goto done;
 }
 
+/*! Remove duplicate schemas from yang-library
+ *
+ * Assume sorted
+ * @param[in]  xyanglib  XML tree of yang-library
+ * @retval     0         OK
+ * @retval    -1         Error
+ */
+static int
+xyanglib_dup_rm(cxobj *xyanglib)
+{
+    int    retval = -1;
+    cxobj *x;
+    cxobj *xprev = NULL;
+    cxobj *xms;
+    char  *name;
+    char  *prevname;
+    char  *rev;
+    char  *prevrev;
+
+    if ((xms = xml_find_type(xyanglib, NULL, "module-set", CX_ELMNT)) != NULL)
+        while ((x = xml_child_each(xms , x, CX_ELMNT)) != NULL) {
+            if (strcmp(xml_name(x), "module") != 0)
+                continue;
+            name = xml_find_body(x, "name");
+            rev = xml_find_body(x, "revision");
+            if (name && rev && xprev){
+                prevname = xml_find_body(xprev, "name");
+                prevrev = xml_find_body(xprev, "revision");
+                if (prevname && prevrev && strcmp(name, prevname) == 0){
+                    if (strcmp(rev, prevrev) < 0){ // XXX strcmp date !
+                        /* Older revision, mark for removal */
+                        xml_flag_set(x, XML_FLAG_MARK);
+                    }
+                    else{
+                        /* Newer revision, mark previous for removal */
+                        xml_flag_set(xprev, XML_FLAG_MARK);
+                    }
+                }
+            }
+            xprev = x;
+        }
+    if (xml_tree_prune_flags(xyanglib, XML_FLAG_MARK, XML_FLAG_MARK) < 0)
+        goto done;
+    retval = 0;
+ done:
+    return retval;
+}
+
 /*! Receive netconf-state schema list from device using RFC 6022 state
  *
  * @param[in] h          Clixon handle.
@@ -454,8 +502,10 @@ device_recv_schema_list(device_handle dh,
         goto done;
     if (xml_rootchild(xyanglib, 0, &xyanglib) < 0)
         goto done;
-    /* @see controller_connect where initial yangs may be set
-     */
+    xml_sort_recurse(xyanglib);
+    if (xyanglib_dup_rm(xyanglib) < 0)
+        goto done;
+    /* @see controller_connect where initial yangs may be set */
     if (device_handle_yang_lib_append(dh, xyanglib) < 0) /* xyanglib consumed */
         goto done;
     retval = 1;
@@ -515,6 +565,12 @@ device_recv_get_schema(device_handle dh,
         goto done;
     if (ret == 0)
         goto closed;
+    if ((ret = device_recv_check_errors(h, dh, xmsg, conn_state, &cb)) < 0)
+        goto done;
+    if (ret == 0){
+        device_close_connection(dh, "get-schema failed: %s", cbuf_get(cb));
+        goto closed;
+    }
     if ((ystr = xml_find_body(xmsg, "data")) == NULL){
         device_close_connection(dh, "Invalid get-schema, no YANG body");
         goto closed;
