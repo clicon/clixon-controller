@@ -643,6 +643,7 @@ controller_cli_yang_mount(clixon_handle   h,
  * commands
  * @param[in]  h     CLIgen handle
  * @param[in]  cmd   CLI command. Do not modify or free
+ * @param[in]  expanded Expanded/completed command string (all keywords spelled out)
  * @param[in]  arg   Argument given when registering
  * @retval     0     OK
  * @retval    -1     Error
@@ -650,6 +651,7 @@ controller_cli_yang_mount(clixon_handle   h,
 static int
 cli_history_cb(cligen_handle ch,
                const char   *cmd,
+               const char   *expanded,
                void         *arg)
 {
     clixon_handle h = arg;
@@ -659,7 +661,7 @@ cli_history_cb(cligen_handle ch,
     flags = clixon_logflags_get();
     if ((flags & CLIXON_LOG_STDERR) != 0x0)
         clixon_logflags_set(flags & ~CLIXON_LOG_STDERR);
-    clixon_log(h, LOG_INFO, "command(%s): %s", clicon_username_get(h), cmd);
+    clixon_log(h, LOG_INFO, "command(%s): %s", clicon_username_get(h), expanded);
     if ((flags & CLIXON_LOG_STDERR) != 0x0)
         clixon_logflags_set(flags);
     return 0;
