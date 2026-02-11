@@ -1176,6 +1176,10 @@ commit_push_after_actions(clixon_handle           h,
                     cprintf(cberr, "%s", clixon_err_reason()); // XXX encode
                     ret = 0;
                 }
+                if (ret == 1){
+                    if (xmldb_post_commit(h, ct->ct_client_id) < 0)
+                        goto done;
+                }
                 if (clicon_option_bool(h, "CLICON_AUTOLOCK"))
                     xmldb_unlock(h, candidate);
                 if (ret == 0){ // XXX awkward, cb ->xml->cb
@@ -1588,6 +1592,11 @@ device_error(clixon_handle           h,
 
 /*! Extended commit: trigger actions and device push
  *
+ * Differs from commit local (regular NETCONF commit) in that it can trigger service actions and device push,
+ * and that it can be used without candidate (in which case the source is running)
+ * To find comparison with regular commit, see candidate_commit in:
+ * - device_state_handler for PUSH-VALIDATE
+ * - commit_push_after_action  (if no devices)
  * @param[in]  h       Clixon handle
  * @param[in]  xe      Request: <rpc><xn></rpc>
  * @param[out] cbret   Return xml tree, eg <rpc-reply>..., <rpc-error..

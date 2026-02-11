@@ -1884,8 +1884,13 @@ device_state_handler(clixon_handle h,
                         goto done;
                     break;
                 }
-                if (clicon_option_bool(h, "CLICON_AUTOLOCK"))
+                if (ret == 1){
+                    if (xmldb_post_commit(h, ct->ct_client_id) < 0)
+                        goto done;
+                }
+                if (clicon_option_bool(h, "CLICON_AUTOLOCK")) // XXX maybe also when ret = 0
                     xmldb_unlock(h, candidate);
+
                 if (ret == 0){
                     cbuf  *cberr2 = NULL;
                     if ((cberr2 = cbuf_new()) == NULL){
