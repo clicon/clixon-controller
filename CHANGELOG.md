@@ -10,6 +10,7 @@ Planned: February 2026
   * Remove "devices" struct used for device rpc and state replies after timeout (default 300s) 
 * New `clixon-controller@2025-12-01.yang` revision
   * Added `service-timeout`
+  * Added `timestamp0` to transaction
 
 ### Corrected Bugs
 

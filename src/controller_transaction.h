@@ -67,6 +67,7 @@ struct controller_transaction_t{
     char              *ct_origin;        /* Originator of error (if result is != SUCCESS) */
     char              *ct_reason;        /* Reason of error (if result != SUCCESS) */
     char              *ct_warning;       /* Warning, first encountered */
+    struct timeval     ct_timestamp0;    /* Timestamp when created */
     struct timeval     ct_timestamp;     /* Timestamp when entering current state */
     cxobj             *ct_devdata;       /* Generic device data, eg CS_RPC_GENERIC */
 };

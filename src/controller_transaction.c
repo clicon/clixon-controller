@@ -508,6 +508,7 @@ controller_transaction_new(clixon_handle            h,
     }
     if (transaction_new_id(h, &ct->ct_id) < 0)
         goto done;
+    gettimeofday(&ct->ct_timestamp0, NULL);
     if (description &&
         (ct->ct_description = strdup(description)) == NULL){
         clixon_err(OE_UNIX, errno, "strdup");
@@ -983,6 +984,13 @@ controller_transaction_statedata(clixon_handle   h,
                 xml_chardata_cbuf_append(cb, 0, ct->ct_warning);
                 cprintf(cb, "</warning>");
             }
+            tv = &ct->ct_timestamp0;
+            if (tv->tv_sec != 0){
+                char timestr[28];
+                if (time2str(tv, timestr, sizeof(timestr)) < 0)
+                    goto done;
+                cprintf(cb, "<timestamp0>%s</timestamp0>", timestr);
+            }
             tv = &ct->ct_timestamp;
             if (tv->tv_sec != 0){
                 char timestr[28];
@@ -1011,7 +1019,6 @@ controller_transaction_statedata(clixon_handle   h,
  * @param[in]  h   Clixon  handle
  * @retval     0   OK
  * @retval    -1   Error
-
  */
 int
 controller_transaction_periodic(clixon_handle  h)

@@ -40,6 +40,7 @@ module clixon-controller {
     revision 2025-12-01 {
         description
             "Added service-timeout, differentiated from device timeout
+             Added timestamp0 to transaction
              Released in 1.7.0";
     }
     revision 2025-08-01 {
@@ -772,8 +773,15 @@ module clixon-controller {
                 description "Warning, first encountered";
                 type string;
             }
+            leaf timestamp0 {
+                description
+                    "Initial timestamp at transaction creation";
+                type yang:date-and-time;
+            }
             leaf timestamp {
-                description "Timestamp when entering current state";
+                description
+                    "Timestamp when entering current state.
+                     After completion, this is final timestamp";
                 type yang:date-and-time;
             }
         }
