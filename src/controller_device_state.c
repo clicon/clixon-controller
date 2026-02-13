@@ -1290,7 +1290,7 @@ device_capabilities2settings(clixon_handle h,
     //    framing = 0; //NETCONF_SSH_EOM; // XXX
     device_handle_framing_type_set(dh, framing);
 
-    /* Private candidate, only if both configured and frm device is set */
+    /* Private candidate, only if both configured and from device is set */
     if (device_handle_flag_get(dh, DH_FLAG_PRIVATE_CANDIDATE) &&
         !device_handle_capabilities_find(dh, NETCONF_PRIVATE_CANDIDATE_CAPABILITY)){
         device_handle_flag_reset(dh, DH_FLAG_PRIVATE_CANDIDATE);
@@ -1644,8 +1644,7 @@ device_state_handler(clixon_handle h,
                 goto done;
             break;
         }
-        else if (ret == 1){ /*
-                              1. The device has failed and is closed */
+        else if (ret == 1){ /* 1. The device has failed and is closed */
             if (controller_transaction_failed(h, tid, ct, dh, TR_FAILED_DEV_IGNORE, name, NULL) < 0)
                 goto done;
             break;
@@ -2050,9 +2049,12 @@ device_state_handler(clixon_handle h,
         if ((ret = device_recv_ok(h, dh, xmsg, rpcname, conn_state, &cberr)) < 0)
             goto done;
         if (ret == 0){      /* 1. The device has failed: received rpc-error/not <ok>  */
-            if (controller_transaction_failed(h, tid, ct, dh, TR_FAILED_DEV_CLOSE, name, cbuf_get(cberr)) < 0)
-                goto done;
-            break;
+            /* Ignore error from device if private candidate since clixon device behaves like this */
+            if (device_handle_flag_get(dh, DH_FLAG_PRIVATE_CANDIDATE) == 0x0){
+                if (controller_transaction_failed(h, tid, ct, dh, TR_FAILED_DEV_CLOSE, name, cbuf_get(cberr)) < 0)
+                    goto done;
+                break;
+            }
         }
         else if (ret == 1){ /* 1. The device has failed and is closed */
             if (controller_transaction_failed(h, tid, ct, dh, TR_FAILED_DEV_LEAVE, name, NULL) < 0)

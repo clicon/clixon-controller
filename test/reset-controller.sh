@@ -52,6 +52,7 @@ function init_device_config()
 	  <user>$USER</user>
 	  <addr>$ip</addr>
 	  <yang-config>${yang_config}</yang-config>
+	  <private-candidate>false</private-candidate>
           ${EXTRA}
 	  <config/>
 	</device>
