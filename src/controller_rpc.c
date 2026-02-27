@@ -72,8 +72,8 @@ static int traverse_device_group(clixon_handle h, cxobj *xdevs, cxobj **vec1, si
 static int
 connect_netconf_ssh(clixon_handle h,
                     device_handle dh,
-                    char         *user,
-                    char         *addr,
+                    const char   *user,
+                    const char   *addr,
                     const char   *port,
                     int           stricthostkey)
 {
@@ -296,7 +296,7 @@ controller_connect(clixon_handle           h,
  */
 static int
 iterate_device(clixon_handle h,
-               char         *pattern,
+               const char   *pattern,
                cxobj       **vec,
                size_t        veclen,
                cvec         *devvec)
@@ -342,7 +342,7 @@ iterate_device(clixon_handle h,
  */
 static int
 iterate_device_group(clixon_handle h,
-                     char         *pattern,
+                     const char   *pattern,
                      cxobj       **vec1,
                      size_t        vec1len,
                      cxobj       **vec2,
@@ -453,7 +453,7 @@ static int
 push_device_one(clixon_handle           h,
                 device_handle           dh,
                 controller_transaction *ct,
-                char                   *db,
+                const char             *db,
                 cbuf                  **cberr)
 {
     int        retval = -1;
@@ -576,7 +576,7 @@ pull_device_one(clixon_handle h,
                 device_handle dh,
                 uint64_t      tid,
                 int           state,
-                char         *xpath,
+                const char   *xpath,
                 cbuf         *cbret)
 {
     int  retval = -1;
@@ -591,6 +591,66 @@ pull_device_one(clixon_handle h,
     device_handle_tid_set(dh, tid);
     retval = 1;
  done:
+    return retval;
+}
+
+/*! Create vector of devices as a cvec from incoming device or device-group pattern
+ *
+ * @param[in]  h       Clixon handle
+ * @param[in]  pattern Pattern match
+ * @param[in]  xret    XML tree of running config, used for resolving patterns
+ * @param[in]  nsc     Namespace context for xpath in xret
+ * @param[in]  groups  If set, pattern is device-group, otherwise device
+ * @param[out] devvecp List of matching devices on exit
+ * @retval     0       OK
+ * @retval    -1       Error
+ * XXX cf traverse_device_group
+ */
+static int
+devvec_create(clixon_handle h,
+               const char   *pattern,
+               cxobj        *xret,
+               cvec         *nsc,
+               int           groups,
+               cvec        **devvecp)
+{
+    int     retval = -1;
+    cxobj **vec1 = NULL;
+    size_t  vec1len;
+    cxobj **vec2 = NULL;
+    size_t  vec2len;
+    cvec    *devvec = NULL;
+
+    if ((devvec = cvec_new(0)) == NULL){
+        clixon_err(OE_UNIX, errno, "cvec_new");
+        goto done;
+    }
+    if (xpath_vec(xret, nsc, "devices/device", &vec1, &vec1len) < 0)
+        goto done;
+    if (xpath_vec(xret, nsc, "devices/device-group", &vec2, &vec2len) < 0)
+        goto done;
+    if (groups){
+        if (iterate_device_group(h, pattern, vec1, vec1len, vec2, vec2len, devvec) < 0)
+            goto done;
+    }
+    else{
+        if (iterate_device(h, pattern, vec1, vec1len, devvec) < 0)
+            goto done;
+    }
+    *devvecp = devvec;
+    devvec = NULL; /* ownership transferred */
+    retval = 0;
+ done:
+    if (devvec)
+        cvec_free(devvec);
+    if (vec1){
+        clearvec(h, vec1, vec1len);
+        free(vec1);
+    }
+    if (vec2){
+        clearvec(h, vec2, vec2len);
+        free(vec2);
+    }
     return retval;
 }
 
@@ -620,10 +680,6 @@ rpc_config_pull(clixon_handle h,
     int                     groups = 0;
     cvec                   *devvec = NULL;
     cg_var                 *cv;
-    cxobj                 **vec1 = NULL;
-    size_t                  vec1len;
-    cxobj                 **vec2 = NULL;
-    size_t                  vec2len;
     char                   *devname;
     device_handle           dh;
     controller_transaction *ct = NULL;
@@ -662,32 +718,8 @@ rpc_config_pull(clixon_handle h,
         clixon_err(OE_DB, 0, "Error when reading from running_db, unknown error");
         goto done;
     }
-    if ((devvec = cvec_new(0)) == NULL){
-        clixon_err(OE_UNIX, errno, "cvec_new");
+    if (devvec_create(h, pattern, xret, nsc, groups, &devvec) < 0)
         goto done;
-    }
-    if (xpath_vec(xret, nsc, "devices/device", &vec1, &vec1len) < 0)
-        goto done;
-    if (xpath_vec(xret, nsc, "devices/device-group", &vec2, &vec2len) < 0)
-        goto done;
-    if (!groups){
-        if (iterate_device(h, pattern, vec1, vec1len, devvec) < 0)
-            goto done;
-    }
-    else{
-        if (iterate_device_group(h, pattern, vec1, vec1len, vec2, vec2len, devvec) < 0)
-            goto done;
-    }
-    clearvec(h, vec1, vec1len);
-    clearvec(h, vec2, vec2len);
-    if (vec1){
-        free(vec1);
-        vec1 = NULL;
-    }
-    if (vec2){
-        free(vec2);
-        vec2 = NULL;
-    }
     cv = NULL;
     while ((cv = cvec_each(devvec, cv)) != NULL){
         xn = cv_void_get(cv);
@@ -719,10 +751,6 @@ rpc_config_pull(clixon_handle h,
  done:
     if (cberr)
         cbuf_free(cberr);
-    if (vec1)
-        free(vec1);
-    if (vec2)
-        free(vec2);
     if (devvec)
         cvec_free(devvec);
     return retval;
@@ -958,7 +986,7 @@ xml_add_op(cxobj *x,
  */
 static int
 strip_service_data_from_device_config(clixon_handle h,
-                                      char         *db,
+                                      const char   *db,
                                       cvec         *cvv)
 {
     int     retval = -1;
@@ -1089,7 +1117,7 @@ strip_service_data_from_device_config(clixon_handle h,
 static int
 controller_commit_push(clixon_handle           h,
                        controller_transaction *ct,
-                       char                   *db,
+                       const char             *db,
                        cbuf                  **cberr)
 {
     int           retval = -1;
@@ -1287,7 +1315,7 @@ controller_commit_actions(clixon_handle           h,
                           controller_transaction *ct,
                           actions_type            actions,
                           transaction_data_t     *td,
-                          char                   *service_instance,
+                          const char             *service_instance,
 			  int                     diff,
                           const char             *candidate
                           )
@@ -1624,10 +1652,6 @@ rpc_controller_commit(clixon_handle h,
     cxobj                  *xret = NULL;
     cxobj                  *xn = NULL;
     cvec                   *nsc = NULL;
-    cxobj                 **vec1 = NULL;
-    size_t                  vec1len;
-    cxobj                 **vec2 = NULL;
-    size_t                  vec2len;
     char                   *devname;
     char                   *sourcedb = NULL;
     actions_type            actions = AT_NONE;
@@ -1714,32 +1738,8 @@ rpc_controller_commit(clixon_handle h,
         clixon_err(OE_DB, 0, "Error when reading from running_db, unknown error");
         goto done;
     }
-    if ((devvec = cvec_new(0)) == NULL){
-        clixon_err(OE_UNIX, errno, "cvec_new");
+    if (devvec_create(h, pattern, xret, nsc, groups, &devvec) < 0)
         goto done;
-    }
-    if (xpath_vec(xret, nsc, "devices/device", &vec1, &vec1len) < 0)
-        goto done;
-    if (xpath_vec(xret, nsc, "devices/device-group", &vec2, &vec2len) < 0)
-        goto done;
-    if (!groups){
-        if (iterate_device(h, pattern, vec1, vec1len, devvec) < 0)
-            goto done;
-    }
-    else{
-        if (iterate_device_group(h, pattern, vec1, vec1len, vec2, vec2len, devvec) < 0)
-            goto done;
-    }
-    clearvec(h, vec1, vec1len);
-    clearvec(h, vec2, vec2len);
-    if (vec1){
-        free(vec1);
-        vec1 = NULL;
-    }
-    if (vec2){
-        free(vec2);
-        vec2 = NULL;
-    }
     cv = NULL;
     while ((cv = cvec_each(devvec, cv)) != NULL){
         char *body;
@@ -1837,10 +1837,6 @@ rpc_controller_commit(clixon_handle h,
         cbuf_free(cbtr);
     if (cberr)
         cbuf_free(cberr);
-    if (vec1)
-        free(vec1);
-    if (vec2)
-        free(vec2);
     if (devvec)
         cvec_free(devvec);
     return retval;
@@ -1872,10 +1868,6 @@ rpc_get_device_config(clixon_handle h,
     int                groups = 0;
     cvec              *devvec = NULL;
     cg_var            *cv;
-    cxobj            **vec1 = NULL;
-    size_t             vec1len;
-    cxobj            **vec2 = NULL;
-    size_t             vec2len;
     char              *devname;
     cxobj             *xroot = NULL;
     cxobj             *xroot1; /* dont free */
@@ -1915,32 +1907,8 @@ rpc_get_device_config(clixon_handle h,
         clixon_err(OE_DB, 0, "Error when reading from running_db, unknown error");
         goto done;
     }
-    if ((devvec = cvec_new(0)) == NULL){
-        clixon_err(OE_UNIX, errno, "cvec_new");
+    if (devvec_create(h, pattern, xret, nsc, groups, &devvec) < 0)
         goto done;
-    }
-    if (xpath_vec(xret, nsc, "devices/device", &vec1, &vec1len) < 0)
-        goto done;
-    if (xpath_vec(xret, nsc, "devices/device-group", &vec2, &vec2len) < 0)
-        goto done;
-    if (!groups){
-        if (iterate_device(h, pattern, vec1, vec1len, devvec) < 0)
-            goto done;
-    }
-    else{
-        if (iterate_device_group(h, pattern, vec1, vec1len, vec2, vec2len, devvec) < 0)
-            goto done;
-    }
-    clearvec(h, vec1, vec1len);
-    clearvec(h, vec2, vec2len);
-    if (vec1){
-        free(vec1);
-        vec1 = NULL;
-    }
-    if (vec2){
-        free(vec2);
-        vec2 = NULL;
-    }
     cv = NULL;
     if ((cb = cbuf_new()) == NULL){
         clixon_err(OE_UNIX, errno, "cbuf_new");
@@ -1987,10 +1955,6 @@ rpc_get_device_config(clixon_handle h,
         cbuf_free(cb);
     if (cberr)
         cbuf_free(cberr);
-    if (vec1)
-        free(vec1);
-    if (vec2)
-        free(vec2);
     if (devvec)
         cvec_free(devvec);
     if (xroot)
@@ -2016,7 +1980,7 @@ static int
 connection_change_one(clixon_handle           h,
                       cxobj                  *xn,
                       controller_transaction *ct,
-                      char                   *operation,
+                      const char             *operation,
                       int                    *tmpdev,
                       cbuf                   *cbret)
 {
@@ -2120,10 +2084,6 @@ rpc_connection_change(clixon_handle h,
     cvec                   *nsc = NULL;
     cvec                   *devvec = NULL;
     cg_var                 *cv;
-    cxobj                 **vec1 = NULL;
-    size_t                  vec1len;
-    cxobj                 **vec2 = NULL;
-    size_t                  vec2len;
     controller_transaction *ct = NULL;
     char                   *operation;
     cbuf                   *cberr = NULL;
@@ -2158,32 +2118,8 @@ rpc_connection_change(clixon_handle h,
     }
     if (xmldb_get_cache(h, "running", &xret, NULL) < 0)
         goto done;
-    if ((devvec = cvec_new(0)) == NULL){
-        clixon_err(OE_UNIX, errno, "cvec_new");
+    if (devvec_create(h, pattern, xret, nsc, groups, &devvec) < 0)
         goto done;
-    }
-    if (xpath_vec(xret, nsc, "devices/device", &vec1, &vec1len) < 0)
-        goto done;
-    if (xpath_vec(xret, nsc, "devices/device-group", &vec2, &vec2len) < 0)
-        goto done;
-    if (!groups){
-        if (iterate_device(h, pattern, vec1, vec1len, devvec) < 0)
-            goto done;
-    }
-    else{
-        if (iterate_device_group(h, pattern, vec1, vec1len, vec2, vec2len, devvec) < 0)
-            goto done;
-    }
-    clearvec(h, vec1, vec1len);
-    clearvec(h, vec2, vec2len);
-    if (vec1){
-        free(vec1);
-        vec1 = NULL;
-    }
-    if (vec2){
-        free(vec2);
-        vec2 = NULL;
-    }
     cv = NULL;
     while ((cv = cvec_each(devvec, cv)) != NULL){
         xn = cv_void_get(cv);
@@ -2215,10 +2151,6 @@ rpc_connection_change(clixon_handle h,
         cbuf_free(cbtr);
     if (cberr)
         cbuf_free(cberr);
-    if (vec1)
-        free(vec1);
-    if (vec2)
-        free(vec2);
     if (devvec)
         cvec_free(devvec);
     return retval;
@@ -2414,7 +2346,7 @@ rpc_transactions_actions_done(clixon_handle h,
 static int
 datastore_diff_nacm_read(clixon_handle h,
                          cxobj        *xt,
-                         char         *xpath)
+                         const char   *xpath)
 {
     int     retval = -1;
     cxobj  *xnacm;
@@ -2446,9 +2378,9 @@ datastore_diff_nacm_read(clixon_handle h,
  */
 static int
 datastore_diff_dsref(clixon_handle    h,
-                     char            *xpath,
-                     char            *db1,
-                     char            *db2,
+                     const char      *xpath,
+                     const char      *db1,
+                     const char      *db2,
                      enum format_enum format,
                      cbuf            *cbret)
 {
@@ -2523,7 +2455,7 @@ datastore_diff_dsref(clixon_handle    h,
 static int
 datastore_diff_device(clixon_handle      h,
                       int                groups,
-                      char              *pattern,
+                      const char        *pattern,
                       device_config_type dt1,
                       device_config_type dt2,
                       enum format_enum   format,
@@ -2544,10 +2476,6 @@ datastore_diff_device(clixon_handle      h,
     cxobj        *x2ret = NULL;
     cvec         *devvec = NULL;
     cg_var       *cv;
-    cxobj       **vec1 = NULL;
-    size_t        vec1len;
-    cxobj       **vec2 = NULL;
-    size_t        vec2len;
     char         *devname;
     cxobj        *xdev;
     device_handle dh;
@@ -2564,36 +2492,12 @@ datastore_diff_device(clixon_handle      h,
         goto done;
     }
     cprintf(cbret, "<rpc-reply xmlns=\"%s\">", NETCONF_BASE_NAMESPACE);
-    if ((devvec = cvec_new(0)) == NULL){
-        clixon_err(OE_UNIX, errno, "cvec_new");
-        goto done;
-    }
     if (xmldb_get_cache(h, "running", &xret, NULL) < 0)
         goto done;
     if (datastore_diff_nacm_read(h, xret, NULL) < 0)
         goto done;
-    if (xpath_vec(xret, nsc, "devices/device", &vec1, &vec1len) < 0)
+    if (devvec_create(h, pattern, xret, nsc, groups, &devvec) < 0)
         goto done;
-    if (xpath_vec(xret, nsc, "devices/device-group", &vec2, &vec2len) < 0)
-        goto done;
-    if (!groups){
-        if (iterate_device(h, pattern, vec1, vec1len, devvec) < 0)
-            goto done;
-    }
-    else{
-        if (iterate_device_group(h, pattern, vec1, vec1len, vec2, vec2len, devvec) < 0)
-            goto done;
-    }
-    clearvec(h, vec1, vec1len);
-    clearvec(h, vec2, vec2len);
-    if (vec1){
-        free(vec1);
-        vec1 = NULL;
-    }
-    if (vec2){
-        free(vec2);
-        vec2 = NULL;
-    }
     cv = NULL;
     while ((cv = cvec_each(devvec, cv)) != NULL){
         xdev = cv_void_get(cv);
@@ -2748,10 +2652,6 @@ datastore_diff_device(clixon_handle      h,
         xml_free(x1m);
     if (x2m)
         xml_free(x2m);
-    if (vec1)
-        free(vec1);
-    if (vec2)
-        free(vec2);
     if (devvec)
         cvec_free(devvec);
     if (cberr)
@@ -2945,8 +2845,8 @@ check_services_commit_subscription(clixon_handle h,
  * @retval    -1      Error
  */
 static int
-xvars2cvv(cxobj  *xvars,
-          cvec  **cvv0)
+xvars2cvv(cxobj *xvars,
+          cvec **cvv0)
 {
     int    retval = -1;
     cxobj *xv;
@@ -2998,10 +2898,6 @@ rpc_device_config_template_apply(clixon_handle h,
     int           groups = 0;
     cvec         *devvec = NULL;
     cg_var       *cv;
-    cxobj       **vec1 = NULL;
-    size_t        vec1len;
-    cxobj       **vec2 = NULL;
-    size_t        vec2len;
     cxobj        *xn;
     char         *tmplname;
     cxobj        *xtmpl;
@@ -3090,32 +2986,8 @@ rpc_device_config_template_apply(clixon_handle h,
     cprintf(cb, "<devices xmlns=\"%s\" xmlns:%s=\"%s\" %s:operation=\"merge\">",
             CONTROLLER_NAMESPACE,
             NETCONF_BASE_PREFIX, NETCONF_BASE_NAMESPACE, NETCONF_BASE_PREFIX);
-    if ((devvec = cvec_new(0)) == NULL){
-        clixon_err(OE_UNIX, errno, "cvec_new");
+    if (devvec_create(h, pattern, xret, nsc, groups, &devvec) < 0)
         goto done;
-    }
-    if (xpath_vec(xret, nsc, "devices/device", &vec1, &vec1len) < 0)
-        goto done;
-    if (xpath_vec(xret, nsc, "devices/device-group", &vec2, &vec2len) < 0)
-        goto done;
-    if (!groups){
-        if (iterate_device(h, pattern, vec1, vec1len, devvec) < 0)
-            goto done;
-    }
-    else{
-        if (iterate_device_group(h, pattern, vec1, vec1len, vec2, vec2len, devvec) < 0)
-            goto done;
-    }
-    clearvec(h, vec1, vec1len);
-    clearvec(h, vec2, vec2len);
-    if (vec1){
-        free(vec1);
-        vec1 = NULL;
-    }
-    if (vec2){
-        free(vec2);
-        vec2 = NULL;
-    }
     cv = NULL;
     while ((cv = cvec_each(devvec, cv)) != NULL){
         xn = cv_void_get(cv);
@@ -3177,10 +3049,6 @@ rpc_device_config_template_apply(clixon_handle h,
         xml_free(xtc);
     if (xroot)
         xml_free(xroot);
-    if (vec1)
-        free(vec1);
-    if (vec2)
-        free(vec2);
     if (devvec)
         cvec_free(devvec);
     if (nsc)
@@ -3247,10 +3115,6 @@ rpc_device_rpc_template_apply(clixon_handle h,
     int                     groups = 0;
     cvec                   *devvec = NULL;
     cg_var                 *cv;
-    cxobj                 **vec1 = NULL;
-    size_t                  vec1len;
-    cxobj                 **vec2 = NULL;
-    size_t                  vec2len;
     cxobj                  *xn;
     char                   *tmplname;
     cxobj                  *xinline;
@@ -3341,32 +3205,8 @@ rpc_device_rpc_template_apply(clixon_handle h,
             goto done;
         goto ok;
     }
-    if ((devvec = cvec_new(0)) == NULL){
-        clixon_err(OE_UNIX, errno, "cvec_new");
+    if (devvec_create(h, pattern, xret, nsc, groups, &devvec) < 0)
         goto done;
-    }
-    if (xpath_vec(xret, nsc, "devices/device", &vec1, &vec1len) < 0)
-        goto done;
-    if (xpath_vec(xret, nsc, "devices/device-group", &vec2, &vec2len) < 0)
-        goto done;
-    if (!groups){
-        if (iterate_device(h, pattern, vec1, vec1len, devvec) < 0)
-            goto done;
-    }
-    else{
-        if (iterate_device_group(h, pattern, vec1, vec1len, vec2, vec2len, devvec) < 0)
-            goto done;
-    }
-    clearvec(h, vec1, vec1len);
-    clearvec(h, vec2, vec2len);
-    if (vec1){
-        free(vec1);
-        vec1 = NULL;
-    }
-    if (vec2){
-        free(vec2);
-        vec2 = NULL;
-    }
     cv = NULL;
     while ((cv = cvec_each(devvec, cv)) != NULL){
         xn = cv_void_get(cv);
@@ -3401,10 +3241,6 @@ rpc_device_rpc_template_apply(clixon_handle h,
         cvec_free(cvv);
     if (xret)
         xml_free(xret);
-    if (vec1)
-        free(vec1);
-    if (vec2)
-        free(vec2);
     if (devvec)
         cvec_free(devvec);
     if (nsc)
@@ -3482,10 +3318,6 @@ rpc_device_rpc(clixon_handle h,
     int                     groups = 0;
     cvec                   *devvec = NULL;
     cg_var                 *cv;
-    cxobj                 **vec1 = NULL;
-    size_t                  vec1len;
-    cxobj                 **vec2 = NULL;
-    size_t                  vec2len;
     cxobj                  *xn;
     char                   *syncstr;
     cxobj                  *xconfig = NULL;
@@ -3529,32 +3361,8 @@ rpc_device_rpc(clixon_handle h,
             goto done;
         goto ok;
     }
-    if ((devvec = cvec_new(0)) == NULL){
-        clixon_err(OE_UNIX, errno, "cvec_new");
+    if (devvec_create(h, pattern, xret, nsc, groups, &devvec) < 0)
         goto done;
-    }
-    if (xpath_vec(xret, nsc, "devices/device", &vec1, &vec1len) < 0)
-        goto done;
-    if (xpath_vec(xret, nsc, "devices/device-group", &vec2, &vec2len) < 0)
-        goto done;
-    if (!groups){
-        if (iterate_device(h, pattern, vec1, vec1len, devvec) < 0)
-            goto done;
-    }
-    else{
-        if (iterate_device_group(h, pattern, vec1, vec1len, vec2, vec2len, devvec) < 0)
-            goto done;
-    }
-    clearvec(h, vec1, vec1len);
-    clearvec(h, vec2, vec2len);
-    if (vec1){
-        free(vec1);
-        vec1 = NULL;
-    }
-    if (vec2){
-        free(vec2);
-        vec2 = NULL;
-    }
     cv = NULL;
     while ((cv = cvec_each(devvec, cv)) != NULL){
         xn = cv_void_get(cv);
@@ -3587,10 +3395,6 @@ rpc_device_rpc(clixon_handle h,
         cbuf_free(cberr);
     if (xret)
         xml_free(xret);
-    if (vec1)
-        free(vec1);
-    if (vec2)
-        free(vec2);
     if (devvec)
         cvec_free(devvec);
     if (nsc)
@@ -3616,10 +3420,10 @@ rpc_device_rpc(clixon_handle h,
  * @note slightly modified from clixon_datastore_write.c
  */
 static int
-attr_ns_value(cxobj *x,
-              char  *name,
-              char  *ns,
-              char **valp)
+attr_ns_value(cxobj      *x,
+              const char *name,
+              const char *ns,
+              char      **valp)
 {
     int    retval = -1;
     cxobj *xa;
@@ -3778,6 +3582,178 @@ creator_applyfn(cxobj *x,
     goto done;
 }
 
+/*! Read file contents into a cbuf
+ *
+ * @param[in]  filepath  Full path to file
+ * @param[out] cb        Buffer with file contents
+ * @retval     0         OK
+ * @retval    -1         Error
+ */
+static int
+file_read_cbuf(const char *filepath,
+               cbuf       *cb)
+{
+    int   retval = -1;
+    FILE *f = NULL;
+    char  buf[4096];
+    int   n;
+
+    if ((f = fopen(filepath, "r")) == NULL){
+        clixon_err(OE_UNIX, errno, "fopen(%s)", filepath);
+        goto done;
+    }
+    while ((n = fread(buf, 1, sizeof(buf), f)) > 0){
+        if (cbuf_append_buf(cb, buf, n) < 0){
+            clixon_err(OE_UNIX, errno, "cbuf_append_buf");
+            goto done;
+        }
+    }
+    if (ferror(f)){
+        clixon_err(OE_UNIX, errno, "fread(%s)", filepath);
+        goto done;
+    }
+    retval = 0;
+ done:
+    if (f)
+        fclose(f);
+    return retval;
+}
+
+/*! Get YANG schemas stored on the controller for a device
+ *
+ * If identifier is given, return that specific schema with content.
+ * If no identifier, list all schemas in the device domain directory.
+ * @param[in]  h       Clixon handle
+ * @param[in]  xe      Request: <rpc><xn></rpc>
+ * @param[out] cbret   Return xml tree, eg <rpc-reply>..., <rpc-error..
+ * @param[in]  arg     Domain specific arg, ec client-entry or FCGX_Request
+ * @param[in]  regarg  User argument given at rpc_callback_register()
+ * @retval     0       OK
+ * @retval    -1       Error
+ */
+static int
+rpc_get_device_schema(clixon_handle h,
+                      cxobj        *xe,
+                      cbuf         *cbret,
+                      void         *arg,
+                      void         *regarg)
+{
+    int            retval = -1;
+    char          *pattern;
+    int            groups = 0;
+    cvec          *devvec = NULL;
+    cg_var        *cv;
+    cvec          *nsc = NULL;
+    cxobj         *xret = NULL;
+    cxobj         *xn;
+    cxobj         *xmnt;
+    yang_stmt     *y;
+    yang_stmt     *yspec;
+    yang_stmt     *ymod;
+    cbuf          *cb = NULL;
+    char          *name;
+    char          *revision;
+    char          *modname;
+    char          *modrev;
+    char          *str;
+    int            detail = 0;
+    int            inext;
+    const char    *filename;
+    int            ret;
+
+    if ((xn = xml_find(xe, "device")) != NULL)
+        ;
+    else if ((xn = xml_find(xe, "device-group")) != NULL)
+        groups++;
+    else{
+        if (netconf_operation_failed(cbret, "application", "No device or device-group") < 0)
+            goto done;
+        goto ok;
+    }
+    pattern = xml_body(xn);
+    name = xml_find_body(xe, "name");
+    revision = xml_find_body(xe, "revision");
+    if ((str = xml_find_body(xe, "detail")) != NULL)
+        detail = strcmp(str, "true") == 0;
+    /* Get running config to resolve devices */
+    if ((ret = xmldb_get_cache(h, "running", &xret, NULL)) < 0)
+        goto done;
+    if (ret == 0){
+        clixon_err(OE_DB, 0, "Error when reading from running_db");
+        goto done;
+    }
+    if (devvec_create(h, pattern, xret, nsc, groups, &devvec) < 0)
+        goto done;
+    /* Use first matching device to resolve domain */
+    cv = NULL;
+    if ((cv = cvec_each(devvec, cv)) == NULL){
+        if (netconf_operation_failed(cbret, "application", "No matching device found") < 0)
+            goto done;
+        goto ok;
+    }
+    if ((xn = cv_void_get(cv)) == NULL){
+        if (netconf_operation_failed(cbret, "application", "No matching device found") < 0)
+            goto done;
+        goto ok;
+    }
+    if ((xmnt = xml_find_type(xn, NULL, "config", CX_ELMNT)) == NULL){
+        if (netconf_operation_failed(cbret, "application", "No matching device mountpoint") < 0)
+            goto done;
+        goto ok;
+    }
+    if ((ret = xml_yang_mount_get(h, xmnt, NULL, NULL, &yspec)) < 0)
+        goto done;
+    if (ret == 0){
+        if (netconf_operation_failed(cbret, "application", "No matching device YANG spec found") < 0)
+            goto done;
+        goto ok;
+    }
+    /* Build response */
+    if ((cb = cbuf_new()) == NULL){
+        clixon_err(OE_UNIX, errno, "cbuf_new");
+        goto done;
+    }
+    inext = 0;
+    while ((ymod = yn_iter(yspec, &inext)) != NULL) {
+        modname = yang_argument_get(ymod);
+        if (name != NULL && strcmp(name, modname) != 0)
+            continue;
+        modrev = NULL;
+        if ((y = yang_find(ymod, Y_REVISION, NULL)) != NULL)
+            modrev = yang_argument_get(y);
+        if (modrev != NULL && revision != NULL && strcmp(revision, modrev) != 0)
+            continue;
+        cprintf(cb, "<schema xmlns=\"%s\">", CONTROLLER_NAMESPACE);
+        cprintf(cb, "<name>%s</name>", modname);
+        if (modrev)
+            cprintf(cb, "<revision>%s</revision>", modrev);
+        if ((y = yang_find(ymod, Y_NAMESPACE, NULL)) != NULL)
+            cprintf(cb, "<namespace>%s</namespace>", yang_argument_get(y));
+        if (detail){
+            if ((filename = yang_filename_get(ymod)) == NULL)
+                continue;
+            cprintf(cb, "<data>");
+            cprintf(cb, "<![CDATA[");
+            if (file_read_cbuf(filename, cb) < 0)
+                goto done;
+            cprintf(cb, "]]>");
+            cprintf(cb, "</data>");
+        }
+        cprintf(cb, "</schema>");
+    }
+    cprintf(cbret, "<rpc-reply xmlns=\"%s\">", NETCONF_BASE_NAMESPACE);
+    cprintf(cbret, "%s", cbuf_get(cb));
+    cprintf(cbret, "</rpc-reply>");
+ ok:
+    retval = 0;
+ done:
+    if (cb)
+        cbuf_free(cb);
+    if (devvec)
+        cvec_free(devvec);
+    return retval;
+}
+
 /*! Controller wrapper of edit-config
  *
  * Find and remove creator attributes and create services/../created structures.
@@ -3924,6 +3900,12 @@ controller_rpc_init(clixon_handle h)
                               NULL,
                               CONTROLLER_NAMESPACE,
                               "device-rpc"
+                              ) < 0)
+        goto done;
+    if (rpc_callback_register(h, rpc_get_device_schema,
+                              NULL,
+                              CONTROLLER_NAMESPACE,
+                              "get-device-schema"
                               ) < 0)
         goto done;
     /* Check that services subscriptions is just done once */

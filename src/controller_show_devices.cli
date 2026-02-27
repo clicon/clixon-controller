@@ -19,6 +19,13 @@ rpc("Show device RPC"), cli_generic_rpc_match("name");  {
 state("Show device state"), cli_show_device_state("name");{
    @|pipe_show, cli_show_device_state("name");
 }
-yang("Show yang revisions"), show_yang_revisions("name"); {
-   @|pipe_show, show_yang_revisions("name");
+yang("Show yang name and revisions"), cli_show_device_schema("name", "false"); {
+   <module:string>("YANG module name"), cli_show_device_schema("name", "false", "module");{
+      schema("Show full yang schemas"), cli_show_device_schema("name", "true", "module");
+      @|pipe_show, cli_show_device_schema("name", "true", "module");
+   }
+   schema("Show full yang schemas"), cli_show_device_schema("name", "true");{
+      @|pipe_show, cli_show_device_schema("name", "true");
+   }
+   @|pipe_show, cli_show_device_schema("name", "false");
 }

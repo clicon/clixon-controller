@@ -421,11 +421,11 @@ function err(){
 	echo
     fi
     if [ $# -gt 1 ]; then
-	echo "Received: $2"
+	echo "Received: $2" | head -80 | head -c 2000
     fi
     echo -e "\e[0m"
     echo "Diff between Expected and Received:"
-    diff <(echo "$ret"| od -t c) <(echo "$expect"| od -t c)
+    diff <(echo "$ret"| od -t c) <(echo "$expect"| od -t c) | head -40
 
     exit -1 #$testnr
 }
@@ -438,7 +438,7 @@ function err1(){
 	echo
     fi
     if [ $# -gt 1 ]; then
-	echo "Received: $2"
+	echo "Received: $2" | head -80 | head -c 2000
     fi
     echo -e "\e[0m"
     exit -1 #$testnr

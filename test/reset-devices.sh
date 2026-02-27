@@ -71,7 +71,7 @@ EOF
         err1 "0" "$r"
         exit 1
     fi
-    echo "ret:$ret"
+#    echo "ret:$ret"
     if [ -z "$ret" ]; then
         err1 "rpc-reply" "No reply (have you started device $NAME?)"
         exit 1

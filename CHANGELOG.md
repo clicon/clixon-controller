@@ -10,6 +10,15 @@
 * [1.1.0](#110) 3 July 2024
 * [1.0.0](#170) 8 March 2024
 
+## 1.8.0
+Expected: May 2026
+
+### New features
+
+* New `clixon-controller@2026-03-01.yang` revision
+  * Add rpc get-device-schema
+* Added CLI command: `show device yang schema`
+
 ## 1.7.0
 21 February 2026
 

@@ -2369,103 +2369,6 @@ cli_controller_show_version(clixon_handle h,
     return 0;
 }
 
-/*! show yang revisions of top-level / mountpoint.
- *
- * @param[in]  h     Clixon handle
- * @param[in]  cvv   Vector of command variables
- * @param[in]  argv  Name of cv containing name of top-level/mountpoint
- * @retval     0     OK
- * @retval    -1     Error
- */
-int
-show_yang_revisions(clixon_handle h,
-                    cvec         *cvv,
-                    cvec         *argv)
-{
-    int        retval = -1;
-    char      *cvname = NULL;
-    char      *name = NULL;
-    char      *name1;
-    char      *module;
-    char      *revision;
-    cg_var    *cv;
-    cxobj     *xt = NULL;
-    cxobj     *xerr;
-    cxobj     *xmodset;
-    cxobj     *x;
-    cvec      *nsc = NULL;
-    cbuf      *cb = NULL;
-    cxobj    **vec = NULL;
-    size_t     veclen;
-    int        i;
-
-    if (cvec_len(argv) > 0 &&
-        (cvname = cv_string_get(cvec_i(argv, 0))) != NULL) {
-        if ((cv = cvec_find(cvv, cvname)) != NULL){
-            if ((name = cv_string_get(cv)) == NULL){
-                clixon_err(OE_PLUGIN, EINVAL, "cv name is empty");
-                goto done;
-            }
-        }
-    }
-    if (name == NULL || (strcmp(name, "top") != 0 && strcmp(name, "config") != 0)) {
-        if ((cb = cbuf_new()) == NULL){
-            clixon_err(OE_UNIX, errno, "cbuf_new");
-            goto done;
-        }
-        if ((nsc = xml_nsctx_init(NULL, CONTROLLER_NAMESPACE)) == NULL)
-            goto done;
-        if (xml_nsctx_add(nsc, "yanglib", "urn:ietf:params:xml:ns:yang:ietf-yang-library") < 0)
-            goto done;
-        /* XXX: cannot access yanglib:yang-library/yanglib:module-set directly */
-        if (name)
-            cprintf(cb, "/devices/device[name='%s']/config", name);
-        else
-            cprintf(cb, "/devices/device/config");
-        if (clicon_rpc_get(h, cbuf_get(cb), nsc, CONTENT_ALL, -1, "explicit", &xt) < 0)
-            goto done;
-        if ((xerr = xpath_first(xt, NULL, "/rpc-error")) != NULL){
-            clixon_err_netconf(h, OE_NETCONF, 0, xerr, "Get configuration");
-            goto done;
-        }
-        cprintf(cb, "/yanglib:yang-library/yanglib:module-set");
-        if (xpath_vec(xt, nsc, "%s", &vec, &veclen, cbuf_get(cb)) < 0)
-            goto done;
-        for (i=0; i<veclen; i++){
-            xmodset = vec[i];
-            name1 = xml_find_body(xml_parent(xml_parent(xml_parent(xmodset))), "name");
-            if (name && strcmp(name, name1))
-                continue;
-            cligen_output(stdout, "%s:\n", name1);
-            x = NULL;
-            while ((x = xml_child_each(xmodset, x, CX_ELMNT)) != NULL){
-                if (strcmp(xml_name(x), "module") != 0)
-                    continue;
-                module = xml_find_body(x, "name");
-                revision = xml_find_body(x, "revision");
-                //            namespace = xml_find_body(x, "namespace");
-                if (revision)
-                    cligen_output(stdout, "%s@%s\n", module, revision);
-                else
-                    cligen_output(stdout, "%s\n", module);
-            }
-            if (name == NULL && i<veclen-1)
-                cligen_output(stdout, "\n");
-        }
-    }
-    retval = 0;
- done:
-    if (vec)
-        free(vec);
-    if (cb)
-        cbuf_get(cb);
-    if (nsc)
-        cvec_free(nsc);
-    if (xt)
-        xml_free(xt);
-    return retval;
-}
-
 /*! show device capabilities, subset of state / hello
  *
  * @param[in]  h     Clixon handle
@@ -2531,6 +2434,135 @@ show_device_capability(clixon_handle h,
         cvec_free(nsc);
     if (xt)
         xml_free(xt);
+    return retval;
+}
+
+/*! Show YANG schemas stored on the controller for a device
+ *
+ * Sends get-device-schema RPC to backend.
+ * If module name given: prints schema content.
+ * If no module name: lists all schemas (identifier@revision).
+ * @param[in]  h     Clixon handle
+ * @param[in]  cvv   Vector of command variables (name, module)
+ * @param[in]  argv  argv[0]: cv name for device pattern (optional, default "*")
+ *                   argv[1]: detail flag value (optional, default false)
+ *                   argv[2]: cv name for module identifier (optional)
+ * @retval     0     OK
+ * @retval    -1     Error
+ */
+int
+cli_show_device_schema(clixon_handle h,
+                       cvec         *cvv,
+                       cvec         *argv)
+{
+    int     retval = -1;
+    char   *cvname;
+    char   *devpattern = "*"; /* devices */
+    char   *str;
+    char   *module = NULL;
+    cg_var *cv;
+    cbuf   *cb = NULL;
+    cxobj  *xtop = NULL;
+    cxobj  *xrpc;
+    cxobj  *xret = NULL;
+    cxobj  *xreply;
+    cxobj  *xerr;
+    cxobj  *xschema;
+    char   *modname;
+    char   *modrev;
+    char   *ns;
+    char   *data;
+    char   *group = NULL;
+    int     detail = 0;
+
+    if (cvec_len(argv) > 0 &&
+        (cvname = cv_string_get(cvec_i(argv, 0))) != NULL){
+        if ((cv = cvec_find(cvv, cvname)) != NULL)
+            devpattern = cv_string_get(cv);
+    }
+    if (cvec_len(argv) > 1 &&
+        (str = cv_string_get(cvec_i(argv, 1))) != NULL){
+        detail = strcmp(str, "true") == 0;
+    }
+    if (cvec_len(argv) > 2 &&
+        (cvname = cv_string_get(cvec_i(argv, 2))) != NULL){
+        if ((cv = cvec_find(cvv, cvname)) != NULL)
+            module = cv_string_get(cv);
+    }
+    if ((cv = cvec_find(cvv, "group")) != NULL)
+        group = cv_string_get(cv);
+    if ((cb = cbuf_new()) == NULL){
+        clixon_err(OE_PLUGIN, errno, "cbuf_new");
+        goto done;
+    }
+    cprintf(cb, "<rpc xmlns=\"%s\" username=\"%s\" %s>",
+            NETCONF_BASE_NAMESPACE,
+            clicon_username_get(h),
+            NETCONF_MESSAGE_ID_ATTR);
+    cprintf(cb, "<get-device-schema xmlns=\"%s\">", CONTROLLER_NAMESPACE);
+    if (group != NULL)
+        cprintf(cb, "<device-group>%s</device-group>", devpattern);
+    else
+        cprintf(cb, "<device>%s</device>", devpattern);
+    if (module)
+        cprintf(cb, "<name>%s</name>", module);
+    if (detail)
+        cprintf(cb, "<detail>true</detail>");
+    cprintf(cb, "</get-device-schema>");
+    cprintf(cb, "</rpc>");
+    if (clixon_xml_parse_string(cbuf_get(cb), YB_NONE, NULL, &xtop, NULL) < 0)
+        goto done;
+    xrpc = xml_child_i(xtop, 0);
+    if (clicon_rpc_netconf_xml(h, xrpc, &xret, NULL) < 0)
+        goto done;
+    if ((xreply = xpath_first(xret, NULL, "rpc-reply")) == NULL){
+        clixon_err(OE_CFG, 0, "Malformed rpc reply");
+        goto done;
+    }
+    if ((xerr = xpath_first(xreply, NULL, "rpc-error")) != NULL){
+        clixon_err_netconf(h, OE_XML, 0, xerr, "get-device-schema");
+        goto done;
+    }
+    xschema = NULL;
+    while ((xschema = xml_child_each(xreply, xschema, CX_ELMNT)) != NULL){
+        if (strcmp(xml_name(xschema), "schema") != 0)
+            continue;
+        modname = xml_find_body(xschema, "name");
+        modrev = xml_find_body(xschema, "revision");
+        ns = xml_find_body(xschema, "namespace");
+        data = xml_find_body(xschema, "data");
+        if (data){
+            /* Print schema content */
+            if (strncmp(data, "<![CDATA[", strlen("<![CDATA[")) == 0){
+                /* Remove CDATA */
+                char *start = data + strlen("<![CDATA[");
+                char *end = strstr(start, "]]>");
+                if (end)
+                    *end = '\0';
+                cligen_output(stdout, "%s", start);
+            }
+            else
+                cligen_output(stdout, "%s", data);
+        }
+        else{
+            /* List mode */
+            if (modname && modrev && strlen(modrev) > 0)
+                cligen_output(stdout, "%-40s %s", modname, modrev);
+            else if (modname)
+                cligen_output(stdout, "%s", modname);
+            if (ns)
+                cligen_output(stdout, "  %s", ns);
+            cligen_output(stdout, "\n");
+        }
+    }
+    retval = 0;
+ done:
+    if (cb)
+        cbuf_free(cb);
+    if (xret)
+        xml_free(xret);
+    if (xtop)
+        xml_free(xtop);
     return retval;
 }
 

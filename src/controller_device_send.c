@@ -118,7 +118,7 @@ device_send_get(clixon_handle h,
                 device_handle dh,
                 int           s,
                 int           state,
-                char         *xpath)
+                const char   *xpath)
 {
     int   retval = -1;
     cbuf *cb = NULL;
