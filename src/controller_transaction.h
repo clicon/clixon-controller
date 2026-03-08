@@ -47,6 +47,9 @@
 #define TRANSACTION_MAX_NR 100
 
 /*! Clixon controller distributed transactions spanning device operation
+ *
+ * Note ct_devdata stores RPC replies and may consume large amount of memory
+ * Is GC:d in controller_transaction_periodic
  */
 struct controller_transaction_t{
     qelem_t            ct_qelem;         /* List header */
@@ -69,6 +72,7 @@ struct controller_transaction_t{
     char              *ct_warning;       /* Warning, first encountered */
     struct timeval     ct_timestamp0;    /* Timestamp when created */
     struct timeval     ct_timestamp;     /* Timestamp when entering current state */
+    cvec              *ct_devices;       /* List of device name partaking in transaction */
     cxobj             *ct_devdata;       /* Generic device data, eg CS_RPC_GENERIC */
 };
 typedef struct controller_transaction_t controller_transaction;
@@ -107,6 +111,7 @@ int   controller_transaction_done(clixon_handle h, controller_transaction *ct, t
 controller_transaction *controller_transaction_find(clixon_handle h, const uint64_t id);
 controller_transaction *controller_transaction_find_bystate(clixon_handle h, int neg, transaction_state state);
 int   controller_transaction_nr_devices(clixon_handle h, uint64_t tid);
+int   controller_transaction_device_add(controller_transaction *ct, const char *name);
 int   controller_transaction_failed_fn(clixon_handle h, const char *func, const int line,
                                        uint64_t tid, controller_transaction *ct, device_handle dh,
                                        tr_failed_devclose devclose, char *origin, char *reason);

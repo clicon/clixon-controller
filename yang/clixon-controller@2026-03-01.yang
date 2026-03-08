@@ -40,6 +40,7 @@ module clixon-controller {
     revision 2026-03-01 {
         description
             "Added rpc get-device-schema
+             Added device list to transaction state
              Added stable-timestamp to device state
              Released in 1.8.0";
     }
@@ -536,6 +537,11 @@ module clixon-controller {
                 "List of data from devices as replies from a device rpc or state request.
                  This data can be very large and has some special handling ncluding that it
                  is not sent in notifications, a client must request it via a state request";
+            leaf-list device{
+                type string;
+                description
+                    "List of device names involved in the transaction";
+            }
             list devdata {
                 description
                     "Replies from device, can be rpc reply for rpc-template transaction";

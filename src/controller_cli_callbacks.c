@@ -609,7 +609,7 @@ transaction_notification_poll(clixon_handle       h,
     return retval;
 }
 
-/*! Query backend if transaction exists. call this before polling, optinal get result
+/*! Query backend if transaction exists. call this before polling, optional get result
  *
  * @param[in]  h       Clixon handle
  * @param[in]  tidstr  Transaction id
@@ -625,9 +625,10 @@ transaction_exist(clixon_handle h,
 {
     int    retval = -1;
     cxobj *xn = NULL; /* XML of transactions */
+    cxobj *xtn;
+    cxobj *xdevs;
     cxobj *xerr;
     cvec  *nsc = NULL;
-    cxobj *xdevdata;
     cbuf  *cb = NULL;
 
     if ((nsc = xml_nsctx_init("co", CONTROLLER_NAMESPACE)) == NULL)
@@ -643,10 +644,12 @@ transaction_exist(clixon_handle h,
         clixon_err_netconf(h, OE_XML, 0, xerr, "Get transactions");
         goto done;
     }
-    if (xpath_first(xn, nsc, "transactions/transaction[tid='%s']", tidstr) != NULL){
-        if (devices && (xdevdata = xpath_first(xn, nsc, "transactions/transaction[tid='%s']/devices", tidstr)) != NULL){
-            xml_rm(xdevdata);
-            *devices = xdevdata;
+    if ((xtn = xpath_first(xn, nsc, "transactions/transaction[tid='%s']", tidstr)) != NULL){
+        if (devices && (xdevs = xml_find_type(xtn, NULL, "devices", CX_ELMNT))){
+            if (xml_find_type(xdevs, NULL, "devdata", CX_ELMNT) != NULL){
+                xml_rm(xdevs);
+                *devices = xdevs;
+            }
         }
         retval = 1;
     }
@@ -1489,11 +1492,89 @@ cli_show_services_process(clixon_handle h,
     return retval;
 }
 
+/*! Show one transaction
+ *
+ * @param[in]  xc  XML transaction
+ */
+static int
+show_transaction_one(cxobj *xc)
+{
+    int            retval = -1;
+    cbuf          *cb = NULL;
+    char          *tid;
+    char          *description;
+    char          *state;
+    char          *result;
+    char          *reason;
+    char          *timestamp0;
+    char          *timestamp;
+    char           desc_truncated[41] = {0,};
+    char           duration_str[26] = {0,};
+    struct timeval tv0;
+    struct timeval tv1;
+    struct timeval tvdiff;
+
+    tid = xml_find_body(xc, "tid");
+    description = xml_find_body(xc, "description");
+    state = xml_find_body(xc, "state");
+    result = xml_find_body(xc, "result");
+    reason = xml_find_body(xc, "reason");
+    timestamp0 = xml_find_body(xc, "timestamp0");
+    timestamp = xml_find_body(xc, "timestamp");
+    /* Truncate description to 40 chars */
+    if (description){
+        strncpy(desc_truncated, description, sizeof(desc_truncated)-1);
+    }
+    else
+        strcpy(desc_truncated, "-");
+    /* Calculate duration */
+    if (timestamp0 && timestamp){
+        if (str2time(timestamp0, &tv0) == 0 &&
+            str2time(timestamp, &tv1) == 0){
+            timersub(&tv1, &tv0, &tvdiff);
+            snprintf(duration_str, sizeof(duration_str)-1, "%5ld.%03lds",
+                     tvdiff.tv_sec%10000, tvdiff.tv_usec/1000);
+        }
+        else
+            strcpy(duration_str, "-");
+    }
+    else
+        strcpy(duration_str, "-");
+        /* Calculate duration */
+    if ((cb = cbuf_new()) == NULL){
+        clixon_err(OE_UNIX, errno, "cbuf_new");
+        goto done;
+    }
+    if (timestamp0 && timestamp){
+        if (str2time(timestamp0, &tv0) == 0 &&
+            str2time(timestamp, &tv1) == 0){
+            timersub(&tv1, &tv0, &tvdiff);
+            cprintf(cb, "%ld.%03ld", tvdiff.tv_sec%10000, tvdiff.tv_usec/1000);
+        }
+        else
+            cprintf(cb, "-");
+    }
+    else
+        cprintf(cb, "-");
+    cligen_output(stdout, "%7s %-40s %-10s %-10s %10s %s\n",
+                  tid?tid:"-",
+                  desc_truncated,
+                  state?state:"-",
+                  result?result:"-",
+                  cbuf_get(cb),
+                  reason?reason:"-");
+    retval = 0;
+ done:
+    if (cb)
+        cbuf_free(cb);
+    return retval;
+}
+
 /*! Show controller device states
  *
  * @param[in] h
  * @param[in] cvv
- * @param[in] argv : "last" or "all"
+ * @param[in] argv : "last", "all", "brief"
  * @retval    0    OK
  * @retval   -1    Error
  */
@@ -1505,25 +1586,16 @@ cli_show_transactions(clixon_handle h,
     int                retval = -1;
     cvec              *nsc = NULL;
     cxobj             *xc;
+    cxobj             *xt;
     cxobj             *xerr;
-    cbuf              *cb = NULL;
     cxobj             *xn = NULL; /* XML of transactions */
-    cg_var            *cv;
-    int                all = 0;
+    int                all;
+    int                detail;
+    int                nr;
+    int                i;
 
-    if (argv == NULL || cvec_len(argv) != 1){
-        clixon_err(OE_PLUGIN, EINVAL, "requires argument: <operation>");
-        goto done;
-    }
-    if ((cv = cvec_i(argv, 0)) == NULL){
-        clixon_err(OE_PLUGIN, 0, "Error when accessing argument <all>");
-        goto done;
-    }
-    all = strcmp(cv_string_get(cv), "all")==0;
-    if ((cb = cbuf_new()) == NULL){
-        clixon_err(OE_PLUGIN, errno, "cbuf_new");
-        goto done;
-    }
+    all = cvec_find(cvv, "all") != NULL;
+    detail = cvec_find(cvv, "detail") != NULL;
     /* Get config */
     if ((nsc = xml_nsctx_init("co", CONTROLLER_NAMESPACE)) == NULL)
         goto done;
@@ -1533,23 +1605,52 @@ cli_show_transactions(clixon_handle h,
         clixon_err_netconf(h, OE_XML, 0, xerr, "Get transactions");
         goto done;
     }
-    /* Change top from "data" to "devices" */
+    /* Change top from "data" to "transactions" */
     if ((xc = xml_find_type(xn, NULL, "transactions", CX_ELMNT)) != NULL){
         if (xml_rootchild_node(xn, xc) < 0)
             goto done;
         xn = xc;
-        if (all){
-            xn = xc;
-            xc = NULL;
-            while ((xc = xml_child_each(xn, xc, CX_ELMNT)) != NULL) {
-                if (clixon_xml2file(stdout, xc, 0, 1, NULL, cligen_output, 0, 1) < 0)
-                    goto done;
+        if (detail){
+            /* Detail mode: show full XML */
+            if (all){
+                nr = xml_child_nr_type(xn, CX_ELMNT);
+                for (i = nr; i > 0; i--){
+                    if ((xc = xml_child_i(xn, i)) != NULL){
+                        if (clixon_xml2file(stdout, xc, 0, 1, NULL, cligen_output, 0, 1) < 0)
+                            goto done;
+                    }
+                }
+            }
+            else{
+                if ((xc = xml_child_i(xn, xml_child_nr(xn) - 1)) != NULL){
+                    if (clixon_xml2file(stdout, xc, 0, 1, NULL, cligen_output, 0, 1) < 0)
+                        goto done;
+                }
             }
         }
         else{
-            if ((xc = xml_child_i(xn, xml_child_nr(xn) - 1)) != NULL){
-                if (clixon_xml2file(stdout, xc, 0, 1, NULL, cligen_output, 0, 1) < 0)
-                    goto done;
+            /* Brief mode: show table */
+            cligen_output(stdout, "%7s %-40s %-10s %-10s %12s %s\n",
+                          "TID", "Description", "State", "Result", "Time[s]", "Reason");
+            cligen_output(stdout, "%7s %-40s %-10s %-10s %10s %s\n",
+                          "-------", "----------------------------------------",
+                          "----------", "----------", "------------",
+                          "------------------------------");
+
+            if (all){
+                nr = xml_child_nr_type(xn, CX_ELMNT);
+                for (i = nr; i > 0; i--){
+                    if ((xc = xml_child_i(xn, i)) != NULL){
+                        if (show_transaction_one(xc) < 0)
+                            goto done;
+                    }
+                }
+            }
+            else{
+                if ((xt = xml_child_i(xn, xml_child_nr(xn) - 1)) != NULL){
+                    if (show_transaction_one(xt) < 0)
+                        goto done;
+                }
             }
         }
     }
@@ -1559,8 +1660,6 @@ cli_show_transactions(clixon_handle h,
         cvec_free(nsc);
     if (xn)
         xml_free(xn);
-    if (cb)
-        cbuf_free(cb);
     return retval;
 }
 

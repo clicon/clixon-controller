@@ -90,9 +90,9 @@ show("Show a particular state of the system"){
           @|pipe_common, cli_show_statistics("backend");
        }
     }
-    transactions("Show state of last transaction"), cli_show_transactions("last");{
-         last("Last most recent transactions"), cli_show_transactions("last");
-         all("All transactions"), cli_show_transactions("all");
+    transactions("Show state of last transaction"){
+      [<detail:string keyword:detail>] [<all:string keyword:all>], cli_show_transactions();
+         @|pipe_show, cli_show_transactions();
     }
     version("Show version"), cli_controller_show_version();
     xpath("Show configuration") <xpath:string>("XPATH expression")

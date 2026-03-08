@@ -287,13 +287,13 @@ expectpart "$(curl $CURLOPTS --key $certdir/andy.key --cert $certdir/andy.crt -X
 new "Apply service as Andy, should be denied"
 expectpart "$(curl $CURLOPTS --key $certdir/andy.key --cert $certdir/andy.crt -X POST -H "Content-Type: application/yang-data+json" $RCPROTO://localhost/restconf/operations/clixon-controller:controller-commit -d "${DATA}")" 0 "HTTP/$HVER 200" 'Content-Type: application/yang-data+json'
 new "Apply service as Andy, should be denied"
-expectpart "$($clixon_cli -1 -f $CFG -E $CFD show transactions last)" 0 ".*access denied.*"
+expectpart "$($clixon_cli -1 -f $CFG -E $CFD show transactions detail)" 0 ".*access denied.*"
 
 new "Apply service again as Bob, should be denied"
 expectpart "$(curl $CURLOPTS --key $certdir/bob.key --cert $certdir/bob.crt -X POST -H "Content-Type: application/yang-data+json" $RCPROTO://localhost/restconf/operations/clixon-controller:controller-commit -d "${DATA}")" 0 "HTTP/$HVER 200" 'Content-Type: application/yang-data+json'
 
 new "Check with cli"
-expectpart "$($clixon_cli -1 -f $CFG -E $CFD show transactions last)" 0 ".*SUCCESS.*"
+expectpart "$($clixon_cli -1 -f $CFG -E $CFD show transactions detail)" 0 ".*SUCCESS.*"
 
 new "Permit Andy to run service"
 expectpart "$($clixon_cli -1 -f $CFG -E $CFD -m configure set nacm rule-list test-rules rule test-rule access-operations \*)" 0 ""
@@ -307,7 +307,7 @@ new "Permit Andy to run service"
 expectpart "$(curl $CURLOPTS --key $certdir/andy.key --cert $certdir/andy.crt -X POST -H "Content-Type: application/yang-data+json" $RCPROTO://localhost/restconf/operations/clixon-controller:controller-commit -d "${DATA}")" 0 "HTTP/$HVER 200" 'Content-Type: application/yang-data+json'
 
 new "Check with cli"
-expectpart "$($clixon_cli -1 -f $CFG -E $CFD show transactions last)" 0 ".*SUCCESS.*" --not-- ".*access denied.*"
+expectpart "$($clixon_cli -1 -f $CFG -E $CFD show transactions detail)" 0 ".*SUCCESS.*" --not-- ".*access denied.*"
 
 # Kill clixon_restconf
 if $RC; then

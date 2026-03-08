@@ -446,7 +446,7 @@ kill $PID 2> /dev/null
 
 fi
 
-new "Get rpc transaction result" # XXX harcoded to transaction 8, may change if test ^ changes
+new "Get rpc transaction result" # XXX hardcoded to transaction 8, may change if test ^ changes
 expectpart "$(curl $CURLOPTS -H "Accept: application/yang-data+json" -X GET $RCPROTO://localhost/restconf/data/clixon-controller:transactions/transaction=8)" 0 "HTTP/$HVER 200" '{"clixon-controller:transaction":\[{"tid":"[0-9]*",'
 #expectpart "$(curl $CURLOPTS -H "Accept: application/yang-data+json" -X GET $RCPROTO://localhost/restconf/data/clixon-controller:transactions/transaction=8)" 0 "HTTP/$HVER 200" '{"clixon-controller:"transaction":\[{"tid":"[0-9]+","username":"[a-zA-Z0-9]*","result":"SUCCESS","devices":{"devdata":\[{"name":"openconfig1","data":{"global":{"xmlnr":'
 
@@ -521,7 +521,7 @@ new "Get state using device rpc get JSON"
 sleep 1 && expectpart "$(curl $CURLOPTS -X POST -H "Content-Type: application/yang-data+json" $RCPROTO://localhost/restconf/operations/clixon-controller:device-rpc -d '{"clixon-controller:input":{"device":"openconfig*","config":{"ietf-netconf:get":null}}}')" 0 "HTTP/$HVER 200" 'Content-Type: application/yang-data+json' '{"clixon-controller:output":{"tid":"[0-9:.]*"}}' &
 PID=$!
 
-new "Wait for notification timeout:${TIMEOUT}s XXX"
+new "Wait for notification timeout:${TIMEOUT}s"
 ret=$(curl $CURLOPTS -X GET -H "Accept: text/event-stream" -H "Cache-Control: no-cache" -H "Connection: keep-alive" $RCPROTO://localhost/streams/controller-transaction)
 #echo "ret:$ret"
 expect="data: <notification xmlns=\"urn:ietf:params:xml:ns:netconf:notification:1.0\"><eventTime>${DATE}T[0-9:.]*Z</eventTime><controller-transaction xmlns=\"http://clicon.org/controller\"><tid>[0-9:.]*</tid><username>[a-zA-Z0-9]*</username><result>SUCCESS</result></controller-transaction></notification>"
@@ -571,7 +571,7 @@ expectpart "$(curl $CURLOPTS -X DELETE $RCPROTO://localhost/restconf/data/clixon
 new "restconf POST across device mtpoint json 2"
 expectpart "$(curl $CURLOPTS -X POST -H "Content-Type: application/yang-data+json" $RCPROTO://localhost/restconf/data/clixon-controller:devices/device=openconfig1 -d '{"clixon-controller:config":{"openconfig-interfaces:interfaces":{"interface":{"name":"x","config":{"name":"x","type":"iana-if-type:ethernetCsmacd","description":"My description"}}}}}')" 0 "HTTP/$HVER 201" "location:"
 
-new "restconf check connection OPEN XXX"
+new "restconf check connection OPEN"
 expectpart "$(curl $CURLOPTS -H "Accept: application/yang-data+json" -X GET $RCPROTO://localhost/restconf/data/clixon-controller:devices/device=openconfig1/conn-state)" 0 "HTTP/$HVER 200" '{"clixon-controller:conn-state":"OPEN"}'
 
 new "restconf DELETE to make room for POST 3"

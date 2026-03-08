@@ -553,6 +553,8 @@ controller_transaction_free1(controller_transaction *ct)
         free(ct->ct_warning);
     if (ct->ct_sourcedb)
         free(ct->ct_sourcedb);
+    if (ct->ct_devices)
+        cvec_free(ct->ct_devices);
     if (ct->ct_devdata)
         xml_free(ct->ct_devdata);
     free(ct);
@@ -731,6 +733,35 @@ controller_transaction_nr_devices(clixon_handle h,
             nr++;
     }
     return nr;
+}
+
+/*! Add device name to transation struct
+ *
+ * @param[in] ct   Transaction
+ * @param[in] name Device name
+ * @retval    0    OK
+ * @retval   -1    Error
+ */
+int
+controller_transaction_device_add(controller_transaction *ct,
+                                  const char             *name)
+{
+    int retval = -1;
+
+    if (ct->ct_devices == NULL){
+        if ((ct->ct_devices = cvec_new(0)) == NULL){
+            clixon_err(OE_UNIX, errno, "cvec_new");
+            goto done;
+        }
+    }
+    if (cvec_find(ct->ct_devices, name) == NULL)
+        if (cvec_add_string(ct->ct_devices, name, NULL) < 0){
+            clixon_err(OE_UNIX, errno, "cvec_add_string");
+            goto done;
+        }
+    retval = 0;
+ done:
+    return retval;
 }
 
 /*! A controller transaction (device) has failed
@@ -967,8 +998,11 @@ controller_transaction_statedata(clixon_handle   h,
                 xml_chardata_cbuf_append(cb, 0, ct->ct_reason);
                 cprintf(cb, "</reason>");
             }
-            if (ct->ct_devdata){
+            if (ct->ct_devdata || ct->ct_devices){
+                cg_var *cv = NULL;
                 cprintf(cb, "<devices>");
+                while ((cv = cvec_each(ct->ct_devices, cv)) != NULL)
+                    cprintf(cb, "<device>%s</device>", cv_name_get(cv));
                 if (clixon_xml2cbuf1(cb, ct->ct_devdata, 0, 0, NULL, -1, 1, 0, WITHDEFAULTS_REPORT_ALL) < 0)
                     goto done;
                 cprintf(cb, "</devices>");
