@@ -15,8 +15,10 @@ Expected: May 2026
 
 ### New features
 
+* Changed CLI show connections timestamp to last stable state
 * New `clixon-controller@2026-03-01.yang` revision
   * Add rpc get-device-schema
+  * Added stable-timestamp to device state
 * Added CLI command: `show device yang schema`
 
 ## 1.7.0

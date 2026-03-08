@@ -1244,7 +1244,7 @@ show_connections_pretty(clixon_handle h,
         cligen_output(stdout, "%-24s",  name);
         state = xml_find_body(xc, "conn-state");
         cligen_output(stdout, "%-11s",  state?state:"");
-        if ((timestamp = xml_find_body(xc, "conn-state-timestamp")) != NULL){
+        if ((timestamp = xml_find_body(xc, "stable-timestamp")) != NULL){
             /* Remove 6 us digits */
             if ((p = rindex(timestamp, '.')) != NULL)
                 *p = '\0';
@@ -1393,7 +1393,7 @@ cli_show_connections(clixon_handle h,
     else{
         /* Avoid including moint-point which triggers a lot of extra traffic */
         if (clicon_rpc_get(h,
-                           "co:devices/co:device/co:name | co:devices/co:device/co:conn-state | co:devices/co:device/co:conn-state-timestamp | co:devices/co:device/co:logmsg",
+                           "co:devices/co:device/co:name | co:devices/co:device/co:conn-state | co:devices/co:device/co:stable-timestamp | co:devices/co:device/co:logmsg",
                            nsc, CONTENT_ALL, -1, "explicit", &xn) < 0)
             goto done;
     }

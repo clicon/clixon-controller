@@ -40,6 +40,7 @@ module clixon-controller {
     revision 2026-03-01 {
         description
             "Added rpc get-device-schema
+             Added stable-timestamp to device state
              Released in 1.8.0";
     }
     revision 2025-12-01 {
@@ -532,7 +533,7 @@ module clixon-controller {
         }
         container devices {
             description
-                "List of data from devices as replies frm a device rpc or state request.
+                "List of data from devices as replies from a device rpc or state request.
                  This data can be very large and has some special handling ncluding that it
                  is not sent in notifications, a client must request it via a state request";
             list devdata {
@@ -706,6 +707,20 @@ module clixon-controller {
                 config false;
                 type yang:date-and-time;
             }
+            leaf sync-timestamp {
+                description "Timestamp of last device synchronization";
+                config false;
+                type yang:date-and-time;
+            }
+            leaf stable-timestamp {
+                description
+                    "Timestamp of last entering stable state after connection transition.
+                     That is, only after connect state machine (connecting->schema->sync->open) or (open->close)
+                     Ignore push or rpc state machine
+                     This gives the time when a device was connected or closed, not intermediate push/pull/rpc";
+                config false;
+                type yang:date-and-time;
+            }
             container capabilities {
                 description
                     "May be duplicate if netconf-monitoring is implemented?";
@@ -715,11 +730,6 @@ module clixon-controller {
                     description
                         "List of NETCONF capabilities supported by the server.";
                 }
-            }
-            leaf sync-timestamp {
-                description "Timestamp of last device synchronization";
-                config false;
-                type yang:date-and-time;
             }
             leaf logmsg {
                 config false;

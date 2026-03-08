@@ -1080,6 +1080,9 @@ device_state_check_ok(clixon_handle           h,
     }
     if (device_state_set(dh, CS_OPEN) < 0)
         goto done;
+    /* See rpc_connection_change where the description is set */
+    if (ct->ct_description && strcmp(ct->ct_description, "Controller connect OPEN") == 0)
+        device_handle_stable_time_set(dh, NULL);
     /* 2.2.2.1 Leave transaction */
     device_handle_tid_set(dh, 0);
     /* 2.2.2.2 If no devices in transaction, mark as OK and close it*/
@@ -2172,17 +2175,26 @@ devices_statedata(clixon_handle   h,
             }
             cprintf(cb, "</capabilities>");
         }
+        tv.tv_sec = 0;
         device_handle_conn_time_get(dh, &tv);
         if (tv.tv_sec != 0){
             if (time2str(&tv, timestr, sizeof(timestr)) < 0)
                 goto done;
             cprintf(cb, "<conn-state-timestamp>%s</conn-state-timestamp>", timestr);
         }
+        tv.tv_sec = 0;
         device_handle_sync_time_get(dh, &tv);
         if (tv.tv_sec != 0){
             if (time2str(&tv, timestr, sizeof(timestr)) < 0)
                 goto done;
             cprintf(cb, "<sync-timestamp>%s</sync-timestamp>", timestr);
+        }
+        tv.tv_sec = 0;
+        device_handle_stable_time_get(dh, &tv);
+        if (tv.tv_sec != 0){
+            if (time2str(&tv, timestr, sizeof(timestr)) < 0)
+                goto done;
+            cprintf(cb, "<stable-timestamp>%s</stable-timestamp>", timestr);
         }
         if ((logmsg = device_handle_logmsg_get(dh)) != NULL){
             cprintf(cb, "<logmsg>");
