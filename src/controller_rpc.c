@@ -3841,6 +3841,67 @@ controller_edit_config(clixon_handle h,
     return retval;
 }
 
+/*! Controller wrapper of clixon-lib stats RPC
+ *
+ * This takes over / overrides the clixon callback
+ * @param[in]  h       Clixon handle
+ * @param[in]  xn      Request: <rpc><xn></rpc>
+ * @param[out] cbret   Return xml tree, eg <rpc-reply>..., <rpc-error..
+ * @param[in]  arg     client-entry
+ * @param[in]  regarg  User argument given at rpc_callback_register()
+ * @retval     0       OK
+ * @retval    -1       Error
+ * @see from_client_stats
+ */
+int
+controller_clixon_stats(clixon_handle h,
+                        cxobj        *xe,
+                        cbuf         *cbret,
+                        void         *arg,
+                        void         *regarg)
+{
+    int            retval = -1;
+    char          *str;
+    int            modules = 0;
+    xml_stats_enum xml_type = XML_STATS_ALL;
+    uint64_t       nr;
+    size_t         sz;
+
+    if ((str = xml_find_body(xe, "modules")) != NULL)
+        modules = strcmp(str, "true") == 0;
+    if ((str = xml_find_body(xe, "xml-type")) != NULL)
+        xml_type = xml_stats_str2type(str);
+    cprintf(cbret, "<rpc-reply xmlns=\"%s\">", NETCONF_BASE_NAMESPACE);
+    if (clixon_backend_stats(h, modules, xml_type, cbret) < 0)
+        goto done;
+    if (xml_type == XML_STATS_ALL){
+        nr = 0;
+        sz = 0;
+        if (controller_transaction_stats(h, xml_type, &nr, &sz) < 0)
+            goto done;
+        if (nr){
+            cprintf(cbret, "<transactions xmlns=\"%s\">", CONTROLLER_NAMESPACE);
+            cprintf(cbret, "<nr>%" PRIu64 "</nr>", nr);
+            cprintf(cbret, "<size>%" PRIu64 "</size>", sz);
+            cprintf(cbret, "</transactions>");
+        }
+        nr = 0;
+        sz = 0;
+        if (device_handle_stats(h, &nr, &sz) < 0)
+            goto done;
+        if (nr){
+            cprintf(cbret, "<devices xmlns=\"%s\">", CONTROLLER_NAMESPACE);
+            cprintf(cbret, "<nr>%" PRIu64 "</nr>", nr);
+            cprintf(cbret, "<size>%" PRIu64 "</size>", sz);
+            cprintf(cbret, "</devices>");
+        }
+    }
+    cprintf(cbret, "</rpc-reply>");
+    retval = 0;
+ done:
+    return retval;
+}
+
 /*! Register callback for rpc calls
  */
 int
@@ -3918,6 +3979,12 @@ controller_rpc_init(clixon_handle h)
                               NULL,
                               NETCONF_BASE_NAMESPACE,
                               "edit-config"
+                              ) < 0)
+        goto done;
+    if (rpc_callback_register(h, controller_clixon_stats,
+                              NULL,
+                              CLIXON_LIB_NS,
+                              "stats"
                               ) < 0)
         goto done;
     retval = 0;

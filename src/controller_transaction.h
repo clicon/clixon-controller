@@ -119,6 +119,7 @@ int   controller_transaction_wait(clixon_handle h, uint64_t tid);
 int   controller_transaction_wait_trigger(clixon_handle h, uint64_t tid, int commit);
 int   controller_transaction_statedata(clixon_handle h, cvec *nsc, char *xpath, cxobj *xstate);
 int   controller_transaction_periodic(clixon_handle h);
+int   controller_transaction_stats(clixon_handle h, xml_stats_enum xml_type, uint64_t *nrp, size_t *szp);
 
 #ifdef __cplusplus
 }

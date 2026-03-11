@@ -1573,8 +1573,8 @@ show_transaction_one(cxobj *xc)
 /*! Show controller device states
  *
  * @param[in] h
- * @param[in] cvv
- * @param[in] argv : "last", "all", "brief"
+ * @param[in] cvv  Keywords could be "detail", "all"
+ * @param[in] argv
  * @retval    0    OK
  * @retval   -1    Error
  */

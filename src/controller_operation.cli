@@ -79,16 +79,9 @@ show("Show a particular state of the system"){
        @|pipe_show, cli_show_auto_mode("running", "xml", true, true);
        @datamodelstate, cli_show_auto_devs("running", "pipe-xml-default", true, true, "explicit", "set ", true);
     }
-    memory("Show memory usage"), cli_show_statistics("all");{
-       cli, cli_show_statistics("cli");{
-          detail, cli_show_statistics("cli", "detail");{
-             @|pipe_common, cli_show_statistics("cli", "detail");
-          }
-       }
-       backend, cli_show_statistics("backend"); {
-          detail, cli_show_statistics("backend", "detail");
-          @|pipe_common, cli_show_statistics("backend");
-       }
+    memory("Show memory usage"){
+      [<detail:string keyword:detail>] [<cli:string keyword:cli>]  [<backend:string keyword:backend>], cli_show_statistics();
+         @|pipe_common, cli_show_statistics();
     }
     transactions("Show state of last transaction"){
       [<detail:string keyword:detail>] [<all:string keyword:all>], cli_show_transactions();

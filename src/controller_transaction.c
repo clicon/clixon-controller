@@ -1088,3 +1088,59 @@ controller_transaction_periodic(clixon_handle  h)
     }
     return 0;
 }
+
+/*! Return statistics of transactions
+ *
+ * @param[in]   h        Clixon handle
+ * @param[in]   xml_type XML stats type
+ * @param[out]  nrp      Number of transactions
+ * @param[out]  szp      Size of all transactions
+ * @retval      0        OK
+ * @retval     -1        Error
+ * @see xml_stats
+ */
+int
+controller_transaction_stats(clixon_handle  h,
+                             xml_stats_enum xml_type,
+                             uint64_t      *nrp,
+                             size_t        *szp)
+{
+    int                     retval = -1;
+    controller_transaction *ct_list = NULL;
+    controller_transaction *ct;
+    uint64_t                nr = 0;
+    size_t                  sz = 0;
+
+    clicon_ptr_get(h, "controller-transaction-list", (void**)&ct_list);
+    if ((ct = ct_list) != NULL)
+        do {
+            nr++;
+            sz += sizeof(controller_transaction);
+            if (ct->ct_username)
+                sz += strlen(ct->ct_username)+1;
+            if (ct->ct_sourcedb)
+                sz += strlen(ct->ct_sourcedb)+1;
+            if (ct->ct_description)
+                sz += strlen(ct->ct_description)+1;
+            if (ct->ct_origin)
+                sz += strlen(ct->ct_origin)+1;
+            if (ct->ct_reason)
+                sz += strlen(ct->ct_reason)+1;
+            if (ct->ct_warning)
+                sz += strlen(ct->ct_warning)+1;
+            if (ct->ct_devices)
+                sz += cvec_size(ct->ct_devices)*sizeof(char *);
+            if (ct->ct_devdata){
+                if (xml_stats(ct->ct_devdata, xml_type, NULL, &sz) < 0)
+                    goto done;
+            }
+            ct = NEXTQ(controller_transaction *, ct);
+        } while (ct && ct != ct_list);
+    if (nrp)
+        *nrp += nr;
+    if (szp)
+        *szp += sz;
+    retval = 0;
+ done:
+    return retval;
+}

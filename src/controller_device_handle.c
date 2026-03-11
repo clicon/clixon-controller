@@ -1236,3 +1236,59 @@ device_handle_outmsg_set(device_handle dh,
     }
     return 0;
 }
+
+/*! Return statistics of device handles
+ *
+ * @param[in]   h        Clixon handle
+ * @param[out]  nrp      Number of trasactions
+ * @param[out]  szp      Size of all transactions
+ * @retval      0        OK
+ * @retval     -1        Error
+ * @see xml_stats
+ */
+int
+device_handle_stats(clixon_handle  h,
+                    uint64_t      *nrp,
+                    size_t        *szp)
+{
+    int                              retval = -1;
+    struct controller_device_handle *cdh;
+    struct controller_device_handle *cdh_list = NULL;
+    uint64_t                         nr = 0;
+    size_t                           sz = 0;
+
+    clicon_ptr_get(h, "client-list", (void**)&cdh_list);
+    if ((cdh = cdh_list) != NULL)
+        do {
+            nr++;
+            sz += sizeof(struct controller_device_handle);
+            if (cdh->cdh_name)
+                sz += strlen(cdh->cdh_name)+1;
+            if (cdh->cdh_frame_buf)
+                sz += cbuf_buflen(cdh->cdh_frame_buf);
+            if (cdh->cdh_xcaps)
+                xml_stats(cdh->cdh_xcaps, XML_STATS_ALL, NULL, &sz);
+            if (cdh->cdh_yang_lib)
+                xml_stats(cdh->cdh_yang_lib, XML_STATS_ALL, NULL, &sz);
+            if (cdh->cdh_schema_name)
+                sz += strlen(cdh->cdh_schema_name)+1;
+            if (cdh->cdh_schema_rev)
+                sz += strlen(cdh->cdh_schema_rev)+1;
+            if (cdh->cdh_logmsg)
+                sz += strlen(cdh->cdh_logmsg)+1;
+            if (cdh->cdh_domain)
+                sz += strlen(cdh->cdh_domain)+1;
+            if (cdh->cdh_outmsg1)
+                sz += cbuf_buflen(cdh->cdh_outmsg1);
+            if (cdh->cdh_outmsg2)
+                sz += cbuf_buflen(cdh->cdh_outmsg2);
+            cdh = NEXTQ(struct controller_device_handle *, cdh);
+        } while (cdh && cdh != cdh_list);
+    if (nrp)
+        *nrp += nr;
+    if (szp)
+        *szp += sz;
+    retval = 0;
+    //done:
+    return retval;
+}

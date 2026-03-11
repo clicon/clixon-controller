@@ -42,6 +42,7 @@ module clixon-controller {
             "Added rpc get-device-schema
              Added device list to transaction state
              Added stable-timestamp to device state
+             Added memory statistics to rpc clixon-stats
              Released in 1.8.0";
     }
     revision 2025-12-01 {
@@ -850,6 +851,34 @@ module clixon-controller {
             "A transaction has been completed.
              See also non-config transaction container";
         uses transaction-common;
+    }
+    augment "/cl:stats/cl:output" {
+        description
+            "Controller-specific backend statistics";
+        container transactions{
+            description
+                "Controller transaction statistics";
+            leaf nr {
+                description "Number of transactions";
+                type uint64;
+            }
+            leaf size {
+                description "Size in bytes of all transactions";
+                type uint64;
+            }
+        }
+        container devices{
+            description
+                "Controller device-handle / connection statistics";
+            leaf nr {
+                description "Number of device handles";
+                type uint64;
+            }
+            leaf size {
+                description "Size in bytes of all device connections";
+                type uint64;
+            }
+        }
     }
     rpc config-pull {
         description

@@ -21,6 +21,7 @@ Expected: May 2026
   * Add rpc get-device-schema
   * Added device list to transaction state
   * Added stable-timestamp to device state
+  * Added memory statistics to rpc clixon-stats
 * Added CLI command: `show device yang schema`
 
 ## 1.7.0
