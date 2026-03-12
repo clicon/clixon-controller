@@ -776,7 +776,11 @@ clixon_plugin_init(clixon_handle h)
         goto done;
     /* Set explicit debug limit */
     clixon_debug_explicit_trunc_set(320);
-
+    /* Remove any old transient or synced datastores */
+    if (xmldb_delete_pattern(h, "^device-.*-TRANSIENT" ) < 0)
+        goto done;
+    if (xmldb_delete_pattern(h, "^device-.*-SYNCED" ) < 0)
+        goto done;
     return &api;
  done:
     return NULL;

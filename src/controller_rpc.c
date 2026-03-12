@@ -2491,13 +2491,13 @@ datastore_diff_device(clixon_handle      h,
         clixon_err(OE_UNIX, errno, "cbuf_new");
         goto done;
     }
-    cprintf(cbret, "<rpc-reply xmlns=\"%s\">", NETCONF_BASE_NAMESPACE);
     if (xmldb_get_cache(h, "running", &xret, NULL) < 0)
         goto done;
     if (datastore_diff_nacm_read(h, xret, NULL) < 0)
         goto done;
     if (devvec_create(h, pattern, xret, nsc, groups, &devvec) < 0)
         goto done;
+    cprintf(cbret, "<rpc-reply xmlns=\"%s\">", NETCONF_BASE_NAMESPACE);
     cv = NULL;
     while ((cv = cvec_each(devvec, cv)) != NULL){
         xdev = cv_void_get(cv);

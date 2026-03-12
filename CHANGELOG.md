@@ -15,6 +15,7 @@ Expected: May 2026
 
 ### New features
 
+* Remove old transient or synced datastores at start
 * Changed CLI show transaction output to a table
 * Changed CLI show connections timestamp to last stable state
 * New `clixon-controller@2026-03-01.yang` revision
