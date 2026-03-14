@@ -180,6 +180,7 @@ device_handle_new(clixon_handle h,
     cdh->cdh_socket = -1;
     cdh->cdh_sockerr = -1;
     cdh->cdh_conn_state = CS_CLOSED;
+    cdh->cdh_flags = DH_FLAG_YANG_ANNOUNCE_LATEST; /* Default to announce latest yangs */
     if ((cdh->cdh_name = strdup(name)) == NULL){
         clixon_err(OE_UNIX, errno, "strdup");
         device_handle_free1(cdh);

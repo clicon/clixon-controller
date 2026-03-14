@@ -1,7 +1,7 @@
 #
 # ***** BEGIN LICENSE BLOCK *****
 #
-# Copyright (C) 2025 Olof Hagsand
+# Copyright (C) 2026 Olof Hagsand
 #
 # This file is part of CLIXON
 #
@@ -44,18 +44,18 @@ INSTALLFLAGS  	= @INSTALLFLAGS@
 INCLUDES        = -I. -I$(top_srcdir)/src @INCLUDES@
 CPPFLAGS  	= @CPPFLAGS@ -fPIC -DSSH_BIN=\"@SSH_BIN@\" -DCONTROLLER_VERSION=\"$(version)\"
 
-# Plugin has dependency, need better way
-# XXX Consider a lib instead
+YANG_INSTALLDIR  = @DATADIR@/controller
+YANGSPEC	 = clixon-yang-announce-latest@2026-03-01.yang
+
+.PHONY: all clean depend install uninstall
+
 EXTRA           = $(top_builddir)/src/controller_device*.o $(top_builddir)/src/controller_lib.o $(top_builddir)/src/controller_rpc.o $(top_builddir)/src/controller_transaction.o $(top_builddir)/src/controller_netconf.o $(top_builddir)/src/build.o
 
 # Backend plugins
 # Add more with BE_SRC  +=
-BE_SRC    = controller_junos_native.be.c
+BE_SRC    = yang_announce_latest.be.c
 BE_OBJ    = $(BE_SRC:%.c=%.o)
 BE_PLUGIN = $(BE_SRC:%.c=%.so)
-
-#$(BE_PLUGIN): $(BE_OBJ)
-#	$(CC) -Wall -shared $(LDFLAGS) -o $@ -lc $^ -lclixon -lclixon_backend
 
 OBJS    = $(BE_OBJ)
 PLUGINS = $(BE_PLUGIN)
@@ -69,8 +69,6 @@ PLUGINS = $(BE_PLUGIN)
 #.c.o:
 %.be.o : %.be.c
 	$(CC) $(INCLUDES) $(CPPFLAGS) $(CFLAGS) -c $<
-
-.PHONY: all clean depend install
 
 all: $(PLUGINS)
 
@@ -86,16 +84,19 @@ clean:
 distclean: clean
 	rm -f Makefile *~ .depend
 
-# Cant do install on specific .so
-install: $(BE_PLUGIN)
-	install -d -m 0755 $(DESTDIR)$(libdir)/$(APPNAME)
+install: $(BE_PLUGIN) $(YANGSPEC)
+	install -d -m 0755 $(DESTDIR)$(YANG_INSTALLDIR)/common/main
+	install -m 0644 $(YANGSPEC) $(DESTDIR)$(YANG_INSTALLDIR)/main
+	install -d -m 0755 $(DESTDIR)$(libdir)/
 	install -d -m 0755 $(DESTDIR)$(libdir)/$(APPNAME)/backend
 	install -m 0644 $(INSTALLFLAGS) $(BE_PLUGIN) $(DESTDIR)$(libdir)/$(APPNAME)/backend
 
 uninstall:
 	rm -rf $(DESTDIR)$(libdir)/$(APPNAME)/backend/$(BE_PLUGIN)
+	rm -rf $(DESTDIR)$(YANG_INSTALLDIR)/main/$(YANGSPEC)
 
 depend:
 	$(CC) $(DEPENDFLAGS) $(INCLUDES) $(CFLAGS) -MM $(SRC) > .depend
 
 #include .depend
+

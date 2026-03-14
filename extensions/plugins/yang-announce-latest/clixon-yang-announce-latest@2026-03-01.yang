@@ -1,0 +1,20 @@
+module clixon-yang-announce-latest {
+    namespace "http://clicon.org/ext/yang-announce-latest";
+    prefix cl-ylate;
+    import clixon-controller {
+    	prefix ctrl;
+    }
+    revision 2026-03-01 {
+	description "Initial version";
+    }
+    augment "/ctrl:devices/ctrl:device" {
+        description
+            "Add option in device and device-profile config";
+        leaf yang-announce-latest {
+            description
+                "Select among multiple announced yangs: if true select latest, if false, select earliest.";
+            type boolean;
+            default true;
+        }
+    }
+}

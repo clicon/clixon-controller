@@ -15,6 +15,12 @@ The following plugins exist:
                 The plugin maps CLI commands to shell commands and returns
                 the output as CLI output.
 
+- multiple-announced-yangs
+                Extend device configuration with option to select among multiple announced yangs.
+                That is, same YANG name but multiple revisions.
+                By default the latest YANG is selected, but some devices (old junos-qfx) may announce a
+                later yang which is broken and one may want select the older.
+
 To build and install a plugin, for example junos_native, do:
 
 cd junos-native

@@ -388,13 +388,17 @@ device_recv_config(clixon_handle h,
 
 /*! Remove duplicate schemas from yang-library
  *
- * Assume sorted
+ * Remove duplicates from yang-library, ie. modules with same name but different revision.
+ * If DH_FLAG_YANG_ANNOUNCE_LATEST is set, keep the one with the newest revision
+ * Assume xyanglib is sorted
+ * @param[in]  dh        Device handle
  * @param[in]  xyanglib  XML tree of yang-library
  * @retval     0         OK
  * @retval    -1         Error
  */
 static int
-xyanglib_dup_rm(cxobj *xyanglib)
+xyanglib_dup_rm(device_handle dh,
+                cxobj        *xyanglib)
 {
     int    retval = -1;
     cxobj *x;
@@ -404,6 +408,7 @@ xyanglib_dup_rm(cxobj *xyanglib)
     char  *prevname;
     char  *rev;
     char  *prevrev;
+    int    cmp;
 
     if ((xms = xml_find_type(xyanglib, NULL, "module-set", CX_ELMNT)) != NULL){
         x = NULL;
@@ -416,14 +421,13 @@ xyanglib_dup_rm(cxobj *xyanglib)
                 prevname = xml_find_body(xprev, "name");
                 prevrev = xml_find_body(xprev, "revision");
                 if (prevname && prevrev && strcmp(name, prevname) == 0){
-                    if (strcmp(rev, prevrev) < 0){ // XXX strcmp date !
-                        /* Older revision, mark for removal */
+                    cmp = strcmp(rev, prevrev);
+                    if (device_handle_flag_get(dh, DH_FLAG_YANG_ANNOUNCE_LATEST))
+                        cmp = -cmp;
+                    if (cmp > 0)
                         xml_flag_set(x, XML_FLAG_MARK);
-                    }
-                    else{
-                        /* Newer revision, mark previous for removal */
+                    else
                         xml_flag_set(xprev, XML_FLAG_MARK);
-                    }
                 }
             }
             xprev = x;
@@ -505,7 +509,7 @@ device_recv_schema_list(device_handle dh,
     if (xml_rootchild(xyanglib, 0, &xyanglib) < 0)
         goto done;
     xml_sort_recurse(xyanglib);
-    if (xyanglib_dup_rm(xyanglib) < 0)
+    if (xyanglib_dup_rm(dh, xyanglib) < 0)
         goto done;
     /* @see controller_connect where initial yangs may be set */
     if (device_handle_yang_lib_append(dh, xyanglib) < 0) /* xyanglib consumed */

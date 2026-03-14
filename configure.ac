@@ -89,26 +89,26 @@ AC_SUBST(HAVE_SYSTEMD,false)
 AC_PROG_CC()
 AC_PROG_CPP
 
-AC_MSG_RESULT(compiler is $CC)	
+AC_MSG_RESULT(compiler is $CC)
 # Debug flag
 AC_ARG_ENABLE(debug, AS_HELP_STRING([--enable-debug],[Build with debug symbols, default: no]),[
 	  if test "$enableval" = no; then
 	      ac_enable_debug=no
-	  else	      
+	  else
 	      ac_enable_debug=yes
           fi
         ],
 	[ ac_enable_debug=no])
 
-AC_MSG_RESULT(debug is $ac_enable_debug)	
+AC_MSG_RESULT(debug is $ac_enable_debug)
 if test "$ac_enable_debug" = "yes"; then
    CFLAGS="-g -Wall -Werror"
-   INSTALLFLAGS=""	
+   INSTALLFLAGS=""
 fi
 
-AC_MSG_RESULT(CPPFLAGS is $CPPFLAGS)	
+AC_MSG_RESULT(CPPFLAGS is $CPPFLAGS)
 AC_MSG_RESULT(CFLAGS is $CFLAGS)
-AC_MSG_RESULT(INSTALLFLAGS is $INSTALLFLAGS)	
+AC_MSG_RESULT(INSTALLFLAGS is $INSTALLFLAGS)
 
 # SSH binary path (see controller/src/Makefile and clixon_client.c
 AC_PATH_PROG(SSH_BIN, ssh)
@@ -212,7 +212,8 @@ AC_CONFIG_FILES([Makefile
 		 extensions/Makefile
                  extensions/plugins/Makefile
  		 extensions/plugins/junos-native/Makefile
- 		 extensions/plugins/cli-command/Makefile		 
+ 		 extensions/plugins/cli-command/Makefile
+ 		 extensions/plugins/yang-announce-latest/Makefile
 		 extensions/yang/Makefile
 		 extensions/yang/junos-bgp/Makefile
 		 extensions/yang/junos-macsec/Makefile

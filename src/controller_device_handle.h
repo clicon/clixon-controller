@@ -40,10 +40,11 @@
 /*
  * Constants
  */
-/* Device flags, the configured flags onoy if device announce them */
+/* Device flags, the configured flags only if device announce them */
 #define DH_FLAG_PRIVATE_CANDIDATE 0x01 /* Configured private-candidate announcement*/
 #define DH_FLAG_NETCONF_BASE10    0x02 /* Configured NETCONF base10 (eom) announcement */
 #define DH_FLAG_NETCONF_BASE11    0x04 /* Configured NETCONF base11 (chunked) announcement */
+#define DH_FLAG_YANG_ANNOUNCE_LATEST 0x08 /* If device announces multiple YANGs, 0: use earliest revision, 1: use latest */
 
 /*
  * Types
