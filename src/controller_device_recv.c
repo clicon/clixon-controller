@@ -424,10 +424,16 @@ xyanglib_dup_rm(device_handle dh,
                     cmp = strcmp(rev, prevrev);
                     if (device_handle_flag_get(dh, DH_FLAG_YANG_ANNOUNCE_LATEST))
                         cmp = -cmp;
-                    if (cmp > 0)
+                    if (cmp > 0){
+                        clixon_debug(CLIXON_DBG_CTRL, "Removing duplicate newer yang module %s@%s, keeping older %s@%s",
+                                     name, rev, prevname, prevrev);
                         xml_flag_set(x, XML_FLAG_MARK);
-                    else
+                    }
+                    else{
+                        clixon_debug(CLIXON_DBG_CTRL, "Keeping duplicate newer yang module %s@%s, removing older %s@%s",
+                                     name, rev, prevname, prevrev);
                         xml_flag_set(xprev, XML_FLAG_MARK);
+                    }
                 }
             }
             xprev = x;

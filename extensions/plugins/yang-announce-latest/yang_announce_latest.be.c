@@ -67,7 +67,6 @@ yang_announce_commit(clixon_handle    h,
     size_t         veclen0;
     int            i;
     cxobj         *x;
-    int            val;
     char          *devname;
     device_handle *dh;
 
@@ -81,8 +80,8 @@ yang_announce_commit(clixon_handle    h,
         x = vec0[i];
         if ((devname = xml_find_body(xml_parent(x), "name")) != NULL){
             if ((dh = device_handle_find(h, devname)) != NULL){
-                val = strcmp(xml_body(x), "true") == 0 ? 1 : 0;
-                if (val)
+                clixon_debug(CLIXON_DBG_CTRL, "device %s change yang-announce-latest flag to: %s", devname, xml_body(x));
+                if (strcmp(xml_body(x), "true"))
                     device_handle_flag_set(dh, DH_FLAG_YANG_ANNOUNCE_LATEST);
                 else
                     device_handle_flag_reset(dh, DH_FLAG_YANG_ANNOUNCE_LATEST);
@@ -100,7 +99,7 @@ yang_announce_commit(clixon_handle    h,
 clixon_plugin_api *clixon_plugin_init(clixon_handle h);
 
 static clixon_plugin_api api = {
-    "junos-native",
+    "yang-announce-latest",
 #ifdef CLIXON_PLUGIN_USERDEF
     .ca_trans_commit = yang_announce_commit,
 #endif
