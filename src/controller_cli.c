@@ -319,6 +319,8 @@ controller_gentree_pattern(cligen_handle ch,
     char         *digest = NULL;
     autocli_cache_t cache = AUTOCLI_CACHE_DISABLED;
     int           ret;
+    cxobj        *xdevices0;
+    int           ix;
 
     clixon_debug(CLIXON_DBG_CTRL, "%s", pattern);
     h = cligen_userhandle(ch);
@@ -334,8 +336,9 @@ controller_gentree_pattern(cligen_handle ch,
     /* Loop through all matching devices, check if clispec exists, if not generate
      * But only for first match
      */
-    xdev = NULL;
-    while ((xdev = xml_child_each(xml_find(xdevs0, "devices"), xdev, CX_ELMNT)) != NULL) {
+    xdevices0 = xml_find(xdevs0, "devices");
+    ix = 0;
+    while ((xdev = xml_child_iter(xdevices0, &ix, CX_ELMNT)) != NULL) {
         if ((devname = xml_find_body(xdev, "name")) == NULL)
             continue;
         if (pattern != NULL && fnmatch(pattern, devname, 0) != 0)

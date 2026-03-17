@@ -2163,6 +2163,7 @@ devices_statedata(clixon_handle   h,
     cxobj         *x;
     char          *xb;
     char           timestr[28];
+    int            ix;
 
     if ((cb = cbuf_new()) == NULL){
         clixon_err(OE_UNIX, errno, "cbuf_new");
@@ -2178,8 +2179,8 @@ devices_statedata(clixon_handle   h,
         cprintf(cb, "<conn-state>%s</conn-state>", device_state_int2str(state));
         if ((xcaps = device_handle_capabilities_get(dh)) != NULL){
             cprintf(cb, "<capabilities>");
-            x = NULL;
-            while ((x = xml_child_each(xcaps, x, -1)) != NULL) {
+            ix = 0;
+            while ((x = xml_child_iter(xcaps, &ix, -1)) != NULL) {
                 if ((xb = xml_body(x)) == NULL)
                     continue;
                 cprintf(cb, "<capability>");

@@ -122,6 +122,7 @@ rpc_get_yanglib_mount_match(clixon_handle h,
     cxobj     *xerr = NULL;
     cxobj     *xp;
     yang_stmt *yspec;
+    int        ix;
     int        ret;
 
     clixon_debug(CLIXON_DBG_CTRL, "%s", pattern);
@@ -171,8 +172,8 @@ rpc_get_yanglib_mount_match(clixon_handle h,
             clixon_err(OE_FATAL, 0, "No DB_SPEC");
             goto done;
         }
-        xdev = NULL;
-        while ((xdev = xml_child_each(xdevs, xdev, CX_ELMNT)) != NULL) {
+        ix = 0;
+        while ((xdev = xml_child_iter(xdevs, &ix, CX_ELMNT)) != NULL) {
             if ((devname = xml_find_body(xdev, "name")) == NULL ||
                 fnmatch(pattern, devname, 0) == 0){ /* Match */
                 if (yanglib &&
@@ -259,10 +260,12 @@ cli_show_auto_devs(clixon_handle h,
     char            *pattern;
     cxobj           *xdevs = NULL;
     cxobj           *xdev;
+    cxobj           *xdevices;
     char            *devname;
     int              devices = 0;
     cbuf            *api_path_fmt_cb = NULL;    /* xml key format */
     int              i;
+    int              ix;
     int              fromroot = 0;
 
     if (cvec_len(argv) < 2){
@@ -338,8 +341,9 @@ cli_show_auto_devs(clixon_handle h,
                 goto done;
         }
         else {
-            xdev = NULL;
-            while ((xdev = xml_child_each(xml_find(xdevs, "devices"), xdev, CX_ELMNT)) != NULL) {
+            xdevices = xml_find(xdevs, "devices");
+            ix = 0;
+            while ((xdev = xml_child_iter(xdevices, &ix, CX_ELMNT)) != NULL) {
                 if ((devname = xml_find_body(xdev, "name")) == NULL)
                     continue;
                 cv_string_set(cv, devname); /* replace name */
@@ -1205,11 +1209,12 @@ show_connections_pretty(clixon_handle h,
     char   *state;
     char   *logmsg;
     char   *p;
+    int     ix;
     int     i;
 
     /* First run to see if no matches */
-    xc = NULL;
-    while ((xc = xml_child_each(xn, xc, CX_ELMNT)) != NULL) {
+    ix = 0;
+    while ((xc = xml_child_iter(xn, &ix, CX_ELMNT)) != NULL) {
         if (strcmp(xml_name(xc), "device") != 0)
             continue;
         name = xml_find_body(xc, "name");
@@ -1229,8 +1234,8 @@ show_connections_pretty(clixon_handle h,
     for (i=0; i<width; i++)
         cligen_output(stdout, "=");
     cligen_output(stdout, "\n");
-    xc = NULL;
-    while ((xc = xml_child_each(xn, xc, CX_ELMNT)) != NULL) {
+    ix = 0;
+    while ((xc = xml_child_iter(xn, &ix, CX_ELMNT)) != NULL) {
         if (strcmp(xml_name(xc), "device") != 0)
             continue;
         name = xml_find_body(xc, "name");
@@ -1288,6 +1293,8 @@ show_connections_detail(clixon_handle h,
     char            *name;
     enum format_enum format;
     char            *formatstr;
+    int              ix;
+    int              ixc;
     int              ret;
 
     formatstr = clicon_option_str(h, "CLICON_CLI_OUTPUT_FORMAT");
@@ -1296,8 +1303,8 @@ show_connections_detail(clixon_handle h,
         goto done;
     }
     format = ret;
-    xc = NULL;
-    while ((xc = xml_child_each(xn, xc, CX_ELMNT)) != NULL) {
+    ix = 0;
+    while ((xc = xml_child_iter(xn, &ix, CX_ELMNT)) != NULL) {
         if (strcmp(xml_name(xc), "device") != 0)
             continue;
         name = xml_find_body(xc, "name");
@@ -1305,8 +1312,8 @@ show_connections_detail(clixon_handle h,
             continue;
         if ((xs = xml_find(xc, "name")) != NULL)
             xml_flag_set(xs, XML_FLAG_MARK);
-        xs = NULL;
-        while ((xs = xml_child_each(xc, xs, CX_ELMNT)) != NULL) {
+        ixc = 0;
+        while ((xs = xml_child_iter(xc, &ixc, CX_ELMNT)) != NULL) {
             if (strcmp(xml_name(xs), "capabilities") == 0) /* Too much output */
                 continue;
             if ((ys = xml_spec(xs)) != NULL){
@@ -2178,11 +2185,13 @@ cli_dbxml_devs(clixon_handle       h,
     char      *pattern;
     cxobj     *xdevs = NULL;
     cxobj     *xdev;
+    cxobj     *xdevices;
     char      *devname;
     int        devices = 0;
     char      *str;
     cbuf      *api_path_fmt_cb = NULL;    /* xml key format */
     int        i;
+    int        ix;
 
     if (cvec_len(argv) < 1){
         clixon_err(OE_PLUGIN, EINVAL, "Requires first element to be xml key format string");
@@ -2230,8 +2239,9 @@ cli_dbxml_devs(clixon_handle       h,
                 goto done;
         }
         else {
-            xdev = NULL;
-            while ((xdev = xml_child_each(xml_find(xdevs, "devices"), xdev, CX_ELMNT)) != NULL) {
+            xdevices = xml_find(xdevs, "devices");
+            ix = 0;
+            while ((xdev = xml_child_iter(xdevices, &ix, CX_ELMNT)) != NULL) {
                 if ((devname = xml_find_body(xdev, "name")) == NULL)
                     continue;
                 cv_string_set(cv, devname); /* replace name */
@@ -2573,6 +2583,7 @@ cli_show_device_schema(clixon_handle h,
     char   *data;
     char   *group = NULL;
     int     detail = 0;
+    int     ix;
 
     if (cvec_len(argv) > 0 &&
         (cvname = cv_string_get(cvec_i(argv, 0))) != NULL){
@@ -2622,8 +2633,8 @@ cli_show_device_schema(clixon_handle h,
         clixon_err_netconf(h, OE_XML, 0, xerr, "get-device-schema");
         goto done;
     }
-    xschema = NULL;
-    while ((xschema = xml_child_each(xreply, xschema, CX_ELMNT)) != NULL){
+    ix = 0;
+    while ((xschema = xml_child_iter(xreply, &ix, CX_ELMNT)) != NULL) {
         if (strcmp(xml_name(xschema), "schema") != 0)
             continue;
         modname = xml_find_body(xschema, "name");
@@ -3013,11 +3024,13 @@ cli_generic_rpc_match(clixon_handle h,
     char      *rpcpattern = "*";
     cxobj     *xdevs0 = NULL;
     cxobj     *xdev0;
+    cxobj     *xdevices0;
     cxobj     *xdevs1 = NULL;
     cxobj     *xdevc;
     int        yang = 0;
     int        inext;
     int        inext1;
+    int        ix;
     yang_stmt *ymod;
     yang_stmt *yrpc;
     yang_stmt *yspec1;
@@ -3055,8 +3068,9 @@ cli_generic_rpc_match(clixon_handle h,
         clixon_err(OE_PLUGIN, errno, "cbuf_new");
         goto done;
     }
-    xdev0 = NULL;
-    while ((xdev0 = xml_child_each(xml_find(xdevs0, "devices"), xdev0, CX_ELMNT)) != NULL) {
+    xdevices0 = xml_find(xdevs0, "devices");
+    ix = 0;
+    while ((xdev0 = xml_child_iter(xdevices0, &ix, CX_ELMNT)) != NULL) {
         if ((devname = xml_find_body(xdev0, "name")) == NULL)
             continue;
         if (devpattern != NULL && fnmatch(devpattern, devname, 0) != 0)

@@ -905,9 +905,11 @@ device_handle_capabilities_find(clixon_handle dh,
     cxobj                           *x = NULL;
     char                            *b;
     char                            *bi;
+    int                              ix;
 
     xcaps = cdh->cdh_xcaps;
-    while ((x = xml_child_each(xcaps, x, -1)) != NULL) {
+    ix = 0;
+    while ((x = xml_child_iter(xcaps, &ix, -1)) != NULL) {
         b = xml_body(x);
         if ((bi = index(b, '?')) != NULL){
             if (strncmp(name, b, bi-b) == 0)
@@ -976,6 +978,7 @@ device_handle_yang_lib_append(device_handle dh,
     cxobj                           *xms1 = NULL;
     cxobj                           *xm1;
     char                            *name;
+    int                              ix;
 
     /* Sanity check */
     if (xylib){
@@ -991,8 +994,8 @@ device_handle_yang_lib_append(device_handle dh,
                 goto done;
             }
             if (xml_tree_equal(xms0, xms1) != 0) {
-                xm1 = NULL;
-                while ((xm1 = xml_child_each(xms1, xm1, CX_ELMNT)) != NULL) {
+                ix = 0;
+                while ((xm1 = xml_child_iter(xms1, &ix, CX_ELMNT)) != NULL) {
                     if (strcmp(xml_name(xm1), "module") != 0)
                         continue;
                     if ((name = xml_find_body(xm1, "name")) == NULL)

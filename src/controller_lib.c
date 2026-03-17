@@ -304,6 +304,7 @@ schema_list2yang_library(clixon_handle h,
     char  *format;
     char  *namespace;
     char  *location;
+    int    ix;
 
     if ((cb = cbuf_new()) == NULL){
         clixon_err(OE_UNIX, errno, "cbuf_new");
@@ -312,8 +313,8 @@ schema_list2yang_library(clixon_handle h,
     cprintf(cb, "<yang-library xmlns=\"urn:ietf:params:xml:ns:yang:ietf-yang-library\">");
     cprintf(cb, "<module-set>");
     cprintf(cb, "<name>%s</name>", domain);
-    x = NULL;
-    while ((x = xml_child_each(xschemas, x, CX_ELMNT)) != NULL) {
+    ix = 0;
+    while ((x = xml_child_iter(xschemas, &ix, CX_ELMNT)) != NULL) {
         if (strcmp(xml_name(x), "schema") != 0)
             continue;
         if ((identifier = xml_find_body(x, "identifier")) == NULL ||
@@ -365,6 +366,7 @@ xdev2yang_library(cxobj  *xmodset,
     char  *name;
     char  *revision;
     char  *namespace;
+    int    ix;
 
     if (domain == NULL){
         clixon_err(OE_YANG, 0, "domain is NULL");
@@ -377,8 +379,8 @@ xdev2yang_library(cxobj  *xmodset,
     cprintf(cb, "<yang-library xmlns=\"urn:ietf:params:xml:ns:yang:ietf-yang-library\">");
     cprintf(cb, "<module-set>");
     cprintf(cb, "<name>%s</name>", domain);
-    x = NULL;
-    while ((x = xml_child_each(xmodset, x, CX_ELMNT)) != NULL) {
+    ix = 0;
+    while ((x = xml_child_iter(xmodset, &ix, CX_ELMNT)) != NULL) {
         if (strcmp(xml_name(x), "module") != 0)
             continue;
         if ((name = xml_find_body(x, "name")) == NULL){

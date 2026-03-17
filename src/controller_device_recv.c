@@ -409,10 +409,11 @@ xyanglib_dup_rm(device_handle dh,
     char  *rev;
     char  *prevrev;
     int    cmp;
+    int    ix;
 
     if ((xms = xml_find_type(xyanglib, NULL, "module-set", CX_ELMNT)) != NULL){
-        x = NULL;
-        while ((x = xml_child_each(xms , x, CX_ELMNT)) != NULL) {
+        ix = 0;
+        while ((x = xml_child_iter(xms, &ix, CX_ELMNT)) != NULL) {
             if (strcmp(xml_name(x), "module") != 0)
                 continue;
             name = xml_find_body(x, "name");
@@ -472,6 +473,7 @@ device_recv_schema_list(device_handle dh,
     cxobj        *xyanglib = NULL;
     clixon_handle h;
     cbuf         *cb = NULL;
+    int           ix;
     int           ret;
 
     clixon_debug(CLIXON_DBG_CTRL | CLIXON_DBG_DETAIL, "");
@@ -502,8 +504,8 @@ device_recv_schema_list(device_handle dh,
     /* "Wash" it from other elements: eg. junos may sneak in errors
      * XXX Maybe this can be skipped ?
      */
-    x = NULL;
-    while ((x = xml_child_each(xschemas, x, CX_ELMNT)) != NULL) {
+    ix = 0;
+    while ((x = xml_child_iter(xschemas, &ix, CX_ELMNT)) != NULL) {
         if (strcmp(xml_name(x), "schema") != 0)
             xml_flag_set(x, XML_FLAG_MARK);
     }
@@ -684,17 +686,18 @@ device_recv_check_errors(clixon_handle h,
                          conn_state    conn_state,
                          cbuf        **cberr)
 {
-    int                      retval = -1;
-    cxobj                   *xerr;
-    cxobj                   *x;
-    char                    *b;
+    int                     retval = -1;
+    cxobj                  *xerr;
+    cxobj                  *x;
+    char                   *b;
     uint64_t                tid;
     cbuf                   *cb = NULL;
     controller_transaction *ct;
+    int                     ix;
 
     /* Loop through all replies, if error stop, if only warning continue */
-    xerr = NULL;
-    while ((xerr = xml_child_each(xmsg, xerr, CX_ELMNT)) != NULL) {
+    ix = 0;
+    while ((xerr = xml_child_iter(xmsg, &ix, CX_ELMNT)) != NULL) {
         if (strcmp(xml_name(xerr), "rpc-error") == 0){
             if ((x = xml_find_type(xerr, NULL, "error-severity", CX_ELMNT)) != NULL &&
                 (b = xml_body(x)) != NULL &&

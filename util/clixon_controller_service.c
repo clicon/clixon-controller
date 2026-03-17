@@ -303,6 +303,7 @@ do_service(clixon_handle h,
     cxobj     *x;
     char      *p;
     static int i = 0;
+    int        ix;
 
     if (i==0 && send_err == SEND_ERROR_TAG){
         tag = send_arg;
@@ -327,8 +328,8 @@ do_service(clixon_handle h,
             "http://openconfig.net/yang/interfaces");
     cprintf(cb, " xmlns:%s=\"%s\"", CLIXON_LIB_PREFIX, CLIXON_LIB_NS);
     cprintf(cb, ">");
-    x = NULL;
-    while ((x = xml_child_each(xsc, x,  CX_ELMNT)) != NULL){
+    ix = 0;
+    while ((x = xml_child_iter(xsc, &ix, CX_ELMNT)) != NULL) {
         if (strcmp(xml_name(x), "params") != 0)
             continue;
         if ((p = xml_body(x)) == NULL)
@@ -342,8 +343,8 @@ do_service(clixon_handle h,
         cprintf(cb, "</interface>");
     }
     if (send_err == SEND_ERROR_DUP){
-        x = NULL;
-        while ((x = xml_child_each(xsc, x,  CX_ELMNT)) != NULL){
+        ix = 0;
+        while ((x = xml_child_iter(xsc, &ix, CX_ELMNT)) != NULL) {
             if (strcmp(xml_name(x), "params") != 0)
                 continue;
             if ((p = xml_body(x)) == NULL)
@@ -411,8 +412,8 @@ service_loop_devices(clixon_handle h,
     cxobj  *xd;
     char   *devname;
 
-    xd = NULL;
-    while ((xd = xml_child_each(xdevs, xd,  CX_ELMNT)) != NULL){
+    int ixd = 0;
+    while ((xd = xml_child_iter(xdevs, &ixd, CX_ELMNT)) != NULL) {
         if (strcmp(xml_name(xd), "device") != 0)
             continue;
         devname = xml_find_body(xd, "name");
@@ -549,6 +550,8 @@ service_action_handler(clixon_handle h,
     char   *tidstr;
     char   *sourcedb = NULL;
     char   *targetdb = NULL;
+    int     ixs;
+    int     ixsi;
 
     clixon_debug(CLIXON_DBG_CTRL, "");
     if (clixon_xml_parse_string(notification, YB_NONE, NULL, &xt, NULL) < 0)
@@ -586,15 +589,15 @@ service_action_handler(clixon_handle h,
     if (read_devices(h, sourcedb, &xdevs) < 0)
         goto done;
     if (xpath_first(xn, 0, "service") == 0){ /* All services: loop through service definitions */
-        xs = NULL;
-        while ((xs = xml_child_each(xservices, xs,  CX_ELMNT)) != NULL){
+        ixs = 0;
+        while ((xs = xml_child_iter(xservices, &ixs, CX_ELMNT)) != NULL) {
             if (service_action_one(h, s, pattern, targetdb, xdevs, xs, tidstr, send_err, send_arg) < 0)
                 goto done;
         }
     }
     else {             /* Loop through specific service+instance field in notification */
-        xsi = NULL;
-        while ((xsi = xml_child_each(xn, xsi,  CX_ELMNT)) != NULL){
+        ixsi = 0;
+        while ((xsi = xml_child_iter(xn, &ixsi, CX_ELMNT)) != NULL) {
             if (strcmp(xml_name(xsi), "service") != 0)
                 continue;
             if (service_action_instance(h, s, pattern, targetdb, xservices, xdevs, xsi, tidstr, send_err, send_arg) < 0)
@@ -760,6 +763,7 @@ main(int    argc,
 
     clixon_log_init(h, __PROGRAM__, dbg?LOG_DEBUG:LOG_INFO, logdst);
     clixon_debug_init(h, dbg);
+    xml_init(h);
     yang_init(h);
     /* Setup handlers to exit cleanly when killed from parent or user */
     if (set_signal(SIGTERM, service_action_sig_term, NULL) < 0){

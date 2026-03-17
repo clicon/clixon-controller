@@ -185,6 +185,7 @@ transaction_devdata_add(clixon_handle           h,
     cxobj     *xerr = NULL;
     cbuf      *cb = NULL;
     cvec      *nsc = NULL;
+    int        ix;
     int        ret;
 
     if (ct->ct_devdata == NULL){
@@ -231,8 +232,8 @@ transaction_devdata_add(clixon_handle           h,
         clixon_err(OE_XML, 0, "devdata not found");
         goto done;
     }
-    xc = NULL;
-    while ((xc = xml_child_each(xmsg, xc, CX_ELMNT)) != NULL) {
+    ix = 0;
+    while ((xc = xml_child_iter(xmsg, &ix, CX_ELMNT)) != NULL) {
         /* get all inherited namespaces and add them after dup and add to new parent */
         if (xml_nsctx_node(xc, &nsc) < 0)
             goto done;
