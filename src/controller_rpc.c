@@ -270,6 +270,13 @@ controller_connect(clixon_handle           h,
         else if (strcmp(str, "1.1") == 0)
             device_handle_flag_set(dh, DH_FLAG_NETCONF_BASE11);
     }
+    if ((xb = xml_find_type(xn, NULL, "yang-announce-latest", CX_ELMNT)) == NULL ||
+        xml_flag(xb, XML_FLAG_DEFAULT)){
+        if (xdevprofile)
+            xb = xml_find_type(xdevprofile, NULL, "yang-announce-latest", CX_ELMNT);
+    }
+    if (xb && (str = xml_body(xb)) != NULL && strcmp(str, "false") == 0)
+        device_handle_flag_reset(dh, DH_FLAG_YANG_ANNOUNCE_LATEST);
     /* Point of no return: assume errors handled in device_input_cb */
     device_handle_tid_set(dh, ct->ct_id);
     if (connect_netconf_ssh(h, dh, user, addr, port, ssh_stricthostkey) < 0) /* match */
