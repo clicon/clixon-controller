@@ -81,7 +81,7 @@ yang_announce_commit(clixon_handle    h,
         if ((devname = xml_find_body(xml_parent(x), "name")) != NULL){
             if ((dh = device_handle_find(h, devname)) != NULL){
                 clixon_debug(CLIXON_DBG_CTRL, "device %s change yang-announce-latest flag to: %s", devname, xml_body(x));
-                if (strcmp(xml_body(x), "true"))
+                if (strcmp(xml_body(x), "true") == 0)
                     device_handle_flag_set(dh, DH_FLAG_YANG_ANNOUNCE_LATEST);
                 else
                     device_handle_flag_reset(dh, DH_FLAG_YANG_ANNOUNCE_LATEST);

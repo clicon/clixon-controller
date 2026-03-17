@@ -17,4 +17,14 @@ module clixon-yang-announce-latest {
             default true;
         }
     }
+    augment "/ctrl:devices/ctrl:device-profile" {
+        description
+            "Add option in device and device-profile config";
+        leaf yang-announce-latest {
+            description
+                "Select among multiple announced yangs: if true select latest, if false, select earliest.";
+            type boolean;
+            default true;
+        }
+    }
 }

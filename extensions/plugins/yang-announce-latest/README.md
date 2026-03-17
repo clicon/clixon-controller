@@ -6,7 +6,8 @@ default the latest YANG is selected, but some devices (old junos-qfx)
 may announce a later yang which is broken and one may want select the
 older.
 
-Note that support for device-profiles is not implemented, only single devices.
+Note that support for device-profiles is not implemented, only single devices, when setting the flag.
+That is, reconnecting the device will work, set or reset of the device-profile flag when connected does not, only device flag.
 
 ## Build and install
 
