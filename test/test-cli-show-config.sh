@@ -313,8 +313,16 @@ XPath:      /ctrl:devices/ctrl:device[ctrl:name='*']/ctrl:config/oc-sys:system/o
 XPath-ns:   xmlns:ctrl=\"http://clicon.org/controller\" xmlns:oc-sys=\"http://openconfig.net/yang/system\"
 APIpath:    /clixon-controller:devices/device=%2A/config/openconfig-system:system/config/hostname"
 
+# also log cli command
 new "Test show xpath across mountpoint"
-expectpart "$($clixon_cli -1 -f $CFG -E $CFD show xpath /ctrl:devices/ctrl:device\[ctrl:name=\"openconfig1\"\]/ctrl:config/oc-sys:system)" 0 "<system xmlns=\"http://openconfig.net/yang/system\">" "<hostname>openconfig1</hostname>"
+expectpart "$($clixon_cli -1 -f $CFG -E $CFD -lf$dir/mylog.log show xpath /ctrl:devices/ctrl:device\[ctrl:name=\"openconfig1\"\]/ctrl:config/oc-sys:system)" 0 "<system xmlns=\"http://openconfig.net/yang/system\">" "<hostname>openconfig1</hostname>"
+
+new "Test cli commands to log"
+expect="show xpath /ctrl:devices/ctrl:device"
+match=$(grep "show xpath /ctrl:devices/ctrl:device" $dir/mylog.log)
+if [ -z "$match" ]; then
+    err "$expect" "$match"
+fi
 
 if $BE; then
     new "Kill old backend"
