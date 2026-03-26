@@ -72,7 +72,7 @@ if [ -z "$tid" ]; then
     err "transaction-id" "$ret"
 fi
 
-new "devcice-rpc ping NETCONF"
+new "device-rpc ping NETCONF"
 ret=$(${clixon_netconf} -0 -f $CFG <<'EOF'
 <?xml version="1.0" encoding="UTF-8"?>
 <hello xmlns="urn:ietf:params:xml:ns:netconf:base:1.0">

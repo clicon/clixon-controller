@@ -39,7 +39,7 @@ module clixon-controller {
         "Clixon controller";
     revision 2026-03-01 {
         description
-            "Added rpc get-device-schema
+            "Added rpc get-device-schema and device-rpc-result
              Added device list to transaction state
              Added stable-timestamp to device state
              Added memory statistics to rpc clixon-stats
@@ -422,7 +422,7 @@ module clixon-controller {
                      An entry in this list represents a module implemented by the
                      server, as per Section 5.6.5 of RFC 7950, with a particular
                      set of supported features and deviations.";
-                uses yanglib:module-identification-leafs;
+                uses yanglib:module-identification-leafs; /* contains name and revision */
                 leaf namespace {
                     type inet:uri;
                     mandatory true;
@@ -552,7 +552,9 @@ module clixon-controller {
                     type string;
                 }
                 anydata data {
-                    description "Device reply data";
+                    description
+                        "Device RPC reply data. From 7.8, use device-rpc-result";
+                    status deprecated;
                 }
             }
         }
@@ -1064,10 +1066,10 @@ module clixon-controller {
                 type uint64;
                 mandatory true;
             }
-        leaf-list service {
-            type string;
-            description
-                "Names of services that have been processed/served by this action (S1).
+            leaf-list service {
+                type string;
+                description
+                    "Names of services that have been processed/served by this action (S1).
                  This should be a subset of the services list in the services-commit notification S0.
                  In case the S0 was NULL, it meant all services, and this list contains the list
                  that were actually served.
@@ -1201,7 +1203,8 @@ module clixon-controller {
     }
     rpc device-rpc {
         description
-            "Send RPC to devices";
+            "Send RPC to devices.
+             Asynchronously get the result using device-rpc-result";
         input {
             leaf sync{
                 type boolean;
@@ -1247,6 +1250,40 @@ module clixon-controller {
                                 description "Device reply data";
                             }
                         }
+                    }
+                }
+            }
+        }
+    }
+    rpc device-rpc-result {
+        description
+            "Collect result from a device-rpc.
+             Also remove data from backend when collected.
+             You could also get data by issuing a regular get call for non-config data of /transactions,
+             but this will be deprecated in 7.8.";
+        input {
+            leaf tid {
+                description "Transaction identifier of device RPC";
+                type uint64;
+                mandatory true;
+            }
+        }
+        output{
+            leaf tid {
+                description "Id of transaction";
+                type uint64;
+            }
+            container devices {
+                list devdata {
+                    description
+                        "Replies from device, can be rpc reply for rpc-template transaction";
+                    key name;
+                    leaf name{
+                        description "device name, should be one of /devices/device/name";
+                        type string;
+                    }
+                    anydata data {
+                        description "Device reply data";
                     }
                 }
             }

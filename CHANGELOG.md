@@ -20,11 +20,19 @@ Expected: May 2026
 * Changed CLI show transaction output to a table
 * Changed CLI show connections timestamp to last stable state
 * New `clixon-controller@2026-03-01.yang` revision
-  * Add rpc get-device-schema
+  * Added rpc get-device-schema and device-rpc-result
   * Added device list to transaction state
   * Added stable-timestamp to device state
   * Added memory statistics to rpc clixon-stats
 * Added CLI command: `show device yang schema`
+
+### API changes on existing protocol/config features
+
+* Changed getting device RPC results, and get device state.
+  * Instead of retrieving transaction state, get the reply data by a new RPC call: `device-rpc-result`
+    * Send the RPC: `device-rpc`, get the `tid` in the reply
+    * Wait for result using transaction or poll a successful transaction state
+    * Get the result using: `device-rpc-result`  (this is new)
 
 ## 1.7.0
 21 February 2026

@@ -179,6 +179,7 @@ transaction_devdata_add(clixon_handle           h,
     int        retval = -1;
     cxobj     *xdata;
     cxobj     *xc;
+    cxobj     *xa;
     cxobj     *xc1;
     yang_stmt *yspec0;
     yang_stmt *ydevs;
@@ -190,6 +191,10 @@ transaction_devdata_add(clixon_handle           h,
 
     if (ct->ct_devdata == NULL){
         if ((ct->ct_devdata = xml_new("devices", NULL, CX_ELMNT)) == NULL)
+            goto done;
+        if ((xa = xml_new("xmlns", ct->ct_devdata, CX_ATTR)) == NULL)
+            goto done;
+        if (xml_value_set(xa, CONTROLLER_NAMESPACE) < 0)
             goto done;
         if ((yspec0 = clicon_dbspec_yang(h)) == NULL){
             clixon_err(OE_FATAL, 0, "No DB_SPEC");
@@ -212,8 +217,7 @@ transaction_devdata_add(clixon_handle           h,
         xml_spec_set(ct->ct_devdata, ydevs);
     }
     if ((ret = clixon_xml_parse_va(YB_PARENT, NULL, &ct->ct_devdata, &xerr,
-                                   "<devdata xmlns=\"%s\"><name>%s</name><data/></devdata>",
-                                   CONTROLLER_NAMESPACE, name)) < 0)
+                                   "<devdata><name>%s</name><data/></devdata>", name)) < 0)
         goto done;
     if (ret == 0){
         if ((cb = cbuf_new()) == NULL){
@@ -642,17 +646,6 @@ controller_transaction_done(clixon_handle           h,
     /* This should be the only place */
     if (controller_transaction_notify(h, ct) < 0)
         goto done;
-#if 0
-    /* This will leave devdata in the transaction history.
-     * Pros: You can check device rpc results via show state, not only immediate in the
-     *       transaction-done notification
-     * Cons: Memory consumption, never freed, clutters history
-     */
-    if (ct->ct_devdata){
-        xml_free(ct->ct_devdata); // XXX free at close?
-        ct->ct_devdata = NULL;
-    }
-#endif
     retval = 0;
  done:
     return retval;
@@ -965,16 +958,17 @@ controller_transaction_wait_trigger(clixon_handle h,
  * @retval      -1        Error
  */
 int
-controller_transaction_statedata(clixon_handle   h,
-                                 cvec           *nsc,
-                                 char           *xpath,
-                                 cxobj          *xstate)
+controller_transaction_statedata(clixon_handle h,
+                                 cvec         *nsc,
+                                 char         *xpath,
+                                 cxobj        *xstate)
 {
     int                     retval = -1;
     cbuf                   *cb = NULL;
     struct timeval         *tv;
     controller_transaction *ct_list = NULL;
     controller_transaction *ct = NULL;
+    cg_var                 *cv;
 
     clixon_debug(CLIXON_DBG_CTRL|CLIXON_DBG_DETAIL, "");
     if ((cb = cbuf_new()) == NULL){
@@ -999,13 +993,20 @@ controller_transaction_statedata(clixon_handle   h,
                 xml_chardata_cbuf_append(cb, 0, ct->ct_reason);
                 cprintf(cb, "</reason>");
             }
-            if (ct->ct_devdata || ct->ct_devices){
-                cg_var *cv = NULL;
+#ifdef CONTROLLER_DEVICE_RPC_REPLY_IN_STATE
+            if (ct->ct_devdata || ct->ct_devices)
+#else
+            if (ct->ct_devices)
+#endif
+                    {
+                cv = NULL;
                 cprintf(cb, "<devices>");
                 while ((cv = cvec_each(ct->ct_devices, cv)) != NULL)
                     cprintf(cb, "<device>%s</device>", cv_name_get(cv));
+#ifdef CONTROLLER_DEVICE_RPC_REPLY_IN_STATE
                 if (clixon_xml2cbuf1(cb, ct->ct_devdata, 0, 0, NULL, -1, 1, 0, WITHDEFAULTS_REPORT_ALL) < 0)
                     goto done;
+#endif
                 cprintf(cb, "</devices>");
             }
             cprintf(cb, "<state>%s</state>", transaction_state_int2str(ct->ct_state));
@@ -1049,8 +1050,8 @@ controller_transaction_statedata(clixon_handle   h,
 
 /*! Transactions periodic handler,
  *
- * Remove device data after TRANSACTION_DEVICES_TIMEOUT ( these can be very large)
  * Save at most TRANSACTION_MAX_NR
+ * Called every CONTROLLER_PERIODIC_TIMER
  * @param[in]  h   Clixon  handle
  * @retval     0   OK
  * @retval    -1   Error
@@ -1076,10 +1077,12 @@ controller_transaction_periodic(clixon_handle  h)
             if (TRANSACTION_MAX_NR && i > TRANSACTION_MAX_NR-1){
                 ct1 = ct;  /* delete later */
             }
+#ifdef CONTROLLER_DEVICE_RPC_REPLY_IN_STATE
             else if (TRANSACTION_DEVICES_TIMEOUT && ct->ct_devdata && t.tv_sec > TRANSACTION_DEVICES_TIMEOUT){
                 xml_free(ct->ct_devdata);
                 ct->ct_devdata = NULL;
             }
+#endif
             ct = PREVQ(controller_transaction *, ct);
             i++;
             if (ct1){
@@ -1088,6 +1091,39 @@ controller_transaction_periodic(clixon_handle  h)
         } while (ct && ct != ct_list);
     }
     return 0;
+}
+
+/*! If transaction device rpc result data, add it to rpc reply and remove it from transaction struct
+ *
+ * @param[in]  h      Clixon handle
+ * @param[in]  ct     Transaction
+ * @param[out] cbret  Cbuf to add device rpc result data to
+ * @retval     0      OK
+ * @retval    -1      Error
+ */
+int
+controller_transaction_result_get(clixon_handle           h,
+                                  controller_transaction *ct,
+                                  cbuf                   *cbret)
+{
+    int retval = -1;
+
+    if (ct == NULL){
+        clixon_err(OE_PLUGIN, EINVAL, "ct is NULL");
+        goto done;
+    }
+    cprintf(cbret, "<rpc-reply xmlns=\"%s\">", NETCONF_BASE_NAMESPACE);
+    cprintf(cbret, "<tid xmlns=\"%s\">%" PRIu64 "</tid>", CONTROLLER_NAMESPACE, ct->ct_id);
+    if (ct->ct_devdata != NULL){
+        if (clixon_xml2cbuf1(cbret, ct->ct_devdata, 0, 0, NULL, -1, 0, 0, WITHDEFAULTS_REPORT_ALL) < 0)
+            goto done;
+        xml_free(ct->ct_devdata);
+        ct->ct_devdata = NULL;
+    }
+    cprintf(cbret, "</rpc-reply>");
+    retval = 0;
+ done:
+    return retval;
 }
 
 /*! Return statistics of transactions

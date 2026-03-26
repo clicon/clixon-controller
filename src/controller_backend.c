@@ -53,6 +53,7 @@
 #include "controller_device_handle.h"
 #include "controller_device_send.h"
 #include "controller_transaction.h"
+#include "controller_rpc_std.h"
 #include "controller_rpc.h"
 
 /*! Called to get state data from plugin by programmatically adding state
@@ -753,6 +754,8 @@ clixon_plugin_init(clixon_handle h)
     }
     /* Register callback for rpc calls */
     if (controller_rpc_init(h) < 0)
+        goto done;
+    if (controller_rpc_std_init(h) < 0)
         goto done;
     /* Register notifications
      * see controller_commit_actions */

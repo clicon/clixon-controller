@@ -107,7 +107,7 @@ fi
 
 # It is complicated to wait for notify w netconf, skip that and do that for cli instead
 new "CLI get device state"
-expectpart "$($clixon_cli -1 -f $CFG show devices openconfig* state)" 0 '<devdata xmlns="http://clicon.org/controller">' "<name>openconfig1</name>" "<name>openconfig2</name>" '<system xmlns="http://openconfig.net/yang/system">'
+expectpart "$($clixon_cli -1 -f $CFG show devices openconfig* state)" 0 '<devdata>' "<name>openconfig1</name>" "<name>openconfig2</name>" '<system xmlns="http://openconfig.net/yang/system">'
 
 if $BE; then
     new "Kill old backend"
