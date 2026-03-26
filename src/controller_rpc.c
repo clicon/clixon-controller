@@ -3326,7 +3326,6 @@ rpc_device_rpc(clixon_handle h,
     cvec                   *devvec = NULL;
     cg_var                 *cv;
     cxobj                  *xn;
-    char                   *syncstr;
     cxobj                  *xconfig = NULL;
     char                   *devname;
     char                   *pattern;
@@ -3334,13 +3333,6 @@ rpc_device_rpc(clixon_handle h,
     int                     ret;
 
     clixon_debug(CLIXON_DBG_CTRL, "");
-    if ((syncstr = xml_find_body(xe, "sync")) != NULL){
-        if (strcmp(syncstr, "true") == 0){
-            if (netconf_operation_failed(cbret, "application", "sync=true not allowed to backend")< 0)
-                goto done;
-            goto ok;
-        }
-    }
     /* Get device names */
     if (xmldb_get0(h, "running", YB_MODULE, nsc, "devices", 1, WITHDEFAULTS_EXPLICIT, &xret, NULL, NULL) < 0)
         goto done;

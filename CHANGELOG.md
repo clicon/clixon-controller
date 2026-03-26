@@ -24,6 +24,7 @@ Expected: May 2026
   * Added device list to transaction state
   * Added stable-timestamp to device state
   * Added memory statistics to rpc clixon-stats
+  * Removed sync parameter from device-rpc RPC (never worked)
 * Added CLI command: `show device yang schema`
 
 ### API changes on existing protocol/config features

@@ -43,6 +43,7 @@ module clixon-controller {
              Added device list to transaction state
              Added stable-timestamp to device state
              Added memory statistics to rpc clixon-stats
+             Removed sync parameter from device-rpc RPC
              Released in 1.8.0";
     }
     revision 2025-12-01 {
@@ -1206,12 +1207,6 @@ module clixon-controller {
             "Send RPC to devices.
              Asynchronously get the result using device-rpc-result";
         input {
-            leaf sync{
-                type boolean;
-                description
-                    "1: sync: block until result (only available via restconf)
-                     0: async, return transaction-id";
-            }
             uses device-choice {
                 description "Specify devices with either name or group pattern.";
             }
@@ -1234,22 +1229,6 @@ module clixon-controller {
                         description
                             "Id of allocated transaction, for RPC templates";
                         type uint64;
-                    }
-                }
-                case sync{
-                    container devices {
-                        list devdata {
-                            description
-                                "Replies from device, can be rpc reply for rpc-template transaction";
-                            key name;
-                            leaf name{
-                                description "device name, should be one of /devices/device/name";
-                                type string;
-                            }
-                            anydata data {
-                                description "Device reply data";
-                            }
-                        }
                     }
                 }
             }

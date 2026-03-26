@@ -525,7 +525,6 @@ new "poll transaction success"
 expectpart "$(curl $CURLOPTS -X GET -H "Accept: application/yang-data+json" $RCPROTO://localhost/restconf/data/clixon-controller:transactions/transaction=11)" 0 "HTTP/$HVER 200" '{"clixon-controller:transaction":[{"tid":"[0-9.]*","username":"anonymous","result":"SUCCESS"'
 
 new "get transaction result"
-echo "curl $CURLOPTS -X POST -H \"Content-Type: application/yang-data+json\" $RCPROTO://localhost/restconf/operations/clixon-controller:device-rpc-result -d '{\"clixon-controller:input\":{\"tid\":\"11\"}}"
 expectpart "$(curl $CURLOPTS -X POST -H "Content-Type: application/yang-data+json" $RCPROTO://localhost/restconf/operations/clixon-controller:device-rpc-result -d '{"clixon-controller:input":{"tid":"11"}}')" 0 "HTTP/$HVER 200" 'Content-Type: application/yang-data+json' '{"clixon-controller:output":{"tid":"11","devices":{"devdata":\[{"name":"openconfig1","data":{"data":{"system":{"ssh-server":{"state":{"enable":"true","protocol-version":"V2"}}'
 
 new "Get state using device rpc get JSON"
