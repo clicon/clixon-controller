@@ -393,7 +393,7 @@ transaction_new_id(clixon_handle h,
     return retval;
 }
 
-/*! Create a new controller-transaction, with a new id and locl candidate
+/*! Create a new controller-transaction, with a new id and local candidate
  *
  * Failure to create a transaction include:
  * - Candidate is locked
@@ -403,6 +403,7 @@ transaction_new_id(clixon_handle h,
  * @param[in]   ce          Client/session entry
  * @param[in]   username    Which user created the transaction
  * @param[in]   description Description of transaction
+ * @param[in]   lockdb      If true, lock candidate db, else reuse existing lock if any
  * @param[out]  ct          Transaction struct (if retval = 1)
  * @param[out]  reason      Reason for failure. Freed by caller
  * @retval      1           OK
@@ -415,6 +416,7 @@ controller_transaction_new(clixon_handle            h,
                            client_entry            *ce,
                            char                    *username,
                            char                    *description,
+                           int                      lockdb,
                            controller_transaction **ctp,
                            cbuf                   **cberr)
 {
@@ -436,13 +438,17 @@ controller_transaction_new(clixon_handle            h,
         goto done;
     }
     ceid = ce->ce_id;
-    if (xmldb_find_create(h, "candidate", ceid, &de, &db) < 0)
-        goto done;
-    if (de == NULL){
-        clixon_err(OE_DB, 0, "No candidate struct");
-        goto done;
+    if (lockdb){
+        if (xmldb_find_create(h, "candidate", ceid, &de, &db) < 0)
+            goto done;
+        if (de == NULL){
+            clixon_err(OE_DB, 0, "No candidate struct");
+            goto done;
+        }
+        iddb = xmldb_islocked(h, db);
     }
-    iddb = xmldb_islocked(h, db);
+    else
+        iddb = 0;
     /* If no lock create transaction lock else use existing lock */
     if (iddb == 0)
         lock_id = TRANSACTION_CLIENT_ID;
@@ -522,7 +528,7 @@ controller_transaction_new(clixon_handle            h,
     (void)clicon_ptr_get(h, "controller-transaction-list", (void**)&ct_list);
     ADDQ(ct, ct_list);
     clicon_ptr_set(h, "controller-transaction-list", (void*)ct_list);
-    if (lock_id) {
+    if (lock_id && db) {
         if (xmldb_lock(h, db, lock_id) < 0)
             goto done;
         /* user callback */

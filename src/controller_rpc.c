@@ -698,7 +698,7 @@ rpc_config_pull(clixon_handle h,
 
     clixon_debug(CLIXON_DBG_CTRL, "");
     /* Initiate new transaction */
-    if ((ret = controller_transaction_new(h, ce, clicon_username_get(h), "pull", &ct, &cberr)) < 0)
+    if ((ret = controller_transaction_new(h, ce, clicon_username_get(h), "pull", 1, &ct, &cberr)) < 0)
         goto done;
     if (ret == 0){
         if (netconf_operation_failed(cbret, "application", "%s", cbuf_get(cberr))< 0)
@@ -1732,7 +1732,7 @@ rpc_controller_commit(clixon_handle h,
     /* Initiate new transaction.
      * NB: this locks candidate, which always needs to be unlocked, eg by controller_transaction_done
      */
-    if ((ret = controller_transaction_new(h, ce, clicon_username_get(h), cbuf_get(cbtr), &ct, &cberr)) < 0)
+    if ((ret = controller_transaction_new(h, ce, clicon_username_get(h), cbuf_get(cbtr), 1, &ct, &cberr)) < 0)
         goto done;
     if (ret == 0){
         if (netconf_operation_failed(cbret, "application", "%s", cbuf_get(cberr))< 0)
@@ -2121,7 +2121,7 @@ rpc_connection_change(clixon_handle h,
     pattern = xml_body(xn);
     operation = xml_find_body(xe, "operation");
     cprintf(cbtr, " %s", operation);
-    if ((ret = controller_transaction_new(h, ce, clicon_username_get(h), cbuf_get(cbtr), &ct, &cberr)) < 0)
+    if ((ret = controller_transaction_new(h, ce, clicon_username_get(h), cbuf_get(cbtr), 1, &ct, &cberr)) < 0)
         goto done;
     if (ret == 0){
         if (netconf_operation_failed(cbret, "application", "%s", cbuf_get(cberr))< 0)
@@ -3205,7 +3205,7 @@ rpc_device_rpc_template_apply(clixon_handle h,
             goto done;
     }
     /* Initiate new transaction */
-    if ((ret = controller_transaction_new(h, ce, clicon_username_get(h), "rpc", &ct, &cberr)) < 0)
+    if ((ret = controller_transaction_new(h, ce, clicon_username_get(h), "rpc-device template", 0, &ct, &cberr)) < 0)
         goto done;
     if (ret == 0){
         if (netconf_operation_failed(cbret, "application", "%s", cbuf_get(cberr))< 0)
@@ -3353,7 +3353,7 @@ rpc_device_rpc(clixon_handle h,
         goto ok;
     }
     /* Initiate new transaction */
-    if ((ret = controller_transaction_new(h, ce, clicon_username_get(h), "rpc", &ct, &cberr)) < 0)
+    if ((ret = controller_transaction_new(h, ce, clicon_username_get(h), "device-rpc", 0, &ct, &cberr)) < 0)
         goto done;
     if (ret == 0){
         if (netconf_operation_failed(cbret, "application", "%s", cbuf_get(cberr))< 0)
