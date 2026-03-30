@@ -3,6 +3,7 @@
 # Simple C / non-python service checking shared object create and delete
 # Uses util/controller_service.c as C-based server
 # Uses NACM
+# Also privcand and python test at the end
 #
 # Check starting of service (startup/disable/init)
 #
@@ -55,6 +56,8 @@ test -d $dir || mkdir -p $dir
 test -d $CFD || mkdir -p $CFD
 
 fyang=$dir/myyang.yang
+
+let w=1
 
 # Common NACM scripts
 . ./nacm.sh
@@ -111,8 +114,8 @@ module myyang {
    augment "/ctrl:services" {
       list testA {
          description "Test A service";
-         key a_name;
-         leaf a_name {
+         key service-name;
+         leaf service-name {
             description "Test A instance";
             type string;
          }
@@ -198,65 +201,11 @@ RULES=$(cat <<EOF
      <read-default>permit</read-default>
      <write-default>permit</write-default>
      <exec-default>permit</exec-default>
-
      $NGROUPS
-
      $NADMIN
-
    </nacm>
 EOF
 )
-
-# XXX WHY IS THIS COMMENTED?
-if false; then
-    
-# Enable services process to check for already running
-# if you run a separate debug clixon_controller_service process for debugging, set this to false
-cat <<EOF > $dir/startup_db
-<config>
-  $RULES
-  <processes xmlns="http://clicon.org/controller">
-    <services>
-      <enabled>false</enabled>
-    </services>
-  </processes>
-</config>
-EOF
-
-if $BE; then
-    new "Kill old backend $CFG"
-    sudo clixon_backend -f $CFG -z
-fi
-if $BE; then
-    new "Start new backend -s startup -f $CFG -E $CFD"
-    start_backend -s startup -f $CFG -E $CFD
-fi
-
-new "Wait backend 1"
-wait_backend
-
-check_services stopped
-
-# see https://github.com/clicon/clixon-controller/issues/84
-new "set small timeout"
-expectpart "$(${clixon_cli} -m configure -1f $CFG -E $CFD set devices device-timeout 3)" 0 ""
-
-new "commit local"
-expectpart "$(${clixon_cli} -m configure -1f $CFG -E $CFD commit local)" 0 ""
-
-new "edit service"
-expectpart "$(${clixon_cli} -m configure -1f $CFG -E $CFD set services testA foo params Ax)" 0 ""
-
-new "commit diff w timeout nr 1"
-expectpart "$(${clixon_cli} -m configure -1f $CFG -E $CFD commit diff 2>&1)" 0 "Timeout waiting for action daemon"
-
-new "commit diff w timeout nr 2"
-expectpart "$(${clixon_cli} -m configure -1f $CFG -E $CFD commit diff 2>&1)" 0 "Timeout waiting for action daemon"
-
-new "discard"
-expectpart "$(${clixon_cli} -m configure -1f $CFG -E $CFD discard)" 0 ""
-
-fi # XXX
 
 if $BE; then
     new "Kill old backend"
@@ -284,8 +233,9 @@ if $BE; then
     sudo clixon_backend -s startup -f $CFG -E $CFD -D $DBG
 fi
 
-new "Wait backend 2"
+new "Wait backend $w"
 wait_backend
+let w++
 
 check_services running
 
@@ -345,7 +295,7 @@ ret=$(${clixon_netconf} -0 -f $CFG -E $CFD <<EOF
     <config>
        <services xmlns="http://clicon.org/controller">
 	  <testA xmlns="urn:example:test" nc:operation="replace">
-	     <a_name>foo</a_name>
+	     <service-name>foo</service-name>
 	     <params>A0x</params>
 	     <params>A0y</params>
 	     <params>Ax</params>
@@ -435,7 +385,7 @@ message-id="42">
     <filter type='subtree'>
       <services xmlns="http://clicon.org/controller">
         <testA xmlns="urn:example:test">
-          <a_name>foo</a_name>
+          <service-name>foo</service-name>
         </testA>
       </services>
     </filter>
@@ -499,7 +449,7 @@ message-id="42">
     <filter type='subtree'>
       <services xmlns="http://clicon.org/controller">
         <testA xmlns="urn:example:test">
-          <a_name>foo</a_name>
+          <service-name>foo</service-name>
         </testA>
       </services>
     </filter>
@@ -538,7 +488,8 @@ if $BE; then
     sudo clixon_backend -s running -f $CFG -E $CFD -D $DBG
 fi
 
-new "Wait backend 3"
+new "Wait backend $w"
+let w++
 wait_backend
 
 new "open connections"
@@ -570,7 +521,7 @@ message-id="42">
     <filter type='subtree'>
       <services xmlns="http://clicon.org/controller">
         <testA xmlns="urn:example:test">
-          <a_name>foo</a_name>
+          <service-name>foo</service-name>
         </testA>
       </services>
     </filter>
@@ -606,7 +557,7 @@ ret=$(${clixon_netconf} -0 -f $CFG -E $CFD <<EOF
     <config>
        <services xmlns="http://clicon.org/controller">
 	  <testA xmlns="urn:example:test" nc:operation="replace">
-	     <a_name>foo</a_name>
+	     <service-name>foo</service-name>
 	     <params>A0y</params>
 	     <params>A0z</params>
 	     <params>Ay</params>
@@ -657,7 +608,7 @@ ret=$(${clixon_netconf} -0 -f $CFG -E $CFD <<EOF
     <config>
        <services xmlns="http://clicon.org/controller">
           <testA xmlns="urn:example:test" nc:operation="delete">
-            <a_name>foo</a_name>
+            <service-name>foo</service-name>
           </testA>
       </services>
     </config>
@@ -801,7 +752,7 @@ ret=$(${clixon_netconf} -0 -f $CFG -E $CFD <<EOF
     <config>
        <services xmlns="http://clicon.org/controller">
 	  <testA xmlns="urn:example:test" nc:operation="replace">
-	     <a_name>fie</a_name>
+	     <service-name>fie</service-name>
 	     <params>ZZ</params>
 	 </testA>
       </services>
@@ -817,7 +768,7 @@ if [ -n "$match" ]; then
 fi
 
 new "show compare service"
-expectpart "$($clixon_cli -1 -f $CFG -E $CFD -m configure show compare xml)" 0 "^\ *<services xmlns=\"http://clicon.org/controller\">" "^+\ *<testA xmlns=\"urn:example:test\">" "^+\ *<a_name>fie</a_name>" "^+\ *<params>ZZ</params>"
+expectpart "$($clixon_cli -1 -f $CFG -E $CFD -m configure show compare xml)" 0 "^\ *<services xmlns=\"http://clicon.org/controller\">" "^+\ *<testA xmlns=\"urn:example:test\">" "^+\ *<service-name>fie</service-name>" "^+\ *<params>ZZ</params>"
 
 new "discard"
 expectpart "$(${clixon_cli} -1f $CFG -E $CFD -m configure discard)" 0 ""
@@ -847,7 +798,8 @@ if $BE; then
     sudo clixon_backend -s running -f $CFG -E $CFD -D $DBG
 fi
 
-new "Wait backend 4"
+new "Wait backend $w"
+let w++
 wait_backend
 
 new "open connections"
@@ -895,85 +847,179 @@ if $BE; then
     stop_backend -f $CFG -E $CFD
 fi
 
-# apply services
-# Note start from previous running
-if $BE; then
-    new "Start new backend -s running -f $CFG -E $CFD -D $DBG"
-    sudo clixon_backend -s running -f $CFG -E $CFD -D $DBG
-fi
+# Hardcoded to two devices
+ip1=$(echo $CONTAINERS | awk '{print $1}')
+ip2=$(echo $CONTAINERS | awk '{print $2}')
 
-new "Wait backend 5"
-wait_backend
-
-new "open connections"
-expectpart "$(${clixon_cli} -1f $CFG -E $CFD connect open async)" 0 ""
-sleep $sleep
-
-new "edit testA(1)"
-ret=$(${clixon_netconf} -0 -f $CFG -E $CFD <<EOF
-<?xml version="1.0" encoding="UTF-8"?>
-<hello xmlns="urn:ietf:params:xml:ns:netconf:base:1.0">
-   <capabilities>
-      <capability>urn:ietf:params:netconf:base:1.0</capability>
-   </capabilities>
-</hello>]]>]]>
-<rpc xmlns="urn:ietf:params:xml:ns:netconf:base:1.0"
-     xmlns:nc="urn:ietf:params:xml:ns:netconf:base:1.0"
-     message-id="42">
-  <edit-config>
-    <target><candidate/></target>
-    <default-operation>none</default-operation>
-    <config>
-       <services xmlns="http://clicon.org/controller">
-	  <testA xmlns="urn:example:test" nc:operation="replace">
-	     <a_name>foo</a_name>
-	     <params>A0x</params>
-	 </testA>
-	  <testB xmlns="urn:example:test" nc:operation="replace">
-	     <b_name>foo</b_name>
-	     <params>A0x</params>
-	 </testB>
-      </services>
-    </config>
-  </edit-config>
-</rpc>]]>]]>
+sudo rm -rf "$dir/startup.d"
+cat <<EOF > $dir/startup_db
+<config>
+  <processes xmlns="http://clicon.org/controller">
+    <services>
+      <enabled>true</enabled>
+    </services>
+  </processes>
+  <services xmlns="http://clicon.org/controller">
+    <testA xmlns="urn:example:test">
+      <service-name>foo</service-name>
+      <params>Sx</params>
+    </testA>
+  </services>
+  <devices xmlns="http://clicon.org/controller">
+	<device>
+	  <name>openconfig1</name>
+	  <enabled>true</enabled>
+	  <user>$USER</user>
+	  <conn-type>NETCONF_SSH</conn-type>
+	  <yang-config>VALIDATE</yang-config>
+	  <addr>$ip1</addr>
+	  <config/>
+	</device>
+	<device>
+	  <name>openconfig2</name>
+	  <enabled>true</enabled>
+	  <user>$USER</user>
+	  <conn-type>NETCONF_SSH</conn-type>
+	  <yang-config>VALIDATE</yang-config>
+	  <addr>$ip2</addr>
+	  <config/>
+	</device>
+  </devices>
+  $RULES
+</config>
 EOF
-      )
 
-match=$(echo "$ret" | grep --null -Eo "<rpc-error>") || true
-if [ -n "$match" ]; then
-    err "<ok/>" "$ret"
-fi
+# Sleep and verify devices are open
+function apply_services()
+{
+    privcand=$1
 
-new "commit"
-expectpart "$(${clixon_cli} -m configure -1f $CFG -E $CFD commit 2>&1)" 0 "OK"
+    cat<<EOF > $CFD/diff.xml
+<?xml version="1.0" encoding="utf-8"?>
+<clixon-config xmlns="http://clicon.org/config">
+  <CLICON_CONFIGDIR>$CFD</CLICON_CONFIGDIR>
+  <CLICON_YANG_DIR>${DATADIR}/controller/main</CLICON_YANG_DIR>
+  <CLICON_YANG_MAIN_DIR>$dir</CLICON_YANG_MAIN_DIR>
+  <CLICON_YANG_DOMAIN_DIR>$dir</CLICON_YANG_DOMAIN_DIR>
+  <CLICON_XMLDB_DIR>$dir</CLICON_XMLDB_DIR>
+  <CLICON_VALIDATE_STATE_XML>true</CLICON_VALIDATE_STATE_XML>
+  <CLICON_CLI_OUTPUT_FORMAT>text</CLICON_CLI_OUTPUT_FORMAT>
+  <CLICON_XMLDB_PRIVATE_CANDIDATE>$privcand</CLICON_XMLDB_PRIVATE_CANDIDATE>
+</clixon-config>
+EOF
 
-# XXX: These are not properly tested
-new "apply single services diff"
-expectpart "$(${clixon_cli} -m configure -1f $CFG -E $CFD apply services myyang:testA foo diff 2>&1)" 0 "OK"
+    # apply services
+    # Note start from previous running
+    if $BE; then
+        new "Start new backend -s startup -f $CFG -E $CFD -D $DBG"
+        sudo clixon_backend -s startup -f $CFG -E $CFD -D $DBG
+    fi
 
-new "apply single services 1"
-expectpart "$(${clixon_cli} -m configure -1f $CFG -E $CFD apply services myyang:testA foo 2>&1)" 0 "OK"
+    new "Wait backend $w"
+    let w++
+    wait_backend
 
-new "apply single services 2"
-expectpart "$(${clixon_cli} -m configure -1f $CFG -E $CFD apply services myyang:testA foo 2>&1)" 0 "OK"
+    new "open connections"
+    expectpart "$(${clixon_cli} -1f $CFG -E $CFD connect open async)" 0 ""
+    sleep $sleep
 
-new "apply all services"
-expectpart "$(${clixon_cli} -m configure -1f $CFG -E $CFD apply services 2>&1)" 0 "OK"
+    new "Spawn expect script"
+    # -d to debug matching info
+    sudo expect - "$clixon_cli" "$CFG" "$CFD" $(whoami) <<'EOF'
+log_user 0
+set timeout 5
+set clixon_cli [lindex $argv 0]
+set CFG [lindex $argv 1]
+set CFD [lindex $argv 2]
+set USER [lindex $argv 3]
 
-# Test mandatory in services
-new "edit service C"
-expectpart "$(${clixon_cli} -m configure -1f $CFG -E $CFD set services testC foo)" 0 ""
+puts "Spawn CLI session"
+global session1
+spawn {*}sudo -u $USER clixon_cli -f $CFG -E $CFD -m configure -o CLICON_CLI_LINES_DEFAULT=0
+set session1 $spawn_id
 
-new "validate local"
-expectpart "$(${clixon_cli} -m configure -1f $CFG -E $CFD validate local 2>&1)" 255 "missing-element Missing mandatory XML extra node" "<bad-element>extra</bad-element>"
+proc clifn { session command reply } {
+    send -i $session "$command\n"
+    expect {
+        -i $session
+        -re "$command.*$reply.*\@.*# " {puts -nonewline "$expect_out(buffer)"}
+	    timeout { puts "\n\ntimeout"; exit 2 }
+	    eof { puts "\n\neof"; exit 3 }
+    }
+}
 
-new "discard"
-expectpart "$(${clixon_cli} -m configure -1f $CFG -E $CFD discard)" 0 "^$"
+puts "cli service testA foo A0x"
+clifn $session1 "set services testA foo params A0x" ""
 
-if $BE; then
-    new "Kill old backend"
-    stop_backend -f $CFG -E $CFD
-fi
+puts "cli service testB foo A0x"
+clifn $session1 "set services testA foo params A0x" ""
+
+puts "commit local"
+clifn $session1 "commit local" ""
+
+puts "edit service C"
+clifn $session1 "set services testC foo" ""
+
+puts "validate local"
+clifn $session1 "validate local" "missing-element Missing mandatory XML extra node"
+
+puts "discard"
+clifn $session1 "discard" ""
+EOF
+
+    if [ $? -ne 0 ]; then
+        err1 "Failed: test"
+    fi
+
+    new "Count datastores"
+    nr0=$(${clixon_cli} -1f $CFG -E $CFD show mem backend detail | grep candidate | wc -l)
+
+    new "apply single services diff"
+    expectpart "$(${clixon_cli} -m configure -1f $CFG -E $CFD apply services myyang:testA foo diff 2>&1)" 0 "OK"
+
+    new "apply single services 1"
+    expectpart "$(${clixon_cli} -m configure -1f $CFG -E $CFD apply services myyang:testA foo 2>&1)" 0 "OK"
+
+    new "apply single services 2"
+    expectpart "$(${clixon_cli} -m configure -1f $CFG -E $CFD apply services myyang:testA foo 2>&1)" 0 "OK"
+
+    new "apply all services"
+    expectpart "$(${clixon_cli} -m configure -1f $CFG -E $CFD apply services 2>&1)" 0 "OK"
+
+    new "Compare nr datastores"
+    nr1=$(${clixon_cli} -1f $CFG -E $CFD show mem backend detail | grep candidate | wc -l)
+
+    if [ $nr0 -ne $nr1 ]; then
+        err "$nr0" "$nr1"
+    fi
+
+    new "Create python script"
+    cat<<EOF > $dir/p.py
+from clixon.clixon import Clixon
+
+with Clixon(source="running", read_only=True) as clx:
+    diff = clx.apply_service("testA", "foo", diff=True)
+EOF
+
+    new "Run python script: apply testA foo diff"
+    expectpart "$(python3 $dir/p.py 2> /dev/null)" 0 ""
+
+    new "Compare nr datastores after py"
+    nr1=$(${clixon_cli} -1f $CFG -E $CFD show mem backend detail | grep candidate | wc -l)
+
+    if [ $nr0 -ne $nr1 ]; then
+        err "$nr0" "$nr1"
+    fi
+    if $BE; then
+        new "Kill old backend"
+        stop_backend -f $CFG -E $CFD
+    fi
+} # apply_services
+
+new "Apply services shared"
+apply_services false
+
+new "Apply services privcand"
+apply_services true
 
 endtest
