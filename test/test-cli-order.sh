@@ -21,8 +21,8 @@ function sleep_open()
     for j in $(seq 1 $jmax); do
         new "cli show connections and check open"
         ret=$($clixon_cli -1 -f $CFG show connections)
-        match1=$(echo "$ret" | grep --null -Eo "openconfig1.*OPEN") || true
-        match2=$(echo "$ret" | grep --null -Eo "openconfig2.*OPEN") || true
+        match1=$(echo "$ret" | grep --null -Eo "${IMG}1.*OPEN") || true
+        match2=$(echo "$ret" | grep --null -Eo "${IMG}2.*OPEN") || true
         if [ -n "$match1" -a -n "$match2" ]; then
             break;
         fi
@@ -50,19 +50,19 @@ new "reset controller"
 (. ./reset-controller.sh)
 
 new "add 1.1.1.1"
-expectpart "$($clixon_cli -1 -m configure -f $CFG set devices device openconfig1 config system dns servers server 1.1.1.1 config address 1.1.1.1)" 0 ""
+expectpart "$($clixon_cli -1 -m configure -f $CFG set devices device ${IMG}1 config system dns servers server 1.1.1.1 config address 1.1.1.1)" 0 ""
 
 new "add 3.3.3.3"
-expectpart "$($clixon_cli -1 -m configure -f $CFG set devices device openconfig1 config system dns servers server 3.3.3.3 config address 3.3.3.3)" 0 ""
+expectpart "$($clixon_cli -1 -m configure -f $CFG set devices device ${IMG}1 config system dns servers server 3.3.3.3 config address 3.3.3.3)" 0 ""
 
 new "add 2.2.2.2"
-expectpart "$($clixon_cli -1  -m configure -f $CFG set devices device openconfig1 config system dns servers server 2.2.2.2 config address 2.2.2.2)" 0 ""
+expectpart "$($clixon_cli -1  -m configure -f $CFG set devices device ${IMG}1 config system dns servers server 2.2.2.2 config address 2.2.2.2)" 0 ""
 
 new "commit 1"
 expectpart "$($clixon_cli -1 -m configure -f $CFG commit)" 0 ""
 
 new "delete middle 3.3.3.3"
-expectpart "$($clixon_cli -1 -m configure -f $CFG delete devices device openconfig1 config system dns servers server 3.3.3.3)" 0 ""
+expectpart "$($clixon_cli -1 -m configure -f $CFG delete devices device ${IMG}1 config system dns servers server 3.3.3.3)" 0 ""
 
 new "show compare xml"
 expectpart "$($clixon_cli -1 -m configure -f $CFG show compare xml)" 0 "\-\ *<address>3.3.3.3</address>" --not-- "+" "1.1.1.1" "2.2.2.2"
@@ -79,7 +79,7 @@ new "show config"
 expectpart "$($clixon_cli -1 -f $CFG -o CLICON_CLI_OUTPUT_FORMAT=text show config)" 0 "address 1.1.1.1;" "address 2.2.2.2;" --not-- "address 3.3.3.3;"
 
 new "delete first 1.1.1.1"
-expectpart "$($clixon_cli -1 -m configure -f $CFG delete devices device openconfig1 config system dns servers server 1.1.1.1)" 0 ""
+expectpart "$($clixon_cli -1 -m configure -f $CFG delete devices device ${IMG}1 config system dns servers server 1.1.1.1)" 0 ""
 
 new "commit 3"
 expectpart "$($clixon_cli -1 -m configure -f $CFG commit)" 0 ""
@@ -87,13 +87,13 @@ expectpart "$($clixon_cli -1 -m configure -f $CFG commit)" 0 ""
 # now do https://github.com/clicon/clixon/issues/496
 # Add 1.1.1.1/2.2.2.2 in that order
 new "delete 2.2.2.2"
-expectpart "$($clixon_cli -1 -m configure -f $CFG delete devices device openconfig1 config system dns servers server 2.2.2.2)" 0 ""
+expectpart "$($clixon_cli -1 -m configure -f $CFG delete devices device ${IMG}1 config system dns servers server 2.2.2.2)" 0 ""
 
 new "add 1.1.1.1"
-expectpart "$($clixon_cli -1  -m configure -f $CFG set devices device openconfig1 config system dns servers server 1.1.1.1 config address 1.1.1.1)" 0 ""
+expectpart "$($clixon_cli -1  -m configure -f $CFG set devices device ${IMG}1 config system dns servers server 1.1.1.1 config address 1.1.1.1)" 0 ""
 
 new "add 2.2.2.2"
-expectpart "$($clixon_cli -1  -m configure -f $CFG set devices device openconfig1 config system dns servers server 2.2.2.2 config address 2.2.2.2)" 0 ""
+expectpart "$($clixon_cli -1  -m configure -f $CFG set devices device ${IMG}1 config system dns servers server 2.2.2.2 config address 2.2.2.2)" 0 ""
 
 # Shows only 1.1.1.1 as added, but 2.2.2.2 is reordered
 new "commit diff a"
@@ -104,7 +104,7 @@ expectpart "$($clixon_cli -1  -m configure -f $CFG commit push)" 0 "^$"
 
 # Here device and controller have different orders
 new "set anything"
-expectpart "$($clixon_cli -1  -m configure -f $CFG set devices device openconfig1 config system config login-banner kalle)" 0 "^$"
+expectpart "$($clixon_cli -1  -m configure -f $CFG set devices device ${IMG}1 config system config login-banner kalle)" 0 "^$"
 
 new "commit fail"
 expectpart "$($clixon_cli -1  -m configure -f $CFG commit push 2>&1)" 0 "^OK$"

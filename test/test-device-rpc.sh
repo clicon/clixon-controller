@@ -31,10 +31,10 @@ new "reset controller"
 (. ./reset-controller.sh)
 
 new "CLI show device rpc"
-expectpart "$($clixon_cli -1f $CFG show devices openconfig* rpc clixon* 2>&1)" 0 "clixon-lib:debug" "clixon-lib:stats"
+expectpart "$($clixon_cli -1f $CFG show devices ${IMG}* rpc clixon* 2>&1)" 0 "clixon-lib:debug" "clixon-lib:stats"
 
 new "CLI show device yang"
-expectpart "$($clixon_cli -1f $CFG show devices openconfig1 rpc clixon-lib:stats yang 2>&1)" 0 "rpc stats {"
+expectpart "$($clixon_cli -1f $CFG show devices ${IMG}1 rpc clixon-lib:stats yang 2>&1)" 0 "rpc stats {"
 
 # Send device-rpc stats
 new "device-rpc NETCONF"
@@ -49,7 +49,7 @@ ret=$(${clixon_netconf} -0 -f $CFG <<'EOF'
      xmlns:nc="urn:ietf:params:xml:ns:netconf:base:1.0"
      message-id="42">
    <device-rpc xmlns="http://clicon.org/controller">
-      <device>openconfig*</device>
+      <device>${IMG}*</device>
       <config>
          <stats xmlns="http://clicon.org/lib">
             <modules>${MODULES}</modules>
@@ -84,7 +84,7 @@ ret=$(${clixon_netconf} -0 -f $CFG <<'EOF'
      xmlns:nc="urn:ietf:params:xml:ns:netconf:base:1.0"
      message-id="42">
    <device-rpc xmlns="http://clicon.org/controller">
-      <device>openconfig*</device>
+      <device>${IMG}*</device>
       <config>
          <ping xmlns="http://clicon.org/lib"/>
       </config>
@@ -144,7 +144,7 @@ new "commit template local 2"
 expectpart "$($clixon_cli -1f $CFG -m configure commit local 2>&1)" 0 "^$"
 
 new "Send stats rpc"
-expectpart "$($clixon_cli -1 -f $CFG rpc stats openconfig* variables MODULES false)" 0 "<name>openconfig1</name>" "<name>openconfig2</name>" '<module-sets xmlns="http://clicon.org/lib">'
+expectpart "$($clixon_cli -1 -f $CFG rpc stats ${IMG}* variables MODULES false)" 0 "<name>${IMG}1</name>" "<name>${IMG}2</name>" '<module-sets xmlns="http://clicon.org/lib">'
 
 new "CLI load template ping"
 # quote EOFfor $NAME
@@ -171,16 +171,16 @@ new "commit template local 3"
 expectpart "$($clixon_cli -1f $CFG -m configure commit local 2>&1)" 0 "^$"
 
 new "ping to all"
-expectpart "$($clixon_cli -1 -f $CFG rpc ping openconfig*)" 0 "<name>openconfig1</name>" "<name>openconfig2</name>" "<ok"
+expectpart "$($clixon_cli -1 -f $CFG rpc ping ${IMG}*)" 0 "<name>${IMG}1</name>" "<name>${IMG}2</name>" "<ok"
 
-new "ping to openconfig1"
-expectpart "$($clixon_cli -1 -f $CFG rpc ping openconfig1)" 0 "<name>openconfig1</name>" "<ok" --not-- "<name>openconfig2</name>"
+new "ping to ${IMG}1"
+expectpart "$($clixon_cli -1 -f $CFG rpc ping ${IMG}1)" 0 "<name>${IMG}1</name>" "<ok" --not-- "<name>${IMG}2</name>"
 
 new "close one"
-expectpart "$($clixon_cli -1 -f $CFG connect close openconfig1)" 0 ""
+expectpart "$($clixon_cli -1 -f $CFG connect close ${IMG}1)" 0 ""
 
 new "ping expect fail"
-expectpart "$($clixon_cli -1 -f $CFG rpc ping openconfig1 2>&1)" 0 "No device connected" --not-- "<name>openconfig1</name>"
+expectpart "$($clixon_cli -1 -f $CFG rpc ping ${IMG}1 2>&1)" 0 "No device connected" --not-- "<name>${IMG}1</name>"
 
 # Negative
 new "open all"
@@ -206,10 +206,10 @@ new "commit template local 4"
 expectpart "$($clixon_cli -1f $CFG -m configure commit local 2>&1)" 0 "^$"
 
 new "notexist to one"
-expectpart "$($clixon_cli -1 -f $CFG rpc notexist openconfig1 2>&1)" 0 "Unrecognized RPC" "<bad-element>notexist</bad-element>" --not-- "<ok"
+expectpart "$($clixon_cli -1 -f $CFG rpc notexist ${IMG}1 2>&1)" 0 "Unrecognized RPC" "<bad-element>notexist</bad-element>" --not-- "<ok"
 
 new "check open"
-expectpart "$($clixon_cli -1 -f $CFG show connect openconfig1)" 0 "OPEN " --not-- CLOSED RPC_GENERIC
+expectpart "$($clixon_cli -1 -f $CFG show connect ${IMG}1)" 0 "OPEN " --not-- CLOSED RPC_GENERIC
 
 if $BE; then
     new "Kill old backend"

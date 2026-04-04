@@ -192,8 +192,8 @@ function sleep_open()
     for j in $(seq 1 10); do
         new "Verify devices are open"
         ret=$($clixon_cli -1 -f $CFG -E $CFD show connections)
-        match1=$(echo "$ret" | grep --null -Eo "openconfig1.*OPEN") || true
-        match2=$(echo "$ret" | grep --null -Eo "openconfig2.*OPEN") || true
+        match1=$(echo "$ret" | grep --null -Eo "${IMG}1.*OPEN") || true
+        match2=$(echo "$ret" | grep --null -Eo "${IMG}2.*OPEN") || true
         if [ -n "$match1" -a -n "$match2" ]; then
             break;
         fi
@@ -201,7 +201,7 @@ function sleep_open()
         sleep 1
     done
     if [ $j -eq 10 ]; then
-        err "device openconfig OPEN" "Timeout"
+        err "device ${IMG} OPEN" "Timeout"
     fi
 }
 
@@ -267,8 +267,8 @@ expectpart "$($clixon_cli -1 -f $CFG -E $CFD processes service status)" 0 ".*run
 
 nacm_init
 
-new "Verify that we have access to hostname"
-expectpart "$(curl $CURLOPTS --key $certdir/andy.key --cert $certdir/andy.crt -X GET -H "Content-Type: application/yang-data+xml" $RCPROTO://localhost/restconf/data/clixon-controller:devices/device=openconfig1/config/openconfig-system:system/config/hostname)" 0 '.*{"openconfig-system:hostname":"openconfig1"}'
+new "Verify access to hostname"
+expectpart "$(curl $CURLOPTS --key $certdir/andy.key --cert $certdir/andy.crt -X GET -H "Content-Type: application/yang-data+xml" $RCPROTO://localhost/restconf/data/clixon-controller:devices/device=${IMG}1/config/openconfig-system:system/config/hostname)" 0 ".*{\"openconfig-system:hostname\":\"${IMG}1\"}"
 
 new "Deny access to hostname"
 expectpart "$($clixon_cli -1 -f $CFG -E $CFD -m configure set nacm rule-list test-rules rule test-rule access-operations \*)" 0 ""
@@ -279,7 +279,7 @@ expectpart "$($clixon_cli -1 -f $CFG -E $CFD -m configure set nacm rule-list tes
 new "Deny access to hostname"
 expectpart "$($clixon_cli -1 -f $CFG -E $CFD -m configure commit local)" 0 ""
 new "Deny access to hostname"
-expectpart "$(curl $CURLOPTS --key $certdir/andy.key --cert $certdir/andy.crt -X GET -H "Content-Type: application/yang-data+xml" $RCPROTO://localhost/restconf/data/clixon-controller:devices/device=openconfig1/config/openconfig-system:system/config/hostname)" 0 '.*{"ietf-restconf:errors":{"error":{"error-type":"application","error-tag":"invalid-value","error-severity":"error","error-message":"Instance does not exist"}}}'
+expectpart "$(curl $CURLOPTS --key $certdir/andy.key --cert $certdir/andy.crt -X GET -H "Content-Type: application/yang-data+xml" $RCPROTO://localhost/restconf/data/clixon-controller:devices/device=${IMG}1/config/openconfig-system:system/config/hostname)" 0 '.*{"ietf-restconf:errors":{"error":{"error-type":"application","error-tag":"invalid-value","error-severity":"error","error-message":"Instance does not exist"}}}'
 
 new "Create a new service instance"
 expectpart "$(curl $CURLOPTS --key $certdir/andy.key --cert $certdir/andy.crt -X POST -H "Content-Type: application/yang-data+json" $RCPROTO://localhost/restconf/data/clixon-controller:services -d '{"ssh-users:ssh-users": [{"service-name": "test","username": [{"name": "test","ssh-key": "AAAA","role": "operator"}]}]}')" 0 "HTTP/$HVER 201"

@@ -59,8 +59,8 @@ function sleep_open()
     for j in $(seq 1 $jmax); do
         new "cli show connections and check open"
         ret=$($clixon_cli -1 -f $CFG -E $CFD show connections)
-        match1=$(echo "$ret" | grep --null -Eo "openconfig1.*OPEN") || true
-        match2=$(echo "$ret" | grep --null -Eo "openconfig2.*OPEN") || true
+        match1=$(echo "$ret" | grep --null -Eo "${IMG}1.*OPEN") || true
+        match2=$(echo "$ret" | grep --null -Eo "${IMG}2.*OPEN") || true
         if [ -n "$match1" -a -n "$match2" ]; then
             break;
         fi
@@ -68,7 +68,7 @@ function sleep_open()
         sleep 1
     done
     if [ $j -eq $jmax ]; then
-        err "device openconfig OPEN" "Timeout" 
+        err "device ${IMG} OPEN" "Timeout"
     fi
 }
 
@@ -86,8 +86,8 @@ function device_mtu_set()
       <capability>urn:ietf:params:netconf:base:1.0</capability>
    </capabilities>
 </hello>]]>]]>
-<rpc xmlns="urn:ietf:params:xml:ns:netconf:base:1.0" 
-     xmlns:nc="urn:ietf:params:xml:ns:netconf:base:1.0" 
+<rpc xmlns="urn:ietf:params:xml:ns:netconf:base:1.0"
+     xmlns:nc="urn:ietf:params:xml:ns:netconf:base:1.0"
      message-id="42">
   <edit-config>
     <target>
@@ -127,7 +127,7 @@ function device_mtu_get()
     mtu=$2
 
     REQ='<interfaces xmlns="http://openconfig.net/yang/interfaces/interface/mtu"/>'
-    
+
     new "Get mtu on $ip"
     ret=$(ssh ${SSHID} -l $USER $ip -o StrictHostKeyChecking=no -o PasswordAuthentication=no -s netconf <<EOF
 <?xml version="1.0" encoding="UTF-8"?>
@@ -136,8 +136,8 @@ function device_mtu_get()
       <capability>urn:ietf:params:netconf:base:1.0</capability>
    </capabilities>
 </hello>]]>]]>
-<rpc xmlns="urn:ietf:params:xml:ns:netconf:base:1.0" 
-     xmlns:nc="urn:ietf:params:xml:ns:netconf:base:1.0" 
+<rpc xmlns="urn:ietf:params:xml:ns:netconf:base:1.0"
+     xmlns:nc="urn:ietf:params:xml:ns:netconf:base:1.0"
      message-id="42">
   <get-config>
     <source>
@@ -182,7 +182,7 @@ fi
 new "wait backend"
 wait_backend
 
-# Reset controller 
+# Reset controller
 new "reset controller"
 EXTRA="<module-set><module><name>clixon-ext</name><namespace>http://clicon.org/ext</namespace></module></module-set>" . ./reset-controller.sh
 
@@ -262,13 +262,13 @@ expectpart "$($clixon_cli -1f $CFG -E $CFD -m configure commit push)" 0 "^$"
 device_mtu_get $ip 999
 
 new "Check controller is still 777"
-expectpart "$($clixon_cli -1f $CFG -E $CFD show config devices device openconfig1 config interfaces interface y config mtu)" 0 "<mtu>777</mtu>"
+expectpart "$($clixon_cli -1f $CFG -E $CFD show config devices device ${IMG}1 config interfaces interface y config mtu)" 0 "<mtu>777</mtu>"
 
 new "Pull"
 expectpart "$($clixon_cli -1f $CFG -E $CFD pull)" 0 "^$"
 
 new "Check controller is 999"
-expectpart "$($clixon_cli -1f $CFG -E $CFD show config devices device openconfig1 config interfaces interface y config mtu)" 0 "<mtu>999</mtu>"
+expectpart "$($clixon_cli -1f $CFG -E $CFD show config devices device ${IMG}1 config interfaces interface y config mtu)" 0 "<mtu>999</mtu>"
 
 device_mtu_get $ip 999
 
@@ -283,7 +283,7 @@ new "Commit local"
 expectpart "$($clixon_cli -1f $CFG -E $CFD -m configure commit local)" 0 "^$"
 
 new "Check controller is gone"
-expectpart "$($clixon_cli -1f $CFG -E $CFD show config devices device openconfig1 config interfaces interface y config mtu)" 0 --not-- "<mtu>"
+expectpart "$($clixon_cli -1f $CFG -E $CFD show config devices device ${IMG}1 config interfaces interface y config mtu)" 0 --not-- "<mtu>"
 
 new "check sync OK"
 expectpart "$($clixon_cli -1f $CFG -E $CFD show devices $NAME check 2>&1)" 0 "OK" --not-- "out-of-sync"

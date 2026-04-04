@@ -132,8 +132,8 @@ function sleep_open()
     for j in $(seq 1 10); do
         new "Verify devices are open"
         ret=$($clixon_cli -1 -f $CFG -E $CFD show connections)
-        match1=$(echo "$ret" | grep --null -Eo "openconfig1.*OPEN") || true
-        match2=$(echo "$ret" | grep --null -Eo "openconfig2.*OPEN") || true
+        match1=$(echo "$ret" | grep --null -Eo "${IMG}1.*OPEN") || true
+        match2=$(echo "$ret" | grep --null -Eo "${IMG}2.*OPEN") || true
         if [ -n "$match1" -a -n "$match2" ]; then
             break;
         fi
@@ -141,7 +141,7 @@ function sleep_open()
         sleep 1
     done
     if [ $j -eq 10 ]; then
-        err "device openconfig OPEN" "Timeout"
+        err "device ${IMG} OPEN" "Timeout"
     fi
 }
 
@@ -172,7 +172,7 @@ if $BE; then
     start_backend -s init -f $CFG -E $CFD
 fi
 
-SERVICE_DIFF="openconfig1:
+SERVICE_DIFF="${IMG}1:
    <system xmlns="http://openconfig.net/yang/system">
 +     <aaa>
 +        <authentication>
@@ -189,7 +189,7 @@ SERVICE_DIFF="openconfig1:
 +        </authentication>
 +     </aaa>
    </system>
-openconfig2:
+${IMG}2:
    <system xmlns="http://openconfig.net/yang/system">
 +     <aaa>
 +        <authentication>
@@ -241,10 +241,10 @@ new "Deny access to device addr 1"
 expectpart "$($clixon_cli -1 -f $CFG -E $CFD -m configure commit local)" 0 ""
 
 new "Check show devices deny"
-expectpart "$($clixon_cli -1 -f $CFG -E $CFD -m configure show devices device openconfig1 addr)" 0 "<!-- openconfig1: -->
+expectpart "$($clixon_cli -1 -f $CFG -E $CFD -m configure show devices device ${IMG}1 addr)" 0 "<!-- ${IMG}1: -->
 <devices xmlns=\"http://clicon.org/controller\">
    <device>
-      <name>openconfig1</name>
+      <name>${IMG}1</name>
    </device>
 </devices>"
 
@@ -261,10 +261,10 @@ expectpart "$($clixon_cli -1 -f $CFG -E $CFD -m configure set nacm rule-list tes
 new "Permit access to device addr"
 expectpart "$($clixon_cli -1 -f $CFG -E $CFD -m configure commit local)" 0 ""
 new "Check show devices permit"
-expectpart "$($clixon_cli -1 -f $CFG -E $CFD -m configure show devices device openconfig1 addr)" 0 "<!-- openconfig1: -->
+expectpart "$($clixon_cli -1 -f $CFG -E $CFD -m configure show devices device ${IMG}1 addr)" 0 "<!-- ${IMG}1: -->
 <devices xmlns=\"http://clicon.org/controller\">
    <device>
-      <name>openconfig1</name>
+      <name>${IMG}1</name>
       <addr>.*</addr>
    </device>
 </devices>"
@@ -283,11 +283,11 @@ new "Deny access to device hostname but make sure we can modify domain-name"
 expectpart "$($clixon_cli -1 -f $CFG -E $CFD -m configure commit local)" 0 ""
 
 new "Access-denied"
-expectpart "$($clixon_cli -1 -f $CFG -E $CFD -m configure set devices device openconfig1 config system config hostname test 2>&1)" 255 ".*Netconf error: Editing configuration: application access-denied access denied.*"
+expectpart "$($clixon_cli -1 -f $CFG -E $CFD -m configure set devices device ${IMG}1 config system config hostname test 2>&1)" 255 ".*Netconf error: Editing configuration: application access-denied access denied.*"
 new "Access-denied"
-expectpart "$($clixon_cli -1 -f $CFG -E $CFD -m configure set devices device openconfig1 config system config domain-name example.com 2>&1)" 0 ""
+expectpart "$($clixon_cli -1 -f $CFG -E $CFD -m configure set devices device ${IMG}1 config system config domain-name example.com 2>&1)" 0 ""
 new "Access-denied"
-expectpart "$($clixon_cli -1 -f $CFG -E $CFD -m configure commit diff 2>&1)" 0 "openconfig1:
+expectpart "$($clixon_cli -1 -f $CFG -E $CFD -m configure commit diff 2>&1)" 0 "${IMG}1:
       <config xmlns="http://openconfig.net/yang/system">
 +        <domain-name>example.com</domain-name>
       </config>
@@ -298,7 +298,7 @@ expectpart "$($clixon_cli -1 -f $CFG -E $CFD -m configure set nacm rule-list tes
 new "Permit access to device configuration"
 expectpart "$($clixon_cli -1 -f $CFG -E $CFD -m configure commit local)" 0 ""
 new "Permit access to device configuration"
-expectpart "$($clixon_cli -1 -f $CFG -E $CFD -m configure set devices device openconfig1 config system config hostname test)" 0 ""
+expectpart "$($clixon_cli -1 -f $CFG -E $CFD -m configure set devices device ${IMG}1 config system config hostname test)" 0 ""
 new "Permit access to device configuration"
 expectpart "$($clixon_cli -1 -f $CFG -E $CFD -m configure commit 2>&1)" 0 "OK"
 

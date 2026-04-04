@@ -353,7 +353,7 @@ fi
 
 # see https://github.com/clicon/clixon-controller/issues/78
 new "local change w default"
-expectpart "$(${clixon_cli} -m configure -1f $CFG -E $CFD set devices device openconfig1 config system dns servers server 1.1.1.1 config address 1.1.1.1)" 0 ""
+expectpart "$(${clixon_cli} -m configure -1f $CFG -E $CFD set devices device ${IMG}1 config system dns servers server 1.1.1.1 config address 1.1.1.1)" 0 ""
 
 new "show compare text"
 expectpart "$(${clixon_cli} -m configure -1f $CFG -E $CFD show compare 2>&1)" 0 "^+\ *address 1.1.1.1;" --not-- "^+\ *port 53;"
@@ -371,9 +371,9 @@ new "commit diff 3"
 expectpart "$(${clixon_cli} -m configure -1f $CFG -E $CFD commit diff 2>&1)" 0 --not-- "^+\ *<address>1.1.1.1</address>"
 
 # This works for nr>=2
-CREATORSA="<path>/devices/device\[name=\"openconfig1\"\]/config/interfaces/interface\[name=\"A0x\"\]</path><path>/devices/device\[name=\"openconfig1\"\]/config/interfaces/interface\[name=\"A0y\"\]</path><path>/devices/device\[name=\"openconfig1\"\]/config/interfaces/interface\[name=\"ABx\"\]</path><path>/devices/device\[name=\"openconfig1\"\]/config/interfaces/interface\[name=\"ABy\"\]</path><path>/devices/device\[name=\"openconfig1\"\]/config/interfaces/interface\[name=\"Ax\"\]</path><path>/devices/device\[name=\"openconfig1\"\]/config/interfaces/interface\[name=\"Ay\"\]</path><path>/devices/device\[name=\"openconfig2\"\]/config/interfaces/interface\[name=\"A0x\"\]</path><path>/devices/device\[name=\"openconfig2\"\]/config/interfaces/interface\[name=\"A0y\"\]</path><path>/devices/device\[name=\"openconfig2\"\]/config/interfaces/interface\[name=\"ABx\"\]</path><path>/devices/device\[name=\"openconfig2\"\]/config/interfaces/interface\[name=\"ABy\"\]</path><path>/devices/device\[name=\"openconfig2\"\]/config/interfaces/interface\[name=\"Ax\"\]</path><path>/devices/device\[name=\"openconfig2\"\]/config/interfaces/interface\[name=\"Ay\"\]</path>"
+CREATORSA="<path>/devices/device\[name=\"${IMG}1\"\]/config/interfaces/interface\[name=\"A0x\"\]</path><path>/devices/device\[name=\"${IMG}1\"\]/config/interfaces/interface\[name=\"A0y\"\]</path><path>/devices/device\[name=\"${IMG}1\"\]/config/interfaces/interface\[name=\"ABx\"\]</path><path>/devices/device\[name=\"${IMG}1\"\]/config/interfaces/interface\[name=\"ABy\"\]</path><path>/devices/device\[name=\"${IMG}1\"\]/config/interfaces/interface\[name=\"Ax\"\]</path><path>/devices/device\[name=\"${IMG}1\"\]/config/interfaces/interface\[name=\"Ay\"\]</path><path>/devices/device\[name=\"${IMG}2\"\]/config/interfaces/interface\[name=\"A0x\"\]</path><path>/devices/device\[name=\"${IMG}2\"\]/config/interfaces/interface\[name=\"A0y\"\]</path><path>/devices/device\[name=\"${IMG}2\"\]/config/interfaces/interface\[name=\"ABx\"\]</path><path>/devices/device\[name=\"${IMG}2\"\]/config/interfaces/interface\[name=\"ABy\"\]</path><path>/devices/device\[name=\"${IMG}2\"\]/config/interfaces/interface\[name=\"Ax\"\]</path><path>/devices/device\[name=\"${IMG}2\"\]/config/interfaces/interface\[name=\"Ay\"\]</path>"
 
-CREATORSB="<path>/devices/device\[name=\"openconfig1\"\]/config/interfaces/interface\[name=\"A0x\"\]</path><path>/devices/device\[name=\"openconfig1\"\]/config/interfaces/interface\[name=\"A0y\"\]</path><path>/devices/device\[name=\"openconfig1\"\]/config/interfaces/interface\[name=\"ABx\"\]</path><path>/devices/device\[name=\"openconfig1\"\]/config/interfaces/interface\[name=\"ABy\"\]</path><path>/devices/device\[name=\"openconfig1\"\]/config/interfaces/interface\[name=\"ABz\"\]</path><path>/devices/device\[name=\"openconfig1\"\]/config/interfaces/interface\[name=\"Bx\"\]</path><path>/devices/device\[name=\"openconfig2\"\]/config/interfaces/interface\[name=\"A0x\"\]</path><path>/devices/device\[name=\"openconfig2\"\]/config/interfaces/interface\[name=\"A0y\"\]</path><path>/devices/device\[name=\"openconfig2\"\]/config/interfaces/interface\[name=\"ABx\"\]</path><path>/devices/device\[name=\"openconfig2\"\]/config/interfaces/interface\[name=\"ABy\"\]</path><path>/devices/device\[name=\"openconfig2\"\]/config/interfaces/interface\[name=\"ABz\"\]</path><path>/devices/device\[name=\"openconfig2\"\]/config/interfaces/interface\[name=\"Bx\"\]</path>"
+CREATORSB="<path>/devices/device\[name=\"${IMG}1\"\]/config/interfaces/interface\[name=\"A0x\"\]</path><path>/devices/device\[name=\"${IMG}1\"\]/config/interfaces/interface\[name=\"A0y\"\]</path><path>/devices/device\[name=\"${IMG}1\"\]/config/interfaces/interface\[name=\"ABx\"\]</path><path>/devices/device\[name=\"${IMG}1\"\]/config/interfaces/interface\[name=\"ABy\"\]</path><path>/devices/device\[name=\"${IMG}1\"\]/config/interfaces/interface\[name=\"ABz\"\]</path><path>/devices/device\[name=\"${IMG}1\"\]/config/interfaces/interface\[name=\"Bx\"\]</path><path>/devices/device\[name=\"${IMG}2\"\]/config/interfaces/interface\[name=\"A0x\"\]</path><path>/devices/device\[name=\"${IMG}2\"\]/config/interfaces/interface\[name=\"A0y\"\]</path><path>/devices/device\[name=\"${IMG}2\"\]/config/interfaces/interface\[name=\"ABx\"\]</path><path>/devices/device\[name=\"${IMG}2\"\]/config/interfaces/interface\[name=\"ABy\"\]</path><path>/devices/device\[name=\"${IMG}2\"\]/config/interfaces/interface\[name=\"ABz\"\]</path><path>/devices/device\[name=\"${IMG}2\"\]/config/interfaces/interface\[name=\"Bx\"\]</path>"
 
 new "Check creator attributes testA"
 ret=$(${clixon_netconf} -qe0 -f $CFG -E $CFD <<EOF
@@ -831,7 +831,7 @@ new "commit base"
 expectpart "$(${clixon_cli} -m configure -1f $CFG -E $CFD commit 2>&1)" 0 "OK"
 
 new "Check Sy"
-expectpart "$(${clixon_cli} -1f $CFG -E $CFD show configuration devices device openconfig1 config interfaces interface Sy)" 0 "interface Sy {"
+expectpart "$(${clixon_cli} -1f $CFG -E $CFD show configuration devices device ${IMG}1 config interfaces interface Sy)" 0 "interface Sy {"
 
 new "remove Sy"
 expectpart "$(${clixon_cli} -m configure -1f $CFG -E $CFD delete services testA foo params Sy)" 0 "^$"
@@ -840,7 +840,7 @@ new "commit remove"
 expectpart "$(${clixon_cli} -m configure -1f $CFG -E $CFD commit 2>&1)" 0 "OK"
 
 new "Check not Sy"
-expectpart "$(${clixon_cli} -1f $CFG -E $CFD show configuration devices device openconfig1 config interfaces interface Sy)" 0 --not-- "interface Sy"
+expectpart "$(${clixon_cli} -1f $CFG -E $CFD show configuration devices device ${IMG}1 config interfaces interface Sy)" 0 --not-- "interface Sy"
 
 if $BE; then
     new "Kill old backend"
@@ -867,7 +867,7 @@ cat <<EOF > $dir/startup_db
   </services>
   <devices xmlns="http://clicon.org/controller">
 	<device>
-	  <name>openconfig1</name>
+	  <name>${IMG}1</name>
 	  <enabled>true</enabled>
 	  <user>$USER</user>
 	  <conn-type>NETCONF_SSH</conn-type>
@@ -876,7 +876,7 @@ cat <<EOF > $dir/startup_db
 	  <config/>
 	</device>
 	<device>
-	  <name>openconfig2</name>
+	  <name>${IMG}2</name>
 	  <enabled>true</enabled>
 	  <user>$USER</user>
 	  <conn-type>NETCONF_SSH</conn-type>

@@ -120,8 +120,8 @@ for ip in $CONTAINERS; do
     done
 done
 
-new "Set openconfig2 to isolated domain"
-expectpart "$($clixon_cli -1 -f $CFG -E $CFD -m configure set devices device openconfig2 device-domain isolated)" 0 ""
+new "Set ${IMG}2 to isolated domain"
+expectpart "$($clixon_cli -1 -f $CFG -E $CFD -m configure set devices device ${IMG}2 device-domain isolated)" 0 ""
 
 new "reset-controller: Controller commit"
 ret=$(${clixon_netconf} -q0 -f $CFG -E $CFD <<EOF
@@ -132,8 +132,8 @@ EOF
       )
 #echo "$ret"
 
-new "Open connection to openconfig1"
-expectpart "$($clixon_cli -1 -f $CFG -E $CFD connection open openconfig1)" 0 ""
+new "Open connection to ${IMG}1"
+expectpart "$($clixon_cli -1 -f $CFG -E $CFD connection open ${IMG}1)" 0 ""
 
 new "Find original $yangfile"
 # Find openconfig-system@${REVISION}.yang
@@ -144,10 +144,10 @@ if [ ! -f $mounts/default/$yangfile ]; then
     yangfile=$yangfile2
 fi
 
-new "check cli memory openconfig1"
+new "check cli memory ${IMG}1"
 expectpart "$($clixon_cli -1f $CFG -E $CFD show mem cli -- -g 2>&1)" 0 "^top" "^default" --not-- "^isolated"
 
-new "check backend memory openconfig1"
+new "check backend memory ${IMG}1"
 expectpart "$($clixon_cli -1f $CFG -E $CFD show mem backend 2>&1)" 0 "^top" "^default" --not-- "^isolated"
 
 new "Find isolated $yangfile"
@@ -195,28 +195,28 @@ module openconfig-system {
 }
 EOF
 
-new "Open connection to openconfig2 in isolated domain"
-expectpart "$($clixon_cli -1 -f $CFG -E $CFD connection open openconfig2)" 0 ""
+new "Open connection to ${IMG}2 in isolated domain"
+expectpart "$($clixon_cli -1 -f $CFG -E $CFD connection open ${IMG}2)" 0 ""
 
 new "check cli memory with isolated"
 expectpart "$($clixon_cli -1f $CFG -E $CFD show mem cli -- -g 2>&1)" 0 "^top" "^default" "^isolated"
 
-new "check backend memory openconfig1"
+new "check backend memory ${IMG}1"
 expectpart "$($clixon_cli -1f $CFG -E $CFD show mem backend 2>&1)" 0 "^top" "^default" "^isolated"
 
 # 4. Check that yang content is different
 
-new "Set banner on openconfig1"
-expectpart "$($clixon_cli -1 -f $CFG -E $CFD -m configure set devices device openconfig1 config system config login-banner xyz)" 0 ""
+new "Set banner on ${IMG}1"
+expectpart "$($clixon_cli -1 -f $CFG -E $CFD -m configure set devices device ${IMG}1 config system config login-banner xyz)" 0 ""
 
-new "Set banner on openconfig2, expect fail"
-expectpart "$($clixon_cli -1 -f $CFG -E $CFD -m configure set devices device openconfig2 config system config login-banner xyz 2> /dev/null)" 255 ""
+new "Set banner on ${IMG}2, expect fail"
+expectpart "$($clixon_cli -1 -f $CFG -E $CFD -m configure set devices device ${IMG}2 config system config login-banner xyz 2> /dev/null)" 255 ""
 
-new "Set isolated on openconfig1 expect fail"
-expectpart "$($clixon_cli -1 -f $CFG -E $CFD -m configure set devices device openconfig1 config system config isolated xyz 2> /dev/null)" 255 ""
+new "Set isolated on ${IMG}1 expect fail"
+expectpart "$($clixon_cli -1 -f $CFG -E $CFD -m configure set devices device ${IMG}1 config system config isolated xyz 2> /dev/null)" 255 ""
 
-new "Set isolated on openconfig2"
-expectpart "$($clixon_cli -1 -f $CFG -E $CFD -m configure set devices device openconfig2 config system config isolated xyz)" 0 ""
+new "Set isolated on ${IMG}2"
+expectpart "$($clixon_cli -1 -f $CFG -E $CFD -m configure set devices device ${IMG}2 config system config isolated xyz)" 0 ""
 
 new "Commit local"
 expectpart "$($clixon_cli -1 -f $CFG -E $CFD -m configure commit local)" 0 ""
@@ -228,14 +228,14 @@ new "Remove other domain"
 if [ -d $mounts/other ]; then
     rm -rf $mounts/other
 fi
-new "Move openconfig2 to other domain"
-expectpart "$($clixon_cli -1 -f $CFG -E $CFD -m configure set devices device openconfig2 device-domain other)" 0 ""
+new "Move ${IMG}2 to other domain"
+expectpart "$($clixon_cli -1 -f $CFG -E $CFD -m configure set devices device ${IMG}2 device-domain other)" 0 ""
 
 new "Commit local"
 expectpart "$($clixon_cli -1 -f $CFG -E $CFD -m configure commit local)" 0 ""
 
 new "Reconnect connection"
-expectpart "$($clixon_cli -1 -f $CFG -E $CFD connection reconnect openconfig2)" 0 ""
+expectpart "$($clixon_cli -1 -f $CFG -E $CFD connection reconnect ${IMG}2)" 0 ""
 
 new "Check $mounts/other exists"
 if [ ! -d $mounts/other ]; then

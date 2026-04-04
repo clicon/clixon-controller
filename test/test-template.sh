@@ -276,7 +276,7 @@ new "commit push 3"
 expectpart "$($clixon_cli -1f $CFG -m configure commit push 2>&1)" 0 "^OK$"
 
 new "Check description removed"
-expectpart "$($clixon_cli -1 -f $CFG show configuration devices device openconfig1 config interfaces interface)" 0 --not-- "<description"
+expectpart "$($clixon_cli -1 -f $CFG show configuration devices device ${IMG}1 config interfaces interface)" 0 --not-- "<description"
 
 new "check sync OK"
 expectpart "$($clixon_cli -1f $CFG show devices $NAME check 2>&1)" 0 "OK" --not-- "out-of-sync"

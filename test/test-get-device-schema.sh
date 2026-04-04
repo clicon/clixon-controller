@@ -33,11 +33,11 @@ new "reset controller"
 
 if true; then # XXX
 # 1. List all schemas for a device (no name)
-new "get-device-schema: list all schemas for openconfig1"
+new "get-device-schema: list all schemas for ${IMG}1"
 ret=$(${clixon_netconf} -q0 -f $CFG <<EOF
 <rpc ${DEFAULTNS}>
    <get-device-schema ${CONTROLLERNS}>
-      <device>openconfig1</device>
+      <device>${IMG}1</device>
    </get-device-schema>
 </rpc>]]>]]>
 EOF
@@ -64,7 +64,7 @@ new "get-device-schema: get openconfig-interfaces by name"
 ret=$(${clixon_netconf} -q0 -f $CFG <<EOF
 <rpc ${DEFAULTNS}>
    <get-device-schema ${CONTROLLERNS}>
-      <device>openconfig1</device>
+      <device>${IMG}1</device>
       <name>openconfig-interfaces</name>
    </get-device-schema>
 </rpc>]]>]]>
@@ -95,7 +95,7 @@ if [ -n "$rev" ]; then
     ret=$(${clixon_netconf} -q0 -f $CFG <<EOF
 <rpc ${DEFAULTNS}>
    <get-device-schema ${CONTROLLERNS}>
-      <device>openconfig1</device>
+      <device>${IMG}1</device>
       <name>openconfig-interfaces</name>
       <revision>$rev</revision>
       <detail>true</detail>
@@ -124,7 +124,7 @@ new "get-device-schema: non-existing module"
 ret=$(${clixon_netconf} -q0 -f $CFG <<EOF
 <rpc ${DEFAULTNS}>
    <get-device-schema ${CONTROLLERNS}>
-      <device>openconfig1</device>
+      <device>${IMG}1</device>
       <name>no-such-module-xyz</name>
    </get-device-schema>
 </rpc>]]>]]>
@@ -145,7 +145,7 @@ new "get-device-schema: list schemas via device-group"
 ret=$(${clixon_netconf} -q0 -f $CFG <<EOF
 <rpc ${DEFAULTNS}>
    <get-device-schema ${CONTROLLERNS}>
-      <device>openconfig*</device>
+      <device>${IMG}*</device>
    </get-device-schema>
 </rpc>]]>]]>
 EOF
@@ -163,23 +163,23 @@ fi
 fi # XXX
 
 # 6. CLI: list yang names for a device
-new "CLI: show devices openconfig1 schema"
-expectpart "$($clixon_cli -1f $CFG show devices openconfig1 yang 2>&1)" 0 "openconfig-interfaces"
+new "CLI: show devices ${IMG}1 schema"
+expectpart "$($clixon_cli -1f $CFG show devices ${IMG}1 yang 2>&1)" 0 "openconfig-interfaces"
 
 # 7. CLI: get specific yang infot
-new "CLI: show devices openconfig1 yang openconfig-interfaces"
-expectpart "$($clixon_cli -1f $CFG show devices openconfig1 yang openconfig-interfaces 2>&1)" 0 "openconfig-interfaces" "http://openconfig.net/yang/interfaces" "$rev"
+new "CLI: show devices ${IMG}1 yang openconfig-interfaces"
+expectpart "$($clixon_cli -1f $CFG show devices ${IMG}1 yang openconfig-interfaces 2>&1)" 0 "openconfig-interfaces" "http://openconfig.net/yang/interfaces" "$rev"
 
 # 8. CLI: non-existing module returns empty
-new "CLI: show devices openconfig1 yang no-such-module"
-expectpart "$($clixon_cli -1f $CFG show devices openconfig1 yang no-such-module-xyz 2>&1)" 0 --not-- "no-such-module"
+new "CLI: show devices ${IMG}1 yang no-such-module"
+expectpart "$($clixon_cli -1f $CFG show devices ${IMG}1 yang no-such-module-xyz 2>&1)" 0 --not-- "no-such-module"
 
 # 9. CLI:
 new "CLI: show device yang schema"
-expectpart "$($clixon_cli -1f $CFG show devices openconfig1 yang schema 2>&1)" 0 "module openconfig-interfaces" "module openconfig-system"
+expectpart "$($clixon_cli -1f $CFG show devices ${IMG}1 yang schema 2>&1)" 0 "module openconfig-interfaces" "module openconfig-system"
 
 new "CLI: show device yang schema of specific module"
-expectpart "$($clixon_cli -1f $CFG show devices openconfig1 yang openconfig-interfaces schema 2>&1)" 0 "module openconfig-interfaces" --not-- "module openconfig-aaa"
+expectpart "$($clixon_cli -1f $CFG show devices ${IMG}1 yang openconfig-interfaces schema 2>&1)" 0 "module openconfig-interfaces" --not-- "module openconfig-aaa"
 
 if $BE; then
     new "Kill old backend"

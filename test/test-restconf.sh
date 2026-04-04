@@ -236,9 +236,9 @@ check_services running
 
 # PUT across mount-point to closed device see https://github.com/clicon/clixon-controller/issues/230
 new "restconf GET across device mtpoint json of closed device, expect error"
-expectpart "$(curl $CURLOPTS -H "Accept: application/yang-data+json" -X GET $RCPROTO://localhost/restconf/data/clixon-controller:devices/device=openconfig1/config/openconfig-interfaces:interfaces)" 0 "HTTP/$HVER 412" "Mountpoint operation on closed device openconfig1"
+expectpart "$(curl $CURLOPTS -H "Accept: application/yang-data+json" -X GET $RCPROTO://localhost/restconf/data/clixon-controller:devices/device=${IMG}1/config/${IMG}-interfaces:interfaces)" 0 "HTTP/$HVER 412" "Mountpoint operation on closed device ${IMG}1"
 
-# Reset controller by initiating with clixon/openconfig devices and a pull
+# Reset controller by initiating with clixon/${IMG} devices and a pull
 . ./reset-controller.sh
 
 if ${RC} ; then
@@ -267,33 +267,33 @@ new "restconf GET empty device config"
 expectpart "$(curl $CURLOPTS -X GET -H "Content-Type: application/yang-data+json" $RCPROTO://localhost/restconf/data/clixon-controller:devices/device=test)" 0 "HTTP/$HVER 404"
 
 new "restconf GET datastore top"
-expectpart "$(curl $CURLOPTS -H "Accept: application/yang-data+json" -X GET $RCPROTO://localhost/restconf/data)" 0 "HTTP/$HVER 200" '"clixon-controller:devices":{"device":\[{"name":"openconfig1"' '"config":{"openconfig-interfaces:interfaces":{"interface":\[{"name":"x","config":{"name":"x","type":"iana-if-type:ethernetCsmacd"' '"ietf-netconf-monitoring:netconf-state":{"capabilities":{'
+expectpart "$(curl $CURLOPTS -H "Accept: application/yang-data+json" -X GET $RCPROTO://localhost/restconf/data)" 0 "HTTP/$HVER 200" "\"clixon-controller:devices\":{\"device\":\[{\"name\":\"${IMG}1\"" '"config":{"openconfig-interfaces:interfaces":{"interface":\[{"name":"x","config":{"name":"x","type":"iana-if-type:ethernetCsmacd"' '"ietf-netconf-monitoring:netconf-state":{"capabilities":{'
 
 new "restconf GET device config json"
-#expectpart "$(curl $CURLOPTS -H "Accept: application/yang-data+json" -X GET $RCPROTO://localhost/restconf/data/clixon-controller:devices/device=openconfig1/config)" 0 "HTTP/$HVER 200" '"clixon-controller:config":{"interfaces":{"interface":\[{"name":"x","config":{"name":"x","type":"ianaift:ethernetCsmacd"'
+#expectpart "$(curl $CURLOPTS -H "Accept: application/yang-data+json" -X GET $RCPROTO://localhost/restconf/data/clixon-controller:devices/device=${IMG}1/config)" 0 "HTTP/$HVER 200" '"clixon-controller:config":{"interfaces":{"interface":\[{"name":"x","config":{"name":"x","type":"ianaift:ethernetCsmacd"'
 
 new "restconf GET device config XML"
-expectpart "$(curl $CURLOPTS -H "Accept: application/yang-data+xml" -X GET $RCPROTO://localhost/restconf/data/clixon-controller:devices/device=openconfig1/config)" 0 "HTTP/$HVER 200" '<config xmlns="http://clicon.org/controller"><interfaces xmlns="http://openconfig.net/yang/interfaces"><interface><name>x</name><config><name>x</name><type xmlns:ianaift="urn:ietf:params:xml:ns:yang:iana-if-type">ianaift:ethernetCsmacd</type></config>'
+expectpart "$(curl $CURLOPTS -H "Accept: application/yang-data+xml" -X GET $RCPROTO://localhost/restconf/data/clixon-controller:devices/device=${IMG}1/config)" 0 "HTTP/$HVER 200" '<config xmlns="http://clicon.org/controller"><interfaces xmlns="http://openconfig.net/yang/interfaces"><interface><name>x</name><config><name>x</name><type xmlns:ianaift="urn:ietf:params:xml:ns:yang:iana-if-type">ianaift:ethernetCsmacd</type></config>'
 
 # Across device mount-point
 new "restconf GET across device mtpoint json"
-expectpart "$(curl $CURLOPTS -H "Accept: application/yang-data+json" -X GET $RCPROTO://localhost/restconf/data/clixon-controller:devices/device=openconfig1/config/openconfig-interfaces:interfaces)" 0 "HTTP/$HVER 200" '{"openconfig-interfaces:interfaces":{"interface":\[{"name":"x","config":{"name":"x","type":"iana-if-type:ethernetCsmacd"'
+expectpart "$(curl $CURLOPTS -H "Accept: application/yang-data+json" -X GET $RCPROTO://localhost/restconf/data/clixon-controller:devices/device=${IMG}1/config/openconfig-interfaces:interfaces)" 0 "HTTP/$HVER 200" '{"openconfig-interfaces:interfaces":{"interface":\[{"name":"x","config":{"name":"x","type":"iana-if-type:ethernetCsmacd"'
 
 new "restconf GET across device mtpoint xml"
-expectpart "$(curl $CURLOPTS -H "Accept: application/yang-data+xml" -X GET $RCPROTO://localhost/restconf/data/clixon-controller:devices/device=openconfig1/config/openconfig-interfaces:interfaces)" 0 "HTTP/$HVER 200" '<interfaces xmlns="http://openconfig.net/yang/interfaces"><interface><name>x</name><config><name>x</name><type xmlns:ianaift="urn:ietf:params:xml:ns:yang:iana-if-type">ianaift:ethernetCsmacd</type></config>'
+expectpart "$(curl $CURLOPTS -H "Accept: application/yang-data+xml" -X GET $RCPROTO://localhost/restconf/data/clixon-controller:devices/device=${IMG}1/config/openconfig-interfaces:interfaces)" 0 "HTTP/$HVER 200" '<interfaces xmlns="http://openconfig.net/yang/interfaces"><interface><name>x</name><config><name>x</name><type xmlns:ianaift="urn:ietf:params:xml:ns:yang:iana-if-type">ianaift:ethernetCsmacd</type></config>'
 
 # 2. PUT
 new "restconf PUT top"
-expectpart "$(curl $CURLOPTS -X PUT -H "Content-Type: application/yang-data+json" $RCPROTO://localhost/restconf/data/clixon-controller:devices/device=openconfig1/description -d '{"clixon-controller:description":"Test POST"}')" 0 "HTTP/$HVER 204"
+expectpart "$(curl $CURLOPTS -X PUT -H "Content-Type: application/yang-data+json" $RCPROTO://localhost/restconf/data/clixon-controller:devices/device=${IMG}1/description -d '{"clixon-controller:description":"Test POST"}')" 0 "HTTP/$HVER 204"
 
 new "restconf PUT across device mtpoint json"
-expectpart "$(curl $CURLOPTS -X PUT -H "Content-Type: application/yang-data+json" $RCPROTO://localhost/restconf/data/clixon-controller:devices/device=openconfig1/config/openconfig-interfaces:interfaces/interface=x/config -d '{"openconfig-interfaces:config":{"name":"x","type":"iana-if-type:ethernetCsmacd","description":"My description"}}')" 0 "HTTP/$HVER 204"
+expectpart "$(curl $CURLOPTS -X PUT -H "Content-Type: application/yang-data+json" $RCPROTO://localhost/restconf/data/clixon-controller:devices/device=${IMG}1/config/openconfig-interfaces:interfaces/interface=x/config -d '{"openconfig-interfaces:config":{"name":"x","type":"iana-if-type:ethernetCsmacd","description":"My description"}}')" 0 "HTTP/$HVER 204"
 
 new "Verify local with GET"
-expectpart "$(curl $CURLOPTS -H "Accept: application/yang-data+json" -X GET $RCPROTO://localhost/restconf/data/clixon-controller:devices/device=openconfig1/config/openconfig-interfaces:interfaces/interface=x/config)" 0 "HTTP/$HVER 200" '{"openconfig-interfaces:config":{"name":"x","type":"iana-if-type:ethernetCsmacd"'
+expectpart "$(curl $CURLOPTS -H "Accept: application/yang-data+json" -X GET $RCPROTO://localhost/restconf/data/clixon-controller:devices/device=${IMG}1/config/openconfig-interfaces:interfaces/interface=x/config)" 0 "HTTP/$HVER 200" '{"openconfig-interfaces:config":{"name":"x","type":"iana-if-type:ethernetCsmacd"'
 
 new "Commit push to device"
-expectpart "$(curl $CURLOPTS -X POST -H "Content-Type: application/yang-data+json" $RCPROTO://localhost/restconf/operations/clixon-controller:controller-commit -d '{"clixon-controller:input":{"device":"openconfig1","push":"COMMIT","actions":"NONE","source":"ds:running"}}')" 0 "HTTP/$HVER 200" 'Content-Type: application/yang-data+json' '{"clixon-controller:output":{"tid":'
+expectpart "$(curl $CURLOPTS -X POST -H "Content-Type: application/yang-data+json" $RCPROTO://localhost/restconf/operations/clixon-controller:controller-commit -d "{\"clixon-controller:input\":{\"device\":\"${IMG}1\",\"push\":\"COMMIT\",\"actions\":\"NONE\",\"source\":\"ds:running\"}}")" 0 "HTTP/$HVER 200" 'Content-Type: application/yang-data+json' '{"clixon-controller:output":{"tid":'
 
 sleep 1
 
@@ -341,17 +341,17 @@ EOF
 done
 
 new "restconf PUT across device mtpoint XML"
-expectpart "$(curl $CURLOPTS -X PUT -H "Content-Type: application/yang-data+xml" $RCPROTO://localhost/restconf/data/clixon-controller:devices/device=openconfig1/config/openconfig-interfaces:interfaces/interface=x/config -d '<config xmlns="http://openconfig.net/yang/interfaces"><name>x</name><type xmlns:ianaift="urn:ietf:params:xml:ns:yang:iana-if-type">ianaift:ethernetCsmacd</type><description>My description</description></config>')" 0 "HTTP/$HVER 204"
+expectpart "$(curl $CURLOPTS -X PUT -H "Content-Type: application/yang-data+xml" $RCPROTO://localhost/restconf/data/clixon-controller:devices/device=${IMG}1/config/openconfig-interfaces:interfaces/interface=x/config -d '<config xmlns="http://openconfig.net/yang/interfaces"><name>x</name><type xmlns:ianaift="urn:ietf:params:xml:ns:yang:iana-if-type">ianaift:ethernetCsmacd</type><description>My description</description></config>')" 0 "HTTP/$HVER 204"
 
 # 3. RPC/ connectivity
 new "restconf GET connection OPEN"
-expectpart "$(curl $CURLOPTS -H "Accept: application/yang-data+json" -X GET $RCPROTO://localhost/restconf/data/clixon-controller:devices/device=openconfig1/conn-state)" 0 "HTTP/$HVER 200" '{"clixon-controller:conn-state":"OPEN"}'
+expectpart "$(curl $CURLOPTS -H "Accept: application/yang-data+json" -X GET $RCPROTO://localhost/restconf/data/clixon-controller:devices/device=${IMG}1/conn-state)" 0 "HTTP/$HVER 200" '{"clixon-controller:conn-state":"OPEN"}'
 
 new "restconf RPC connection close"
 expectpart "$(curl $CURLOPTS -X POST -H "Content-Type: application/yang-data+json" $RCPROTO://localhost/restconf/operations/clixon-controller:connection-change -d '{"clixon-controller:input":{"device":"*","operation":"CLOSE"}}')" 0 "HTTP/$HVER 200" 'Content-Type: application/yang-data+json' '{"clixon-controller:output":{"tid":"[0-9:.]*"}}'
 
 new "restconf GET connection CLOSED"
-expectpart "$(curl $CURLOPTS -H "Accept: application/yang-data+json" -X GET $RCPROTO://localhost/restconf/data/clixon-controller:devices/device=openconfig1/conn-state)" 0 "HTTP/$HVER 200" '{"clixon-controller:conn-state":"CLOSED"}'
+expectpart "$(curl $CURLOPTS -H "Accept: application/yang-data+json" -X GET $RCPROTO://localhost/restconf/data/clixon-controller:devices/device=${IMG}1/conn-state)" 0 "HTTP/$HVER 200" '{"clixon-controller:conn-state":"CLOSED"}'
 
 # 4. Notification
 new "Check notification controller-transaction state monitoring"
@@ -388,14 +388,14 @@ kill $PID 2> /dev/null
 fi
 
 new "restconf GET connection OPEN"
-expectpart "$(curl $CURLOPTS -H "Accept: application/yang-data+json" -X GET $RCPROTO://localhost/restconf/data/clixon-controller:devices/device=openconfig1/conn-state)" 0 "HTTP/$HVER 200" '{"clixon-controller:conn-state":"OPEN"}'
+expectpart "$(curl $CURLOPTS -H "Accept: application/yang-data+json" -X GET $RCPROTO://localhost/restconf/data/clixon-controller:devices/device=${IMG}1/conn-state)" 0 "HTTP/$HVER 200" '{"clixon-controller:conn-state":"OPEN"}'
 
 # 5. Service
 new "restconf POST service AA"
 expectpart "$(curl $CURLOPTS -X POST -H "Content-Type: application/yang-data+json" $RCPROTO://localhost/restconf/data/clixon-controller:services -d '{"myyang:testA":[{"a_name":"bar","params":["AA"]}]}')" 0 "HTTP/$HVER 201"
 
 new "restconf GET interface not AA"
-expectpart "$(curl $CURLOPTS -H "Accept: application/yang-data+xml" -X GET $RCPROTO://localhost/restconf/data/clixon-controller:devices/device=openconfig1/config)" 0 "HTTP/$HVER 200" --not-- '<interface><name>AA</name><config><name>AA</name><type xmlns:ianaift="urn:ietf:params:xml:ns:yang:iana-if-type">ianaift:ethernetCsmacd</type></config><state>'
+expectpart "$(curl $CURLOPTS -H "Accept: application/yang-data+xml" -X GET $RCPROTO://localhost/restconf/data/clixon-controller:devices/device=${IMG}1/config)" 0 "HTTP/$HVER 200" --not-- '<interface><name>AA</name><config><name>AA</name><type xmlns:ianaift="urn:ietf:params:xml:ns:yang:iana-if-type">ianaift:ethernetCsmacd</type></config><state>'
 
 new "Apply service"
 # quoting frenzy, also clean service (no instance) does not seem to work
@@ -405,7 +405,7 @@ expectpart "$(curl $CURLOPTS -X POST -H "Content-Type: application/yang-data+jso
 sleep 1
 
 new "restconf GET interface AA"
-expectpart "$(curl $CURLOPTS -H "Accept: application/yang-data+xml" -X GET $RCPROTO://localhost/restconf/data/clixon-controller:devices/device=openconfig1/config/openconfig-interfaces:interfaces)" 0 "HTTP/$HVER 200" '<interface><name>AA</name><config><name>AA</name><type xmlns:ianaift="urn:ietf:params:xml:ns:yang:iana-if-type">ianaift:ethernetCsmacd</type></config><state>'
+expectpart "$(curl $CURLOPTS -H "Accept: application/yang-data+xml" -X GET $RCPROTO://localhost/restconf/data/clixon-controller:devices/device=${IMG}1/config/openconfig-interfaces:interfaces)" 0 "HTTP/$HVER 200" '<interface><name>AA</name><config><name>AA</name><type xmlns:ianaift="urn:ietf:params:xml:ns:yang:iana-if-type">ianaift:ethernetCsmacd</type></config><state>'
 
 new "Delete service"
 # quoting frenzy, also clean service (no instance) does not seem to work
@@ -422,7 +422,7 @@ new "restconf DELETE service A"
 expectpart "$(curl $CURLOPTS -X DELETE -H "Content-Type: application/yang-data+json" $RCPROTO://localhost/restconf/data/clixon-controller:services/myyang:testA=bar)" 0 "HTTP/$HVER 204"
 
 new "restconf verify that interface don't exist by doing GET interface AA"
-expectpart "$(curl $CURLOPTS -H "Accept: application/yang-data+xml" -X GET $RCPROTO://localhost/restconf/data/clixon-controller:devices/device=openconfig1/config)" 0 "HTTP/$HVER 200" --not-- '<interface><name>AA</name><config><name>AA</name><type xmlns:ianaift="urn:ietf:params:xml:ns:yang:iana-if-type">ianaift:ethernetCsmacd</type></config><state>'
+expectpart "$(curl $CURLOPTS -H "Accept: application/yang-data+xml" -X GET $RCPROTO://localhost/restconf/data/clixon-controller:devices/device=${IMG}1/config)" 0 "HTTP/$HVER 200" --not-- '<interface><name>AA</name><config><name>AA</name><type xmlns:ianaift="urn:ietf:params:xml:ns:yang:iana-if-type">ianaift:ethernetCsmacd</type></config><state>'
 
 # 6. Device RPC
 if [ "${WITH_RESTCONF}" = "native" ]; then
@@ -450,7 +450,7 @@ new "Get rpc transaction result" # XXX hardcoded to transaction 8, may change if
 expectpart "$(curl $CURLOPTS -H "Accept: application/yang-data+json" -X GET $RCPROTO://localhost/restconf/data/clixon-controller:transactions/transaction=8)" 0 "HTTP/$HVER 200" '{"clixon-controller:transaction":\[{"tid":"[0-9]*",' '"result":"SUCCESS"'
 
 new "Get transaction result"
-expectpart "$(curl $CURLOPTS -X POST -H "Content-Type: application/yang-data+json" $RCPROTO://localhost/restconf/operations/clixon-controller:device-rpc-result -d '{"clixon-controller:input":{"tid":"8"}}')" 0 "HTTP/$HVER 200" 'Content-Type: application/yang-data+json' '{"clixon-controller:output":{"tid":"8","devices":{"devdata":\[{"name":"openconfig1","data":{"global":{"xmlnr":'
+expectpart "$(curl $CURLOPTS -X POST -H "Content-Type: application/yang-data+json" $RCPROTO://localhost/restconf/operations/clixon-controller:device-rpc-result -d '{"clixon-controller:input":{"tid":"8"}}')" 0 "HTTP/$HVER 200" 'Content-Type: application/yang-data+json' "{\"clixon-controller:output\":{\"tid\":\"8\",\"devices\":{\"devdata\":\[{\"name\":\"${IMG}1\",\"data\":{\"global\":{\"xmlnr\":"
 
 # 6a. Device RPC no args
 if [ "${WITH_RESTCONF}" = "native" ]; then
@@ -525,7 +525,7 @@ new "poll transaction success"
 expectpart "$(curl $CURLOPTS -X GET -H "Accept: application/yang-data+json" $RCPROTO://localhost/restconf/data/clixon-controller:transactions/transaction=11)" 0 "HTTP/$HVER 200" '{"clixon-controller:transaction":[{"tid":"[0-9.]*","username":"anonymous","result":"SUCCESS"'
 
 new "get transaction result"
-expectpart "$(curl $CURLOPTS -X POST -H "Content-Type: application/yang-data+json" $RCPROTO://localhost/restconf/operations/clixon-controller:device-rpc-result -d '{"clixon-controller:input":{"tid":"11"}}')" 0 "HTTP/$HVER 200" 'Content-Type: application/yang-data+json' '{"clixon-controller:output":{"tid":"11","devices":{"devdata":\[{"name":"openconfig1","data":{"data":{"system":{"ssh-server":{"state":{"enable":"true","protocol-version":"V2"}}'
+expectpart "$(curl $CURLOPTS -X POST -H "Content-Type: application/yang-data+json" $RCPROTO://localhost/restconf/operations/clixon-controller:device-rpc-result -d '{"clixon-controller:input":{"tid":"11"}}')" 0 "HTTP/$HVER 200" 'Content-Type: application/yang-data+json' "{\"clixon-controller:output\":{\"tid\":\"11\",\"devices\":{\"devdata\":\[{\"name\":\"${IMG}1\",\"data\":{\"data\":{\"system\":{\"ssh-server\":{\"state\":{\"enable\":\"true\",\"protocol-version\":\"V2\"}}"
 
 new "Get state using device rpc get JSON"
 sleep 1 && expectpart "$(curl $CURLOPTS -X POST -H "Content-Type: application/yang-data+json" $RCPROTO://localhost/restconf/operations/clixon-controller:device-rpc -d '{"clixon-controller:input":{"device":"openconfig*","config":{"ietf-netconf:get":null}}}')" 0 "HTTP/$HVER 200" 'Content-Type: application/yang-data+json' '{"clixon-controller:output":{"tid":"[0-9:.]*"}}' &
@@ -546,61 +546,61 @@ kill $PID 2> /dev/null
 # see https://github.com/clicon/clixon-controller/issues/210
 #
 new "restconf PUT across device mtpoint XML 1"
-expectpart "$(curl $CURLOPTS -X PUT -H "Content-Type: application/yang-data+xml" $RCPROTO://localhost/restconf/data/clixon-controller:devices/device=openconfig1/config/openconfig-interfaces:interfaces -d '<interfaces xmlns="http://openconfig.net/yang/interfaces"><interface><name>x</name><config><name>x</name><type xmlns:ianaift="urn:ietf:params:xml:ns:yang:iana-if-type">ianaift:ethernetCsmacd</type><description>My description</description></config></interface></interfaces>')" 0 "HTTP/$HVER 204"
+expectpart "$(curl $CURLOPTS -X PUT -H "Content-Type: application/yang-data+xml" $RCPROTO://localhost/restconf/data/clixon-controller:devices/device=${IMG}1/config/openconfig-interfaces:interfaces -d '<interfaces xmlns="http://openconfig.net/yang/interfaces"><interface><name>x</name><config><name>x</name><type xmlns:ianaift="urn:ietf:params:xml:ns:yang:iana-if-type">ianaift:ethernetCsmacd</type><description>My description</description></config></interface></interfaces>')" 0 "HTTP/$HVER 204"
 
 new "restconf PUT across device mtpoint XML 2"
-expectpart "$(curl $CURLOPTS -X PUT -H "Content-Type: application/yang-data+xml" $RCPROTO://localhost/restconf/data/clixon-controller:devices/device=openconfig1/config -d '<config xmlns="http://clicon.org/controller"><interfaces xmlns="http://openconfig.net/yang/interfaces"><interface><name>x</name><config><name>x</name><type xmlns:ianaift="urn:ietf:params:xml:ns:yang:iana-if-type">ianaift:ethernetCsmacd</type><description>My description</description></config></interface></interfaces></config>')" 0 "HTTP/$HVER 204"
+expectpart "$(curl $CURLOPTS -X PUT -H "Content-Type: application/yang-data+xml" $RCPROTO://localhost/restconf/data/clixon-controller:devices/device=${IMG}1/config -d '<config xmlns="http://clicon.org/controller"><interfaces xmlns="http://openconfig.net/yang/interfaces"><interface><name>x</name><config><name>x</name><type xmlns:ianaift="urn:ietf:params:xml:ns:yang:iana-if-type">ianaift:ethernetCsmacd</type><description>My description</description></config></interface></interfaces></config>')" 0 "HTTP/$HVER 204"
 
 new "restconf PUT across device mtpoint XML 3"
-expectpart "$(curl $CURLOPTS -X PUT -H "Content-Type: application/yang-data+xml" $RCPROTO://localhost/restconf/data/clixon-controller:devices/device=openconfig1 -d "<device xmlns=\"http://clicon.org/controller\"><name>openconfig1</name><enabled>true</enabled><description>Test POST</description><user>$USER</user><conn-type>NETCONF_SSH</conn-type><yang-config>VALIDATE</yang-config><addr>$ADDR1</addr><config><interfaces xmlns=\"http://openconfig.net/yang/interfaces\"><interface><name>x</name><config><name>x</name><type xmlns:ianaift=\"urn:ietf:params:xml:ns:yang:iana-if-type\">ianaift:ethernetCsmacd</type><description>My description</description></config></interface></interfaces></config></device>")" 0 "HTTP/$HVER 204"
+expectpart "$(curl $CURLOPTS -X PUT -H "Content-Type: application/yang-data+xml" $RCPROTO://localhost/restconf/data/clixon-controller:devices/device=${IMG}1 -d "<device xmlns=\"http://clicon.org/controller\"><name>${IMG}1</name><enabled>true</enabled><description>Test POST</description><user>$USER</user><conn-type>NETCONF_SSH</conn-type><yang-config>VALIDATE</yang-config><addr>$ADDR1</addr><config><interfaces xmlns=\"http://openconfig.net/yang/interfaces\"><interface><name>x</name><config><name>x</name><type xmlns:ianaift=\"urn:ietf:params:xml:ns:yang:iana-if-type\">ianaift:ethernetCsmacd</type><description>My description</description></config></interface></interfaces></config></device>")" 0 "HTTP/$HVER 204"
 
 # since meta-config was replaced
 new "restconf check connection OPEN"
-expectpart "$(curl $CURLOPTS -H "Accept: application/yang-data+json" -X GET $RCPROTO://localhost/restconf/data/clixon-controller:devices/device=openconfig1/conn-state)" 0 "HTTP/$HVER 200" '{"clixon-controller:conn-state":"OPEN"}'
+expectpart "$(curl $CURLOPTS -H "Accept: application/yang-data+json" -X GET $RCPROTO://localhost/restconf/data/clixon-controller:devices/device=${IMG}1/conn-state)" 0 "HTTP/$HVER 200" '{"clixon-controller:conn-state":"OPEN"}'
 
 # PUT JSON
 new "restconf PUT across device mtpoint json 1"
-expectpart "$(curl $CURLOPTS -X PUT -H "Content-Type: application/yang-data+json" $RCPROTO://localhost/restconf/data/clixon-controller:devices/device=openconfig1/config/openconfig-interfaces:interfaces -d '{"openconfig-interfaces:interfaces":{"interface":{"name":"x","config":{"name":"x","type":"iana-if-type:ethernetCsmacd","description":"My description"}}}}')" 0 "HTTP/$HVER 204"
+expectpart "$(curl $CURLOPTS -X PUT -H "Content-Type: application/yang-data+json" $RCPROTO://localhost/restconf/data/clixon-controller:devices/device=${IMG}1/config/openconfig-interfaces:interfaces -d '{"openconfig-interfaces:interfaces":{"interface":{"name":"x","config":{"name":"x","type":"iana-if-type:ethernetCsmacd","description":"My description"}}}}')" 0 "HTTP/$HVER 204"
 
 new "restconf PUT across device mtpoint json 2"
-expectpart "$(curl $CURLOPTS -X PUT -H "Content-Type: application/yang-data+json" $RCPROTO://localhost/restconf/data/clixon-controller:devices/device=openconfig1/config -d '{"clixon-controller:config":{"openconfig-interfaces:interfaces":{"interface":{"name":"x","config":{"name":"x","type":"iana-if-type:ethernetCsmacd","description":"My description"}}}}}')" 0 "HTTP/$HVER 204"
+expectpart "$(curl $CURLOPTS -X PUT -H "Content-Type: application/yang-data+json" $RCPROTO://localhost/restconf/data/clixon-controller:devices/device=${IMG}1/config -d '{"clixon-controller:config":{"openconfig-interfaces:interfaces":{"interface":{"name":"x","config":{"name":"x","type":"iana-if-type:ethernetCsmacd","description":"My description"}}}}}')" 0 "HTTP/$HVER 204"
 
 new "restconf PUT across device mtpoint json 3"
-expectpart "$(curl $CURLOPTS -X PUT -H "Content-Type: application/yang-data+json" $RCPROTO://localhost/restconf/data/clixon-controller:devices/device=openconfig1 -d "{\"clixon-controller:device\":{\"name\":\"openconfig1\",\"enabled\":\"true\", \"description\":\"Test POST\",\"user\":\"$USER\",\"conn-type\":\"NETCONF_SSH\",\"addr\":\"$ADDR1\",\"config\":{\"openconfig-interfaces:interfaces\":{\"interface\":{\"name\":\"x\",\"config\":{\"name\":\"x\",\"type\":\"iana-if-type:ethernetCsmacd\",\"description\":\"My description\"}}}}}}")" 0 "HTTP/$HVER 204"
+expectpart "$(curl $CURLOPTS -X PUT -H "Content-Type: application/yang-data+json" $RCPROTO://localhost/restconf/data/clixon-controller:devices/device=${IMG}1 -d "{\"clixon-controller:device\":{\"name\":\"${IMG}1\",\"enabled\":\"true\", \"description\":\"Test POST\",\"user\":\"$USER\",\"conn-type\":\"NETCONF_SSH\",\"addr\":\"$ADDR1\",\"config\":{\"openconfig-interfaces:interfaces\":{\"interface\":{\"name\":\"x\",\"config\":{\"name\":\"x\",\"type\":\"iana-if-type:ethernetCsmacd\",\"description\":\"My description\"}}}}}}")" 0 "HTTP/$HVER 204"
 
 # POST JSON
 new "restconf DELETE to make room for POST 1"
-expectpart "$(curl $CURLOPTS -X DELETE $RCPROTO://localhost/restconf/data/clixon-controller:devices/device=openconfig1/config/openconfig-interfaces:interfaces)" 0 "HTTP/$HVER 204"
+expectpart "$(curl $CURLOPTS -X DELETE $RCPROTO://localhost/restconf/data/clixon-controller:devices/device=${IMG}1/config/openconfig-interfaces:interfaces)" 0 "HTTP/$HVER 204"
 
 new "restconf POST across device mtpoint json 1"
-expectpart "$(curl $CURLOPTS -X POST -H "Content-Type: application/yang-data+json" $RCPROTO://localhost/restconf/data/clixon-controller:devices/device=openconfig1/config -d '{"openconfig-interfaces:interfaces":{"interface":{"name":"x","config":{"name":"x","type":"iana-if-type:ethernetCsmacd","description":"My description"}}}}')" 0 "HTTP/$HVER 201" "location:"
+expectpart "$(curl $CURLOPTS -X POST -H "Content-Type: application/yang-data+json" $RCPROTO://localhost/restconf/data/clixon-controller:devices/device=${IMG}1/config -d '{"openconfig-interfaces:interfaces":{"interface":{"name":"x","config":{"name":"x","type":"iana-if-type:ethernetCsmacd","description":"My description"}}}}')" 0 "HTTP/$HVER 201" "location:"
 
 new "restconf DELETE to make room for POST 2"
-expectpart "$(curl $CURLOPTS -X DELETE $RCPROTO://localhost/restconf/data/clixon-controller:devices/device=openconfig1/config)" 0 "HTTP/$HVER 204"
+expectpart "$(curl $CURLOPTS -X DELETE $RCPROTO://localhost/restconf/data/clixon-controller:devices/device=${IMG}1/config)" 0 "HTTP/$HVER 204"
 
 new "restconf POST across device mtpoint json 2"
-expectpart "$(curl $CURLOPTS -X POST -H "Content-Type: application/yang-data+json" $RCPROTO://localhost/restconf/data/clixon-controller:devices/device=openconfig1 -d '{"clixon-controller:config":{"openconfig-interfaces:interfaces":{"interface":{"name":"x","config":{"name":"x","type":"iana-if-type:ethernetCsmacd","description":"My description"}}}}}')" 0 "HTTP/$HVER 201" "location:"
+expectpart "$(curl $CURLOPTS -X POST -H "Content-Type: application/yang-data+json" $RCPROTO://localhost/restconf/data/clixon-controller:devices/device=${IMG}1 -d '{"clixon-controller:config":{"openconfig-interfaces:interfaces":{"interface":{"name":"x","config":{"name":"x","type":"iana-if-type:ethernetCsmacd","description":"My description"}}}}}')" 0 "HTTP/$HVER 201" "location:"
 
 new "restconf check connection OPEN"
-expectpart "$(curl $CURLOPTS -H "Accept: application/yang-data+json" -X GET $RCPROTO://localhost/restconf/data/clixon-controller:devices/device=openconfig1/conn-state)" 0 "HTTP/$HVER 200" '{"clixon-controller:conn-state":"OPEN"}'
+expectpart "$(curl $CURLOPTS -H "Accept: application/yang-data+json" -X GET $RCPROTO://localhost/restconf/data/clixon-controller:devices/device=${IMG}1/conn-state)" 0 "HTTP/$HVER 200" '{"clixon-controller:conn-state":"OPEN"}'
 
 new "restconf DELETE to make room for POST 3"
-expectpart "$(curl $CURLOPTS -X DELETE $RCPROTO://localhost/restconf/data/clixon-controller:devices/device=openconfig1)" 0 "HTTP/$HVER 204"
+expectpart "$(curl $CURLOPTS -X DELETE $RCPROTO://localhost/restconf/data/clixon-controller:devices/device=${IMG}1)" 0 "HTTP/$HVER 204"
 
 new "restconf POST across device mtpoint json 3"
-expectpart "$(curl $CURLOPTS -X POST -H "Content-Type: application/yang-data+json" $RCPROTO://localhost/restconf/data/clixon-controller:devices -d "{\"clixon-controller:device\":{\"name\":\"openconfig1\",\"enabled\":\"true\", \"user\":\"$USER\",\"conn-type\":\"NETCONF_SSH\",\"addr\":\"$ADDR1\",\"config\":{\"openconfig-interfaces:interfaces\":{\"interface\":{\"name\":\"x\",\"config\":{\"name\":\"x\",\"type\":\"iana-if-type:ethernetCsmacd\",\"description\":\"My description\"}}}}}}")" 0 "HTTP/$HVER 201" "location:"
+expectpart "$(curl $CURLOPTS -X POST -H "Content-Type: application/yang-data+json" $RCPROTO://localhost/restconf/data/clixon-controller:devices -d "{\"clixon-controller:device\":{\"name\":\"${IMG}1\",\"enabled\":\"true\", \"user\":\"$USER\",\"conn-type\":\"NETCONF_SSH\",\"addr\":\"$ADDR1\",\"config\":{\"openconfig-interfaces:interfaces\":{\"interface\":{\"name\":\"x\",\"config\":{\"name\":\"x\",\"type\":\"iana-if-type:ethernetCsmacd\",\"description\":\"My description\"}}}}}}")" 0 "HTTP/$HVER 201" "location:"
 
 # Must open, delete closes
 new "restconf RPC connection open"
-expectpart "$(curl $CURLOPTS -X POST -H "Content-Type: application/yang-data+json" $RCPROTO://localhost/restconf/operations/clixon-controller:connection-change -d '{"clixon-controller:input":{"device":"openconfig1","operation":"OPEN"}}')" 0 "HTTP/$HVER 200" 'Content-Type: application/yang-data+json' '{"clixon-controller:output":{"tid":"[0-9:.]*"}}'
+expectpart "$(curl $CURLOPTS -X POST -H "Content-Type: application/yang-data+json" $RCPROTO://localhost/restconf/operations/clixon-controller:connection-change -d "{\"clixon-controller:input\":{\"device\":\"${IMG}1\",\"operation\":\"OPEN\"}}")" 0 "HTTP/$HVER 200" 'Content-Type: application/yang-data+json' '{"clixon-controller:output":{"tid":"[0-9:.]*"}}'
 
 sleep 2
 
 new "restconf GET check connection OPEN"
-expectpart "$(curl $CURLOPTS -H "Accept: application/yang-data+json" -X GET $RCPROTO://localhost/restconf/data/clixon-controller:devices/device=openconfig1/conn-state)" 0 "HTTP/$HVER 200" '{"clixon-controller:conn-state":"OPEN"}'
+expectpart "$(curl $CURLOPTS -H "Accept: application/yang-data+json" -X GET $RCPROTO://localhost/restconf/data/clixon-controller:devices/device=${IMG}1/conn-state)" 0 "HTTP/$HVER 200" '{"clixon-controller:conn-state":"OPEN"}'
 
 new "restconf GET config"
-expectpart "$(curl $CURLOPTS -H "Accept: application/yang-data+xml" -X GET $RCPROTO://localhost/restconf/data/clixon-controller:devices/device=openconfig1/config?content=config)" 0 "HTTP/$HVER 200" '<config xmlns="http://clicon.org/controller"><interfaces xmlns="http://openconfig.net/yang/interfaces"><interface><name>x</name><config><name>x</name><type xmlns:ianaift="urn:ietf:params:xml:ns:yang:iana-if-type">ianaift:ethernetCsmacd</type><description>My description</description></config></interface><interface><name>y</name><config><name>y</name><type xmlns:ianaift="urn:ietf:params:xml:ns:yang:iana-if-type">ianaift:atm</type></config></interface></interfaces><system xmlns="http://openconfig.net/yang/system"><config><hostname>openconfig1</hostname></config></system></config>'
+expectpart "$(curl $CURLOPTS -H "Accept: application/yang-data+xml" -X GET $RCPROTO://localhost/restconf/data/clixon-controller:devices/device=${IMG}1/config?content=config)" 0 "HTTP/$HVER 200" "<config xmlns=\"http://clicon.org/controller\"><interfaces xmlns=\"http://openconfig.net/yang/interfaces\"><interface><name>x</name><config><name>x</name><type xmlns:ianaift=\"urn:ietf:params:xml:ns:yang:iana-if-type\">ianaift:ethernetCsmacd</type><description>My description</description></config></interface><interface><name>y</name><config><name>y</name><type xmlns:ianaift=\"urn:ietf:params:xml:ns:yang:iana-if-type\">ianaift:atm</type></config></interface></interfaces><system xmlns=\"http://openconfig.net/yang/system\"><config><hostname>${IMG}1</hostname></config></system></config>"
 
 if $RC; then
     new "Kill restconf daemon"

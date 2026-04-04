@@ -143,7 +143,7 @@ new "connection close"
 expectpart "$($clixon_cli -1 -f $CFG -E $CFD connection close)" 0 "^$"
 
 # see https://github.com/clicon/clixon-controller/issues/98
-cmd="set devices device openconfig1 user wrong"
+cmd="set devices device ${IMG}1 user wrong"
 new "Set wrong user: $cmd"
 expectpart "$($clixon_cli -1 -m configure -f $CFG -E $CFD $cmd)" 0 "^$"
 
@@ -167,9 +167,9 @@ new "Check errmsg"
 expectpart "$($clixon_cli -1 -f $CFG -E $CFD show transaction detail)" 0 "<result>FAILED</result>" "<reason>wrong@" "Permission denied (publickey,password,keyboard-interactive).</reason>" || true
   
 new "Verify first device is framing 1.0"
-expectpart "$($clixon_cli -1 -f $CFG -E $CFD show state devices device openconfig1 netconf-framing)" 0 "netconf-framing 1.0"
+expectpart "$($clixon_cli -1 -f $CFG -E $CFD show state devices device ${IMG}1 netconf-framing)" 0 "netconf-framing 1.0"
 
-cmd="set devices device openconfig1 user $USER"
+cmd="set devices device ${IMG}1 user $USER"
 new "Set right user: $cmd"
 expectpart "$($clixon_cli -1 -m configure -f $CFG -E $CFD $cmd)" 0 "^$"
 

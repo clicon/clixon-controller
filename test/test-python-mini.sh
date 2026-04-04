@@ -125,8 +125,8 @@ function sleep_open()
     for j in $(seq 1 10); do
         new "Verify devices are open"
         ret=$($clixon_cli -1 -f $CFG show connections)
-        match1=$(echo "$ret" | grep --null -Eo "openconfig1.*OPEN") || true
-        match2=$(echo "$ret" | grep --null -Eo "openconfig2.*OPEN") || true
+        match1=$(echo "$ret" | grep --null -Eo "${IMG}1.*OPEN") || true
+        match2=$(echo "$ret" | grep --null -Eo "${IMG}2.*OPEN") || true
         if [ -n "$match1" -a -n "$match2" ]; then
             break;
         fi
@@ -134,7 +134,7 @@ function sleep_open()
         sleep 1
     done
     if [ $j -eq 10 ]; then
-        err "device openconfig OPEN" "Timeout"
+        err "device ${IMG} OPEN" "Timeout"
     fi
 }
 
@@ -164,11 +164,11 @@ expectpart "$($clixon_cli -1 -f $CFG -m configure set service example Mybanner)"
 # Commit diff
 # XXX Hangs here sometimes
 new "Commit diff"
-expectpart "$($clixon_cli -1 -f $CFG -m configure commit diff)" 0 "openconfig1:
+expectpart "$($clixon_cli -1 -f $CFG -m configure commit diff)" 0 "${IMG}1:
       <config xmlns=\"http://openconfig.net/yang/system\">
 +        <login-banner>Mybanner</login-banner>
       </config>
-openconfig2:
+${IMG}2:
       <config xmlns=\"http://openconfig.net/yang/system\">
 +        <login-banner>Mybanner</login-banner>
       </config>

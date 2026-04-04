@@ -209,7 +209,7 @@ fi
 
 # Cannot pull if edits in candidate
 new "edit local candidate"
-expectpart "$($clixon_cli -1f $CFG -E $CFD -m configure delete devices device openconfig1 config interfaces interface z)" 0 "^$"
+expectpart "$($clixon_cli -1f $CFG -E $CFD -m configure delete devices device ${IMG}1 config interfaces interface z)" 0 "^$"
 
 new "pull dont expect error"
 expectpart "$($clixon_cli -1f $CFG -E $CFD pull replace 2>&1)" 0 "OK"

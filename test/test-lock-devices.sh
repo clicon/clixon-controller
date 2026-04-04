@@ -108,7 +108,7 @@ wait_backend
 # Reset controller
 . ./reset-controller.sh
 
-# Start a local blocking thread to openconfig1
+# Start a local blocking thread to ${IMG}1
 i=1
 for ip in $CONTAINERS; do
     NAME="$IMG$i"
@@ -121,11 +121,11 @@ done
 
 sleep 1
 
-new "Configure hostname on openconfig1"
-expectpart "$($clixon_cli -1 -f $CFG -E $CFD -m configure set devices device openconfig1 config system config hostname c-change)" 0 ""
+new "Configure hostname on ${IMG}1"
+expectpart "$($clixon_cli -1 -f $CFG -E $CFD -m configure set devices device ${IMG}1 config system config hostname c-change)" 0 ""
 
 new "Commit 1"
-expectpart "$($clixon_cli -1 -f $CFG -E $CFD -m configure commit 2>&1)" 0 "Device openconfig1 in state PUSH-LOCK:protocol lock-denied Operation failed, lock is already held" --not-- "OK"
+expectpart "$($clixon_cli -1 -f $CFG -E $CFD -m configure commit 2>&1)" 0 "Device ${IMG}1 in state PUSH-LOCK:protocol lock-denied Operation failed, lock is already held" --not-- "OK"
 
 kill ${PIDS[0]}                   # kill the while loop above to close STDIN on 1st
 wait

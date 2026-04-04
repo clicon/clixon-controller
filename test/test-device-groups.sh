@@ -125,14 +125,14 @@ wait_backend
 
 # Create some groups:
 # Base flat group:
-# mygroup0 --> openconfig2
+# mygroup0 --> ${IMG}2
 # Hierarchical group:
-# mygroup1 --> mygroup0 ---> openconfig2
-#          --> openconfig1
+# mygroup1 --> mygroup0 ---> ${IMG}2
+#          --> ${IMG}1
 # Duplicate:
-# mygroup2 --> mygroup0 --> openconfig2
-#          --> mygroup1 --> mygroup0 ---> openconfig2
-#                       --> openconfig1
+# mygroup2 --> mygroup0 --> ${IMG}2
+#          --> mygroup1 --> mygroup0 ---> ${IMG}2
+#                       --> ${IMG}1
 # Loop:
 # mygroup3 --> mygroup0
 #          --> mygroup3
@@ -204,7 +204,7 @@ if [ "$res" != "1" ]; then
 fi
 
 new "show device group 1 1"
-expectpart "$($clixon_cli -1 -f $CFG -E $CFD show device group mygroup1 state)" 0 "<name>openconfig2</name>" --not-- "<name>openconfig1</name>"
+expectpart "$($clixon_cli -1 -f $CFG -E $CFD show device group mygroup1 state)" 0 "<name>${IMG}2</name>" --not-- "<name>${IMG}1</name>"
 
 new "connection close"
 expectpart "$($clixon_cli -1 -f $CFG -E $CFD connection close)" 0 "^$"
@@ -221,10 +221,10 @@ if [ "$res" != "2" ]; then
 fi
 
 new "show device group 1 2"
-expectpart "$($clixon_cli -1 -f $CFG -E $CFD show device group mygroup1 state)" 0 "<name>openconfig1</name>" "<name>openconfig2</name>"
+expectpart "$($clixon_cli -1 -f $CFG -E $CFD show device group mygroup1 state)" 0 "<name>${IMG}1</name>" "<name>${IMG}2</name>"
 
 new "set something"
-expectpart "$($clixon_cli -1 -m configure -f $CFG -E $CFD set devices device openconfig1 config system config login-banner kalle)" 0 "^$"
+expectpart "$($clixon_cli -1 -m configure -f $CFG -E $CFD set devices device ${IMG}1 config system config login-banner kalle)" 0 "^$"
 
 new "CLI load rpc template ping"
 # quote EOFfor $NAME
@@ -263,7 +263,7 @@ new "show device group check OK"
 expectpart "$($clixon_cli -1 -f $CFG -E $CFD show device group mygroup1 check)" 0 "OK"
 
 new "ping to group"
-expectpart "$($clixon_cli -1 -f $CFG -E $CFD rpc ping group mygroup1)" 0 "<name>openconfig1</name>" "<name>openconfig2</name>" "<ok"
+expectpart "$($clixon_cli -1 -f $CFG -E $CFD rpc ping group mygroup1)" 0 "<name>${IMG}1</name>" "<name>${IMG}2</name>" "<ok"
 
 new "CLI load template xml"
 # quote EOFfor $NAME

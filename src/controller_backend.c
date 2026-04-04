@@ -65,7 +65,7 @@
  * @retval       0        OK
  * @retval      -1        Error
  */
-int
+static int
 controller_statedata(clixon_handle   h,
                      cvec           *nsc,
                      char           *xpath,

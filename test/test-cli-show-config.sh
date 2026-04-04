@@ -248,7 +248,7 @@ new "show state xml"
 expectpart "$($clixon_cli -1 -f $CFG -E $CFD show state)" 0  "<capabilities><capability>urn:ietf:params:netconf:base:1.0</capability>" "<sync-timestamp>" "<yang-library xmlns=\"urn:ietf:params:xml:ns:yang:ietf-yang-library\"><module-set><name>default</name><module>" "<name>clixon-lib</name>"
 
 new "show config xml device *"
-expectpart "$($clixon_cli -1 -f $CFG -E $CFD show config xml devices device ${IMG}*)" 0 "${IMG}1:" "${IMG}2:" "<device><name>${IMG}1</name><enabled>true</enabled><description>Clixon example container</description><user>${USER}</user><conn-type>NETCONF_SSH</conn-type><yang-config>VALIDATE</yang-config>" "</config></device>" "<device><name>${IMG}2</name><enabled>true</enabled><description>Clixon example container</description><user>${USER}</user><conn-type>NETCONF_SSH</conn-type>" "<interfaces xmlns=\"http://openconfig.net/yang/interfaces\"><interface><name>x</name><config><name>x</name><type xmlns:ianaift=\"urn:ietf:params:xml:ns:yang:iana-if-type\">ianaift:ethernetCsmacd</type></config></interface>"
+expectpart "$($clixon_cli -1 -f $CFG -E $CFD show config xml devices device ${IMG}*)" 0 "${IMG}1:" "${IMG}2:" "<device><name>${IMG}1</name><enabled>true</enabled><description>Clixon example container</description><user>${USER}</user><conn-type>NETCONF_SSH</conn-type>" "<yang-config>VALIDATE</yang-config>" "</config></device>" "<device><name>${IMG}2</name><enabled>true</enabled><description>Clixon example container</description><user>${USER}</user><conn-type>NETCONF_SSH</conn-type>" "<interfaces xmlns=\"http://openconfig.net/yang/interfaces\"><interface><name>x</name><config><name>x</name><type xmlns:ianaift=\"urn:ietf:params:xml:ns:yang:iana-if-type\">ianaift:ethernetCsmacd</type></config></interface>"
 
 new "Configure edit modes"
 mode=configure
@@ -262,7 +262,7 @@ edit devices device ${IMG}1
 show xml
 EOF
 new "edit device; show xml"
-expectpart "$(cat $fin | $clixon_cli -f $CFG -E $CFD -m $mode 2>&1)" 0 "<name>${IMG}1</name><enabled>true</enabled><description>Clixon example container</description><user>${USER}</user><conn-type>NETCONF_SSH</conn-type><yang-config>VALIDATE</yang-config>" "<config><interfaces xmlns=\"http://openconfig.net/yang/interfaces\"><interface><name>x</name><config><name>x</name><type xmlns:ianaift=\"urn:ietf:params:xml:ns:yang:iana-if-type\">ianaift:ethernetCsmacd</type></config></interface>"
+expectpart "$(cat $fin | $clixon_cli -f $CFG -E $CFD -m $mode 2>&1)" 0 "<name>${IMG}1</name><enabled>true</enabled><description>Clixon example container</description><user>${USER}</user><conn-type>NETCONF_SSH</conn-type>" "<yang-config>VALIDATE</yang-config>" "<config><interfaces xmlns=\"http://openconfig.net/yang/interfaces\"><interface><name>x</name><config><name>x</name><type xmlns:ianaift=\"urn:ietf:params:xml:ns:yang:iana-if-type\">ianaift:ethernetCsmacd</type></config></interface>"
 
 cat <<EOF > $fin
 edit devices device ${IMG}1 config
@@ -297,8 +297,8 @@ fi
 
 # See https://github.com/clicon/clixon-controller/issues/145
 cat <<EOF > $fin
-show configuration xml devices device openconfig1 config interfaces interface lo0 subinterfaces
-show configuration xml devices device openconfig2 config interfaces interface lo0 subinterfaces
+show configuration xml devices device ${IMG}1 config interfaces interface lo0 subinterfaces
+show configuration xml devices device ${IMG}2 config interfaces interface lo0 subinterfaces
 EOF
 new "Deep uses/grouping on two devices"
 expectpart "$(cat $fin | $clixon_cli -f $CFG -E $CFD 2>&1)" 0 --not-- "CLI syntax error:" "Unknown command"
@@ -315,7 +315,7 @@ APIpath:    /clixon-controller:devices/device=%2A/config/openconfig-system:syste
 
 # also log cli command
 new "Test show xpath across mountpoint"
-expectpart "$($clixon_cli -1 -f $CFG -E $CFD -lf$dir/mylog.log show xpath /ctrl:devices/ctrl:device\[ctrl:name=\"openconfig1\"\]/ctrl:config/oc-sys:system)" 0 "<system xmlns=\"http://openconfig.net/yang/system\">" "<hostname>openconfig1</hostname>"
+expectpart "$($clixon_cli -1 -f $CFG -E $CFD -lf$dir/mylog.log show xpath /ctrl:devices/ctrl:device\[ctrl:name=\"${IMG}1\"\]/ctrl:config/oc-sys:system)" 0 "<system xmlns=\"http://openconfig.net/yang/system\">" "<hostname>${IMG}1</hostname>"
 
 new "Test cli commands to log"
 expect="show xpath /ctrl:devices/ctrl:device"

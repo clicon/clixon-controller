@@ -50,9 +50,9 @@ EOF
       )
 
 new "Check open"
-match=$(echo $ret | grep --null -Eo "<device><name>openconfig1</name><conn-state>OPEN</conn-state></device>") || true
+match=$(echo $ret | grep --null -Eo "<device><name>${IMG}1</name><conn-state>OPEN</conn-state></device>") || true
 if [ -z "$match" ]; then
-    err "openconfig1 OPEN" "$ret"
+    err "${IMG}1 OPEN" "$ret"
 fi
 
 new "NETCONF: get state with inline rpc template"
@@ -68,7 +68,7 @@ ret=$(${clixon_netconf} -0 -f $CFG <<'EOF'
      message-id="99">
    <device-template-apply xmlns="http://clicon.org/controller">
       <type>RPC</type>
-      <device>openconfig*</device>
+      <device>${IMG}*</device>
       <inline>
          <variables>
             <variable>
@@ -107,7 +107,7 @@ fi
 
 # It is complicated to wait for notify w netconf, skip that and do that for cli instead
 new "CLI get device state"
-expectpart "$($clixon_cli -1 -f $CFG show devices openconfig* state)" 0 '<devdata>' "<name>openconfig1</name>" "<name>openconfig2</name>" '<system xmlns="http://openconfig.net/yang/system">'
+expectpart "$($clixon_cli -1 -f $CFG show devices ${IMG}* state)" 0 '<devdata>' "<name>${IMG}1</name>" "<name>${IMG}2</name>" '<system xmlns="http://openconfig.net/yang/system">'
 
 if $BE; then
     new "Kill old backend"

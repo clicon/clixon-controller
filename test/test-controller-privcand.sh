@@ -50,7 +50,7 @@ cat <<EOF > ${dbdir}/startup.d/0.xml
 <config>
    <devices xmlns="http://clicon.org/controller">
 	<device>
-	  <name>openconfig1</name>
+	  <name>${IMG}1</name>
 	  <enabled>true</enabled>
 	  <user>$USER</user>
 	  <conn-type>NETCONF_SSH</conn-type>
@@ -59,7 +59,7 @@ cat <<EOF > ${dbdir}/startup.d/0.xml
 	  <config/>
 	</device>
 	<device>
-	  <name>openconfig2</name>
+	  <name>${IMG}2</name>
 	  <enabled>true</enabled>
 	  <user>$USER</user>
 	  <conn-type>NETCONF_SSH</conn-type>
@@ -178,7 +178,7 @@ fi
 new "Spawn expect script to simulate two CLI sessions"
 
 # -d to debug matching info
-sudo expect - "$clixon_cli" "$CFG" "$CFD" $(whoami) <<'EOF'
+sudo expect - "$clixon_cli" "$CFG" "$CFD" $(whoami) "$IMG" <<'EOF'
 # Use of expect to start two NETCONF sessions
 log_user 0
 set timeout 5
@@ -186,6 +186,7 @@ set clixon_cli [lindex $argv 0]
 set CFG [lindex $argv 1]
 set CFD [lindex $argv 2]
 set USER [lindex $argv 3]
+set IMG [lindex $argv 4]
 
 puts "Spawn First CLI session"
 global session1
@@ -207,11 +208,11 @@ proc clifn { session command reply } {
     }
 }
 
-puts "1 cli1 configure login-banner 111 on openconfig1"
-clifn $session1 "set devices device openconfig1 config system config login-banner 111" ""
+puts "1 cli1 configure login-banner 111 on ${IMG}1"
+clifn $session1 "set devices device ${IMG}1 config system config login-banner 111" ""
 
-puts "2 cli2 configure login-banner 222 on openconfig1"
-clifn $session2 "set devices device openconfig1 config system config login-banner 222" ""
+puts "2 cli2 configure login-banner 222 on ${IMG}1"
+clifn $session2 "set devices device ${IMG}1 config system config login-banner 222" ""
 
 puts "3a cli1 show compare"
 clifn $session1 "show compare" "111"
@@ -224,7 +225,7 @@ clifn $session1 "commit" "OK"
 sleep 1
 
 puts "5 cli2 show running"
-clifn $session2 "op show config devices device openconfig1 config system config login-banner" "111"
+clifn $session2 "op show config devices device ${IMG}1 config system config login-banner" "111"
 
 puts "6 cli2 update"
 clifn $session2 "update" "operation-failed Conflict occured: Cannot add leaf node, another leaf node is added"
@@ -239,16 +240,16 @@ puts "9 cli2 update"
 clifn $session2 "update" ""
 
 puts "10 cli2 show running"
-clifn $session2 "op show config devices device openconfig1 config system config login-banner" "111"
+clifn $session2 "op show config devices device ${IMG}1 config system config login-banner" "111"
 
-puts "11 cli2 configure login-banner on openconfig1"
-clifn $session2 "set devices device openconfig1 config system config login-banner 222" ""
+puts "11 cli2 configure login-banner on ${IMG}1"
+clifn $session2 "set devices device ${IMG}1 config system config login-banner 222" ""
 
 puts "12 cli2 commit again"
 clifn $session2 "commit" "OK"
 
 puts "13 cli2 show running"
-clifn $session2 "op show config devices device openconfig1 config system config login-banner" "222"
+clifn $session2 "op show config devices device ${IMG}1 config system config login-banner" "222"
 
 puts "14 cli1 edit service"
 clifn $session1 "set services testA foo params A0x" ""
@@ -260,13 +261,13 @@ puts "16 cli1 commit"
 clifn $session1 "commit" "OK"
 
 puts "17 cli1 show"
-clifn $session1 "op show config devices device openconfig1 config interfaces interface A0x config" "<name>A0x</name>"
+clifn $session1 "op show config devices device ${IMG}1 config interfaces interface A0x config" "<name>A0x</name>"
 
 puts "18 cli2 show"
-clifn $session2 "op show config devices device openconfig1 config interfaces interface A0x config" "<name>A0x</name>"
+clifn $session2 "op show config devices device ${IMG}1 config interfaces interface A0x config" "<name>A0x</name>"
 
 puts "19 cli1 configure top-level description"
-clifn $session1 "set devices device openconfig1 description newdesc" ""
+clifn $session1 "set devices device ${IMG}1 description newdesc" ""
 
 puts "20 cli1 show compare"
 clifn $session1 "show compare" "<description>newdesc</description>"
