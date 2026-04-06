@@ -436,7 +436,7 @@ controller_gentree_pattern(cligen_handle ch,
             firsttree = NULL;
         }
         else { /* create dummy tree */
-            if (cligen_ph_find(ch, "mointpoint") == NULL){
+            if (cligen_ph_find(ch, "mountpoint") == NULL){
                 parse_tree     *pt0;
                 if ((ph = cligen_ph_add(ch, "mountpoint")) == NULL)
                     goto done;

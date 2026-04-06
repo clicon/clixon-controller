@@ -179,25 +179,6 @@ cat <<EOF > $dir/startup_db
 </config>
 EOF
 
-# Sleep and verify devices are open
-function sleep_open()
-{
-    for j in $(seq 1 10); do
-        new "Verify devices are open"
-        ret=$($clixon_cli -1 -f $CFG show connections)
-        match1=$(echo "$ret" | grep --null -Eo "${IMG}1.*OPEN") || true
-        match2=$(echo "$ret" | grep --null -Eo "${IMG}2.*OPEN") || true
-        if [ -n "$match1" -a -n "$match2" ]; then
-            break;
-        fi
-        echo "retry after sleep"
-        sleep 1
-    done
-    if [ $j -eq 10 ]; then
-        err "device ${IMG} OPEN" "Timeout"
-    fi
-}
-
 if $BE; then
     new "Kill old backend"
     stop_backend -f $CFG
@@ -220,7 +201,7 @@ new "Connect to devices"
 expectpart "$($clixon_cli -1 -f $CFG connection open)" 0 ""
 
 new "Sleep and verify devices are open"
-sleep_open
+sleep_open "$CFD" ""
 
 new "Show device diff, should be empty"
 expectpart "$($clixon_cli -1 -f $CFG show devices diff)" 0 "^$"

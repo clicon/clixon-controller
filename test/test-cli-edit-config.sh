@@ -44,26 +44,6 @@ EOF
 # Reset devices with initial config
 (. ./reset-devices.sh)
 
-# Sleep and verify devices are open
-function sleep_open()
-{
-    jmax=10
-    for j in $(seq 1 $jmax); do
-        new "cli show connections and check open"
-        ret=$($clixon_cli -1 -f $CFG -E $CFD show connections)
-        match1=$(echo "$ret" | grep --null -Eo "${IMG}1.*OPEN") || true
-        match2=$(echo "$ret" | grep --null -Eo "${IMG}2.*OPEN") || true
-        if [ -n "$match1" -a -n "$match2" ]; then
-            break;
-        fi
-        echo "retry after sleep"
-        sleep 1
-    done
-    if [ $j -eq $jmax ]; then
-        err "device openconfig OPEN" "Timeout" 
-    fi
-}
-
 function testrun()
 {
     new "Show devices diff, should be empty"
@@ -132,7 +112,7 @@ function testrun()
 
     new "set identityref type"
     expectpart "$($clixon_cli -1 -m configure -f $CFG -E $CFD set devices device o* config interfaces interface test config type ianaift:ethernetCsmacd)" 0 ""
-    
+
     new "validate"
     expectpart "$($clixon_cli -1 -m configure -f $CFG -E $CFD validate)" 0 ""
 
@@ -169,7 +149,7 @@ fi
 new "wait backend 1"
 wait_backend
 
-# Reset controller 
+# Reset controller
 new "reset controller"
 (. ./reset-controller.sh)
 
@@ -190,7 +170,7 @@ new "Connect to devices"
 expectpart "$($clixon_cli -1 -f $CFG -E $CFD connection open)" 0 ""
 
 new "Sleep and verify devices are open 1"
-sleep_open
+sleep_open "$CFD" ""
 
 new "Check YANG memory after reconnect"
 postmem=$($clixon_cli -1f $CFG -E $CFD show mem backend|grep "YANG Total")
@@ -202,7 +182,7 @@ new "Reconnect to devices"
 expectpart "$($clixon_cli -1 -f $CFG -E $CFD connection reconnect)" 0 ""
 
 new "Sleep and verify devices are open 2"
-sleep_open
+sleep_open "$CFD" ""
 
 new "First testrun"
 testrun
@@ -219,7 +199,7 @@ fi
 
 new "wait backend 2"
 wait_backend
-    
+
 new "Check config after restart"
 expectpart "$($clixon_cli -1 -f $CFG -E $CFD -o CLICON_CLI_OUTPUT_FORMAT=text show config)" 0 "hostname ${IMG}1;"
 
@@ -232,7 +212,7 @@ expectpart "$($clixon_cli -1 -f $CFG -E $CFD connection open)" 0 ""
 sleep $sleep
 
 new "Sleep and verify devices are open 3"
-sleep_open
+sleep_open "$CFD" ""
 
 new "Testrun after restart"
 testrun # XXX This fails on regression occasionally

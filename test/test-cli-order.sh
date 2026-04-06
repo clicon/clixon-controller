@@ -14,26 +14,6 @@ CFG=${SYSCONFDIR}/clixon/controller.xml
 # Reset devices with initial config
 (. ./reset-devices.sh)
 
-# Sleep and verify devices are open
-function sleep_open()
-{
-    jmax=10
-    for j in $(seq 1 $jmax); do
-        new "cli show connections and check open"
-        ret=$($clixon_cli -1 -f $CFG show connections)
-        match1=$(echo "$ret" | grep --null -Eo "${IMG}1.*OPEN") || true
-        match2=$(echo "$ret" | grep --null -Eo "${IMG}2.*OPEN") || true
-        if [ -n "$match1" -a -n "$match2" ]; then
-            break;
-        fi
-        echo "retry after sleep"
-        sleep 1
-    done
-    if [ $j -eq $jmax ]; then
-        err "device openconfig OPEN" "Timeout" 
-    fi
-}
-
 if $BE; then
     new "Kill old backend"
     sudo clixon_backend -s init -f $CFG -z

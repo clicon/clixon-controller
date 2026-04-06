@@ -52,26 +52,6 @@ module clixon-ext {
 }
 EOF
 
-# Sleep and verify devices are open
-function sleep_open()
-{
-    jmax=10
-    for j in $(seq 1 $jmax); do
-        new "cli show connections and check open"
-        ret=$($clixon_cli -1 -f $CFG -E $CFD show connections)
-        match1=$(echo "$ret" | grep --null -Eo "${IMG}1.*OPEN") || true
-        match2=$(echo "$ret" | grep --null -Eo "${IMG}2.*OPEN") || true
-        if [ -n "$match1" -a -n "$match2" ]; then
-            break;
-        fi
-        echo "retry after sleep"
-        sleep 1
-    done
-    if [ $j -eq $jmax ]; then
-        err "device ${IMG} OPEN" "Timeout"
-    fi
-}
-
 # Set and commit mtu=999 on device
 function device_mtu_set()
 {
@@ -187,7 +167,7 @@ new "reset controller"
 EXTRA="<module-set><module><name>clixon-ext</name><namespace>http://clicon.org/ext</namespace></module></module-set>" . ./reset-controller.sh
 
 new "Sleep and verify devices are open"
-sleep_open
+sleep_open "$CFD" ""
 
 new "pull"
 expectpart "$($clixon_cli -1f $CFG -E $CFD pull 2>&1)" 0 "OK"

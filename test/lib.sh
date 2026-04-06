@@ -333,6 +333,36 @@ function endtest()
     >&2 echo "OK"
 }
 
+# Sleep and verify devices are open
+# Args:
+# 1: configdir/CFD
+# 2: prefix
+function sleep_open()
+{
+    CFD=$1
+    pre=$2
+    jmax=10
+
+    for j in $(seq 1 $jmax); do
+        new "Verify devices are open"
+        if [ -n "$CFD" ]; then
+            ret=$($pre $clixon_cli -1 -f $CFG -E $CFD show connections)
+        else
+            ret=$($pre $clixon_cli -1 -f $CFG show connections)
+        fi
+        match1=$(echo "$ret" | grep --null -Eo "${IMG}1.*OPEN") || true
+        match2=$(echo "$ret" | grep --null -Eo "${IMG}2.*OPEN") || true
+        if [ -n "$match1" -a -n "$match2" ]; then
+            break;
+        fi
+        echo "retry after sleep"
+        sleep 1
+    done
+    if [ $j -eq $jmax ]; then
+        err "device ${IMG} OPEN" "Timeout"
+    fi
+}
+
 # Evaluate and return
 # Example: expectpart $(fn arg) 0 "my return" -- "foo"
 # - evaluated expression
@@ -404,6 +434,80 @@ function expectpart(){
     #  if [[ "$ret" != "$expect" ]]; then
     #      err "$expect" "$ret"
     #  fi
+}
+
+# Pipe stdin to command and also do chunked framing (netconf 1.1)
+# Arguments:
+# - Command
+# - expected command return value (0 if OK)
+# - stdin input1  This is NOT encoded, eg preamble/hello
+# - stdin input2  This gets chunked encoding
+# - expect1 stdout outcome, can be partial and contain regexps
+# - expect2 stdout outcome This gets chunked encoding, must be complete netconf message
+# Use this if you want regex eg  ^foo$
+function expecteof_netconf(){
+  cmd=$1
+  retval=$2
+  input1=$3
+  input2=$4
+  expect1=$5
+  expect2=$6
+
+  if [ -n "${input2}" ]; then
+      inputenc=$(chunked_framing "${input2}")
+  else
+      inputenc=""
+  fi
+  if [ -n "${expect2}" ]; then
+      expectenc=$(chunked_framing "${expect2}")
+  else
+      expectenc=""
+  fi
+
+#  echo "input1:$input1"
+#  echo "input2:$input2"
+#  echo "inputenc:$inputenc"
+#  echo "expect1:$expect1"
+#  echo "expect2:$expect2"
+#  echo "expectenc:$expectenc"
+# Do while read stuff
+  ret=$($cmd <<EOF
+${input1}${inputenc}
+EOF
+ )
+  r=$?
+
+  if [ $r != $retval ]; then
+      echo -e "\e[31m\nError ($r != $retval) in Test$testnr [$testname]:"
+      echo -e "\e[0m:"
+      exit -1
+  fi
+  # If error dont match output strings (why not?)
+  # Match if both are empty string
+  if [ -z "$ret" -a -z "$expect1" ]; then
+      : # null
+  else
+      r=$(echo "$ret" | grep --null -Go "$expect1")
+      match=$?
+      if [ $match -ne 0 ]; then
+          err "$expect1" "$ret"
+      fi
+  fi
+  if [ -z "$ret" -a -z "$expectenc" ]; then
+      : # null
+  else
+      while read i
+      do
+          # -F fixed strings
+          # -G basic regexp
+          # r=$(echo "$ret" | grep --null -Go "$i")
+          r=$(echo "$ret" | grep --null -Fo "$i")
+          match=$?
+          if [ $match -ne 0 ]; then
+              err "$expectenc" "$ret"
+          fi
+      done <<< "$expectenc"
+  fi
 }
 
 # error and exit,
