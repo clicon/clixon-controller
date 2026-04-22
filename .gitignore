@@ -11,11 +11,10 @@ TAGS
 controller/docker/src
 controller/docker/yang
 test/site.sh
-test/py
+test/config.sh
 
 src/controller.xml
 src/build.c
-test/config.sh
 
 clixon-controller.service
 

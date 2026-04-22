@@ -23,7 +23,6 @@ fi
 # Native homedir (~ is treachorous)
 : ${HOSTHOMEDIR:=/root}
 
-
 if [ ! -f "$HOSTHOMEDIR/.ssh/id_rsa.pub" ] ; then
     >&2 echo "Error: No key $HOSTHOMEDIR/.ssh/id_rsa.pub as required by script"
     exit
