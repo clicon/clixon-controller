@@ -1557,6 +1557,75 @@ cli_show_services_process(clixon_handle h,
     return retval;
 }
 
+/*! Show one transaction in detail (human-readable)
+ *
+ * @param[in]  xc  XML transaction
+ */
+static int
+show_transaction_detail(cxobj *xc)
+{
+    char          *tid;
+    char          *description;
+    char          *state;
+    char          *result;
+    char          *reason;
+    char          *username;
+    char          *origin;
+    char          *warning;
+    char          *timestamp0;
+    char          *timestamp;
+    cxobj         *xdevs;
+    cxobj         *xdev;
+    int            ix;
+    struct timeval tv0;
+    struct timeval tv1;
+    struct timeval tvdiff;
+    char           duration_str[32] = {0,};
+
+    tid = xml_find_body(xc, "tid");
+    description = xml_find_body(xc, "description");
+    state = xml_find_body(xc, "state");
+    result = xml_find_body(xc, "result");
+    reason = xml_find_body(xc, "reason");
+    username = xml_find_body(xc, "username");
+    origin = xml_find_body(xc, "origin");
+    warning = xml_find_body(xc, "warning");
+    timestamp0 = xml_find_body(xc, "timestamp0");
+    timestamp = xml_find_body(xc, "timestamp");
+
+    if (timestamp0 && timestamp &&
+        str2time(timestamp0, &tv0) == 0 &&
+        str2time(timestamp, &tv1) == 0){
+        timersub(&tv1, &tv0, &tvdiff);
+        snprintf(duration_str, sizeof(duration_str)-1, "%ld.%03lds",
+                 tvdiff.tv_sec, tvdiff.tv_usec/1000);
+    }
+    else
+        strcpy(duration_str, "-");
+
+    cligen_output(stdout, "Transaction %s:\n", tid ? tid : "-");
+    cligen_output(stdout, "  %-14s %s\n", "Description:", description ? description : "-");
+    cligen_output(stdout, "  %-14s %s\n", "State:", state ? state : "-");
+    cligen_output(stdout, "  %-14s %s\n", "Result:", result ? result : "-");
+    cligen_output(stdout, "  %-14s %s\n", "Username:", username ? username : "-");
+    cligen_output(stdout, "  %-14s %s\n", "Origin:", origin ? origin : "-");
+    cligen_output(stdout, "  %-14s %s\n", "Warning:", warning ? warning : "-");
+    cligen_output(stdout, "  %-14s %s\n", "Reason:", reason ? reason : "-");
+    cligen_output(stdout, "  %-14s %s\n", "Start time:", timestamp0 ? timestamp0 : "-");
+    cligen_output(stdout, "  %-14s %s\n", "End time:", timestamp ? timestamp : "-");
+    cligen_output(stdout, "  %-14s %s\n", "Duration:", duration_str);
+
+    if ((xdevs = xml_find_type(xc, NULL, "devices", CX_ELMNT)) != NULL){
+        cligen_output(stdout, "  Devices:\n");
+        ix = 0;
+        while ((xdev = xml_child_iter(xdevs, &ix, CX_ELMNT)) != NULL){
+            if (strcmp(xml_name(xdev), "device") == 0)
+                cligen_output(stdout, "    %s\n", xml_body(xdev) ? xml_body(xdev) : "-");
+        }
+    }
+    return 0;
+}
+
 /*! Show one transaction
  *
  * @param[in]  xc  XML transaction
@@ -1676,19 +1745,19 @@ cli_show_transactions(clixon_handle h,
             goto done;
         xn = xc;
         if (detail){
-            /* Detail mode: show full XML */
+            /* Detail mode: human-readable */
             if (all){
                 nr = xml_child_nr_type(xn, CX_ELMNT);
                 for (i = nr; i > 0; i--){
                     if ((xc = xml_child_i(xn, i)) != NULL){
-                        if (clixon_xml2file(stdout, xc, 0, 1, NULL, cligen_output, 0, 1) < 0)
+                        if (show_transaction_detail(xc) < 0)
                             goto done;
                     }
                 }
             }
             else{
                 if ((xc = xml_child_i(xn, xml_child_nr(xn) - 1)) != NULL){
-                    if (clixon_xml2file(stdout, xc, 0, 1, NULL, cligen_output, 0, 1) < 0)
+                    if (show_transaction_detail(xc) < 0)
                         goto done;
                 }
             }
