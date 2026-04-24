@@ -1349,62 +1349,88 @@ show_connections_detail(clixon_handle h,
     cxobj           *xs;
     yang_stmt       *ys;
     char            *name;
+    char            *val;
     enum format_enum format;
     char            *formatstr;
     int              ix;
     int              ixc;
     int              ret;
 
-    formatstr = clicon_option_str(h, "CLICON_CLI_OUTPUT_FORMAT");
-    if ((ret = format_str2int(formatstr)) < 0){
-        clixon_err(OE_PLUGIN, 0, "Not valid format: %s", formatstr);
-        goto done;
-    }
-    format = ret;
-    ix = 0;
-    while ((xc = xml_child_iter(xn, &ix, CX_ELMNT)) != NULL) {
-        if (strcmp(xml_name(xc), "device") != 0)
-            continue;
-        name = xml_find_body(xc, "name");
-        if (pattern != NULL && fnmatch(pattern, name, 0) != 0)
-            continue;
-        if ((xs = xml_find(xc, "name")) != NULL)
-            xml_flag_set(xs, XML_FLAG_MARK);
-        ixc = 0;
-        while ((xs = xml_child_iter(xc, &ixc, CX_ELMNT)) != NULL) {
-            if (strcmp(xml_name(xs), "capabilities") == 0) /* Too much output */
+    if (cligen_spipe_get(cli_cligen(h)) != -1){
+        /* Piped: use format-based output */
+        formatstr = clicon_option_str(h, "CLICON_CLI_OUTPUT_FORMAT");
+        if ((ret = format_str2int(formatstr)) < 0){
+            clixon_err(OE_PLUGIN, 0, "Not valid format: %s", formatstr);
+            goto done;
+        }
+        format = ret;
+        ix = 0;
+        while ((xc = xml_child_iter(xn, &ix, CX_ELMNT)) != NULL) {
+            if (strcmp(xml_name(xc), "device") != 0)
                 continue;
-            if ((ys = xml_spec(xs)) != NULL){
-                if (yang_config(ys) == 0)
-                    xml_flag_set(xs, XML_FLAG_MARK);
+            name = xml_find_body(xc, "name");
+            if (pattern != NULL && fnmatch(pattern, name, 0) != 0)
+                continue;
+            if ((xs = xml_find(xc, "name")) != NULL)
+                xml_flag_set(xs, XML_FLAG_MARK);
+            ixc = 0;
+            while ((xs = xml_child_iter(xc, &ixc, CX_ELMNT)) != NULL) {
+                if (strcmp(xml_name(xs), "capabilities") == 0)
+                    continue;
+                if ((ys = xml_spec(xs)) != NULL){
+                    if (yang_config(ys) == 0)
+                        xml_flag_set(xs, XML_FLAG_MARK);
+                }
             }
         }
+        if (xml_tree_prune_flagged_sub(xn, XML_FLAG_MARK, 1, NULL) < 0)
+            goto done;
+        switch (format){
+        case FORMAT_DEFAULT:
+        case FORMAT_XML:
+            clixon_xml2file1(stdout, xn, 0, 1, "   ", cligen_output, 0, 0, WITHDEFAULTS_REPORT_ALL, 0, 0);
+            break;
+        case FORMAT_JSON:
+            if (clixon_json2file(stdout, xn, 1, cligen_output, 0, 0, 0) < 0)
+                goto done;
+            break;
+        case FORMAT_TEXT:
+            if (clixon_text2file(stdout, xn, 0, cligen_output, 0, 0) < 0)
+                goto done;
+            break;
+        case FORMAT_CLI:
+            if (clixon_cli2file(h, stdout, xn, "set ", cligen_output, 1) < 0)
+                goto done;
+            break;
+        default:
+            break;
+        }
     }
-    if (xml_tree_prune_flagged_sub(xn, XML_FLAG_MARK, 1, NULL) < 0)
-        goto done;
-    switch (format){
-    case FORMAT_DEFAULT:
-    case FORMAT_XML:
-        clixon_xml2file1(stdout,
-                         xn,
-                         0, 1, "   ",
-                         cligen_output, 0, 0, WITHDEFAULTS_REPORT_ALL, 0, 0);
-        break;
-    case FORMAT_JSON:
-        if (clixon_json2file(stdout, xn, 1, cligen_output, 0, 0, 0) < 0)
-            goto done;
-
-        break;
-    case FORMAT_TEXT:
-        if (clixon_text2file(stdout, xn, 0, cligen_output, 0, 0) < 0)
-            goto done;
-        break;
-    case FORMAT_CLI:
-        if (clixon_cli2file(h, stdout, xn, "set ", cligen_output, 1) < 0) /* cli syntax */
-            goto done;
-        break;
-    default:
-        break;
+    else{
+        /* Default: human-readable format */
+        ix = 0;
+        while ((xc = xml_child_iter(xn, &ix, CX_ELMNT)) != NULL) {
+            if (strcmp(xml_name(xc), "device") != 0)
+                continue;
+            name = xml_find_body(xc, "name");
+            if (pattern != NULL && fnmatch(pattern, name, 0) != 0)
+                continue;
+            cligen_output(stdout, "Device %s:\n", name ? name : "-");
+            val = xml_find_body(xc, "conn-state");
+            cligen_output(stdout, "  %-22s %s\n", "Conn-state:", val ? val : "-");
+            val = xml_find_body(xc, "conn-state-timestamp");
+            cligen_output(stdout, "  %-22s %s\n", "Conn-state-time:", val ? val : "-");
+            val = xml_find_body(xc, "sync-timestamp");
+            cligen_output(stdout, "  %-22s %s\n", "Sync-timestamp:", val ? val : "-");
+            val = xml_find_body(xc, "stable-timestamp");
+            cligen_output(stdout, "  %-22s %s\n", "Stable-timestamp:", val ? val : "-");
+            val = xml_find_body(xc, "netconf-framing-type");
+            cligen_output(stdout, "  %-22s %s\n", "Framing-type:", val ? val : "-");
+            val = xml_find_body(xc, "private-candidate-state");
+            cligen_output(stdout, "  %-22s %s\n", "Private-candidate:", val ? val : "-");
+            val = xml_find_body(xc, "logmsg");
+            cligen_output(stdout, "  %-22s %s\n", "Logmsg:", val ? val : "-");
+        }
     }
     retval = 0;
  done:
