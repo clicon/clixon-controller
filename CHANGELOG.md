@@ -10,6 +10,11 @@
 * [1.1.0](#110) 3 July 2024
 * [1.0.0](#170) 8 March 2024
 
+* Made transaction operation clearer
+  * Add device skiplist to transaction when device is disabled or closed for pull and commit
+  * CLI added "disabled" as connection state in show connections
+  * CLI return silent instead of "OK" from successful transaction
+
 ## 1.8.0
 Expected: May 2026
 

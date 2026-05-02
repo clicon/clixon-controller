@@ -80,7 +80,7 @@ ret=$(${clixon_netconf} -q0 -f $CFG <<EOF
 </rpc>]]>]]>
 EOF
    )
-echo "ret:$ret"
+#echo "ret:$ret"
 match=$(echo $ret | grep --null -Eo "<rpc-error>") || true
 if [ -z "$match" ]; then
     err1 "rpc-error"
@@ -107,7 +107,7 @@ ret=$(${clixon_netconf} -q0 -f $CFG <<EOF
 </rpc>]]>]]>
 EOF
    )
-echo "ret:$ret"
+#echo "ret:$ret"
 match=$(echo $ret | grep --null -Eo "<rpc-error>") || true
 if [ -z "$match" ]; then
     err1 "rpc-error"
@@ -168,7 +168,7 @@ ret=$(${clixon_netconf} -q0 -f $CFG <<EOF
 </rpc>]]>]]>
 EOF
    )
-echo "ret:$ret"
+#echo "ret:$ret"
 match=$(echo $ret | grep --null -Eo "<rpc-error>") || true
 if [ -z "$match" ]; then
     err1 "rpc-error"

@@ -221,7 +221,7 @@ puts "3b cli2 show compare"
 clifn $session2 "show compare" "222"
 
 puts "4 cli1 commit"
-clifn $session1 "commit" "OK"
+clifn $session1 "commit" ""
 sleep 1
 
 puts "5 cli2 show running"
@@ -246,7 +246,7 @@ puts "11 cli2 configure login-banner on ${IMG}1"
 clifn $session2 "set devices device ${IMG}1 config system config login-banner 222" ""
 
 puts "12 cli2 commit again"
-clifn $session2 "commit" "OK"
+clifn $session2 "commit" ""
 
 puts "13 cli2 show running"
 clifn $session2 "op show config devices device ${IMG}1 config system config login-banner" "222"
@@ -258,7 +258,7 @@ puts "15 cli1 commit diff"
 clifn $session1 "commit diff" "<name>A0x</name>"
 
 puts "16 cli1 commit"
-clifn $session1 "commit" "OK"
+clifn $session1 "commit" ""
 
 puts "17 cli1 show"
 clifn $session1 "op show config devices device ${IMG}1 config interfaces interface A0x config" "<name>A0x</name>"

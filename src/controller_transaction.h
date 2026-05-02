@@ -70,6 +70,7 @@ struct controller_transaction_t{
     struct timeval     ct_timestamp0;    /* Timestamp when created */
     struct timeval     ct_timestamp;     /* Timestamp when entering current state */
     cvec              *ct_devices;       /* List of device name partaking in transaction */
+    cvec              *ct_skipped;       /* Devices skipped: cv_name=devname, cv_string=reason */
     cxobj             *ct_devdata;       /* Generic device data, eg CS_RPC_GENERIC */
 };
 typedef struct controller_transaction_t controller_transaction;
@@ -110,6 +111,7 @@ controller_transaction *controller_transaction_find(clixon_handle h, const uint6
 controller_transaction *controller_transaction_find_bystate(clixon_handle h, int neg, transaction_state state);
 int   controller_transaction_nr_devices(clixon_handle h, uint64_t tid);
 int   controller_transaction_device_add(controller_transaction *ct, const char *name);
+int   controller_transaction_device_skip(controller_transaction *ct, const char *name, const char *reason);
 int   controller_transaction_failed_fn(clixon_handle h, const char *func, const int line,
                                        uint64_t tid, controller_transaction *ct, device_handle dh,
                                        tr_failed_devclose devclose, char *origin, char *reason);

@@ -174,7 +174,7 @@ new "Verify compare 2"
 expectpart "$($clixon_cli -1 -f $CFG -m configure -o CLICON_CLI_OUTPUT_FORMAT=text show compare)" 0 "^+\ *interface z {" "^+\ *type ianaift:v35;" "^+\ *description \"Config of interface z,z and ianaift:v35 type\";" --not-- "^\-"
 
 new "commit push 1"
-expectpart "$($clixon_cli -1f $CFG -m configure commit push 2>&1)" 0 "^OK$"
+expectpart "$($clixon_cli -1f $CFG -m configure commit push 2>&1)" 0 "^$"
 
 # 1) commit add new version and diff
 new "CLI load template (changed description)"
@@ -220,13 +220,13 @@ if false; then # Disabled in 1.3
 fi
 
 new "commit local"
-expectpart "$($clixon_cli -1f $CFG -m configure commit  2>&1)" 0 "^OK$"
+expectpart "$($clixon_cli -1f $CFG -m configure commit  2>&1)" 0 "^$"
 
 new "Apply template CLI 2"
 expectpart "$($clixon_cli -1 -f $CFG -m configure apply template interfaces openconfig* variables NAME z TYPE ianaift:v35)" 0 "^$"
 
 new "commit push 2"
-expectpart "$($clixon_cli -1f $CFG -m configure commit push 2>&1)" 0 "^OK$"
+expectpart "$($clixon_cli -1f $CFG -m configure commit push 2>&1)" 0 "^$"
 
 # 2) add operation="merge" / "replace" within
 new "CLI load template (removed description)"
@@ -273,13 +273,13 @@ new "Verify compare 3"
 expectpart "$($clixon_cli -1 -f $CFG -m configure show compare xml)" 0 "^-\ *<description>Changed description</description>" --not-- "^+\ *"
 
 new "commit push 3"
-expectpart "$($clixon_cli -1f $CFG -m configure commit push 2>&1)" 0 "^OK$"
+expectpart "$($clixon_cli -1f $CFG -m configure commit push 2>&1)" 0 "^$"
 
 new "Check description removed"
 expectpart "$($clixon_cli -1 -f $CFG show configuration devices device ${IMG}1 config interfaces interface)" 0 --not-- "<description"
 
 new "check sync OK"
-expectpart "$($clixon_cli -1f $CFG show devices $NAME check 2>&1)" 0 "OK" --not-- "out-of-sync"
+expectpart "$($clixon_cli -1f $CFG show devices $NAME check 2>&1)" 0 "^$" --not-- "out-of-sync"
 
 # Negative tests CLI
 new "Apply template CLI, missing NAME"

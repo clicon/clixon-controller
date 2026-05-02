@@ -566,6 +566,8 @@ controller_transaction_free1(controller_transaction *ct)
         free(ct->ct_sourcedb);
     if (ct->ct_devices)
         cvec_free(ct->ct_devices);
+    if (ct->ct_skipped)
+        cvec_free(ct->ct_skipped);
     if (ct->ct_devdata)
         xml_free(ct->ct_devdata);
     free(ct);
@@ -764,6 +766,37 @@ controller_transaction_device_add(controller_transaction *ct,
     return retval;
 }
 
+/*! Record a skipped device in the transaction
+ *
+ * @param[in] ct     Transaction
+ * @param[in] name   Device name
+ * @param[in] reason Reason for skipping (e.g. "disabled" or "closed")
+ * @retval    0      OK
+ * @retval   -1      Error
+ */
+int
+controller_transaction_device_skip(controller_transaction *ct,
+                                   const char             *name,
+                                   const char             *reason)
+{
+    int retval = -1;
+
+    if (ct->ct_skipped == NULL){
+        if ((ct->ct_skipped = cvec_new(0)) == NULL){
+            clixon_err(OE_UNIX, errno, "cvec_new");
+            goto done;
+        }
+    }
+    if (cvec_find(ct->ct_skipped, name) == NULL)
+        if (cvec_add_string(ct->ct_skipped, name, reason) < 0){
+            clixon_err(OE_UNIX, errno, "cvec_add_string");
+            goto done;
+        }
+    retval = 0;
+ done:
+    return retval;
+}
+
 /*! A controller transaction (device) has failed
  *
  * This device failed, ie validation has failed, the device lost connection, etc
@@ -804,7 +837,8 @@ controller_transaction_failed_fn(clixon_handle           h,
     int retval = -1;
 
     if (ct == NULL){
-        device_close_connection(dh, "Device not associated with transaction");
+        if (dh != NULL)
+            device_close_connection(dh, "Device not associated with transaction");
         goto done;
     }
     clixon_debug(CLIXON_DBG_CTRL, "%s:%d tid:%" PRIu64 ", ct-state:%s, device:%s, devclose:%d, origin:%s, reason:%s",
@@ -999,11 +1033,19 @@ controller_transaction_statedata(clixon_handle h,
                 xml_chardata_cbuf_append(cb, 0, ct->ct_reason);
                 cprintf(cb, "</reason>");
             }
-            if (ct->ct_devices){
+            if (ct->ct_devices || ct->ct_skipped){
                 cv = NULL;
                 cprintf(cb, "<devices>");
                 while ((cv = cvec_each(ct->ct_devices, cv)) != NULL)
                     cprintf(cb, "<device><name>%s</name></device>", cv_name_get(cv));
+                cv = NULL;
+                while ((cv = cvec_each(ct->ct_skipped, cv)) != NULL){
+                    cprintf(cb, "<skipped>");
+                    cprintf(cb, "<name>%s</name>", cv_name_get(cv));
+                    if (cv_string_get(cv))
+                        cprintf(cb, "<reason>%s</reason>", cv_string_get(cv));
+                    cprintf(cb, "</skipped>");
+                }
                 cprintf(cb, "</devices>");
             }
             cprintf(cb, "<state>%s</state>", transaction_state_int2str(ct->ct_state));
@@ -1158,6 +1200,8 @@ controller_transaction_stats(clixon_handle  h,
                 sz += strlen(ct->ct_warning)+1;
             if (ct->ct_devices)
                 sz += cvec_size(ct->ct_devices)*sizeof(char *);
+            if (ct->ct_skipped)
+                sz += cvec_size(ct->ct_skipped)*sizeof(char *);
             if (ct->ct_devdata){
                 if (xml_stats(ct->ct_devdata, xml_type, NULL, &sz) < 0)
                     goto done;

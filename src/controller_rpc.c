@@ -57,6 +57,7 @@
 
 /* Forward */
 static int traverse_device_group(clixon_handle h, cxobj *xdevs, cxobj **vec1, size_t vec1len, cxobj **vec2, size_t vec2len, cvec *devvec);
+static int device_error(clixon_handle h, controller_transaction *ct, device_handle dh, int reason, cbuf *cbret);
 
 /*! Connect to device via Netconf SSH
  *
@@ -689,6 +690,7 @@ rpc_config_pull(clixon_handle h,
     cvec                   *devvec = NULL;
     cg_var                 *cv;
     char                   *devname;
+    char                   *body;
     device_handle           dh;
     controller_transaction *ct = NULL;
     char                   *str;
@@ -733,13 +735,21 @@ rpc_config_pull(clixon_handle h,
         xn = cv_void_get(cv);
         if ((devname = xml_find_body(xn, "name")) == NULL)
             continue;
-        if ((dh = device_handle_find(h, devname)) == NULL)
+        if ((body = xml_find_body(xn, "enabled")) != NULL &&
+            strcmp(body, "true") != 0){
+            if (controller_transaction_device_skip(ct, devname, "disabled") < 0)
+                goto done;
             continue;
-        if (device_handle_conn_state_get(dh) != CS_OPEN) /* maybe this is an error? */
+        }
+        if ((dh = device_handle_find(h, devname)) == NULL ||
+            device_handle_conn_state_get(dh) != CS_OPEN){
+            if (controller_transaction_device_skip(ct, devname, "closed") < 0)
+                goto done;
             continue;
+        }
         if ((ret = pull_device_one(h, dh, ct->ct_id, 0, NULL, cbret)) < 0)
             goto done;
-        if (ret == 0) // XXX: Return value has not been checked before
+        if (ret == 0)
             goto ok;
     }
     if (xmldb_db_reset(h, "tmpdev") < 0) /* Requires root access */
@@ -1676,6 +1686,8 @@ rpc_controller_commit(clixon_handle h,
     char                   *service_instance = NULL;
     int                     diff = 0;
     char                   *candidate = NULL;
+    char                   *body;
+    device_handle           dh;
     int                     ret;
 
     clixon_debug(CLIXON_DBG_CTRL, "");
@@ -1728,7 +1740,6 @@ rpc_controller_commit(clixon_handle h,
         cprintf(cbtr, " push:%s", str);
     }
     service_instance = xml_find_body(xe, "service-instance");
-
     /* Initiate new transaction.
      * NB: this locks candidate, which always needs to be unlocked, eg by controller_transaction_done
      */
@@ -1754,21 +1765,24 @@ rpc_controller_commit(clixon_handle h,
         goto done;
     cv = NULL;
     while ((cv = cvec_each(devvec, cv)) != NULL){
-        char *body;
-        device_handle dh;
-
         xn = cv_void_get(cv);
         /* Name of device or device-group */
         if ((devname = xml_find_body(xn, "name")) == NULL)
             continue;
-        if ((dh = device_handle_find(h, devname)) == NULL)
+        if ((dh = device_handle_find(h, devname)) == NULL){
+            if (controller_transaction_device_skip(ct, devname, "disabled") < 0)
+                goto done;
             continue;
-        /* Filter if not enabled */
+        }
+        /* Skip disabled devices */
         if ((body = xml_find_body(xn, "enabled")) == NULL)
             continue;
-        if (strcmp(body, "true") != 0)
+        if (strcmp(body, "true") != 0){
+            if (controller_transaction_device_skip(ct, devname, "disabled") < 0)
+                goto done;
             continue;
-        /* Include device in transaction */
+        }
+        /* Include device in transaction (open and closed alike, for diff check) */
         device_handle_tid_set(dh, ct->ct_id);
     }
     /* If there are no devices selected and push != NONE */
@@ -1789,6 +1803,18 @@ rpc_controller_commit(clixon_handle h,
         if (device_error(h, ct, closed, 0, cbret) < 0)
             goto done;
         goto ok;
+    }
+    /* Skip remaining closed devices (no diffs): remove from transaction */
+    dh = NULL;
+    while ((dh = device_handle_each(h, dh)) != NULL){
+        if (device_handle_tid_get(dh) != ct->ct_id)
+            continue;
+        if (device_handle_conn_state_get(dh) == CS_OPEN)
+            continue;
+        devname = device_handle_name_get(dh);
+        if (controller_transaction_device_skip(ct, devname, "closed") < 0)
+            goto done;
+        device_handle_tid_set(dh, 0);
     }
     /* Check if any local/meta device fields have changed of selected devices */
     if (devices_local_change(h, td, &changed) < 0)
@@ -2024,9 +2050,13 @@ connection_change_one(clixon_handle           h,
         }
     }
     else if (strcmp(operation, "OPEN") == 0){
+        /* Skip if disabled */
+        if (enabled == 0){
+            if (controller_transaction_device_skip(ct, devname, "disabled") < 0)
+                goto done;
+        }
         /* Open if enabled and handle does not exist or it exists and is closed  */
-        if (enabled &&
-            (dh == NULL || device_handle_conn_state_get(dh) == CS_CLOSED)){
+        else if (dh == NULL || device_handle_conn_state_get(dh) == CS_CLOSED){
             if ((ret = controller_connect(h, xn, ct, &reason)) < 0)
                 goto done;
             if (ret == 0){
@@ -2043,8 +2073,13 @@ connection_change_one(clixon_handle           h,
             if (device_close_connection(dh, "User request") < 0)
                 goto done;
         }
+        /* Skip reconnect if disabled */
+        if (enabled == 0){
+            if (controller_transaction_device_skip(ct, devname, "disabled") < 0)
+                goto done;
+        }
         /* Then open if enabled */
-        if (enabled){
+        else {
             if ((ret = controller_connect(h, xn, ct, &reason)) < 0)
                 goto done;
             if (ret == 0){
@@ -2543,6 +2578,7 @@ datastore_diff_device(clixon_handle      h,
     device_handle dh;
     char         *ct;
     char         *db;
+    char         *body;
     int           ret;
 
     if ((cbxpath = cbuf_new()) == NULL){
@@ -2565,8 +2601,15 @@ datastore_diff_device(clixon_handle      h,
         xdev = cv_void_get(cv);
         if ((devname = xml_find_body(xdev, "name")) == NULL)
             continue;
-        if ((dh = device_handle_find(h, devname)) == NULL)
+        /* Skip devices that are disabled */
+        if ((body = xml_find_body(xdev, "enabled")) != NULL &&
+            strcmp(body, "true") != 0){
             continue;
+        }
+        if ((dh = device_handle_find(h, devname)) == NULL ||
+            device_handle_conn_state_get(dh) != CS_OPEN){
+            continue;
+        }
         x1 = x1m = NULL;
         switch (dt1){
         case DT_RUNNING:

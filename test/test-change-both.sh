@@ -177,7 +177,7 @@ done
 # Wanted to remove cli, but it is difficult since we have to wait for notification,
 # rpc-reply is not enough. the cli commands are more convenient
 new "push validate expected ok"
-expectpart "$($clixon_cli -1f $CFG -E $CFD push validate 2>&1)" 0 "OK" --not-- "failed Device"
+expectpart "$($clixon_cli -1f $CFG -E $CFD push validate 2>&1)" 0 "^$" --not-- "failed Device"
 
 # Change device configs on devices (not controller)
 new "change devices"
@@ -212,13 +212,13 @@ new "edit local candidate"
 expectpart "$($clixon_cli -1f $CFG -E $CFD -m configure delete devices device ${IMG}1 config interfaces interface z)" 0 "^$"
 
 new "pull dont expect error"
-expectpart "$($clixon_cli -1f $CFG -E $CFD pull replace 2>&1)" 0 "OK"
+expectpart "$($clixon_cli -1f $CFG -E $CFD pull replace 2>&1)" 0 "^$"
 
 new "discard"
 expectpart "$($clixon_cli -1f $CFG -E $CFD -m configure discard)" 0 "^$"
 
 new "pull again"
-expectpart "$($clixon_cli -1f $CFG -E $CFD pull replace 2>&1)" 0 "OK"
+expectpart "$($clixon_cli -1f $CFG -E $CFD pull replace 2>&1)" 0 "^$"
 
 if $BE; then
     new "Kill old backend"

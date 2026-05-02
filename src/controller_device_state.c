@@ -1102,6 +1102,14 @@ device_state_check_ok(clixon_handle           h,
     if (controller_transaction_nr_devices(h, tid) == 0){
         if (ct->ct_state != TS_RESOLVED){
             controller_transaction_state_set(ct, TS_RESOLVED, TR_SUCCESS);
+            /* If succeeding with skipped devices, set warning reason */
+            if (ct->ct_skipped && cvec_len(ct->ct_skipped) > 0 &&
+                ct->ct_reason == NULL){
+                if ((ct->ct_reason = strdup("Warning: devices skipped")) == NULL){
+                    clixon_err(OE_UNIX, errno, "strdup");
+                    goto done;
+                }
+            }
         /* Garbage-collect yspecs with no mount-points */
             if (1) /* Causes SEGV when reconnect */
                 if (yang_mount_cleanup(h) < 0)
