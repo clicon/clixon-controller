@@ -515,12 +515,6 @@ fi
 
 kill $PID 2> /dev/null
 
-# note hard-coded transaction-id=10
-if true; then # backward-compatible remove with CONTROLLER_DEVICE_RPC_REPLY_IN_STATE
-    new "poll transaction result"
-    expectpart "$(curl $CURLOPTS -X GET -H "Accept: application/yang-data+json" $RCPROTO://localhost/restconf/data/clixon-controller:transactions/transaction=11)" 0 "HTTP/$HVER 200" '"ssh-server":{"state":{"enable":"true","protocol-version":"V2"}}'
-fi
-
 new "poll transaction success"
 expectpart "$(curl $CURLOPTS -X GET -H "Accept: application/yang-data+json" $RCPROTO://localhost/restconf/data/clixon-controller:transactions/transaction=11)" 0 "HTTP/$HVER 200" '{"clixon-controller:transaction":[{"tid":"[0-9.]*","username":"anonymous","result":"SUCCESS"'
 

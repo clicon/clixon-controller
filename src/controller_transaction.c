@@ -999,20 +999,11 @@ controller_transaction_statedata(clixon_handle h,
                 xml_chardata_cbuf_append(cb, 0, ct->ct_reason);
                 cprintf(cb, "</reason>");
             }
-#ifdef CONTROLLER_DEVICE_RPC_REPLY_IN_STATE
-            if (ct->ct_devdata || ct->ct_devices)
-#else
-            if (ct->ct_devices)
-#endif
-                    {
+            if (ct->ct_devices){
                 cv = NULL;
                 cprintf(cb, "<devices>");
                 while ((cv = cvec_each(ct->ct_devices, cv)) != NULL)
-                    cprintf(cb, "<device>%s</device>", cv_name_get(cv));
-#ifdef CONTROLLER_DEVICE_RPC_REPLY_IN_STATE
-                if (clixon_xml2cbuf1(cb, ct->ct_devdata, 0, 0, NULL, -1, 1, 0, WITHDEFAULTS_REPORT_ALL) < 0)
-                    goto done;
-#endif
+                    cprintf(cb, "<device><name>%s</name></device>", cv_name_get(cv));
                 cprintf(cb, "</devices>");
             }
             cprintf(cb, "<state>%s</state>", transaction_state_int2str(ct->ct_state));
@@ -1083,12 +1074,6 @@ controller_transaction_periodic(clixon_handle  h)
             if (TRANSACTION_MAX_NR && i > TRANSACTION_MAX_NR-1){
                 ct1 = ct;  /* delete later */
             }
-#ifdef CONTROLLER_DEVICE_RPC_REPLY_IN_STATE
-            else if (TRANSACTION_DEVICES_TIMEOUT && ct->ct_devdata && t.tv_sec > TRANSACTION_DEVICES_TIMEOUT){
-                xml_free(ct->ct_devdata);
-                ct->ct_devdata = NULL;
-            }
-#endif
             ct = PREVQ(controller_transaction *, ct);
             i++;
             if (ct1){

@@ -40,11 +40,6 @@
 /* Controller transaction id beyond 16-bit to != pid? */
 #define TRANSACTION_CLIENT_ID 0x199999
 
-#ifdef CONTROLLER_DEVICE_RPC_REPLY_IN_STATE
-/* Keep transaction devices data structures (replies from device rpc or state requests) in s, 0 means no limit */
-#define TRANSACTION_DEVICES_TIMEOUT 300
-#endif
-
 /*! Keep this many transactions in list, 0 means unlimited */
 #define TRANSACTION_MAX_NR 100
 

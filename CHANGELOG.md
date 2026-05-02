@@ -29,7 +29,7 @@ Expected: May 2026
 
 ### API changes on existing protocol/config features
 
-* Changed getting device RPC results, and get device state.
+* Changed getting device RPC results, and get device state (RESTCONF and NETCONF)
   * Instead of retrieving transaction state, get the reply data by a new RPC call: `device-rpc-result`
     * Send the RPC: `device-rpc`, get the `tid` in the reply
     * Wait for result using transaction or poll a successful transaction state
