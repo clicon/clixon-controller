@@ -59,6 +59,7 @@ enum transaction_result_t{
     TR_INIT = 0,   /* Inconclusive, no defined result */
     TR_ERROR,      /* Transaction failed in an inconsistent state, not recoverable */
     TR_FAILED,     /* Transaction failed but reverted successfully */
+    TR_SKIPPED,    /* Device was skipped (disabled or closed with no changes) */
     TR_SUCCESS,    /* Transaction completed successfully */
 };
 typedef enum transaction_result_t transaction_result;

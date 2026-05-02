@@ -39,13 +39,16 @@ module clixon-controller {
         "Clixon controller";
     revision 2026-06-01 {
         description
-            "Released in 1.9.0";
+            "Obsoleted transaction-common/devices/devdata and skipped
+             Added result and reason in transaction-common/devices/device instead and added SKIPPED as result
+             Released in 1.9.0";
     }
     revision 2026-03-01 {
         description
             "Added rpc get-device-schema and device-rpc-result
              Added device list to transaction state
              Added stable-timestamp to device state
+             Added skipped-list to device state
              Added memory statistics to rpc clixon-stats
              Removed sync parameter from device-rpc RPC
              Released in 1.8.0";
@@ -293,13 +296,16 @@ module clixon-controller {
                 description "Init state, no defined result";
             }
             enum ERROR {
-                description "Transaction failed in an inconsistent state, not recoverable";
+                description "Transaction (or device) failed in an inconsistent state, not recoverable";
             }
             enum FAILED {
-                description "Transaction failed but reverted successfully";
+                description "Transaction (or device) failed but reverted successfully";
+            }
+            enum SKIPPED {
+                description "Device skipped (only applies for device in transaction)";
             }
             enum SUCCESS {
-                description "Transaction completed successfully";
+                description "Transaction (or device) completed successfully";
             }
         }
     }
@@ -551,8 +557,32 @@ module clixon-controller {
                     description "Device name";
                     type string;
                 }
+                leaf result {
+                    description "Per-device result";
+                    type transaction-result;
+                }
+                leaf reason {
+                    description "Reason for skipping, e.g. disabled or closed";
+                    type string;
+                }
+            }
+            list skipped {
+                status obsolete;
+                description
+                    "Devices skipped by this transaction and the reason why.
+                     A device may be skipped because it is disabled or not connected (closed).";
+                key name;
+                leaf name {
+                    description "Device name";
+                    type string;
+                }
+                leaf reason {
+                    description "Reason for skipping, e.g. disabled or closed";
+                    type string;
+                }
             }
             list devdata {
+                status obsolete;
                 description
                     "Replies from device, can be rpc reply for rpc-template transaction";
                 key name;
@@ -563,7 +593,6 @@ module clixon-controller {
                 anydata data {
                     description
                         "Device RPC reply data. From 7.8, use device-rpc-result";
-                    status deprecated;
                 }
             }
         }

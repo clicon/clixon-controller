@@ -276,14 +276,14 @@ expectpart "$($clixon_cli -1 -f $CFG -E $CFD -m configure commit diff 2>&1)" 0 "
       </config>
 OK"
 
-new "Permit access to device configuration"
+new "Permit access to device configuration 1"
 expectpart "$($clixon_cli -1 -f $CFG -E $CFD -m configure set nacm rule-list test-rules rule test-rule action permit)" 0 ""
-new "Permit access to device configuration"
+new "Permit access to device configuration 2"
 expectpart "$($clixon_cli -1 -f $CFG -E $CFD -m configure commit local)" 0 ""
-new "Permit access to device configuration"
+new "Permit access to device configuration 3"
 expectpart "$($clixon_cli -1 -f $CFG -E $CFD -m configure set devices device ${IMG}1 config system config hostname test)" 0 ""
-new "Permit access to device configuration"
-expectpart "$($clixon_cli -1 -f $CFG -E $CFD -m configure commit 2>&1)" 0 "OK"
+new "Permit access to device configuration 4"
+expectpart "$($clixon_cli -1 -f $CFG -E $CFD -m configure commit 2>&1)" 0 "^$"
 
 nacm_init
 
@@ -355,29 +355,37 @@ expectpart "$($clixon_cli -1 -f $CFG -E $CFD -m configure commit diff)" 0 "${SER
 
 nacm_init
 
-new "Test NACM and RPCs, deny config-pull"
+new "Test NACM and RPCs, deny config-pull 1"
 expectpart "$($clixon_cli -1 -f $CFG -E $CFD -m configure set nacm rule-list test-rules rule test-rule access-operations \*)" 0 ""
-new "Test NACM and RPCs, deny config-pull"
+
+new "Test NACM and RPCs, deny config-pull 2"
 expectpart "$($clixon_cli -1 -f $CFG -E $CFD -m configure set nacm rule-list test-rules rule test-rule action deny)" 0 ""
-new "Test NACM and RPCs, deny config-pull"
+
+new "Test NACM and RPCs, deny config-pull 3"
 expectpart "$($clixon_cli -1 -f $CFG -E $CFD -m configure set nacm rule-list test-rules rule test-rule rpc-name config-pull)" 0 ""
-new "Test NACM and RPCs, deny config-pull"
+
+new "Test NACM and RPCs, deny config-pull 4"
 expectpart "$($clixon_cli -1 -f $CFG -E $CFD -m configure commit local)" 0 ""
-new "Test NACM and RPCs, deny config-pull"
+
+new "Test NACM and RPCs, deny config-pull 5"
 expectpart "$($clixon_cli -1 -f $CFG -E $CFD pull 2>&1)" 255 ".*application access-denied access denied"
 
 nacm_init
 
-new "Test NACM and RPCs, allow config-pull"
+new "Test NACM and RPCs, allow config-pull 1"
 expectpart "$($clixon_cli -1 -f $CFG -E $CFD -m configure set nacm rule-list test-rules rule test-rule access-operations \*)" 0 ""
-new "Test NACM and RPCs, allow config-pull"
+
+new "Test NACM and RPCs, allow config-pull 2"
 expectpart "$($clixon_cli -1 -f $CFG -E $CFD -m configure set nacm rule-list test-rules rule test-rule action permit)" 0 ""
-new "Test NACM and RPCs, allow config-pull"
+
+new "Test NACM and RPCs, allow config-pull 3"
 expectpart "$($clixon_cli -1 -f $CFG -E $CFD -m configure set nacm rule-list test-rules rule test-rule rpc-name config-pull)" 0 ""
-new "Test NACM and RPCs, allow config-pull"
+
+new "Test NACM and RPCs, allow config-pull 4"
 expectpart "$($clixon_cli -1 -f $CFG -E $CFD -m configure commit local)" 0 ""
-new "Test NACM and RPCs, allow config-pull"
-expectpart "$($clixon_cli -1 -f $CFG -E $CFD pull 2>&1)" 0 "OK"
+
+new "Test NACM and RPCs, allow config-pull 5"
+expectpart "$($clixon_cli -1 -f $CFG -E $CFD pull 2>&1)" 0 "^$"
 
 if $BE; then
      new "Kill old backend"

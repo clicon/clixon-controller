@@ -387,7 +387,7 @@ send -i $cli1 "$cmd\n"
 expect {
     -i $cli1
     -re "Candidate db is locked.+$prompt2\$" { puts "Test 5b cannot commit"; exit 1 }
-    -re "^$cmd\r\n\rOK\r\n\r$prompt1\$" { puts "Test 5b: empty OK" }
+    -re "^$cmd\r\n\r\r$prompt1\$" { puts "Test 5b: empty OK" }
     timeout { puts "Timeout 5b"; exit 2}
     eof { exit 3 }
 }
@@ -446,7 +446,7 @@ send -i $cli1 "$cmd\n"
 expect {
     -i $cli1
     -re "Candidate db is locked.+$prompt2\$" { puts "Test 8b cannot commit"; exit 1 }
-    -re "^$cmd\r\n\rOK\r\n\r$prompt1\$" { puts "Test 8b: empty OK" }
+    -re "^$cmd\r\n.+\r$prompt1\$" { puts "Test 8b: empty OK" }
     timeout { puts "Timeout 8b"; exit 2}
     eof { exit 3 }
 }

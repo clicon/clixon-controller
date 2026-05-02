@@ -258,10 +258,10 @@ new "show device group check fail"
 expectpart "$($clixon_cli -1 -f $CFG -E $CFD show device group mygroup1 check)" 0 "out-of-sync"
 
 new "pull group"
-expectpart "$($clixon_cli -1 -f $CFG -E $CFD pull group mygroup1 2>&1)" 0 "OK"
+expectpart "$($clixon_cli -1 -f $CFG -E $CFD pull group mygroup1 2>&1)" 0 "^$"
 
 new "show device group check OK"
-expectpart "$($clixon_cli -1 -f $CFG -E $CFD show device group mygroup1 check)" 0 "OK"
+expectpart "$($clixon_cli -1 -f $CFG -E $CFD show device group mygroup1 check)" 0 "^$"
 
 new "ping to group"
 expectpart "$($clixon_cli -1 -f $CFG -E $CFD rpc ping group mygroup1)" 0 "<name>${IMG}1</name>" "<name>${IMG}2</name>" "<ok"

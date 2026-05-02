@@ -66,6 +66,7 @@ static const map_str2int trmap[] = {
     {"INIT",    TR_INIT},
     {"ERROR",   TR_ERROR},
     {"FAILED",  TR_FAILED},
+    {"SKIPPED", TR_SKIPPED},
     {"SUCCESS", TR_SUCCESS},
     {NULL,      -1}
 };

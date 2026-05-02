@@ -87,7 +87,7 @@ new "set anything"
 expectpart "$($clixon_cli -1  -m configure -f $CFG set devices device ${IMG}1 config system config login-banner kalle)" 0 "^$"
 
 new "commit fail"
-expectpart "$($clixon_cli -1  -m configure -f $CFG commit push 2>&1)" 0 "^OK$"
+expectpart "$($clixon_cli -1  -m configure -f $CFG commit push 2>&1)" 0 "^$"
 
 if $BE; then
     new "Kill old backend"

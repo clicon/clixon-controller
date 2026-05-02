@@ -673,6 +673,7 @@ transaction_notification_poll(clixon_handle       h,
             break;
         case TR_INIT:
         case TR_SUCCESS:
+        case TR_SKIPPED:
             break;
         }
     }
@@ -718,6 +719,69 @@ transaction_exist(clixon_handle h,
     else
         retval = 0;
  done:
+    if (cb)
+        cbuf_free(cb);
+    if (nsc)
+        cvec_free(nsc);
+    if (xn)
+        xml_free(xn);
+    return retval;
+}
+
+/*! Print warning for skipped devices in a completed transaction
+ *
+ * @param[in] h      Clixon handle
+ * @param[in] tidstr Transaction identifier string
+ * @retval    0      OK
+ * @retval   -1      Error
+ */
+static int
+transaction_print_skipped(clixon_handle h,
+                          char         *tidstr)
+{
+    int    retval = -1;
+    cxobj *xn = NULL;
+    cxobj *xerr;
+    cxobj *xdevices;
+    cxobj *xskip;
+    cvec  *nsc = NULL;
+    cbuf  *cb = NULL;
+    char  *name;
+    char  *reason;
+
+    if ((nsc = xml_nsctx_init("co", CONTROLLER_NAMESPACE)) == NULL)
+        goto done;
+    if ((cb = cbuf_new()) == NULL){
+        clixon_err(OE_PLUGIN, errno, "cbuf_new");
+        goto done;
+    }
+    cprintf(cb, "co:transactions/co:transaction[co:tid='%s']/co:devices", tidstr);
+    if (clicon_rpc_get(h, cbuf_get(cb), nsc, CONTENT_ALL, -1, "report-all", &xn) < 0)
+        goto done;
+    if ((xerr = xpath_first(xn, NULL, "/rpc-error")) != NULL){
+        clixon_err_netconf(h, OE_XML, 0, xerr, "Get transactions");
+        goto done;
+    }
+    xdevices = xpath_first(xn, nsc, "transactions/transaction/devices");
+    if (xdevices == NULL)
+        goto ok;
+    xskip = NULL;
+    while ((xskip = xml_child_each(xdevices, xskip, CX_ELMNT)) != NULL){
+        char *res;
+        if (strcmp(xml_name(xskip), "device") != 0)
+            continue;
+        res = xml_find_body(xskip, "result");
+        if (res == NULL || strcmp(res, "SKIPPED") != 0)
+            continue;
+        name = xml_find_body(xskip, "name");
+        reason = xml_find_body(xskip, "reason");
+        cligen_output(stderr, "Warning: device '%s' skipped (%s)\n",
+                      name ? name : "?",
+                      reason ? reason : "?");
+    }
+ ok:
+    retval = 0;
+  done:
     if (cb)
         cbuf_free(cb);
     if (nsc)
@@ -815,8 +879,8 @@ cli_rpc_pull(clixon_handle h,
     if (ret == 1){
         if (transaction_notification_poll(h, tidstr, &result) < 0)
             goto done;
-        if (result == TR_SUCCESS)
-            cligen_output(stderr, "OK\n");
+        if (transaction_print_skipped(h, tidstr) < 0)
+            goto done;
     }
     retval = 0;
  done:
@@ -1119,6 +1183,8 @@ cli_rpc_controller_commit(clixon_handle h,
                 goto done;
             if (result != TR_SUCCESS)
                 goto ok;
+            if (transaction_print_skipped(h, tidstr) < 0)
+                goto done;
         }
         /* Interpret actions and no push as diff */
         if (actions_type_str2int(actions_type) != AT_NONE &&
@@ -1127,7 +1193,6 @@ cli_rpc_controller_commit(clixon_handle h,
                 goto done;
         }
     }
-    cligen_output(stderr, "OK\n");
  ok:
     retval = 0;
  done:
@@ -1229,8 +1294,8 @@ cli_connection_change(clixon_handle h,
         if (ret == 1){
             if (transaction_notification_poll(h, tidstr, &result) < 0)
                 goto done;
-            if (result != TR_SUCCESS)
-                cligen_output(stderr, "OK\n");
+            if (transaction_print_skipped(h, tidstr) < 0)
+                goto done;
         }
     }
     retval = 0;
@@ -1309,6 +1374,9 @@ show_connections_pretty(clixon_handle h,
         }
         cligen_output(stdout, "%-24s",  name);
         state = xml_find_body(xc, "conn-state");
+        if (xml_find_body(xc, "enabled") != NULL &&
+            strcmp(xml_find_body(xc, "enabled"), "true") != 0)
+            state = "DISABLED";
         cligen_output(stdout, "%-11s",  state?state:"");
         if ((timestamp = xml_find_body(xc, "stable-timestamp")) != NULL){
             /* Remove 6 us digits */
@@ -1461,7 +1529,7 @@ cli_show_connections(clixon_handle h,
     else{
         /* Avoid including moint-point which triggers a lot of extra traffic */
         if (clicon_rpc_get(h,
-                           "co:devices/co:device/co:name | co:devices/co:device/co:conn-state | co:devices/co:device/co:stable-timestamp | co:devices/co:device/co:logmsg",
+                           "co:devices/co:device/co:name | co:devices/co:device/co:enabled | co:devices/co:device/co:conn-state | co:devices/co:device/co:stable-timestamp | co:devices/co:device/co:logmsg",
                            nsc, CONTENT_ALL, -1, "explicit", &xn) < 0)
             goto done;
     }
@@ -1571,6 +1639,8 @@ show_transaction_one(cxobj *xc)
     char          *state;
     char          *result;
     char          *reason;
+    char          *warning;
+    char          *display_reason;
     char          *timestamp0;
     char          *timestamp;
     char           desc_truncated[41] = {0,};
@@ -1584,6 +1654,8 @@ show_transaction_one(cxobj *xc)
     state = xml_find_body(xc, "state");
     result = xml_find_body(xc, "result");
     reason = xml_find_body(xc, "reason");
+    warning = xml_find_body(xc, "warning");
+    display_reason = reason ? reason : (warning ? warning : NULL);
     timestamp0 = xml_find_body(xc, "timestamp0");
     timestamp = xml_find_body(xc, "timestamp");
     /* Truncate description to 40 chars */
@@ -1627,7 +1699,7 @@ show_transaction_one(cxobj *xc)
                   state?state:"-",
                   result?result:"-",
                   cbuf_get(cb),
-                  reason?reason:"-");
+                  display_reason?display_reason:"-");
     retval = 0;
  done:
     if (cb)
@@ -1896,6 +1968,8 @@ compare_device_config_type(clixon_handle      h,
             if (result != TR_SUCCESS)
                 goto done;
         }
+        if (transaction_print_skipped(h, tidstr) < 0)
+            goto done;
     }
     if ((cb = cbuf_new()) == NULL){
         clixon_err(OE_PLUGIN, errno, "cbuf_new");
@@ -2109,9 +2183,7 @@ check_device_db(clixon_handle h,
     if (compare_device_config_type(h, cvv, argv, DT_RUNNING, DT_TRANSIENT, cbdiff) < 0)
         goto done;
     if (strlen(cbuf_get(cbdiff)))
-        cligen_output(stdout, "device out-of-sync\n");
-    else
-        cligen_output(stdout, "OK\n");
+        cligen_output(stdout, "Error: device out-of-sync\n");
     retval = 0;
  done:
     if (cbdiff)
@@ -2958,8 +3030,8 @@ cli_device_rpc_template(clixon_handle h,
     if (ret == 1){
         if (transaction_notification_poll(h, tidstr, &result) < 0)
             goto done;
-        if (result != TR_SUCCESS)
-            cligen_output(stderr, "OK\n");
+        if (transaction_print_skipped(h, tidstr) < 0)
+            goto done;
     }
     retval = 0;
  done:
@@ -3269,8 +3341,8 @@ cli_show_device_state(clixon_handle h,
     if (ret == 1){
         if (transaction_notification_poll(h, tidstr, &result) < 0)
             goto done;
-        if (result != TR_SUCCESS)
-            cligen_output(stderr, "OK\n");
+        if (transaction_print_skipped(h, tidstr) < 0)
+                goto done;
     }
     retval = 0;
  done:

@@ -340,13 +340,13 @@ fi
 sleep $sleep
 new "commit push"
 set +e
-expectpart "$(${clixon_cli} -m configure -1f $CFG -E $CFD commit push 2>&1)" 0 OK --not-- Error
+expectpart "$(${clixon_cli} -m configure -1f $CFG -E $CFD commit push 2>&1)" 0 "^$" --not-- Error
 
 #edit # push
 
 # see https://github.com/clicon/clixon-controller/issues/70
 new "commit diff 1"
-expectpart "$(${clixon_cli} -m configure -1f $CFG -E $CFD commit diff 2>&1)" 0 OK --not-- "<interface"
+expectpart "$(${clixon_cli} -m configure -1f $CFG -E $CFD commit diff 2>&1)" 0 "^$" --not-- "<interface"
 
 if ${early}; then
     exit # for starting controller with devices and debug
@@ -627,7 +627,7 @@ fi
 sleep $sleep
 new "commit push"
 set +e
-expectpart "$(${clixon_cli} -m configure -1f $CFG -E $CFD commit push 2>&1)" 0 OK --not-- Error
+expectpart "$(${clixon_cli} -m configure -1f $CFG -E $CFD commit push 2>&1)" 0 "^$" --not-- Error
 
 new "get-config check removed Ax"
 NAME=clixon-example1
@@ -699,7 +699,7 @@ fi
 sleep $sleep
 new "commit push"
 set +e
-expectpart "$(${clixon_cli} -m configure -1f $CFG -E $CFD commit push 2>&1)" 0 OK --not-- Error
+expectpart "$(${clixon_cli} -m configure -1f $CFG -E $CFD commit push 2>&1)" 0 "^$" --not-- Error
 
 new "get-config check removed Ax"
 NAME=clixon-example1
@@ -829,7 +829,7 @@ new "Add Sy"
 expectpart "$(${clixon_cli} -m configure -1f $CFG -E $CFD set services testA foo params Sy)" 0 "^$"
 
 new "commit base"
-expectpart "$(${clixon_cli} -m configure -1f $CFG -E $CFD commit 2>&1)" 0 "OK"
+expectpart "$(${clixon_cli} -m configure -1f $CFG -E $CFD commit 2>&1)" 0 "^$"
 
 new "Check Sy"
 expectpart "$(${clixon_cli} -1f $CFG -E $CFD show configuration devices device ${IMG}1 config interfaces interface Sy)" 0 "interface Sy {"
@@ -838,7 +838,7 @@ new "remove Sy"
 expectpart "$(${clixon_cli} -m configure -1f $CFG -E $CFD delete services testA foo params Sy)" 0 "^$"
 
 new "commit remove"
-expectpart "$(${clixon_cli} -m configure -1f $CFG -E $CFD commit 2>&1)" 0 "OK"
+expectpart "$(${clixon_cli} -m configure -1f $CFG -E $CFD commit 2>&1)" 0 "^$"
 
 new "Check not Sy"
 expectpart "$(${clixon_cli} -1f $CFG -E $CFD show configuration devices device ${IMG}1 config interfaces interface Sy)" 0 --not-- "interface Sy"
@@ -976,16 +976,16 @@ EOF
     nr0=$(${clixon_cli} -1f $CFG -E $CFD show mem detail backend | grep candidate | wc -l)
 
     new "apply single services diff"
-    expectpart "$(${clixon_cli} -m configure -1f $CFG -E $CFD apply services myyang:testA foo diff 2>&1)" 0 "OK"
+    expectpart "$(${clixon_cli} -m configure -1f $CFG -E $CFD apply services myyang:testA foo diff 2>&1)" 0 ""
 
     new "apply single services 1"
-    expectpart "$(${clixon_cli} -m configure -1f $CFG -E $CFD apply services myyang:testA foo 2>&1)" 0 "OK"
+    expectpart "$(${clixon_cli} -m configure -1f $CFG -E $CFD apply services myyang:testA foo 2>&1)" 0 "^$"
 
     new "apply single services 2"
-    expectpart "$(${clixon_cli} -m configure -1f $CFG -E $CFD apply services myyang:testA foo 2>&1)" 0 "OK"
+    expectpart "$(${clixon_cli} -m configure -1f $CFG -E $CFD apply services myyang:testA foo 2>&1)" 0 "^$"
 
     new "apply all services"
-    expectpart "$(${clixon_cli} -m configure -1f $CFG -E $CFD apply services 2>&1)" 0 "OK"
+    expectpart "$(${clixon_cli} -m configure -1f $CFG -E $CFD apply services 2>&1)" 0 "^$"
 
     new "Compare nr datastores"
     nr1=$(${clixon_cli} -1f $CFG -E $CFD show mem detail backend | grep candidate | wc -l)

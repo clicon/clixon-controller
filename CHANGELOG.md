@@ -14,11 +14,21 @@
 ## 1.9.0
 Expected: September 2026
 
+### New features
+
+* Clarified controller transaction operations
+  * Add device skiplist to transaction when device is disabled or closed for pull and commit
+  * CLI added "disabled" as connection state in show connections
+  * CLI return silent instead of "OK" from successful transaction
+  * This is a subset of part 3 in: https://github.com/clicon/clixon-controller/issues/247
+
 ### API changes on existing protocol/config features
 
 Users may have to change how they access the system
 
 * New `clixon-controller@2026-06-01.yang` revision
+  * Obsoleted transaction-common/devices/devdata and skipped
+  * Added result and reason in transaction-common/devices/device instead and added SKIPPED as result
 
 ### Corrected Bugs
 
@@ -40,17 +50,22 @@ Users may have to change how they access the system
   * Changed CLI show transaction output to a table
   * Changed CLI show connections timestamp to last stable state
 * Remove old transient or synced datastores at start to clear stale files
+* Changed getting device RPC results, and get device state (RESTCONF and NETCONF)
+  * Instead of retrieving transaction state, get the reply data by a new RPC call: `device-rpc-result`
+    * Send the RPC: `device-rpc`, get the `tid` in the reply
+    * Wait for result using transaction or poll a successful transaction state
+    * Get the result using: `device-rpc-result`  (this is new)
+
+### API changes on existing protocol/config features
+
+Users may have to change how they access the system
+
 * New `clixon-controller@2026-03-01.yang` revision
   * Added rpc get-device-schema and device-rpc-result
   * Added device list to transaction state
   * Added stable-timestamp to device state
   * Added memory statistics to rpc clixon-stats
   * Removed sync parameter from device-rpc RPC (never worked)
-* Changed getting device RPC results, and get device state (RESTCONF and NETCONF)
-  * Instead of retrieving transaction state, get the reply data by a new RPC call: `device-rpc-result`
-    * Send the RPC: `device-rpc`, get the `tid` in the reply
-    * Wait for result using transaction or poll a successful transaction state
-    * Get the result using: `device-rpc-result`  (this is new)
 
 ## 1.7.0
 21 February 2026

@@ -76,7 +76,7 @@ done
 # Now do a pull and candidate zapped: no show compare 
 # see https://github.com/clicon/clixon-controller/issues/93
 new "pull replace"
-expectpart "$($clixon_cli -1f $CFG pull replace 2>&1)" 0 "OK"
+expectpart "$($clixon_cli -1f $CFG pull replace 2>&1)" 0 "^$"
 
 new "show compare, expect NULL"
 expectpart "$($clixon_cli -1f $CFG -m configure show compare)" 0 "^$"

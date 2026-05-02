@@ -200,7 +200,7 @@ transaction_devdata_add(clixon_handle           h,
             clixon_err(OE_FATAL, 0, "No DB_SPEC");
             goto done;
         }
-        if (yang_abs_schema_nodeid(yspec0, "/ctrl:controller-transaction/devices", &ydevs) < 0)
+        if (yang_abs_schema_nodeid(yspec0, "/ctrl:device-rpc-result/output/devices", &ydevs) < 0)
             goto done;
         if (ydevs == NULL){
             if ((cb = cbuf_new()) == NULL){
@@ -623,6 +623,7 @@ controller_transaction_done(clixon_handle           h,
     uint32_t      iddb;
     char         *db;
     device_handle dh;
+    cg_var       *cv;
 
     clixon_debug(CLIXON_DBG_CTRL | CLIXON_DBG_DETAIL, "");
     controller_transaction_state_set(ct, TS_DONE, result);
@@ -648,6 +649,19 @@ controller_transaction_done(clixon_handle           h,
             device_handle_tid_set(dh, 0);
         device_handle_outmsg_set(dh, 1, NULL);
         device_handle_outmsg_set(dh, 2, NULL);
+    }
+    /* Set warning if transaction succeeded but some devices were skipped */
+    if (ct->ct_result == TR_SUCCESS && ct->ct_warning == NULL){
+        cv = NULL;
+        while ((cv = cvec_each(ct->ct_devices, cv)) != NULL){
+            if (cv_string_get(cv) != NULL){
+                if ((ct->ct_warning = strdup("Warning: devices skipped")) == NULL){
+                    clixon_err(OE_UNIX, errno, "strdup");
+                    goto done;
+                }
+                break;
+            }
+        }
     }
     /* This should be the only place */
     if (controller_transaction_notify(h, ct) < 0)
@@ -764,6 +778,72 @@ controller_transaction_device_add(controller_transaction *ct,
     return retval;
 }
 
+/*! Remove a device from the transaction device list
+ *
+ * Removes the device entry from ct_devices if present. Used when a device was
+ * initially added (via device_handle_tid_set) but is later determined not to
+ * have participated (e.g. no configuration diff to push).
+ * @param[in] ct     Transaction
+ * @param[in] name   Device name
+ * @retval    0      OK
+ * @retval   -1      Error
+ */
+int
+controller_transaction_device_remove(controller_transaction *ct,
+                                     const char             *name)
+{
+    cg_var *cv;
+
+    if (ct->ct_devices == NULL)
+        return 0;
+    if ((cv = cvec_find(ct->ct_devices, name)) != NULL)
+        cvec_del(ct->ct_devices, cv);
+    return 0;
+}
+
+/*! Record a skipped device in the transaction
+ *
+ * Adds device to the ct_devices list with result=SKIPPED and the given reason.
+ * If the device is already in ct_devices (e.g. added via device_add), the
+ * reason is set in-place to mark it as skipped.
+ * @param[in] ct     Transaction
+ * @param[in] name   Device name
+ * @param[in] reason Reason for skipping (e.g. "disabled" or "closed")
+ * @retval    0      OK
+ * @retval   -1      Error
+ */
+int
+controller_transaction_device_skip(controller_transaction *ct,
+                                   const char             *name,
+                                   const char             *reason)
+{
+    int     retval = -1;
+    cg_var *cv;
+
+    if (ct->ct_devices == NULL){
+        if ((ct->ct_devices = cvec_new(0)) == NULL){
+            clixon_err(OE_UNIX, errno, "cvec_new");
+            goto done;
+        }
+    }
+    if ((cv = cvec_find(ct->ct_devices, name)) != NULL){
+        /* Already in list, update reason in-place */
+        if (cv_string_set(cv, reason) == NULL){
+            clixon_err(OE_UNIX, errno, "cv_string_set");
+            goto done;
+        }
+    }
+    else {
+        if (cvec_add_string(ct->ct_devices, name, reason) < 0){
+            clixon_err(OE_UNIX, errno, "cvec_add_string");
+            goto done;
+        }
+    }
+    retval = 0;
+ done:
+    return retval;
+}
+
 /*! A controller transaction (device) has failed
  *
  * This device failed, ie validation has failed, the device lost connection, etc
@@ -804,7 +884,8 @@ controller_transaction_failed_fn(clixon_handle           h,
     int retval = -1;
 
     if (ct == NULL){
-        device_close_connection(dh, "Device not associated with transaction");
+        if (dh != NULL)
+            device_close_connection(dh, "Device not associated with transaction");
         goto done;
     }
     clixon_debug(CLIXON_DBG_CTRL, "%s:%d tid:%" PRIu64 ", ct-state:%s, device:%s, devclose:%d, origin:%s, reason:%s",
@@ -1002,8 +1083,14 @@ controller_transaction_statedata(clixon_handle h,
             if (ct->ct_devices){
                 cv = NULL;
                 cprintf(cb, "<devices>");
-                while ((cv = cvec_each(ct->ct_devices, cv)) != NULL)
-                    cprintf(cb, "<device><name>%s</name></device>", cv_name_get(cv));
+                while ((cv = cvec_each(ct->ct_devices, cv)) != NULL){
+                    cprintf(cb, "<device><name>%s</name>", cv_name_get(cv));
+                    if (cv_string_get(cv)){
+                        cprintf(cb, "<result>%s</result>", transaction_result_int2str(TR_SKIPPED));
+                        cprintf(cb, "<reason>%s</reason>", cv_string_get(cv));
+                    }
+                    cprintf(cb, "</device>");
+                }
                 cprintf(cb, "</devices>");
             }
             cprintf(cb, "<state>%s</state>", transaction_state_int2str(ct->ct_state));
