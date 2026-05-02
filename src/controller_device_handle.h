@@ -81,6 +81,7 @@ uint64_t device_handle_msg_id_get(device_handle dh);
 uint64_t device_handle_msg_id_getinc(device_handle dh);
 uint64_t device_handle_tid_get(device_handle dh);
 int      device_handle_tid_set(device_handle dh, uint64_t tid);
+int      device_handle_tid_mark(device_handle dh, uint64_t tid);
 clixon_handle device_handle_handle_get(device_handle dh);
 conn_state    device_handle_conn_state_get(device_handle dh);
 yang_config_t device_handle_yang_config_get(device_handle dh);

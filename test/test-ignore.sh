@@ -170,10 +170,10 @@ new "Sleep and verify devices are open"
 sleep_open "$CFD" ""
 
 new "pull"
-expectpart "$($clixon_cli -1f $CFG -E $CFD pull 2>&1)" 0 "OK"
+expectpart "$($clixon_cli -1f $CFG -E $CFD pull 2>&1)" 0 "^$"
 
 new "check sync OK 1"
-expectpart "$($clixon_cli -1f $CFG -E $CFD show devices $NAME check 2>&1)" 0 "OK" --not-- "out-of-sync"
+expectpart "$($clixon_cli -1f $CFG -E $CFD show devices $NAME check 2>&1)" 0 "^$" --not-- "out-of-sync"
 
 NAME=${IMG}1
 for ip in $CONTAINERS; do # Just to get first element
@@ -194,13 +194,13 @@ new "Commit local"
 expectpart "$($clixon_cli -1f $CFG -E $CFD -m configure commit local)" 0 "^$"
 
 new "check sync OK"
-expectpart "$($clixon_cli -1f $CFG -E $CFD show devices $NAME check 2>&1)" 0 "OK" --not-- "out-of-sync"
+expectpart "$($clixon_cli -1f $CFG -E $CFD show devices $NAME check 2>&1)" 0 "^$" --not-- "out-of-sync"
 
 new "Commit push"
 expectpart "$($clixon_cli -1f $CFG -E $CFD -m configure commit push)" 0 "^$"
 
 new "check sync OK"
-expectpart "$($clixon_cli -1f $CFG -E $CFD show devices $NAME check 2>&1)" 0 "OK" --not-- "out-of-sync"
+expectpart "$($clixon_cli -1f $CFG -E $CFD show devices $NAME check 2>&1)" 0 "^$" --not-- "out-of-sync"
 
 device_mtu_get $ip ""
 
@@ -220,13 +220,13 @@ new "Commit local"
 expectpart "$($clixon_cli -1f $CFG -E $CFD -m configure commit local)" 0 "^$"
 
 new "check sync OK"
-expectpart "$($clixon_cli -1f $CFG -E $CFD show devices $NAME check 2>&1)" 0 "OK" --not-- "out-of-sync"
+expectpart "$($clixon_cli -1f $CFG -E $CFD show devices $NAME check 2>&1)" 0 "^$" --not-- "out-of-sync"
 
 new "Commit push"
 expectpart "$($clixon_cli -1f $CFG -E $CFD -m configure commit push)" 0 "^$"
 
 new "check sync OK"
-expectpart "$($clixon_cli -1f $CFG -E $CFD show devices $NAME check 2>&1)" 0 "OK" --not-- "out-of-sync"
+expectpart "$($clixon_cli -1f $CFG -E $CFD show devices $NAME check 2>&1)" 0 "^$" --not-- "out-of-sync"
 
 device_mtu_get $ip 999
 
@@ -266,13 +266,13 @@ new "Check controller is gone"
 expectpart "$($clixon_cli -1f $CFG -E $CFD show config devices device ${IMG}1 config interfaces interface y config mtu)" 0 --not-- "<mtu>"
 
 new "check sync OK"
-expectpart "$($clixon_cli -1f $CFG -E $CFD show devices $NAME check 2>&1)" 0 "OK" --not-- "out-of-sync"
+expectpart "$($clixon_cli -1f $CFG -E $CFD show devices $NAME check 2>&1)" 0 "^$" --not-- "out-of-sync"
 
 new "Commit push"
 expectpart "$($clixon_cli -1f $CFG -E $CFD -m configure commit push)" 0 "^$"
 
 new "check sync OK"
-expectpart "$($clixon_cli -1f $CFG -E $CFD show devices $NAME check 2>&1)" 0 "OK" --not-- "out-of-sync"
+expectpart "$($clixon_cli -1f $CFG -E $CFD show devices $NAME check 2>&1)" 0 "^$" --not-- "out-of-sync"
 
 device_mtu_get $ip 999
 

@@ -80,13 +80,13 @@ ret=$(${clixon_netconf} -q0 -f $CFG <<EOF
 </rpc>]]>]]>
 EOF
    )
-echo "ret:$ret"
+#echo "ret:$ret"
 match=$(echo $ret | grep --null -Eo "<rpc-error>") || true
 if [ -z "$match" ]; then
     err1 "rpc-error"
 fi
 
-match=$(echo $ret | grep --null -Eo "No devices are selected") || true
+match=$(echo $ret | grep --null -Eo "No changes to push") || true
 if [ -z "$match" ]; then
     err1 "No devices are selected"
 fi
@@ -107,7 +107,7 @@ ret=$(${clixon_netconf} -q0 -f $CFG <<EOF
 </rpc>]]>]]>
 EOF
    )
-echo "ret:$ret"
+#echo "ret:$ret"
 match=$(echo $ret | grep --null -Eo "<rpc-error>") || true
 if [ -z "$match" ]; then
     err1 "rpc-error"
@@ -168,7 +168,7 @@ ret=$(${clixon_netconf} -q0 -f $CFG <<EOF
 </rpc>]]>]]>
 EOF
    )
-echo "ret:$ret"
+#echo "ret:$ret"
 match=$(echo $ret | grep --null -Eo "<rpc-error>") || true
 if [ -z "$match" ]; then
     err1 "rpc-error"

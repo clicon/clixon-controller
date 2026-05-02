@@ -42,7 +42,7 @@ new "push commit: ok"
 expectpart "$($clixon_cli -1 -f $CFG -m configure commit)" 0 "^$"
 
 new "edit:- push commit: OK"
-expectpart "$($clixon_cli -1 -f $CFG -m configure commit 2>&1)" 0 "^OK$"
+expectpart "$($clixon_cli -1 -f $CFG -m configure commit 2>&1)" 0 "^$"
 
 # Problem closing device:
 # 1. Killing the controller ssh sub-process hangs controller (consider SIGCHLD?)

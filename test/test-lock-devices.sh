@@ -160,7 +160,7 @@ if [ $j -eq $jmax ]; then
 fi
 
 new "Commit 2"
-expectpart "$($clixon_cli -1 -f $CFG -E $CFD -m configure commit 2>&1)" 0 "OK"
+expectpart "$($clixon_cli -1 -f $CFG -E $CFD -m configure commit 2>&1)" 0 "^$"
 
 if $BE; then
     new "Kill old backend"
