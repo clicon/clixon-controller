@@ -50,7 +50,7 @@ cp ../src/autocli.xml $CFD/
 
 if $BE; then
     new "Kill old backend"
-    sudo clixon_backend -s init -f $CFG -z
+    stop_backend -f $CFG
 
     new "Start new backend -s init -f $CFG -E $CFD"
     start_backend -s init -f $CFG -E $CFD
@@ -244,7 +244,7 @@ fi
 
 if $BE; then
     new "Kill old backend"
-    sudo clixon_backend -f $CFG -E $CFD -z
+    stop_backend -f $CFG -E $CFD
 fi
 
 endtest

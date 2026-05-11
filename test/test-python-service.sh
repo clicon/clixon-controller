@@ -173,6 +173,7 @@ RULES=$(cat <<EOF
 EOF
 )
 
+sudo rm -rf $dir/startup.d
 cat <<EOF > $dir/startup_db
 <config>
     $RULES
@@ -453,4 +454,5 @@ if $BE; then
     stop_backend -f $CFG
 fi
 
+sudo rm -rf $dir
 endtest

@@ -91,6 +91,7 @@ EOF
 
 # Start from startup which by default should start it
 # First disable services process
+sudo rm -rf $dir/startup.d
 cat <<EOF > $dir/startup_db
 <config>
   <processes xmlns="http://clicon.org/controller">
@@ -339,4 +340,5 @@ if $BE; then
     stop_backend -f $CFG -E $CFD
 fi
 
+sudo rm -rf $dir
 endtest

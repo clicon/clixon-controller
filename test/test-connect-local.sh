@@ -87,6 +87,7 @@ NETCONF_MONITORING=false
 NETCONF_MONITORING=true
 
 # Preset device-profile with a non-complete yang (openconfig-interfaces)
+sudo rm -rf $dir/startup.d
 cat <<EOF > $dir/startup_db
 <config>
    <devices xmlns="http://clicon.org/controller">
@@ -108,7 +109,7 @@ EOF
 
 if $BE; then
     new "Kill old backend"
-    sudo clixon_backend -f $CFG -z
+    stop_backend -f $CFG
 
     new "Start new backend -s startup -f $CFG -E $CFD"
     start_backend -s startup -f $CFG -E $CFD
@@ -219,4 +220,5 @@ unset NAME
 unset nr
 unset ii
 
+sudo rm -rf $dir
 endtest

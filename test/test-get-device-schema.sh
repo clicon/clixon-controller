@@ -18,7 +18,7 @@ CFG=${SYSCONFDIR}/clixon/controller.xml
 
 if $BE; then
     new "Kill old backend"
-    sudo clixon_backend -s init -f $CFG -z
+    stop_backend -f $CFG
 
     new "Start new backend -s init -f $CFG"
     start_backend -s init -f $CFG
@@ -183,7 +183,8 @@ expectpart "$($clixon_cli -1f $CFG show devices ${IMG}1 yang openconfig-interfac
 
 if $BE; then
     new "Kill old backend"
-    sudo clixon_backend -f $CFG -z
+    stop_backend -f $CFG
 fi
 
+sudo rm -rf $dir
 endtest

@@ -139,6 +139,7 @@ EOF
 
 # Start from startup which by default should start it
 # First disable services process
+sudo rm -rf $dir/startup.d
 cat <<EOF > $dir/startup_db
 <config>
   <processes xmlns="http://clicon.org/controller">
@@ -162,12 +163,12 @@ EOF
 
 if $BE; then
     new "Kill old backend $CFG"
-    sudo clixon_backend -f $CFG -E $CFD -z
+    stop_backend -f $CFG
 fi
 
 if $BE; then
     new "Start new backend -s startup -f $CFG -E $CFD -D $DBG"
-    sudo clixon_backend -s startup -f $CFG -E $CFD -D $DBG
+    start_backend -s startup -f $CFG -E $CFD -D all -lf/tmp/backend.log
 fi
 
 new "Wait backend 1"
@@ -259,7 +260,7 @@ EOF
 
 if $BE; then
     new "Start new backend -s running -f $CFG -E $CFD -D $DBG"
-    sudo clixon_backend -s running -f $CFG -E $CFD -D $DBG -o CLICON_NETCONF_DUPLICATE_ALLOW=true
+    start_backend -s running -f $CFG -E $CFD -D $DBG -o CLICON_NETCONF_DUPLICATE_ALLOW=true
 fi
 
 new "Wait backend 2"
@@ -339,6 +340,7 @@ cat<<EOF > $CFD/action-command.xml
 </clixon-config>
 EOF
 
+sudo rm -rf $dir/startup.d
 cat <<EOF > $dir/startup_db
 <config>
   <processes xmlns="http://clicon.org/controller">
@@ -354,7 +356,7 @@ EOF
 
 if $BE; then
     new "Start new backend -s startup -f $CFG -E $CFD -D $DBG"
-    sudo clixon_backend -s startup -f $CFG -E $CFD -D $DBG
+    start_backend -s startup -f $CFG -E $CFD -D $DBG
 fi
 
 new "Wait backend 3"
@@ -416,4 +418,5 @@ if $BE; then
     stop_backend -f $CFG -E $CFD
 fi
 
+sudo rm -rf $dir
 endtest

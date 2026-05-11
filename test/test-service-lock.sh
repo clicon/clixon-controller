@@ -187,13 +187,13 @@ EOF
 
 if $BE; then
     new "Kill old backend"
-    sudo clixon_backend -s init -f $CFG -E $CFD -z
+    stop_backend -f $CFG -E $CFD
 fi
 
 # Then start from startup which by default should start it
 # First disable services process
-test -d $dir/startup.d || mkdir -p $dir/startup.d
-cat <<EOF > $dir/startup.d/0.xml
+sudo rm -rf $dir/startup.d
+cat <<EOF > $dir/startup_db
 <config>
   <processes xmlns="http://clicon.org/controller">
      <services>
@@ -209,12 +209,12 @@ EOF
 . ./reset-devices.sh
 
 if $BE; then
-    echo "Kill old backend"
-    sudo clixon_backend -s init -f $CFG -z
+    new "Kill old backend"
+    stop_backend -f $CFG
 fi
 if $BE; then
     new "Start new backend -s startup -f $CFG -E $CFD -D $DBG"
-    sudo clixon_backend -s startup -f $CFG -E $CFD -D $DBG
+    start_backend -s startup -f $CFG -E $CFD -D $DBG
 fi
 
 new "Wait backend"
@@ -240,7 +240,12 @@ new "Apply service"
 DATA="{\"clixon-controller:input\":{\"device\":\"*\",\"push\":\"COMMIT\",\"actions\":\"FORCE\",\"source\":\"ds:candidate\",\"service-instance\":\"testA[a_name='bar']\"}}"
 expectpart "$(curl $CURLOPTS -X POST -H "Content-Type: application/yang-data+json" $RCPROTO://localhost/restconf/operations/clixon-controller:controller-commit -d "${DATA}")" 0 "HTTP/$HVER 200" 'Content-Type: application/yang-data+json' '{"clixon-controller:output":{"tid":'
 
-sleep 1
+if [ $valgrindtest -eq 2 ]; then # backend
+    sleep 5
+
+else
+    sleep 1
+fi
 
 new "restconf POST service BB"
 expectpart "$(curl $CURLOPTS -X POST -H "Content-Type: application/yang-data+json" $RCPROTO://localhost/restconf/data/clixon-controller:services -d '{"myyang:testA":[{"a_name":"foo","params":["BB"]}]}')" 0 "HTTP/$HVER 201"
@@ -287,7 +292,8 @@ fi
 # Kill backend
 if $BE; then
     new "Kill old backend $CFG"
-    sudo clixon_backend -f $CFG -E $CFD -z
+    stop_backend -f $CFG -E $CFD
 fi
 
+sudo rm -rf $dir
 endtest

@@ -110,12 +110,11 @@ EOF
 . ./reset-devices.sh
 
 if $BE; then
-    echo "Kill old backend"
-    sudo clixon_backend -s init -f $CFG -z
+    new "Kill old backend"
+    stop_backend -f $CFG
 
     new "Start new backend -s init -f $CFG -E $CFD"
     start_backend -s init -f $CFG -E $CFD
-
 fi
 
 new "Wait backend"
@@ -156,4 +155,5 @@ if $BE; then
     stop_backend -f $CFG -E $CFD
 fi
 
+sudo rm -rf $dir
 endtest

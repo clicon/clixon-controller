@@ -20,7 +20,7 @@ set -u
 
 if $BE; then
     new "Kill old backend"
-    sudo clixon_backend -s init -f $CFG -z
+    stop_backend -f $CFG
 
     new "Start new backend -s init -f $CFG"
     start_backend -s init -f $CFG
@@ -210,4 +210,5 @@ fi
 unset push
 unset commit
 
+sudo rm -rf $dir
 endtest

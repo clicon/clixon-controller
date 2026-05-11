@@ -96,7 +96,7 @@ EOF
 
 if $BE; then
     new "Kill old backend"
-    sudo clixon_backend -s init -f $CFG -z
+    stop_backend -f $CFG
 
     new "Start new backend -s init -f $CFG -E $CFD"
     start_backend -s init -f $CFG -E $CFD
@@ -167,4 +167,5 @@ if $BE; then
     stop_backend -f $CFG -E $CFD
 fi
 
+sudo rm -rf $dir
 endtest

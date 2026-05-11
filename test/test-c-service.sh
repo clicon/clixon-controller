@@ -209,11 +209,12 @@ EOF
 
 if $BE; then
     new "Kill old backend"
-    sudo clixon_backend -s init -f $CFG -E $CFD -z
+    start_backend -s init -f $CFG -E $CFD -z
 fi
 
 # Then start from startup which by default should start it
 # First disable services process
+sudo rm -rf $dir/startup.d
 cat <<EOF > $dir/startup_db
 <config>
   <processes xmlns="http://clicon.org/controller">
@@ -230,7 +231,7 @@ EOF
 
 if $BE; then
     new "Start new backend -s startup -f $CFG -E $CFD -D $DBG"
-    sudo clixon_backend -s startup -f $CFG -E $CFD -D $DBG
+    start_backend -s startup -f $CFG -E $CFD -D $DBG
 fi
 
 new "Wait backend $w"
@@ -479,13 +480,13 @@ fi
 # Restart backend and ensure attributes remain
 if $BE; then
     new "Kill old backend $CFG"
-    sudo clixon_backend -f $CFG -E $CFD -z
+    stop_backend -f $CFG -E $CFD
 fi
 
 # Note start from previous running
 if $BE; then
     new "Start new backend -s running -f $CFG -E $CFD -D $DBG"
-    sudo clixon_backend -s running -f $CFG -E $CFD -D $DBG
+    start_backend -s running -f $CFG -E $CFD -D $DBG
 fi
 
 new "Wait backend $w"
@@ -795,7 +796,7 @@ fi
 # Edit sub-service fields https://github.com/clicon/clixon-controller/issues/89
 if $BE; then
     new "Start new backend -s running -f $CFG -E $CFD -D $DBG"
-    sudo clixon_backend -s running -f $CFG -E $CFD -D $DBG
+    start_backend -s running -f $CFG -E $CFD -D $DBG
 fi
 
 new "Wait backend $w"
@@ -912,7 +913,7 @@ EOF
     # Note start from previous running
     if $BE; then
         new "Start new backend -s startup -f $CFG -E $CFD -D $DBG"
-        sudo clixon_backend -s startup -f $CFG -E $CFD -D $DBG
+        start_backend -s startup -f $CFG -E $CFD -D $DBG
     fi
 
     new "Wait backend $w"
@@ -927,7 +928,7 @@ EOF
     # -d to debug matching info
     sudo expect - "$clixon_cli" "$CFG" "$CFD" $(whoami) <<'EOF'
 log_user 0
-set timeout 5
+set timeout 10
 set clixon_cli [lindex $argv 0]
 set CFG [lindex $argv 1]
 set CFD [lindex $argv 2]
@@ -972,7 +973,7 @@ EOF
     fi
 
     new "Count datastores"
-    nr0=$(${clixon_cli} -1f $CFG -E $CFD show mem backend detail | grep candidate | wc -l)
+    nr0=$(${clixon_cli} -1f $CFG -E $CFD show mem detail backend | grep candidate | wc -l)
 
     new "apply single services diff"
     expectpart "$(${clixon_cli} -m configure -1f $CFG -E $CFD apply services myyang:testA foo diff 2>&1)" 0 "OK"
@@ -987,7 +988,7 @@ EOF
     expectpart "$(${clixon_cli} -m configure -1f $CFG -E $CFD apply services 2>&1)" 0 "OK"
 
     new "Compare nr datastores"
-    nr1=$(${clixon_cli} -1f $CFG -E $CFD show mem backend detail | grep candidate | wc -l)
+    nr1=$(${clixon_cli} -1f $CFG -E $CFD show mem detail backend | grep candidate | wc -l)
 
     if [ $nr0 -ne $nr1 ]; then
         err "$nr0" "$nr1"
@@ -1005,7 +1006,7 @@ EOF
     expectpart "$(python3 $dir/p.py 2> /dev/null)" 0 ""
 
     new "Compare nr datastores after py"
-    nr1=$(${clixon_cli} -1f $CFG -E $CFD show mem backend detail | grep candidate | wc -l)
+    nr1=$(${clixon_cli} -1f $CFG -E $CFD show mem detail backend | grep candidate | wc -l)
 
     if [ $nr0 -ne $nr1 ]; then
         err "$nr0" "$nr1"
@@ -1022,4 +1023,7 @@ apply_services false
 new "Apply services privcand"
 apply_services true
 
+unset w
+
+sudo rm -rf $dir
 endtest

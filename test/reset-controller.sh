@@ -143,7 +143,7 @@ if [ -n "$match" ]; then
 fi
 
 sleep $sleep
-jmax=5
+jmax=10
 for j in $(seq 1 $jmax); do
     new "reset-controller: Verify open devices 1"
     ret=$(${clixon_netconf} -q0 -f $CFG -E $CFD <<EOF

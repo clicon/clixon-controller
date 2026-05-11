@@ -140,7 +140,7 @@ function testrun()
 
 if $BE; then
     new "Kill old backend"
-    sudo clixon_backend -s init -f $CFG -z
+    stop_backend -f $CFG
 
     new "Start new backend -s init -f $CFG -E $CFD"
     start_backend -s init -f $CFG -E $CFD
@@ -219,7 +219,8 @@ testrun # XXX This fails on regression occasionally
 
 if $BE; then
     new "Kill old backend"
-    sudo clixon_backend -f $CFG -z
+    stop_backend -f $CFG
 fi
 
+sudo rm -rf $dir
 endtest

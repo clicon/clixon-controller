@@ -17,7 +17,7 @@ CFG=${SYSCONFDIR}/clixon/controller.xml
 
 if $BE; then
     new "Kill old backend"
-    sudo clixon_backend -s init -f $CFG -z
+    stop_backend -f $CFG
 
     new "Start new backend -s init -f $CFG"
     start_backend -s init -f $CFG
@@ -184,4 +184,5 @@ if $BE; then
     stop_backend -f $CFG
 fi
 
+sudo rm -rf $dir
 endtest

@@ -15,8 +15,8 @@ test -d $mntdir || mkdir -p $mntdir
 . ./reset-devices.sh
 
 if $BE; then
-    echo "Kill old backend"
-    sudo clixon_backend -s init -f $CFG -z
+    new "Kill old backend"
+    stop_backend -f $CFG
 
     new "Start new backend -s init -f $CFG"
     start_backend -s init -f $CFG

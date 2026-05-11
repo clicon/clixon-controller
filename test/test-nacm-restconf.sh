@@ -174,8 +174,8 @@ EOF
 
 # Then start from startup which by default should start it
 # First disable services process
-test -d $dir/startup.d || mkdir -p $dir/startup.d
-cat <<EOF > $dir/startup.d/0.xml
+sudo rm -rf $dir/startup.d
+cat <<EOF > $dir/startup_db
 <config>
   <processes xmlns="http://clicon.org/controller">
      <services>
@@ -210,7 +210,7 @@ if $BE; then
     stop_backend -s startup -f $CFG -E $CFD
 
     new "Start new backend -s startup -f $CFG -E $CFD"
-    sudo clixon_backend -s startup -f $CFG -E $CFD
+    start_backend -s startup -f $CFG -E $CFD
 fi
 
 new "Wait backend"
@@ -303,7 +303,8 @@ fi
 # Kill backend
 if $BE; then
     new "Kill old backend $CFG"
-    sudo clixon_backend -f $CFG -E $CFD -z
+    stop_backend -f $CFG -E $CFD
 fi
 
+sudo rm -rf $dir
 endtest

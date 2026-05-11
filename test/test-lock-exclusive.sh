@@ -218,7 +218,7 @@ EOF
 )
 
 # Set initial NACM rules in startup enabling admin and a single param config
-sudo rm -rf $dir/startup.d/*
+sudo rm -rf $dir/startup.d
 cat <<EOF > $dir/startup_db
 <config>
   ${RULES}
@@ -487,4 +487,5 @@ if $BE; then
     stop_backend -f $CFG
 fi
 
+sudo rm -rf $dir
 endtest
