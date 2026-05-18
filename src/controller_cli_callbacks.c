@@ -50,6 +50,7 @@
 
 /* Forward */
 static int transaction_exist(clixon_handle h, char *tidstr);
+static int dsref_diff_one(clixon_handle h, const char *db1, const char *db2, const char *xpath, const char *formatstr, cbuf *cbdiff);
 
 /*! Controller cli helper function
  *
@@ -832,8 +833,9 @@ cli_rpc_pull(clixon_handle h,
 /*!
  */
 static int
-cli_rpc_commit_diff_one(clixon_handle h,
-                        char         *name)
+cli_rpc_commit_diff_one(clixon_handle    h,
+                        char            *name,
+                        enum format_enum format)
 {
     int     retval = -1;
     cbuf   *cb = NULL;
@@ -859,6 +861,7 @@ cli_rpc_commit_diff_one(clixon_handle h,
     cprintf(cb, "<device>%s</device>", name);
     cprintf(cb, "<config-type1>RUNNING</config-type1>");
     cprintf(cb, "<config-type2>ACTIONS</config-type2>");
+    cprintf(cb, "<format>%s</format>", format_int2str(format));
     cprintf(cb, "</datastore-diff>");
     cprintf(cb, "</rpc>");
     if (clixon_xml_parse_string(cbuf_get(cb), YB_NONE, NULL, &xtop, NULL) < 0)
@@ -877,11 +880,15 @@ cli_rpc_commit_diff_one(clixon_handle h,
     }
     if (xpath_vec(xreply, NULL, "diff", &vec, &veclen) < 0)
         goto done;
-    for (i=0; i<veclen; i++){
+    for (i=0; i<(int)veclen; i++){
         if ((xdiff = vec[i]) != NULL &&
-            xml_body(xdiff) != NULL)
+            xml_body(xdiff) != NULL){
             cligen_output(stdout, "%s", xml_body(xdiff));
+            retval = 1; /* mark that something was printed */
+        }
     }
+    if (retval == 1)
+        cligen_output(stdout, "\n");
     retval = 0;
  done:
     if (vec)
@@ -897,12 +904,14 @@ cli_rpc_commit_diff_one(clixon_handle h,
 
 /*! Make a controller commit diff variant
  *
- * @param[in] h    Clixon handle
- * @retval    0    OK
- * @retval   -1    Error
+ * @param[in] h      Clixon handle
+ * @param[in] format Output format
+ * @retval    0      OK
+ * @retval   -1      Error
  */
 static int
-cli_rpc_commit_diff(clixon_handle h)
+cli_rpc_commit_diff(clixon_handle    h,
+                    enum format_enum format)
 {
     int     retval = -1;
     cxobj  *xdevs = NULL;
@@ -921,10 +930,10 @@ cli_rpc_commit_diff(clixon_handle h)
         goto done;
     if (xpath_vec(xdevs, nsc, "devices/device/name", &vec, &veclen) < 0)
         goto done;
-    for (i=0; i<veclen; i++){
+    for (i=0; i<(int)veclen; i++){
         xdev = vec[i];
         if ((name = xml_body(xdev)) != NULL){
-            if (cli_rpc_commit_diff_one(h, name) < 0)
+            if (cli_rpc_commit_diff_one(h, name, format) < 0)
                 goto done;
         }
     }
@@ -1123,7 +1132,22 @@ cli_rpc_controller_commit(clixon_handle h,
         /* Interpret actions and no push as diff */
         if (actions_type_str2int(actions_type) != AT_NONE &&
             push_type_str2int(push_type) == PT_NONE){
-            if (cli_rpc_commit_diff(h) < 0)
+            enum format_enum diff_fmt = FORMAT_DEFAULT;
+            cg_var          *cv_fmt;
+            char            *fmt_str;
+            if ((cv_fmt = cvec_find(cvv, "format")) != NULL){
+                fmt_str = cv_string_get(cv_fmt);
+                if ((int)(diff_fmt = format_str2int(fmt_str)) < 0)
+                    diff_fmt = FORMAT_DEFAULT;
+            }
+            if (diff_fmt == FORMAT_DEFAULT){
+                fmt_str = clicon_option_str(h, "CLICON_CLI_OUTPUT_FORMAT");
+                if ((int)(diff_fmt = format_str2int(fmt_str)) < 0)
+                    diff_fmt = FORMAT_TEXT;
+            }
+            if (diff_fmt == FORMAT_CLI || diff_fmt == FORMAT_JSON)
+                diff_fmt = FORMAT_TEXT;
+            if (cli_rpc_commit_diff(h, diff_fmt) < 0)
                 goto done;
         }
     }
@@ -1870,7 +1894,6 @@ compare_device_config_type(clixon_handle      h,
         clixon_err(OE_PLUGIN, 0, "Not valid format: %s", formatstr);
         goto done;
     }
-    /* Special default format handling */
     if (format == FORMAT_DEFAULT){
         formatstr = clicon_option_str(h, "CLICON_CLI_OUTPUT_FORMAT");
         if ((int)(format = format_str2int(formatstr)) < 0){
@@ -1878,19 +1901,19 @@ compare_device_config_type(clixon_handle      h,
             goto done;
         }
     }
+    if (format == FORMAT_CLI)
+        format = FORMAT_TEXT;
+    /* FORMAT_JSON is handled in the backend (datastore_diff_device) */
     if ((cv = cvec_find(cvv, "name")) != NULL)
         pattern = cv_string_get(cv);
     if ((cv = cvec_find(cvv, "group")) != NULL)
         group = cv_string_get(cv);
-    /* If remote, start with requesting it asynchrously */
     if (dt1 == DT_TRANSIENT || dt2 == DT_TRANSIENT){
-        /* Send pull <transient> */
         if (send_pull_transient(h, group, pattern, &tidstr) < 0)
             goto done;
         if ((ret = transaction_exist(h, tidstr)) < 0)
             goto done;
         if (ret == 1){
-            /* Wait to complete transaction try ^C here */
             if (transaction_notification_poll(h, tidstr, &result) < 0)
                 goto done;
             if (result != TR_SUCCESS)
@@ -1921,7 +1944,6 @@ compare_device_config_type(clixon_handle      h,
     if (clixon_xml_parse_string(cbuf_get(cb), YB_NONE, NULL, &xtop, NULL) < 0)
         goto done;
     xrpc = xml_child_i(xtop, 0);
-    /* Send to backend */
     if (clicon_rpc_netconf_xml(h, xrpc, &xret, NULL) < 0)
         goto done;
     if ((xreply = xpath_first(xret, NULL, "rpc-reply")) == NULL){
@@ -1934,10 +1956,10 @@ compare_device_config_type(clixon_handle      h,
     }
     if (xpath_vec(xreply, NULL, "diff", &vec, &veclen) < 0)
         goto done;
-    for (i=0; i<veclen; i++){
+    for (i=0; i<(int)veclen; i++){
         if ((xdiff = vec[i]) != NULL &&
             xml_body(xdiff) != NULL){
-            cprintf(cbdiff, "%s", xml_body(xdiff));
+            cprintf(cbdiff, "%s\n", xml_body(xdiff));
         }
     }
     retval = 0;
@@ -1955,15 +1977,91 @@ compare_device_config_type(clixon_handle      h,
     return retval;
 }
 
-/*! Compare datastores uses special diff rpc
+/*! Call datastore-diff RPC for a dsref pair, appending any diff text to cbdiff
  *
- * Use specialized rpc to reduce bandwidth
+ * @param[in]  h         Clixon handle
+ * @param[in]  db1       First datastore (e.g. "running")
+ * @param[in]  db2       Second datastore (e.g. "candidate")
+ * @param[in]  xpath     Optional xpath to restrict comparison (may be NULL)
+ * @param[in]  formatstr Format string ("xml", "text", etc.)
+ * @param[out] cbdiff    Diff output appended here
+ * @retval     0         OK
+ * @retval    -1         Error
+ */
+static int
+dsref_diff_one(clixon_handle h,
+               const char   *db1,
+               const char   *db2,
+               const char   *xpath,
+               const char   *formatstr,
+               cbuf         *cbdiff)
+{
+    int    retval = -1;
+    cbuf  *cb = NULL;
+    cxobj *xtop = NULL;
+    cxobj *xrpc;
+    cxobj *xret = NULL;
+    cxobj *xreply;
+    cxobj *xerr;
+    cxobj *xdiff;
+    cxobj **vec = NULL;
+    size_t veclen;
+    int    i;
+
+    if ((cb = cbuf_new()) == NULL){
+        clixon_err(OE_PLUGIN, errno, "cbuf_new");
+        goto done;
+    }
+    cprintf(cb, "<rpc xmlns=\"%s\" username=\"%s\" %s>",
+            NETCONF_BASE_NAMESPACE,
+            clicon_username_get(h),
+            NETCONF_MESSAGE_ID_ATTR);
+    cprintf(cb, "<datastore-diff xmlns=\"%s\">", CONTROLLER_NAMESPACE);
+    cprintf(cb, "<format>%s</format>", formatstr);
+    cprintf(cb, "<dsref1>ds:%s</dsref1>", db1);
+    cprintf(cb, "<dsref2>ds:%s</dsref2>", db2);
+    if (xpath)
+        cprintf(cb, "<xpath>%s</xpath>", xpath);
+    cprintf(cb, "</datastore-diff></rpc>");
+    if (clixon_xml_parse_string(cbuf_get(cb), YB_NONE, NULL, &xtop, NULL) < 0)
+        goto done;
+    xrpc = xml_child_i(xtop, 0);
+    if (clicon_rpc_netconf_xml(h, xrpc, &xret, NULL) < 0)
+        goto done;
+    if ((xreply = xpath_first(xret, NULL, "rpc-reply")) == NULL){
+        clixon_err(OE_CFG, 0, "Malformed rpc reply");
+        goto done;
+    }
+    if ((xerr = xpath_first(xreply, NULL, "rpc-error")) != NULL){
+        clixon_err_netconf(h, OE_XML, 0, xerr, "datastore-diff");
+        goto done;
+    }
+    if (xpath_vec(xreply, NULL, "diff", &vec, &veclen) < 0)
+        goto done;
+    for (i = 0; i < (int)veclen; i++){
+        if ((xdiff = vec[i]) != NULL && xml_body(xdiff) != NULL)
+            cprintf(cbdiff, "%s\n", xml_body(xdiff));
+    }
+    retval = 0;
+ done:
+    if (vec) free(vec);
+    if (xret) xml_free(xret);
+    if (xtop) xml_free(xtop);
+    if (cb)   cbuf_free(cb);
+    return retval;
+}
+
+/*! Compare two datastores, showing per-device headers and services changes
+ *
+ * XML/TEXT: calls datastore-diff per device (with device xpath) and for services,
+ * printing "device X:" before each non-empty device diff.
+ * JSON/CLI: fetches both full configs via raw get-config (no YANG binding),
+ * renders via translate-format RPC, and file-diffs the result.
  * @param[in]   h     Clixon handle
- * @param[in]   cvv
+ * @param[in]   cvv   (unused for dsref)
  * @param[in]   argv  <db1> <db2> <format>
  * @retval      0     OK
  * @retval     -1     Error
- * @see compare_dbs  original function
  */
 int
 compare_dbs_rpc(clixon_handle h,
@@ -1975,15 +2073,15 @@ compare_dbs_rpc(clixon_handle h,
     char            *db2;
     enum format_enum format;
     char            *formatstr;
-    cxobj           *xtop = NULL;
-    cxobj           *xret = NULL;
-    cxobj           *xrpc;
-    cxobj           *xreply;
-    cxobj           *xerr;
-    cxobj           *xdiff;
     cbuf            *cb = NULL;
-    cxobj          **vec = NULL;
-    size_t           veclen;
+    cbuf            *cbdiff = NULL;
+    cvec            *nsc = NULL;
+    cxobj           *xdevs = NULL;
+    cxobj          **dvec = NULL;
+    size_t           dveclen;
+    cxobj           *xdev;
+    char            *devname;
+    cbuf            *cbxpath = NULL;
     int              i;
 
     if (cvec_len(argv) != 3){
@@ -1997,7 +2095,6 @@ compare_dbs_rpc(clixon_handle h,
         clixon_err(OE_XML, 0, "format not found %s", formatstr);
         goto done;
     }
-    /* Special default format handling */
     if (format == FORMAT_DEFAULT){
         formatstr = clicon_option_str(h, "CLICON_CLI_OUTPUT_FORMAT");
         if ((int)(format = format_str2int(formatstr)) < 0){
@@ -2005,51 +2102,47 @@ compare_dbs_rpc(clixon_handle h,
             goto done;
         }
     }
-    if ((cb = cbuf_new()) == NULL){
+    if (format == FORMAT_CLI || format == FORMAT_JSON)
+        format = FORMAT_TEXT;
+    if ((cbdiff = cbuf_new()) == NULL || (cbxpath = cbuf_new()) == NULL){
         clixon_err(OE_PLUGIN, errno, "cbuf_new");
         goto done;
     }
-    cprintf(cb, "<rpc xmlns=\"%s\" username=\"%s\" %s>",
-            NETCONF_BASE_NAMESPACE,
-            clicon_username_get(h),
-            NETCONF_MESSAGE_ID_ATTR);
-    cprintf(cb, "<datastore-diff xmlns=\"%s\">", CONTROLLER_NAMESPACE);
-    cprintf(cb, "<format>%s</format>", formatstr);
-    cprintf(cb, "<dsref1>ds:%s</dsref1>", db1);
-    cprintf(cb, "<dsref2>ds:%s</dsref2>", db2);
-    cprintf(cb, "</datastore-diff>");
-    cprintf(cb, "</rpc>");
-    if (clixon_xml_parse_string(cbuf_get(cb), YB_NONE, NULL, &xtop, NULL) < 0)
+    /* XML/TEXT: per-device diffs with "X:" headers, then services */
+    if ((nsc = xml_nsctx_init("co", CONTROLLER_NAMESPACE)) == NULL)
         goto done;
-    xrpc = xml_child_i(xtop, 0);
-    /* Send to backend */
-    if (clicon_rpc_netconf_xml(h, xrpc, &xret, NULL) < 0)
+    if (clicon_rpc_get_config(h, NULL, db1,
+                              "co:devices/co:device/co:name",
+                              nsc, "explicit", &xdevs) < 0)
         goto done;
-    if ((xreply = xpath_first(xret, NULL, "rpc-reply")) == NULL){
-        clixon_err(OE_CFG, 0, "Malformed rpc reply");
+    if (xpath_vec(xdevs, nsc, "devices/device/name", &dvec, &dveclen) < 0)
         goto done;
+    for (i = 0; i < (int)dveclen; i++){
+        xdev = dvec[i];
+        if ((devname = xml_body(xdev)) == NULL)
+            continue;
+        cbuf_reset(cbdiff);
+        cbuf_reset(cbxpath);
+        cprintf(cbxpath, "devices/device[name='%s']", devname);
+        if (dsref_diff_one(h, db1, db2, cbuf_get(cbxpath), formatstr, cbdiff) < 0)
+            goto done;
+        if (cbuf_len(cbdiff))
+            cligen_output(stdout, "%s:\n%s", devname, cbuf_get(cbdiff));
     }
-    if ((xerr = xpath_first(xreply, NULL, "rpc-error")) != NULL){
-        clixon_err_netconf(h, OE_XML, 0, xerr, "Get configuration");
+    /* Show services diff without a device header */
+    cbuf_reset(cbdiff);
+    if (dsref_diff_one(h, db1, db2, "services", formatstr, cbdiff) < 0)
         goto done;
-    }
-    if (xpath_vec(xreply, NULL, "diff", &vec, &veclen) < 0)
-        goto done;
-    for (i=0; i<veclen; i++){
-        if ((xdiff = vec[i]) != NULL &&
-            xml_body(xdiff) != NULL)
-            cligen_output(stdout, "%s", xml_body(xdiff));
-    }
+    if (cbuf_len(cbdiff))
+        cligen_output(stdout, "%s", cbuf_get(cbdiff));
     retval = 0;
  done:
-    if (vec)
-        free(vec);
-    if (xret)
-        xml_free(xret);
-    if (xtop)
-        xml_free(xtop);
-    if (cb)
-        cbuf_free(cb);
+    if (dvec)   free(dvec);
+    if (xdevs)  xml_free(xdevs);
+    if (nsc)    cvec_free(nsc);
+    if (cbdiff) cbuf_free(cbdiff);
+    if (cbxpath) cbuf_free(cbxpath);
+    if (cb)     cbuf_free(cb);
     return retval;
 }
 
@@ -2082,6 +2175,77 @@ compare_device_db_dev(clixon_handle h,
  done:
     if (cbdiff)
         cbuf_free(cbdiff);
+    return retval;
+}
+
+/*! Commit, push to devices, then show diff of what was pushed (#180)
+ *
+ * Runs services twice: first pass to compute and show the diff (no push),
+ * second pass to actually commit and push.
+ * @param[in] h    Clixon handle
+ * @param[in] cvv  Variables (optional "format" key)
+ * @param[in] argv argv[0]: source datastore (e.g. "candidate")
+ *                 argv[1]: actions type (e.g. "CHANGE")
+ *                 argv[2]: push type for final commit (e.g. "COMMIT")
+ * @retval    0    OK
+ * @retval   -1    Error
+ */
+int
+cli_commit_detail(clixon_handle h,
+                  cvec         *cvv,
+                  cvec         *argv)
+{
+    int              retval = -1;
+    enum format_enum format = FORMAT_DEFAULT;
+    cg_var          *cv;
+    char            *fmt_str;
+    cvec            *argv_diff = NULL;
+    cg_var          *cva;
+
+    if ((cv = cvec_find(cvv, "format")) != NULL){
+        fmt_str = cv_string_get(cv);
+        if ((int)(format = format_str2int(fmt_str)) < 0)
+            format = FORMAT_DEFAULT;
+    }
+    if (format == FORMAT_DEFAULT){
+        fmt_str = clicon_option_str(h, "CLICON_CLI_OUTPUT_FORMAT");
+        if ((int)(format = format_str2int(fmt_str)) < 0)
+            format = FORMAT_TEXT;
+    }
+    if (format == FORMAT_CLI || format == FORMAT_JSON)
+        format = FORMAT_TEXT;
+    /* Build argv for first (diff-only) pass: same source/actions but NONE push */
+    if ((argv_diff = cvec_new(0)) == NULL){
+        clixon_err(OE_PLUGIN, errno, "cvec_new");
+        goto done;
+    }
+    /* argv[0]: source datastore */
+    if (cvec_len(argv) >= 1){
+        if ((cva = cvec_add(argv_diff, CGV_STRING)) == NULL)
+            goto done;
+        cv_string_set(cva, cv_string_get(cvec_i(argv, 0)));
+    }
+    /* argv[1]: actions type */
+    if (cvec_len(argv) >= 2){
+        if ((cva = cvec_add(argv_diff, CGV_STRING)) == NULL)
+            goto done;
+        cv_string_set(cva, cv_string_get(cvec_i(argv, 1)));
+    }
+    /* argv[2]: push type = NONE for diff pass */
+    if ((cva = cvec_add(argv_diff, CGV_STRING)) == NULL)
+        goto done;
+    cv_string_set(cva, "NONE");
+    /* First pass: run services with no push; cli_rpc_controller_commit will
+     * call cli_rpc_commit_diff internally when push==NONE */
+    if (cli_rpc_controller_commit(h, cvv, argv_diff) < 0)
+        goto done;
+    /* Second pass: run services and commit/push */
+    if (cli_rpc_controller_commit(h, cvv, argv) < 0)
+        goto done;
+    retval = 0;
+ done:
+    if (argv_diff)
+        cvec_free(argv_diff);
     return retval;
 }
 

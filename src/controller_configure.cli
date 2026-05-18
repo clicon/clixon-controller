@@ -19,7 +19,8 @@ delete("Delete a configuration item") {
 }
 quit("Quit"), cli_quit();
 commit("Run services, commit and push to devices"), cli_rpc_controller_commit("candidate", "CHANGE", "COMMIT");{
-    diff("Show the result of running the services but do not commit"), cli_rpc_controller_commit("candidate", "CHANGE", "NONE");
+    diff("Show the result of running the services but do not commit") [<format:string choice:xml|text>("Output format")], cli_rpc_controller_commit("candidate", "CHANGE", "NONE");
+    detail("Commit and show diff of what was pushed") [<format:string choice:xml|text>("Output format")], cli_commit_detail("candidate", "CHANGE", "COMMIT");
     push("Run services, commit and push to devices"), cli_rpc_controller_commit("candidate", "CHANGE", "COMMIT");
     local("Local commit, do not push to devices"), cli_commit();
 }
@@ -35,8 +36,8 @@ show("Show a particular state of the system"), @datamodelshow, cli_show_auto_mod
     @|pipe_show, cli_show_auto_mode("candidate", "xml", true, false);
     @datamodelshow, cli_show_auto_devs("candidate", "pipe-xml-default", true, false, "explicit", "set ", true);
     compare("Compare candidate and running databases"), compare_dbs_rpc("running", "candidate", "default");{
-       xml("Show comparison in xml"), compare_dbs_rpc("running", "candidate","xml");
-#       text("Show comparison in text"), compare_dbs_rpc("running", "candidate", "text");
+       xml("Show comparison in XML"), compare_dbs_rpc("running", "candidate", "xml");
+       text("Show comparison in text"), compare_dbs_rpc("running", "candidate", "text");
     }
 }
 save("Save candidate configuration to XML file") <filename:string>("Filename (local filename)"), save_config_file("candidate","filename", "xml");{
@@ -65,7 +66,7 @@ apply("Apply template or service") {
         <service:string expand_yang_list("/ctrl:services", "true")>
         <instance:string expand_dbvar("running", "/clixon-controller:services/%s/%k")>,
           cli_rpc_controller_commit("candidate", "FORCE", "COMMIT"); {
-              diff("Show the result of running the services but do not commit"), cli_rpc_controller_commit("candidate", "FORCE", "NONE");
+              diff("Show the result of running the services but do not commit") [<format:string choice:xml|text>("Output format")], cli_rpc_controller_commit("candidate", "FORCE", "NONE");
               delete("Delete service"), cli_rpc_controller_commit("candidate", "DELETE", "COMMIT");
           }
     }

@@ -36,6 +36,7 @@
 #include <fnmatch.h>
 #include <assert.h>
 #include <sys/time.h>
+#include <sys/param.h>
 
 /* clicon */
 #include <cligen/cligen.h>
@@ -2426,6 +2427,96 @@ datastore_diff_nacm_read(clixon_handle h,
     return retval;
 }
 
+/*! Render two YANG-bound XML trees as pretty JSON and produce a unified diff
+ *
+ * Writes both to temp files, runs diff(1), appends result to cb.
+ * @param[out] cb  Output buffer
+ * @param[in]  x0  First XML tree (old)
+ * @param[in]  x1  Second XML tree (new)
+ * @retval     0   OK
+ * @retval    -1   Error
+ */
+static int
+json_diff2cbuf(cbuf  *cb,
+               cxobj *x0,
+               cxobj *x1)
+{
+    int    retval = -1;
+    cbuf  *cbjson = NULL;
+    char   tmpf0[MAXPATHLEN];
+    char   tmpf1[MAXPATHLEN];
+    int    fd0 = -1;
+    int    fd1 = -1;
+    int    have0 = 0;
+    int    have1 = 0;
+    FILE  *f = NULL;
+    FILE  *diffp = NULL;
+    cbuf  *cmdcb = NULL;
+    char   buf[4096];
+
+    if ((cbjson = cbuf_new()) == NULL){
+        clixon_err(OE_UNIX, errno, "cbuf_new");
+        goto done;
+    }
+    if (clixon_json2cbuf(cbjson, x0, 1, 0, 0, 0) < 0)
+        goto done;
+    snprintf(tmpf0, sizeof(tmpf0), "/tmp/cliconXXXXXX");
+    if ((fd0 = mkstemp(tmpf0)) < 0){
+        clixon_err(OE_UNIX, errno, "mkstemp");
+        goto done;
+    }
+    have0 = 1;
+    if ((f = fdopen(fd0, "w")) == NULL){
+        clixon_err(OE_UNIX, errno, "fdopen");
+        goto done;
+    }
+    fd0 = -1;
+    fputs(cbuf_get(cbjson), f);
+    fclose(f);
+    f = NULL;
+    cbuf_reset(cbjson);
+    if (clixon_json2cbuf(cbjson, x1, 1, 0, 0, 0) < 0)
+        goto done;
+    snprintf(tmpf1, sizeof(tmpf1), "/tmp/cliconXXXXXX");
+    if ((fd1 = mkstemp(tmpf1)) < 0){
+        clixon_err(OE_UNIX, errno, "mkstemp");
+        goto done;
+    }
+    have1 = 1;
+    if ((f = fdopen(fd1, "w")) == NULL){
+        clixon_err(OE_UNIX, errno, "fdopen");
+        goto done;
+    }
+    fd1 = -1;
+    fputs(cbuf_get(cbjson), f);
+    fclose(f);
+    f = NULL;
+    if ((cmdcb = cbuf_new()) == NULL){
+        clixon_err(OE_UNIX, errno, "cbuf_new");
+        goto done;
+    }
+    cprintf(cmdcb, "diff -dU 3 %s %s", tmpf0, tmpf1);
+    if ((diffp = popen(cbuf_get(cmdcb), "r")) == NULL){
+        clixon_err(OE_UNIX, errno, "popen");
+        goto done;
+    }
+    while (fgets(buf, sizeof(buf), diffp) != NULL)
+        cprintf(cb, "%s", buf);
+    pclose(diffp);
+    diffp = NULL;
+    retval = 0;
+ done:
+    if (fd0 >= 0) close(fd0);
+    if (fd1 >= 0) close(fd1);
+    if (f) fclose(f);
+    if (diffp) pclose(diffp);
+    if (have0) unlink(tmpf0);
+    if (have1) unlink(tmpf1);
+    if (cbjson) cbuf_free(cbjson);
+    if (cmdcb)  cbuf_free(cmdcb);
+    return retval;
+}
+
 /*! Given two datastores and xpath, return diff in textual form
  *
  * @param[in]   h      Clixon handle
@@ -2483,7 +2574,9 @@ datastore_diff_dsref(clixon_handle    h,
             goto done;
         break;
     case FORMAT_JSON:
-    case FORMAT_CLI:
+        if (json_diff2cbuf(cb, x1, x2) < 0)
+            goto done;
+        break;
     default:
         break;
     }
@@ -2566,6 +2659,10 @@ datastore_diff_device(clixon_handle      h,
         if ((devname = xml_find_body(xdev, "name")) == NULL)
             continue;
         if ((dh = device_handle_find(h, devname)) == NULL)
+            continue;
+        if ((dt1 == DT_TRANSIENT || dt1 == DT_SYNCED ||
+             dt2 == DT_TRANSIENT || dt2 == DT_SYNCED) &&
+            device_handle_conn_state_get(dh) != CS_OPEN)
             continue;
         x1 = x1m = NULL;
         switch (dt1){
@@ -2693,7 +2790,16 @@ datastore_diff_device(clixon_handle      h,
             }
             break;
         case FORMAT_JSON:
-        case FORMAT_CLI:
+            cbuf_reset(cb);
+            if (json_diff2cbuf(cb, x1, x2) < 0)
+                goto done;
+            if (cbuf_len(cb)){
+                cprintf(cbret, "<diff xmlns=\"%s\">", CONTROLLER_NAMESPACE);
+                cprintf(cbret, "%s:\n", devname);
+                xml_chardata_cbuf_append(cbret, 0, cbuf_get(cb));
+                cprintf(cbret, "</diff>");
+            }
+            break;
         default:
             break;
         }
@@ -2769,11 +2875,8 @@ rpc_datastore_diff(clixon_handle h,
             clixon_err(OE_PLUGIN, 0, "Not valid format: %s", formatstr);
             goto done;
         }
-        if (format != FORMAT_XML && format != FORMAT_TEXT){
-            if (netconf_operation_failed(cbret, "application", "Format not supported")< 0)
-                goto done;
-            goto ok;
-        }
+        if (format != FORMAT_XML && format != FORMAT_TEXT && format != FORMAT_JSON)
+            format = FORMAT_TEXT;
     }
     if ((ds1 = xml_find_body(xe, "dsref1")) != NULL){ /* Regular datastores */
         xpath = xml_find_body(xe, "xpath");

@@ -3,7 +3,11 @@ CLICON_PROMPT="%U@%H[%W]# ";
 CLICON_PLUGIN="controller_cli";
 
 check("Check if device is in sync"), check_device_db("default");
-diff("Compare remote device config with local"), compare_device_db_dev("default");
+diff("Compare remote device config with local"), compare_device_db_dev("default");{
+   xml("Show diff in XML format"), compare_device_db_dev("xml");
+   text("Show diff in text format"), compare_device_db_dev("text");
+   json("Show diff in JSON format"), compare_device_db_dev("json");
+}
 capability("Show device capbilities"), show_device_capability("name"); {
    @|pipe_show, show_device_capability("name");
 }

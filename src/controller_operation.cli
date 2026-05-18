@@ -36,8 +36,8 @@ processes("Process maintenace") {
 }
 show("Show a particular state of the system"){
     compare("Compare candidate and running databases"), compare_dbs_rpc("running", "candidate", "default");{
-       xml("Show comparison in xml"), compare_dbs_rpc("running", "candidate","xml");
-#       text("Show comparison in text"), compare_dbs_rpc("running", "candidate", "text");
+       xml("Show comparison in XML"), compare_dbs_rpc("running", "candidate", "xml");
+       text("Show comparison in text"), compare_dbs_rpc("running", "candidate", "text");
     }
     info("Show info about a configured node: yang, namespaces, etc"){
         @basemodel, @remove:act-list, cli_show_config_info();
@@ -107,7 +107,11 @@ pull("Pull config from one or multiple devices"){
    ], cli_rpc_pull("replace");{
       replace, cli_rpc_pull("replace");
       merge, cli_rpc_pull("merge");
-      diff, compare_device_db_dev("default");
+      diff, compare_device_db_dev("default");{
+         xml("Show diff in XML format"), compare_device_db_dev("xml");
+         text("Show diff in text format"), compare_device_db_dev("text");
+         json("Show diff in JSON format"), compare_device_db_dev("json");
+      }
       check("Check if device is in sync"), check_device_db("default");
    }
    <group:string keyword:group>("device group")
@@ -116,7 +120,11 @@ pull("Pull config from one or multiple devices"){
          , cli_rpc_pull("replace");{
       replace, cli_rpc_pull("replace");
       merge, cli_rpc_pull("merge");
-      diff, compare_device_db_dev("default");
+      diff, compare_device_db_dev("default");{
+         xml("Show diff in XML format"), compare_device_db_dev("xml");
+         text("Show diff in text format"), compare_device_db_dev("text");
+         json("Show diff in JSON format"), compare_device_db_dev("json");
+      }
       check("Check if device is in sync"), check_device_db("default");
    }
 }
