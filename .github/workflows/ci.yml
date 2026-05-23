@@ -15,9 +15,13 @@ jobs:
   test-job:
     name: Controller tests
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     timeout-minutes: 10
     steps:
-    - uses: actions/checkout@v6
+    - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
+      with:
+        persist-credentials: false
     - name: Start containers
       run: (cd docker; docker compose -f docker-compose-test.yml up --build -d)
     - name: Run tests
