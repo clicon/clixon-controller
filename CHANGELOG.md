@@ -1,6 +1,6 @@
 # Clixon Controller Changelog
 
-* [1.8.0](#180) Expected: May 2026
+* [1.8.0](#180) 29 May 2026
 * [1.7.0](#170) 21 February 2026
 * [1.6.0](#160) 21 November 2025
 * [1.5.0](#150) 29 July 2025
@@ -11,24 +11,25 @@
 * [1.0.0](#170) 8 March 2024
 
 ## 1.8.0
-Expected: May 2026
+29 May 2026
 
 ### New features
 
-* New: Extension yang-announce-latest
-* Remove old transient or synced datastores at start
-* Changed CLI show transaction output to a table
-* Changed CLI show connections timestamp to last stable state
+* New: Extension yang-announce-latest to select other than the latest announced YANG per device
+* Added CLI command: `show device yang schema`
+
+### API changes on existing protocol/config features
+
+* Changed CLI show output:
+  * Changed CLI show transaction output to a table
+  * Changed CLI show connections timestamp to last stable state
+* Remove old transient or synced datastores at start to clear stale files
 * New `clixon-controller@2026-03-01.yang` revision
   * Added rpc get-device-schema and device-rpc-result
   * Added device list to transaction state
   * Added stable-timestamp to device state
   * Added memory statistics to rpc clixon-stats
   * Removed sync parameter from device-rpc RPC (never worked)
-* Added CLI command: `show device yang schema`
-
-### API changes on existing protocol/config features
-
 * Changed getting device RPC results, and get device state (RESTCONF and NETCONF)
   * Instead of retrieving transaction state, get the reply data by a new RPC call: `device-rpc-result`
     * Send the RPC: `device-rpc`, get the `tid` in the reply
