@@ -1,5 +1,6 @@
 # Clixon Controller Changelog
 
+* [1.9.0](#190) Expected: September 2026
 * [1.8.0](#180) 29 May 2026
 * [1.7.0](#170) 21 February 2026
 * [1.6.0](#160) 21 November 2025
@@ -9,6 +10,9 @@
 * [1.2.0](#120) 28 October 2024
 * [1.1.0](#110) 3 July 2024
 * [1.0.0](#170) 8 March 2024
+
+## 1.9.0
+Expected: September 2026
 
 ## 1.8.0
 29 May 2026
