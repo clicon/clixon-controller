@@ -576,6 +576,24 @@ device_handle_tid_set(device_handle dh,
     return 0;
 }
 
+/*! Associate a device with a transaction without adding to the device list
+ *
+ * Like device_handle_tid_set but does not add the device to ct_devices.
+ * Used when a device is tentatively assigned to a transaction but should only
+ * appear in the device list if it turns out to have actual changes to push.
+ * @param[in]  dh     Device handle
+ * @param[in]  tid    Transaction-id
+ */
+int
+device_handle_tid_mark(device_handle dh,
+                       uint64_t      tid)
+{
+    struct controller_device_handle *cdh = devhandle(dh);
+
+    cdh->cdh_tid = tid;
+    return 0;
+}
+
 clixon_handle
 device_handle_handle_get(device_handle dh)
 {

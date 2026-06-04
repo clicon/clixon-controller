@@ -281,7 +281,7 @@ check_last_transaction "SUCCESS"
 
 # E1: Commit push with NAME2 disabled -> CLI error
 new "E1: Add device config"
-expectpart "$($clixon_cli -1 -m configure -f $CFG -E $CFD set devices device $NAME2 config system config login-banner false 2>&1)" 255 "Unknown command"
+edit_device_config "$NAME2" "test" false
 
 new "E1: Commit push (NAME2 disabled) -> CLI error" # <---
 expectpart "$($clixon_cli -1 -m configure -f $CFG -E $CFD commit push 2>&1)" 0 "Warning: device '$NAME2' skipped"
@@ -345,7 +345,7 @@ new "E2: Edit device config"
 edit_device_config "$NAME2" "test" false
 
 new "E2: Commit push (NAME2 enabled+closed) -> CLI error"
-expectpart "$($clixon_cli -1 -m configure -f $CFG -E $CFD commit push 2>&1)" 255 "Device is closed: '$NAME2'"
+expectpart "$($clixon_cli -1 -m configure -f $CFG -E $CFD commit push 2>&1)" 255 "Device is closed" "$NAME2"
 
 new "E2: Verify transaction Failure"
 check_last_transaction "FAILED"

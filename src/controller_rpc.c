@@ -544,9 +544,6 @@ push_device_one(clixon_handle           h,
             goto done;
     }
     else{
-        /* No change to push: remove from transaction device list and clear TID */
-        if (controller_transaction_device_remove(ct, name) < 0)
-            goto done;
         device_handle_tid_set(dh, 0);
     }
     retval = 1;
@@ -1513,6 +1510,7 @@ devices_diff(clixon_handle           h,
     device_handle dh;
     char         *name;
     int           i;
+    int           touch;
 
     if (candidate == NULL){
         clixon_err(OE_DB, EINVAL, "candidate is NULL");
@@ -1567,7 +1565,7 @@ devices_diff(clixon_handle           h,
     /* Check if any device with changes is closed */
     dh = NULL;
     while ((dh = device_handle_each(h, dh)) != NULL){
-        int touch = 0;
+        touch = 0;
         if (device_handle_tid_get(dh) != ct->ct_id)
             continue;
         name = device_handle_name_get(dh);
@@ -1581,6 +1579,8 @@ devices_diff(clixon_handle           h,
         }
         if (touch){
             if (device_handle_conn_state_get(dh) != CS_OPEN){
+                if (controller_transaction_device_skip(ct, name, "closed") < 0)
+                    goto done;
                 *closed = dh;
                 break;
             }
@@ -1620,7 +1620,7 @@ device_error(clixon_handle           h,
         name = device_handle_name_get(dh);
     switch (reason){
     case 0: /* closed */
-        cprintf(cb, "Device is closed: '%s' (try 'connection open' or edit, local commit, and connect)", name);
+        cprintf(cb, "Device is closed: '%s'", name);
         break;
     case 1: /* changed */
         cprintf(cb, "Device '%s': local fields are changed (try 'commit local' instead)", name);
@@ -1793,8 +1793,8 @@ rpc_controller_commit(clixon_handle h,
                 goto done;
             continue;
         }
-        /* Include device in transaction (open and closed alike, for diff check) */
-        device_handle_tid_set(dh, ct->ct_id);
+        /* Mark device for diff check; add to device list only if a diff is found */
+        device_handle_tid_mark(dh, ct->ct_id);
     }
     /* If there are no devices selected and push != NONE */
     if (controller_transaction_nr_devices(h, ct->ct_id) == 0 && pusht != PT_NONE){

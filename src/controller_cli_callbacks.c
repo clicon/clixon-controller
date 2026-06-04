@@ -119,7 +119,8 @@ rpc_get_yanglib_mount_match(clixon_handle h,
     cxobj     *xy;
     char      *devname;
     cxobj     *xret = NULL;
-    cxobj     *xerr = NULL;
+    cxobj     *xerr = NULL;  /* child of xret, not owned */
+    cxobj     *xerr2 = NULL; /* from xml_bind_yang0, owned */
     cxobj     *xp;
     yang_stmt *yspec;
     int        ix;
@@ -164,7 +165,10 @@ rpc_get_yanglib_mount_match(clixon_handle h,
     if (clicon_rpc_netconf_xml(h, xrpc, &xret, NULL) < 0)
         goto done;
     if ((xerr = xpath_first(xret, NULL, "rpc-reply/rpc-error")) != NULL){
+        /* Log but treat as no devices: a broken device state should not
+         * abort unrelated CLI commands (e.g. device-profile edits) */
         clixon_err_netconf(h, OE_XML, 0, xerr, "Get configuration");
+        retval = 0;
         goto done;
     }
     if ((xdevs = xpath_first(xret, NULL, "rpc-reply/data/devices")) != NULL){
@@ -189,10 +193,10 @@ rpc_get_yanglib_mount_match(clixon_handle h,
         if (xml_tree_prune_flagged_sub(xdevs, XML_FLAG_MARK, 1, NULL) < 0)
             goto done;
         /* Populate XML with Yang spec. */
-        if ((ret = xml_bind_yang0(h, xdevs, YB_MODULE, yspec, 0, 0, &xerr)) < 0)
+        if ((ret = xml_bind_yang0(h, xdevs, YB_MODULE, yspec, 0, 0, &xerr2)) < 0)
             goto done;
         if (ret == 0){
-            clixon_err_netconf(h, OE_XML, 0, xerr, "Get devices config");
+            clixon_err_netconf(h, OE_XML, 0, xerr2, "Get devices config");
             goto done;
         }
         /* Double check that there is at least one device */
@@ -209,8 +213,8 @@ rpc_get_yanglib_mount_match(clixon_handle h,
         xml_free(xtop);
     if (xret)
         xml_free(xret);
-    if (xerr)
-        xml_free(xerr);
+    if (xerr2)
+        xml_free(xerr2);
     if (cb)
         cbuf_free(cb);
     return retval;

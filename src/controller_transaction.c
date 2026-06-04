@@ -621,7 +621,7 @@ controller_transaction_done(clixon_handle           h,
 {
     int           retval = -1;
     uint32_t      iddb;
-    char         *db;
+    char         *db = NULL;
     device_handle dh;
     cg_var       *cv;
 
@@ -776,29 +776,6 @@ controller_transaction_device_add(controller_transaction *ct,
     retval = 0;
  done:
     return retval;
-}
-
-/*! Remove a device from the transaction device list
- *
- * Removes the device entry from ct_devices if present. Used when a device was
- * initially added (via device_handle_tid_set) but is later determined not to
- * have participated (e.g. no configuration diff to push).
- * @param[in] ct     Transaction
- * @param[in] name   Device name
- * @retval    0      OK
- * @retval   -1      Error
- */
-int
-controller_transaction_device_remove(controller_transaction *ct,
-                                     const char             *name)
-{
-    cg_var *cv;
-
-    if (ct->ct_devices == NULL)
-        return 0;
-    if ((cv = cvec_find(ct->ct_devices, name)) != NULL)
-        cvec_del(ct->ct_devices, cv);
-    return 0;
 }
 
 /*! Record a skipped device in the transaction

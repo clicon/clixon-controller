@@ -96,8 +96,10 @@ disconnect_device_byxml(clixon_handle h,
         device_handle_conn_state_get(dh) != CS_CLOSED){
         device_close_connection(dh, NULL); /* Regular disconnect, no reason */
     }
+#if 0 /* Disabling this, makes DISABLE and CLOSED equal */
     if (dh)
         device_handle_free(dh);
+#endif
     return 0;
 }
 
