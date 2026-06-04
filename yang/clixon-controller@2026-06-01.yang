@@ -37,6 +37,10 @@ module clixon-controller {
     }
     description
         "Clixon controller";
+    revision 2026-06-01 {
+        description
+            "Released in 1.9.0";
+    }
     revision 2026-03-01 {
         description
             "Added rpc get-device-schema and device-rpc-result

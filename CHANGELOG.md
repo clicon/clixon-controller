@@ -14,6 +14,11 @@
 ## 1.9.0
 Expected: September 2026
 
+### API changes on existing protocol/config features
+
+Users may have to change how they access the system
+
+* New `clixon-controller@2026-06-01.yang` revision
 
 ### Corrected Bugs
 
@@ -28,6 +33,8 @@ Expected: September 2026
 * Added CLI command: `show device yang schema`
 
 ### API changes on existing protocol/config features
+
+Users may have to change how they access the system
 
 * Changed CLI show output:
   * Changed CLI show transaction output to a table
@@ -113,6 +120,8 @@ Expected: September 2026
 
 ### API changes on existing protocol/config features
 
+Users may have to change how they access the system
+
 * New `clixon-controller-config@2025-05-01.yang` revision
 
 ### Corrected Bugs
@@ -141,6 +150,8 @@ The controller 1.4 introduces RESTCONF support and a new extensions architecture
 
 ### API changes on existing protocol/config features
 
+Users may have to change how they access the system
+
 * New `clixon-controller-config@2025-02-01.yang` revision
   * Added `CONTROLLER_SSH_IDENTITYFILE`
 * New `clixon-controller@2025-02-01.yang` revision
@@ -167,6 +178,8 @@ The controller 1.3 release features device RPCs, device-groups, and show device 
   * docs: https://clixon-controller-docs.readthedocs.io/en/latest/cli.html#rpc-templates
 
 ### API changes on existing protocol/config features
+
+Users may have to change how they access the system
 
 * New `clixon-controller-config@2024-11-01.yang` revision
   * Changed RPC input parameter parameter name `devname` -> `device`:
@@ -206,6 +219,8 @@ The controller 1.3 release features device RPCs, device-groups, and show device 
   * show device capability
 
 ### API changes on existing protocol/config features
+
+Users may have to change how they access the system
 
 * New version string on the form: `1.1.0-1+70+gbae59f2`
 * Edits to device addr, user, domain, etc causes device disconnect
@@ -250,6 +265,8 @@ The controller 1.3 release features device RPCs, device-groups, and show device 
 
 ### API changes on existing protocol/config features
 
+Users may have to change how they access the system
+
 * Rearranged CLI `connection` command and made it blocking.
 
 ### Corrected Bugs
@@ -293,6 +310,8 @@ Clixon controller 1.0 is the first major release.
       * Added mountpoint cache as yang flag `YANG_FLAG_MTPOINT_POTENTIAL`
 
 ### API changes on existing protocol/config features
+
+Users may have to change how they access the system
 
 * Debug level `-D 1` changed to `-D app`.
   * -D msg (-D 2) still applies for message debugging
@@ -346,6 +365,8 @@ Based on CLIgen/Clixon 6.5.0.
 
 ### API changes on existing protocol/config features
 
+Users may have to change how they access the system
+
 * New `clixon-controller-config@2023-11-01.yang` revision
   * Added CONTROLLER_YANG_SCHEMA_MOUNT_DIR
 * New `clixon-controller@2023-11-01.yang` revision
@@ -374,6 +395,8 @@ This release focuses on testing with openconfig, arista and juniper
 routers. It is still experimental.
 
 ### API changes on existing protocol/config features
+
+Users may have to change how they access the system
 
 * New `clixon-controller@2023-09-01.yang` revision
   * Added identity services for NETCONF monitoring/transport
