@@ -1365,6 +1365,9 @@ controller_commit_actions(clixon_handle           h,
            Strip service data in device config */
         if (strip_service_data_from_device_config(h, "actions", cvv) < 0)
             goto done;
+        if (td)
+            transaction_free1(td, 0);
+        td = NULL;
         if (commit_push_after_actions(h, ct, candidate) < 0)
             goto done;
     }
@@ -1383,11 +1386,16 @@ controller_commit_actions(clixon_handle           h,
             goto done;
     }
     else{ /* No services, proceed to next step */
+        if (td)
+            transaction_free1(td, 0);
+        td = NULL;
         if (commit_push_after_actions(h, ct, candidate) < 0)
             goto done;
     }
     retval = 0;
  done:
+    if (td)
+        transaction_free1(td, 0);
     if (cvv)
         cvec_free(cvv);
     return retval;
@@ -1833,6 +1841,7 @@ rpc_controller_commit(clixon_handle h,
         /* Compute diff of candidate, copy to actions, trigger notify */
         if (controller_commit_actions(h, ct, actions, td, service_instance, diff, candidate) < 0)
             goto done;
+        td = NULL;
         break;
     }
     cprintf(cbret, "<rpc-reply xmlns=\"%s\">", NETCONF_BASE_NAMESPACE);
@@ -1841,8 +1850,9 @@ rpc_controller_commit(clixon_handle h,
  ok:
     retval = 0;
  done:
-    if (td)
+    if (td){ /* Free low-level commit transaction (not controller transaction) */
         transaction_free1(td, 0);
+    }
     if (sourcedb)
         free(sourcedb);
     if (cbtr)

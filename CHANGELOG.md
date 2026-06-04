@@ -14,6 +14,11 @@
 ## 1.9.0
 Expected: September 2026
 
+
+### Corrected Bugs
+
+* Fixed: double freed transaction in controller-commit sometimes caused segv
+
 ## 1.8.0
 29 May 2026
 
