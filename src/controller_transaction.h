@@ -111,6 +111,7 @@ controller_transaction *controller_transaction_find_bystate(clixon_handle h, int
 int   controller_transaction_nr_devices(clixon_handle h, uint64_t tid);
 int   controller_transaction_device_add(controller_transaction *ct, const char *name);
 int   controller_transaction_device_skip(controller_transaction *ct, const char *name, const char *reason);
+int   controller_transaction_device_fail(controller_transaction *ct, const char *name);
 int   controller_transaction_failed_fn(clixon_handle h, const char *func, const int line,
                                        uint64_t tid, controller_transaction *ct, device_handle dh,
                                        tr_failed_devclose devclose, char *origin, char *reason);

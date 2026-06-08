@@ -2,8 +2,7 @@
 # Based on table.xlsx which defines expected behavior for:
 #   3 device states (columns) x 6 operations (rows)
 #
-# Two devices:
-# - NAME1: reference device - always kept in state 3 (open)
+# One devices:
 # - NAME2: test object - transitions between states
 #
 # Device states:
@@ -12,12 +11,13 @@
 #   State 3 OPEN: enabled=true,  conn-state=OPEN
 #
 # Operations:
-#   A: Connect           (connection open)
-#   B: Disconnect        (connection close)
-#   C: Pull              (pull)
-#   D: Show devices diff (show devices <name> diff)
-#   E: Commit push       (commit push in configure mode, with prior edit)
-#   F: Commit diff       (commit diff in configure mode, with prior edit)
+#   A: Connect           connection open
+#   B: Disconnect        connection close
+#   C: Pull              pull)
+#   D: Show devices diff show devices <name> diff
+#   E: Commit push/diff  commit push/diff in configure mode, with no edits
+#   F: Commit push       commit push in configure mode, with prior local edit
+#   G: Commit diff       commit diff in configure mode, with prior localedit
 
 # Magic line must be first in script (see README.md)
 s="$_" ; . ./lib.sh || if [ "$s" = $0 ]; then exit 0; else return 0; fi
@@ -31,27 +31,98 @@ if [[ ! -v CONTAINERS ]]; then
     err1 "CONTAINERS variable set" "not set"
 fi
 
-ip1=$(echo $CONTAINERS | awk '{print $1}')
 ip2=$(echo $CONTAINERS | awk '{print $2}')
-NAME1="${IMG}1"
 NAME2="${IMG}2"
 
 CFG=${SYSCONFDIR}/clixon/controller.xml
 dir=/var/tmp/$0
 CFD=$dir/conf.d
+modules=$dir/modules
+fyang=$dir/transtest.yang
+pycode=$modules/transtest.py
 test -d $dir || mkdir -p $dir
 test -d $CFD || mkdir -p $CFD
+test -d $modules || mkdir -p $modules
 
 cat<<EOF > $CFD/diff.xml
 <?xml version="1.0" encoding="utf-8"?>
 <clixon-config xmlns="http://clicon.org/config">
   <CLICON_CONFIGDIR>$CFD</CLICON_CONFIGDIR>
   <CLICON_YANG_DIR>${DATADIR}/controller/main</CLICON_YANG_DIR>
+  <CLICON_YANG_MAIN_DIR>$dir</CLICON_YANG_MAIN_DIR>
   <CLICON_YANG_DOMAIN_DIR>$dir</CLICON_YANG_DOMAIN_DIR>
   <CLICON_XMLDB_DIR>$dir</CLICON_XMLDB_DIR>
   <CLICON_VALIDATE_STATE_XML>true</CLICON_VALIDATE_STATE_XML>
   <CLICON_CLI_OUTPUT_FORMAT>text</CLICON_CLI_OUTPUT_FORMAT>
 </clixon-config>
+EOF
+
+cat<<EOF > $CFD/action-command.xml
+<clixon-config xmlns="http://clicon.org/config">
+  <CONTROLLER_ACTION_COMMAND xmlns="http://clicon.org/controller-config">${BINDIR}/clixon_server.py -f $CFG</CONTROLLER_ACTION_COMMAND>
+  <CONTROLLER_PYAPI_MODULE_PATH xmlns="http://clicon.org/controller-config">$modules</CONTROLLER_PYAPI_MODULE_PATH>
+  <CONTROLLER_PYAPI_MODULE_FILTER xmlns="http://clicon.org/controller-config"></CONTROLLER_PYAPI_MODULE_FILTER>
+  <CONTROLLER_PYAPI_PIDFILE xmlns="http://clicon.org/controller-config">/tmp/clixon_pyapi_transtest.pid</CONTROLLER_PYAPI_PIDFILE>
+</clixon-config>
+EOF
+
+# YANG service module: one-leaf service that writes login-banner to a target device
+cat <<EOF > $fyang
+module transtest {
+    namespace "http://clicon.org/transtest";
+    prefix tt;
+    import clixon-controller {
+        prefix ctrl;
+    }
+    revision 2026-06-05 {
+        description "Transaction test service";
+    }
+    augment "/ctrl:services" {
+        list transtest {
+            description "Transaction test service";
+            key service-name;
+            leaf service-name {
+                type string;
+            }
+            leaf device {
+                type string;
+                description "Target device name";
+            }
+            leaf value {
+                type string;
+                description "Value to set as login-banner; empty means no edit";
+            }
+            uses ctrl:created-by-service;
+        }
+    }
+}
+EOF
+
+# Python service: if value is set, write login-banner to the named device
+cat <<EOF > $pycode
+SERVICE = "transtest"
+
+def setup(root, log, **kwargs):
+    try:
+        _ = root.services
+    except Exception:
+        return
+    for instance in root.services.transtest:
+        if instance.service_name != kwargs["instance"]:
+            continue
+        try:
+            target = instance.device.get_data()
+        except Exception:
+            return
+        try:
+            value = instance.value.get_data()
+        except Exception:
+            return
+        if not value:
+            return
+        for device in root.devices.device:
+            if device.name.get_data() == target:
+                device.config.system.config.create("login-banner", data=value)
 EOF
 cp ../src/autocli.xml $CFD/
 
@@ -107,7 +178,7 @@ function update_device(){
     local port=${3:-830}
     local enabled=${4:-true}
     local ret
-    new "update_device $name: edit-config"
+    new "update_device $name: enabled:$enabled"
     ret=$(${clixon_netconf} -qe0 -f $CFG -E $CFD <<EOF
 <rpc xmlns="urn:ietf:params:xml:ns:netconf:base:1.0"
      xmlns:nc="urn:ietf:params:xml:ns:netconf:base:1.0"
@@ -141,6 +212,19 @@ EOF
 EOF
     )
     if [ $? -ne 0 ]; then err1 "update_device commit" "$ret"; fi
+}
+
+# Connect device and check open
+# Args: name
+function connect_device()
+{
+    local name=$1
+    
+    new "Connect device $name"
+    expectpart "$($clixon_cli -1 -f $CFG -E $CFD connection open $name 2>&1)" 0 "^$"
+
+    new "Verify $name OPEN"
+    expectpart "$($clixon_cli -1 -f $CFG -E $CFD show connections $name)" 0 "OPEN"
 }
 
 # Add a simple interface config edit in configure mode.
@@ -177,20 +261,102 @@ function delete_device_config(){
     fi
 }
 
-# Check the result field in the most recent transaction.
-# Args: expected-result  (SUCCESS|FAILED)
-function check_last_transaction(){
-    local expected=$1
-    expectpart "$($clixon_cli -1 -f $CFG -E $CFD show transactions)" 0 "$expected"
-}
+# Composite transaction test helper.
+# Performs three checks:
+#   1. Runs CLI command and checks output type (silent|warning|error|diff)
+#   2. Runs "show transactions"        - checks overall result (success|failed)
+#   3. Runs "show transactions detail" - checks per-device result (success|skip|failed|absent)
+# Args:
+#   $1 dev    - device name for per-device detail check               (or "" to skip check)
+#   $2 desc   - test description prefix (used for "new" labels)
+#   $3 mode   - CLI mode: oper|configure
+#   $4 cmd    - CLI command arguments (e.g. "connection open '*'" or "commit push")
+#   $5 expect - expected CLI output: silent|warning|error|diff
+#   $6 tx     - expected overall transaction result: success|failed  (or "" to skip check)
+#   $7 devr   - expected per-device result: success|skip|failed|absent (or "" to skip check)
+function check_tx(){
+    local dev="$1"
+    local desc="$2"
+    local mode="$3"
+    local cmd="$4"
+    local expect="$5"
+    local tx="$6"
+    local devr="$7"
+    local flags
+    local out
+    local exitcode
+    local devblock
 
-# Reconnect and pull the reference device 1 so it stays in state 3.
-function ensure_ref_open(){
-    new "ensure_ref_open: reconnect $NAME1"
-    expectpart "$($clixon_cli -1 -f $CFG -E $CFD connection open $NAME1 2>&1)" 0 "^$"
-    sleep $sleep
-    new "ensure_ref_open: pull $NAME1"
-    expectpart "$($clixon_cli -1 -f $CFG -E $CFD pull $NAME1 2>&1)" 0 "^$"
+    case "$mode" in
+        configure) flags="-1 -m configure -f $CFG -E $CFD" ;;
+        *)         flags="-1 -f $CFG -E $CFD" ;;
+    esac
+
+    # 1. CLI command: run and check output type
+    new "$desc: CLI ($expect)"
+#    echo "$clixon_cli $flags $cmd"
+    out=$(eval "$clixon_cli $flags $cmd" 2>&1)
+    exitcode=$?
+    case "$expect" in
+        silent)
+            if [ $exitcode -ne 0 ]; then err1 "exit 0" "exit $exitcode: $out"; fi
+            if [ -n "$out" ]; then err "empty output" "$out"; fi
+            ;;
+        warning)
+            if [ $exitcode -ne 0 ]; then err1 "exit 0 with Warning" "exit $exitcode: $out"; fi
+            if ! echo "$out" | grep -q "Warning"; then err "Warning in output" "$out"; fi
+            ;;
+        error)
+            if [ $exitcode -eq 0 ]; then err1 "non-zero exit" "exit 0: $out"; fi
+            ;;
+        diff)
+            if [ $exitcode -ne 0 ]; then err1 "exit 0 with diff output" "exit $exitcode: $out"; fi
+            if ! echo "$out" | grep -qE "^\+|^-"; then err "diff output (+/-)" "$out"; fi
+            ;;
+    esac
+
+    # 2. show transactions: check overall result
+    if [ -n "$tx" ]; then
+        new "$desc: show transactions ($tx)"
+#        echo "$clixon_cli -1 -f $CFG -E $CFD show transactions"
+        case "$tx" in
+            success) expectpart "$($clixon_cli -1 -f $CFG -E $CFD show transactions)" 0 "SUCCESS" ;;
+            failed)  expectpart "$($clixon_cli -1 -f $CFG -E $CFD show transactions)" 0 "FAILED" ;;
+        esac
+    fi
+
+    # 3. show transactions detail: check per-device result
+    if [ -n "$dev" ] && [ -n "$devr" ]; then
+        new "$desc: show transactions detail $dev ($devr)"
+#        echo "$clixon_cli -1 -f $CFG -E $CFD show transactions detail"
+        out=$($clixon_cli -1 -f $CFG -E $CFD show transactions detail 2>&1)
+        case "$devr" in
+            absent)
+                if echo "$out" | grep -q "<name>$dev</name>"; then
+                    err1 "$dev absent from transaction detail" "$out"
+                fi
+                ;;
+            success)
+                devblock=$(echo "$out" | grep -A 5 "<name>$dev</name>")
+                if [ -z "$devblock" ]; then err1 "$dev in transaction detail" "$out"; fi
+                if echo "$devblock" | grep -q "SKIPPED\|FAILED"; then
+                    err1 "$dev result SUCCESS (not SKIPPED/FAILED)" "$out"
+                fi
+                ;;
+            skip)
+                devblock=$(echo "$out" | grep -A 5 "<name>$dev</name>")
+                if ! echo "$devblock" | grep -q "SKIPPED"; then
+                    err1 "$dev result SKIPPED in transaction detail" "$out"
+                fi
+                ;;
+            failed)
+                devblock=$(echo "$out" | grep -A 5 "<name>$dev</name>")
+                if ! echo "$devblock" | grep -q "FAILED"; then
+                    err1 "$dev result FAILED in transaction detail" "$out"
+                fi
+                ;;
+        esac
+    fi
 }
 
 # Reset devices with initial config
@@ -208,257 +374,207 @@ new "Wait backend"
 wait_backend
 
 # ============================================================
-# Setup: Init both devices connect and pull
+# Setup: Init device connect + pull
 # ============================================================
-init_device "$NAME1" "$ip1" "true"
 init_device "$NAME2" "$ip2" "true"
 
-new "Setup: Connect reference device $NAME1"
-expectpart "$($clixon_cli -1 -f $CFG -E $CFD connection open $NAME1 2>&1)" 0 "^$"
-
-sleep $sleep
-
-new "Setup: Pull $NAME1 config"
-expectpart "$($clixon_cli -1 -f $CFG -E $CFD pull $NAME1 2>&1)" 0 "^$"
-
-new "Setup: Connect reference device $NAME2"
+new "Setup: Connect device $NAME2"
 expectpart "$($clixon_cli -1 -f $CFG -E $CFD connection open $NAME2 2>&1)" 0 "^$"
 
-sleep $sleep
-
-new "Setup: Pull $NAME2 config"
-expectpart "$($clixon_cli -1 -f $CFG -E $CFD pull $NAME1 2>&1)" 0 "^$"
-
 # ============================================================
-# STATE 1 DISABLE
-# Pre-amble: close NAME1 disable NAME2
+# A: Connection OPEN
 # ============================================================
-
-# Close NAME1
-new "Disconnect $NAME1"
-expectpart "$($clixon_cli -1 -f $CFG -E $CFD connection close $NAME1 2>&1)" 0 "^$"
-
-# Disable NAME2
-update_device "$NAME2" "$ip2" "830" "false"
+update_device "$NAME2" "$ip2" "830" "false" # DISABLE
 
 # A1: Connect all with NAME2 disabled -> CLI warning (return 0), NAME2 skipped
-new "A1: Connect all (NAME2 disabled) -> CLI warning, transaction SUCCESS"
-expectpart "$($clixon_cli -1 -f $CFG -E $CFD connection open '*' 2>&1)" 0 "Warning: device '$NAME2' skipped"
+check_tx $NAME2 "A1 connect disabled" oper "connection open '*'" silent success skip
 
-new "A1: Verify transaction SUCCESS (NAME2 skipped)"
-check_last_transaction "SUCCESS"
+update_device "$NAME2" "$ip2" "830" "true" # CLOSED
 
-new "A1: Verify transaction Warning"
-check_last_transaction "Warning: devices skipped"
-
-new "A1: Verify $NAME2 still DISABLED"
-expectpart "$($clixon_cli -1 -f $CFG -E $CFD show connections $NAME2)" 0 "$NAME2 \ * DISABLED"
-
-ensure_ref_open
-
-# B1: Disconnect all with NAME2 disabled -> NAME2 skipped with warning
-new "B1: Disconnect all (NAME2 disabled) -> CLI warning, NAME2 skipped"
-expectpart "$($clixon_cli -1 -f $CFG -E $CFD connection close '*' 2>&1)" 0 "Warning: device '$NAME2' skipped"
-
-new "B1: Verify transaction WARNING"
-check_last_transaction "Warning: devices skipped"
-
-ensure_ref_open
-
-# C1: Pull all with NAME2 disabled -> CLI warning (return 0), NAME2 skipped
-new "C1: Pull all (NAME2 disabled) -> CLI warning, transaction SUCCESS"
-expectpart "$($clixon_cli -1 -f $CFG -E $CFD pull '*' 2>&1)" 0 "Warning: device '$NAME2' skipped"
-
-new "C1: Verify transaction SUCCESS (NAME2 skipped)"
-check_last_transaction "SUCCESS"
-
-# D1: Show diff for disabled NAME2 -> CLI error, transaction FAILED
-new "D1: Show devices diff (NAME2 disabled) -> CLI error"
-expectpart "$($clixon_cli -1 -f $CFG -E $CFD show devices $NAME2 diff 2>&1)" 0 "Warning: device '$NAME2' skipped"
-
-new "D1: Verify transaction SUCCESS"
-check_last_transaction "SUCCESS"
-
-# E1: Commit push with NAME2 disabled -> CLI error
-new "E1: Add device config"
-edit_device_config "$NAME2" "test" false
-
-new "E1: Commit push (NAME2 disabled) -> CLI error" # <---
-expectpart "$($clixon_cli -1 -m configure -f $CFG -E $CFD commit push 2>&1)" 0 "Warning: device '$NAME2' skipped"
-
-new "F1: Commit diff (NAME2 disabled) -> CLI warning (return 0)"
-expectpart "$($clixon_cli -1 -m configure -f $CFG -E $CFD commit diff 2>&1)" 0 "Warning: device '$NAME2' skipped"
-
-# ============================================================
-# STATE 2: CLOSED
-# Preamble: enable NAME2
-# ============================================================
-update_device "$NAME2" "$ip2" "830" "true"
-
-new "Setup: Connect reference device $NAME2"
-expectpart "$($clixon_cli -1 -f $CFG -E $CFD connection open $NAME2 2>&1)" 0 "^$"
-
-# B2: Disconnect all when NAME2 never connected -> silent
-new "B2: Disconnect all (NAME2 enabled+closed) -> CLI silent"
-expectpart "$($clixon_cli -1 -f $CFG -E $CFD connection close '*' 2>&1)" 0 "^$"
-
-ensure_ref_open
-
-# C2: Pull all with NAME2 CLOSED -> transaction SUCCESS with warning
-new "C2: Pull all (NAME2 enabled+closed) -> CLI OK warning"
-expectpart "$($clixon_cli -1 -f $CFG -E $CFD pull '*' 2>&1)" 0 "Warning: device" "${NAME2}" "skipped"
-
-new "C2: Verify transaction SUCCESS"
-check_last_transaction "SUCCESS"
-
-new "C2: Verify transaction Warning"
-check_last_transaction "Warning: devices skipped"
-
-new "D2: Edit device config of reference"
-edit_device_config "$NAME1" "test" true
-
-# D2: Show diff for NAME2 CLOSED -> CLI error, transaction SUCCESS with warning
-new "D2: Show devices diff (NAME2 enabled+closed) -> CLI OK Warning"
-expectpart "$($clixon_cli -1 -f $CFG -E $CFD show devices diff 2>&1)" 0 "Warning: device '$NAME2' skipped" "\+.*login-banner"
-
-new "D2: Delete device config of reference"
-delete_device_config "$NAME1" "test" true
-
-new "D2: Verify transaction SUCCESS"
-check_last_transaction "SUCCESS"
-
-new "D2: Verify transaction Warning"
-check_last_transaction "Warning: devices skipped"
-
-# E20: # E2: Commit push with NAME2 CLOSED and NO edits -> skip altogether
-new "E20: Commit push (NAME2 enabled+closed+noedits)"
-expectpart "$($clixon_cli -1 -m configure -f $CFG -E $CFD commit push 2>&1)" 0 "Warning: device '$NAME2' skipped"
-
-new "E20: Verify transaction Success"
-check_last_transaction "SUCCESS"
-
-new "E20: Verify $NAME1 (no change) not in transaction device list"
-expectpart "$($clixon_cli -1 -f $CFG -E $CFD show transactions detail 2>&1)" 0 --not-- "$NAME1"
-
-# E2: Commit push with NAME2 CLOSED -> CLI error
-new "E2: Edit device config"
-edit_device_config "$NAME2" "test" false
-
-new "E2: Commit push (NAME2 enabled+closed) -> CLI error"
-expectpart "$($clixon_cli -1 -m configure -f $CFG -E $CFD commit push 2>&1)" 255 "Device is closed" "$NAME2"
-
-new "E2: Verify transaction Failure"
-check_last_transaction "FAILED"
-
-new "E2: Discard"
-expectpart "$($clixon_cli -1 -m configure -f $CFG -E $CFD rollback)" 0 "^$"
-
-# F20: Commit diff with NAME2 CLOSED -> CLI warning (return 0)
-new "F20: Commit diff (NAME2 enabled+closed+noedit) -> OK"
-expectpart "$($clixon_cli -1 -m configure -f $CFG -E $CFD commit diff 2>&1)" 0 "Warning: device '$NAME2' skipped"
-
-new "F20: Verify transaction Success"
-check_last_transaction "SUCCESS"
-
-# F2: Commit diff with NAME2 CLOSED edit -> CLI warning
-new "F2: Edit device config"
-edit_device_config "$NAME2" "test" false
-
-new "F2: Commit diff (NAME2 enabled+closed) -> CLI warning (return 0)"
-expectpart "$($clixon_cli -1 -m configure -f $CFG -E $CFD commit diff 2>&1)" 0 "Warning: device '$NAME2' skipped"
-
-new "F2: Discard change"
-expectpart "$($clixon_cli -1 -m configure -f $CFG -E $CFD rollback)" 0 "^$"
-
-# A2: Connect all -> NAME1 reconnects, NAME2 opens -> both OPEN, CLI silent
-new "A2: Connect all (NAME2 enabled+closed) -> CLI silent, OPEN"
-expectpart "$($clixon_cli -1 -f $CFG -E $CFD connection open '*' 2>&1)" 0 "^$"
-
-sleep $sleep
+# A2: Connect NAME2
+check_tx $NAME2 "A2 connect closed" oper "connection open '*'" silent success success
 
 new "A2: Verify $NAME2 OPEN"
-expectpart "$($clixon_cli -1 -f $CFG -E $CFD show connections)" 0 "OPEN"
+expectpart "$($clixon_cli -1 -f $CFG -E $CFD show connections $NAME2)" 0 "OPEN"
+
+# A3: Reconnect OPEN devices
+check_tx $NAME2 "A3 connect open" oper "connection open '*'" silent success skipped
 
 # ============================================================
-# STATE 3: OPEN
+# B: Connection CLOSE
 # ============================================================
-new "State3: Pull all device config"
-expectpart "$($clixon_cli -1 -f $CFG -E $CFD pull '*' 2>&1)" 0 "^$"
+update_device "$NAME2" "$ip2" "830" "false"  # DISABLE
 
-# C3: Pull all OPEN devices -> success, CLI silent
-new "C3: Pull all (both open) -> CLI silent"
-expectpart "$($clixon_cli -1 -f $CFG -E $CFD pull '*' 2>&1)" 0 "^$"
+# B1: Disconnect disabled
+check_tx $NAME2 "B1 disconnect disabled" oper "connection close '*'" silent success skip
 
-# D3: Show diff for NAME2 OPEN -> return 0
-new "D3: Show devices diff (NAME2 enabled+open) -> return 0"
-expectpart "$($clixon_cli -1 -f $CFG -E $CFD show devices $NAME2 diff 2>&1)" 0 "^$"
+update_device "$NAME2" "$ip2" "830" "true" # CLOSED
+# B2: Disconnect closed
+check_tx $NAME2 "B2 disconnect closed" oper "connection close '*'" silent success skip
 
-# E3: Commit push to all OPEN devices -> success, CLI silent
-new "E3: Edit device config"
+connect_device $NAME2
+
+# B3: Disconnect open
+check_tx $NAME2 "B2 disconnect open" oper "connection close '*'" silent success success
+
+new "Verify $NAME2 CLOSED"
+expectpart "$($clixon_cli -1 -f $CFG -E $CFD show connections $NAME2)" 0 "CLOSED"
+
+# ============================================================
+# C: PULL
+# ============================================================
+update_device "$NAME2" "$ip2" "830" "false"  # DISABLE
+
+# C1: Pull disabled
+check_tx $NAME2 "C1 pull disabled" oper "pull '*'" silent success skip
+
+update_device "$NAME2" "$ip2" "830" "true" # CLOSED
+
+# C2: Pull closed
+check_tx $NAME2 "C2 pull closed" oper "pull '*'" warning success skip
+
+connect_device $NAME2
+
+# C3: Pull open
+check_tx $NAME2 "C3 pull open" oper "pull '*'" silent success success
+
+# ============================================================
+# D: Show devices diff (with local committed change)
+# ============================================================
+update_device "$NAME2" "$ip2" "830" "false"  # DISABLE
+
+edit_device_config "$NAME2" "test" true
+
+# D1: Show devices diff disabled - shows diff of stored config vs candidate
+check_tx $NAME2 "D1 show devices diff disabled" oper "show devices $NAME2 diff" diff success skip
+
+update_device "$NAME2" "$ip2" "830" "true" # CLOSED
+edit_device_config "$NAME2" "test" true
+
+# D2: Show devices diff closed
+check_tx $NAME2 "D2 show devices diff closed" oper "show devices $NAME2 diff" warning success skip
+
+connect_device $NAME2
+
+edit_device_config "$NAME2" "test" true
+
+# D3: Show devices diff open
+check_tx $NAME2 "D3 show devices diff open" oper "show devices $NAME2 diff" diff success success
+
+delete_device_config "$NAME2" "test" true
+
+# ============================================================
+# E: Commit push manual changed
+# ============================================================
+update_device "$NAME2" "$ip2" "830" "false"  # DISABLE
 edit_device_config "$NAME2" "test" false
 
-new "E3: Commit push (both open) -> CLI silent"
-expectpart "$($clixon_cli -1 -m configure -f $CFG -E $CFD commit push 2>&1)" 0 "^$"
+# E1: Commit push manual changed disabled XXX FAIL
+check_tx $NAME2 "E1 commit manual changed disabled" configure "commit push" warning success skip
 
-new "E3: Verify transaction SUCCESS"
-check_last_transaction "SUCCESS"
+delete_device_config "$NAME2" "test" true
 
-new "E3: Verify only changed device ($NAME2) appears in transaction"
-expectpart "$($clixon_cli -1 -f $CFG -E $CFD show transactions detail 2>&1)" 0 "$NAME2" --not-- "$NAME1"
-
-# F3: Commit diff with all OPEN devices -> return 0
-new "F3: Edit device config"
+update_device "$NAME2" "$ip2" "830" "true" # CLOSED
 edit_device_config "$NAME2" "test" false
 
-new "F3: Commit diff (both open) -> return 0"
-expectpart "$($clixon_cli -1 -m configure -f $CFG -E $CFD commit diff 2>&1)" 0 "^$"
+# E2: Commit push manual changed closed
+check_tx $NAME2 "E2 commit manual changed closed" configure "commit push" error failed failed
 
-new "F3: Rollback candidate"
-expectpart "$($clixon_cli -1 -m configure -f $CFG -E $CFD rollback)" 0 "^$"
+delete_device_config "$NAME2" "test" true
 
-# A3: Reconnect all already-OPEN devices -> still OPEN, CLI silent
-new "A3: Reconnect all (both open) -> CLI silent"
-expectpart "$($clixon_cli -1 -f $CFG -E $CFD connection reconnect '*' 2>&1)" 0 "^$"
+connect_device $NAME2
+edit_device_config "$NAME2" "test" false
 
-sleep $sleep
+# E3: Commit push manual changed open
+check_tx $NAME2 "E3 commit manual changed open" configure "commit push" silent success success
 
-new "A3: Verify still OPEN"
-expectpart "$($clixon_cli -1 -f $CFG -E $CFD show connections)" 0 "OPEN"
-
-# B3: Disconnect all OPEN devices -> CLOSED, CLI silent
-new "B3: Disconnect all (both open) -> CLI silent"
-expectpart "$($clixon_cli -1 -f $CFG -E $CFD connection close '*' 2>&1)" 0 "^$"
-
-new "B3: Verify $NAME2 CLOSED"
-expectpart "$($clixon_cli -1 -f $CFG -E $CFD show connections)" 0 "CLOSED"
-
-ensure_ref_open
+delete_device_config "$NAME2" "test" true
 
 # ============================================================
-# STATE 2 CLOSED special case: unreachable: port=1
+# F: Commit diff manual change
 # ============================================================
-update_device "$NAME2" "$ip2" "1" "true"
+update_device "$NAME2" "$ip2" "830" "false"  # DISABLE
+edit_device_config "$NAME2" "test" false
 
-# A2: Connect all with NAME2 unreachable -> CLI error (one device fails)
-new "A2: Connect all (NAME2 enabled+unreachable) -> CLI error"
-expectpart "$($clixon_cli -1 -f $CFG -E $CFD connection open '*' 2>&1)" 0 "Connection refused"
+# F1: Commit diff manual change disabled
+check_tx $NAME2 "F1 commit diff manual changed disabled" configure "commit diff" diff success success
 
-new "A2: Verify transaction FAILED"
-check_last_transaction "FAILED"
+delete_device_config "$NAME2" "test" true
 
-new "A2: Verify $NAME2 still CLOSED"
-expectpart "$($clixon_cli -1 -f $CFG -E $CFD show connections $NAME2)" 0 "$NAME2 \ * CLOSED"
+update_device "$NAME2" "$ip2" "830" "true" # CLOSED
+edit_device_config "$NAME2" "test" false
 
-ensure_ref_open
+# F2: Commit diff manual change close
+check_tx $NAME2 "F2 commit diff manual changed close" configure "commit diff" skip warning skipped
 
-# B2: Disconnect all with NAME2 already CLOSED -> NAME2 skipped with warning
-new "B2: Disconnect all (NAME2 enabled+unreachable+closed) -> CLI warning, NAME2 skipped"
-expectpart "$($clixon_cli -1 -f $CFG -E $CFD connection close '*' 2>&1)" 0 "Warning: device '$NAME2' skipped"
+connect_device $NAME2
 
-new "B2: Verify transaction WARNING"
-check_last_transaction "Warning: devices skipped"
+delete_device_config "$NAME2" "test" true
+edit_device_config "$NAME2" "test" false
 
-ensure_ref_open
+# F3: Commit diff manual change open
+check_tx $NAME2 "F3 commit diff manual changed open" configure "commit diff" diff success success
+
+delete_device_config "$NAME2" "test" false
+check_tx $NAME2 "commit reset" configure "commit push" silent success success
+
+# ============================================================
+# X: No local edits:
+#   Xa: show devices diff
+#   Xb: Commit push manual
+#   Xc: Commit diff manual
+# ============================================================
+# Xa: No edits show devices diff
+# ============================================================
+update_device "$NAME2" "$ip2" "830" "false"  # DISABLE
+
+# Xa1: No edits show devices diff disabled
+check_tx $NAME2 "Xa1 show devices diff disabled" oper "show devices $NAME2 diff" silent success skip
+
+# Xa2: Show devices diff closed
+update_device "$NAME2" "$ip2" "830" "true"  # CLOSED (enabled but not connected)
+check_tx $NAME2 "Xa2 show devices diff closed" oper "show devices $NAME2 diff" warning success skip
+
+connect_device $NAME2
+
+# Xa3: Show devices diff open
+check_tx $NAME2 "Xa3 show devices diff open" oper "show devices $NAME2 diff" silent success success
+
+# ============================================================
+# Xb: No edits commit push manual
+# ============================================================
+update_device "$NAME2" "$ip2" "830" "false"  # DISABLE
+
+# Xb1: No edits commit push manual disabled
+check_tx $NAME2 "Xb1 commit manual changed disabled" configure "commit push" silent success absent
+
+update_device "$NAME2" "$ip2" "830" "true" # CLOSED
+
+# Xb2: No edits commit push manual no-edits closed
+check_tx $NAME2 "Xb2 commit manual changed closed" configure "commit push" silent success absent
+
+connect_device $NAME2
+
+# Xb3: No edits Commit push manual no-edits
+check_tx $NAME2 "Xb3 commit manual changed open" configure "commit push" silent success absent
+
+# ============================================================
+# Xc: No edits Commit diff manual
+# ============================================================
+update_device "$NAME2" "$ip2" "830" "false"  # DISABLE
+
+# Xc1: No edits commit diff manual disabled
+check_tx $NAME2 "Xc1 commit diff manual changed disabled" configure "commit diff" silent success absent
+
+update_device "$NAME2" "$ip2" "830" "true" # CLOSED
+
+# Xc2: No edits commit push manual closed
+check_tx $NAME2 "Xc2 commit diff manual changed closed" configure "commit diff" silent success absent
+
+connect_device $NAME2
+
+# Xc3: No edits commit push manual open
+check_tx $NAME2 "Xc3 commit diff manual changed closed" configure "commit diff" silent success absent
 
 # ============================================================
 # Cleanup

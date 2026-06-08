@@ -821,6 +821,46 @@ controller_transaction_device_skip(controller_transaction *ct,
     return retval;
 }
 
+/*! Record a failed device in the transaction for later display.
+ *
+ * Adds device to ct_devices with an empty-string value (encoding: NULL=SUCCESS,
+ * ""=FAILED, non-empty=SKIPPED) so that show-transaction-detail can output
+ * <result>FAILED</result> for this device.
+ * @param[in] ct     Transaction
+ * @param[in] name   Device name
+ * @retval    0      OK
+ * @retval   -1      Error
+ */
+int
+controller_transaction_device_fail(controller_transaction *ct,
+                                   const char             *name)
+{
+    int     retval = -1;
+    cg_var *cv;
+
+    if (ct->ct_devices == NULL){
+        if ((ct->ct_devices = cvec_new(0)) == NULL){
+            clixon_err(OE_UNIX, errno, "cvec_new");
+            goto done;
+        }
+    }
+    if ((cv = cvec_find(ct->ct_devices, name)) != NULL){
+        if (cv_string_set(cv, "") == NULL){
+            clixon_err(OE_UNIX, errno, "cv_string_set");
+            goto done;
+        }
+    }
+    else {
+        if (cvec_add_string(ct->ct_devices, name, "") < 0){
+            clixon_err(OE_UNIX, errno, "cvec_add_string");
+            goto done;
+        }
+    }
+    retval = 0;
+  done:
+    return retval;
+}
+
 /*! A controller transaction (device) has failed
  *
  * This device failed, ie validation has failed, the device lost connection, etc
@@ -1061,10 +1101,16 @@ controller_transaction_statedata(clixon_handle h,
                 cv = NULL;
                 cprintf(cb, "<devices>");
                 while ((cv = cvec_each(ct->ct_devices, cv)) != NULL){
+                    const char *devr = cv_string_get(cv);
                     cprintf(cb, "<device><name>%s</name>", cv_name_get(cv));
-                    if (cv_string_get(cv)){
-                        cprintf(cb, "<result>%s</result>", transaction_result_int2str(TR_SKIPPED));
-                        cprintf(cb, "<reason>%s</reason>", cv_string_get(cv));
+                    if (devr != NULL){
+                        if (*devr == '\0')
+                            /* empty string encodes FAILED (no per-device reason) */
+                            cprintf(cb, "<result>%s</result>", transaction_result_int2str(TR_FAILED));
+                        else {
+                            cprintf(cb, "<result>%s</result>", transaction_result_int2str(TR_SKIPPED));
+                            cprintf(cb, "<reason>%s</reason>", devr);
+                        }
                     }
                     cprintf(cb, "</device>");
                 }

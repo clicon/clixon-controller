@@ -741,7 +741,8 @@ transaction_exist(clixon_handle h,
  */
 static int
 transaction_print_skipped(clixon_handle h,
-                          char         *tidstr)
+                          char         *tidstr,
+                          int           closed_only)
 {
     int    retval = -1;
     cxobj *xn = NULL;
@@ -779,6 +780,9 @@ transaction_print_skipped(clixon_handle h,
             continue;
         name = xml_find_body(xskip, "name");
         reason = xml_find_body(xskip, "reason");
+        /* In closed_only mode, suppress warnings for disabled devices */
+        if (closed_only && reason && strcmp(reason, "disabled") == 0)
+            continue;
         cligen_output(stderr, "Warning: device '%s' skipped (%s)\n",
                       name ? name : "?",
                       reason ? reason : "?");
@@ -883,7 +887,7 @@ cli_rpc_pull(clixon_handle h,
     if (ret == 1){
         if (transaction_notification_poll(h, tidstr, &result) < 0)
             goto done;
-        if (transaction_print_skipped(h, tidstr) < 0)
+        if (transaction_print_skipped(h, tidstr, 1) < 0)
             goto done;
     }
     retval = 0;
@@ -1187,7 +1191,7 @@ cli_rpc_controller_commit(clixon_handle h,
                 goto done;
             if (result != TR_SUCCESS)
                 goto ok;
-            if (transaction_print_skipped(h, tidstr) < 0)
+            if (transaction_print_skipped(h, tidstr, 0) < 0)
                 goto done;
         }
         /* Interpret actions and no push as diff */
@@ -1297,8 +1301,6 @@ cli_connection_change(clixon_handle h,
             goto done;
         if (ret == 1){
             if (transaction_notification_poll(h, tidstr, &result) < 0)
-                goto done;
-            if (transaction_print_skipped(h, tidstr) < 0)
                 goto done;
         }
     }
@@ -1972,7 +1974,7 @@ compare_device_config_type(clixon_handle      h,
             if (result != TR_SUCCESS)
                 goto done;
         }
-        if (transaction_print_skipped(h, tidstr) < 0)
+        if (transaction_print_skipped(h, tidstr, 1) < 0)
             goto done;
     }
     if ((cb = cbuf_new()) == NULL){
@@ -3034,7 +3036,7 @@ cli_device_rpc_template(clixon_handle h,
     if (ret == 1){
         if (transaction_notification_poll(h, tidstr, &result) < 0)
             goto done;
-        if (transaction_print_skipped(h, tidstr) < 0)
+        if (transaction_print_skipped(h, tidstr, 0) < 0)
             goto done;
     }
     retval = 0;
@@ -3345,7 +3347,7 @@ cli_show_device_state(clixon_handle h,
     if (ret == 1){
         if (transaction_notification_poll(h, tidstr, &result) < 0)
             goto done;
-        if (transaction_print_skipped(h, tidstr) < 0)
+        if (transaction_print_skipped(h, tidstr, 1) < 0)
                 goto done;
     }
     retval = 0;
