@@ -446,7 +446,7 @@ update_device "$NAME2" "$ip2" "830" "false"  # DISABLE
 edit_device_config "$NAME2" "test" true
 
 # D1: Show devices diff disabled - shows diff of stored config vs candidate
-check_tx $NAME2 "D1 show devices diff disabled" oper "show devices $NAME2 diff" diff success skip
+check_tx $NAME2 "D1 show devices diff disabled" oper "show devices $NAME2 diff" diff success success
 
 update_device "$NAME2" "$ip2" "830" "true" # CLOSED
 edit_device_config "$NAME2" "test" true
@@ -520,25 +520,25 @@ check_tx $NAME2 "commit reset" configure "commit push" silent success success
 
 # ============================================================
 # X: No local edits:
-#   Xa: show devices diff
+#   Dx: show devices diff
 #   Xb: Commit push manual
 #   Xc: Commit diff manual
 # ============================================================
-# Xa: No edits show devices diff
+# Dx: No edits show devices diff
 # ============================================================
 update_device "$NAME2" "$ip2" "830" "false"  # DISABLE
 
-# Xa1: No edits show devices diff disabled
-check_tx $NAME2 "Xa1 show devices diff disabled" oper "show devices $NAME2 diff" silent success skip
+# Dx1: No edits show devices diff disabled
+check_tx $NAME2 "Dx1 show devices diff disabled" oper "show devices $NAME2 diff" silent success success
 
-# Xa2: Show devices diff closed
+# Dx2: Show devices diff closed
 update_device "$NAME2" "$ip2" "830" "true"  # CLOSED (enabled but not connected)
-check_tx $NAME2 "Xa2 show devices diff closed" oper "show devices $NAME2 diff" warning success skip
+check_tx $NAME2 "Dx2 show devices diff closed" oper "show devices $NAME2 diff" warning success skip
 
 connect_device $NAME2
 
-# Xa3: Show devices diff open
-check_tx $NAME2 "Xa3 show devices diff open" oper "show devices $NAME2 diff" silent success success
+# Dx3: Show devices diff open
+check_tx $NAME2 "Dx3 show devices diff open" oper "show devices $NAME2 diff" silent success success
 
 # ============================================================
 # Xb: No edits commit push manual

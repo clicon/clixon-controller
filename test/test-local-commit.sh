@@ -86,7 +86,7 @@ if [ -z "$match" ]; then
     err1 "rpc-error"
 fi
 
-match=$(echo $ret | grep --null -Eo "No devices are selected") || true
+match=$(echo $ret | grep --null -Eo "No changes to push") || true
 if [ -z "$match" ]; then
     err1 "No devices are selected"
 fi

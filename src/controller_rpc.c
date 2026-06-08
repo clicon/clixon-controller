@@ -737,8 +737,15 @@ rpc_config_pull(clixon_handle h,
             continue;
         if ((body = xml_find_body(xn, "enabled")) != NULL &&
             strcmp(body, "true") != 0){
-            if (controller_transaction_device_skip(ct, devname, "disabled") < 0)
-                goto done;
+            if (transient){
+                /* Transient pull for diff: disabled device succeeds using cached SYNCED data */
+                if (controller_transaction_device_add(ct, devname) < 0)
+                    goto done;
+            }
+            else {
+                if (controller_transaction_device_skip(ct, devname, "disabled") < 0)
+                    goto done;
+            }
             continue;
         }
         if ((dh = device_handle_find(h, devname)) == NULL ||
