@@ -268,7 +268,7 @@ check_services_commit_subscription(clixon_handle h,
     if ((nsc = xml_nsctx_init(NULL, EVENT_RFC5277_NAMESPACE)) == NULL)
         goto done;
     if ((x = xpath_first(xe, nsc, "//stream")) == NULL ||
-        (stream = xml_find_value(x, "body")) == NULL ||
+        (stream = xml_body(x)) == NULL ||
         (es = stream_find(h, stream)) == NULL)
         goto ok;
     if (strcmp(stream, "services-commit") != 0)

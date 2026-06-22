@@ -376,8 +376,7 @@ device_edit_config_remove_subtree(cxobj *xn)
              *   See https://github.com/clicon/clixon-controller/issues/203
              *  Not an element, not removed by prune_flagged below
              */
-            if ((xsub = xml_body_get(xn)) != NULL)
-                xml_purge(xsub);
+            xml_body_reset(xn);
             break;
         default:
             break;

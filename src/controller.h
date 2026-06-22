@@ -65,7 +65,7 @@
  *
  * In-mem is good for performance, but difficult to debug
  * Also may be unnecesary due to other optimizations
- * See also XMLDB_CANDIDATE_INMEM
+ * Use: CLICON_XMLDB_CACHE_STATUS instead
  */
 #define XMLDB_ACTION_INMEM 1
 
