@@ -4,8 +4,8 @@ services:
     container_name: controller-test
     image: clixon/controller-test
     build:
-      context: ../
-      dockerfile: docker/Dockerfile
+      context: .
+      dockerfile: Dockerfile
     environment:
       CONTAINERS: "r1 r2"
     ports:

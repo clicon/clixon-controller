@@ -13,16 +13,44 @@ on:
 
 jobs:
   test-job:
-    name: Controller tests
+    name: Controller tests (${{ matrix.group }})
     runs-on: ubuntu-latest
     permissions:
       contents: read
-    timeout-minutes: 10
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - group: connect-cli
+            pattern: >-
+              test-connect.sh test-connect-local.sh
+              test-cli-edit-config.sh test-cli-edit-multiple.sh
+              test-cli-order.sh test-cli-show-config.sh
+              test-local-commit.sh test-controller-privcand.sh
+          - group: change-lock
+            pattern: >-
+              test-change-both.sh test-change-ctrl-push.sh
+              test-change-device-diff.sh test-push-close.sh
+              test-lock-devices.sh test-lock-exclusive.sh
+              test-device-groups.sh test-device-state.sh
+          - group: service-python
+            pattern: >-
+              test-python-mini.sh test-python-service.sh
+              test-c-service.sh test-c-editconfig.sh test-c-simulated.sh
+              test-template.sh test-service-lock.sh test-device-rpc.sh
+          - group: nacm-yang-other
+            pattern: >-
+              test-nacm.sh test-nacm-autocli.sh test-nacm-restconf.sh
+              test-restconf.sh test-yang-domain.sh test-yang-lib.sh
+              test-get-device-schema.sh test-ignore.sh
     steps:
     - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
       with:
         persist-credentials: false
+    - name: Clone source for docker build
+      run: cd docker && git clone file://$(realpath ..) clixon-controller
     - name: Start containers
       run: (cd docker; docker compose -f docker-compose-test.yml up --build -d)
     - name: Run tests
-      run: sleep 5; docker exec -t controller-test bash -c 'cd clixon-controller/test/;detail=true ./sum.sh'
+      run: sleep 5; docker exec -t controller-test bash -c "cd clixon-controller/test/ && pattern='${{ matrix.pattern }}' detail=true ./sum.sh"

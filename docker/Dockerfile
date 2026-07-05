@@ -48,10 +48,10 @@ RUN make
 RUN make install
 RUN ldconfig
 
-# Copy Clixon-controller code from local dir
+# Copy Clixon-controller code from local git checkout (see Makefile clixon-controller target)
 RUN mkdir /clixon/clixon-controller
 WORKDIR /clixon/clixon-controller
-COPY . .
+COPY clixon-controller .
 RUN ./configure
 RUN make
 RUN make install
@@ -70,6 +70,6 @@ RUN pip3 install -r clixon-pyapi/requirements.txt --break-system-packages
 RUN cp /usr/local/etc/clixon/controller.xml /usr/local/etc/clixon/clixon.xml
 RUN cp /usr/local/etc/clixon/controller.xml /usr/local/etc/clixon.xml
 
-COPY docker/startsystem.sh /usr/local/bin/
+COPY startsystem.sh /usr/local/bin/
 
 ENTRYPOINT /usr/local/bin/startsystem.sh

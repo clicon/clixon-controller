@@ -4,8 +4,8 @@ services:
     container_name: controller
     image: clixon/controller:${TAG}
     build:
-      context: ../
-      dockerfile: docker/Dockerfile
+      context: .
+      dockerfile: Dockerfile
     ports:
       - "8082:80"
     volumes:
