@@ -9,7 +9,8 @@ docker
 
 ## Build
 
-Perform the build by `make docker`. This copies the latest committed clixon code into the container.
+Perform the build by `make docker`. This copies the latest committed clixon-controller code into the container.
+Note it is the locally committed code, non-committed changes are not used.
 
 ## Example run
 

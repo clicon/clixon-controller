@@ -10,6 +10,7 @@ config.status
 TAGS
 controller/docker/src
 controller/docker/yang
+docker/clixon-controller
 test/site.sh
 test/config.sh
 

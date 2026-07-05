@@ -27,18 +27,28 @@ top_srcdir  	= ..
 IMG   = clixon/controller
 NAME  = clixon-controller
 
-.PHONY: all clean distclean docker push depend install uninstall test
+.PHONY: all clean distclean docker push depend install uninstall test clixon-controller
 
 all:	
 	echo "Run make docker to build docker image, or make test to run tests"
 
+clean:
+	rm -rf clixon-controller
+
 distclean: clean
 	rm -f Makefile *~ .depend
 
-docker: Dockerfile
+# Clone the controller repo from the local git checkout into docker/clixon-controller
+# so that the image is built from the latest *committed* code (uncommitted changes
+# are NOT included - they must be committed first).
+clixon-controller:
+	rm -rf clixon-controller
+	git clone file://$(realpath $(top_srcdir)) clixon-controller
+
+docker: clixon-controller Dockerfile
 	sudo docker compose build --progress plain  # --no-cache
 
-docker-test: Dockerfile
+docker-test: clixon-controller Dockerfile
 	sudo docker compose -f docker-compose-test.yml build --progress plain
 
 push:
