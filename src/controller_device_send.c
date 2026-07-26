@@ -44,6 +44,7 @@
 
 /* These include signatures for plugin and transaction callbacks. */
 #include <clixon/clixon_backend.h>
+#include <clixon/banned.h>
 
 /* Controller includes */
 #include "controller.h"

@@ -41,6 +41,7 @@
 
 /* Clicon library functions. */
 #include <clixon/clixon.h>
+#include <clixon/banned.h>
 
 /* Controller includes */
 #include "controller.h"

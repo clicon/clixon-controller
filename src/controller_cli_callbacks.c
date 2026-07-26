@@ -42,6 +42,7 @@
 #include <clixon/clixon.h>
 #include <clixon/clixon_cli.h>
 #include <clixon/cli_generate.h>
+#include <clixon/banned.h>
 
 /* Controller includes */
 #include "controller.h"
@@ -1591,7 +1592,7 @@ show_transaction_one(cxobj *xc)
         strncpy(desc_truncated, description, sizeof(desc_truncated)-1);
     }
     else
-        strcpy(desc_truncated, "-");
+        snprintf(desc_truncated, sizeof(desc_truncated), "-");
     /* Calculate duration */
     if (timestamp0 && timestamp){
         if (str2time(timestamp0, &tv0) == 0 &&
@@ -1601,10 +1602,10 @@ show_transaction_one(cxobj *xc)
                      tvdiff.tv_sec%10000, tvdiff.tv_usec/1000);
         }
         else
-            strcpy(duration_str, "-");
+            snprintf(duration_str, sizeof(duration_str), "-");
     }
     else
-        strcpy(duration_str, "-");
+        snprintf(duration_str, sizeof(duration_str), "-");
         /* Calculate duration */
     if ((cb = cbuf_new()) == NULL){
         clixon_err(OE_UNIX, errno, "cbuf_new");

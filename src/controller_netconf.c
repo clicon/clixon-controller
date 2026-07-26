@@ -41,6 +41,7 @@
 
 /* Clicon library functions. */
 #include <clixon/clixon.h>
+#include <clixon/banned.h>
 
 /* Local includes (no controller dependencies) */
 #include "controller_netconf.h"

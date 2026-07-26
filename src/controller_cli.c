@@ -41,6 +41,7 @@
 #include <clixon/clixon.h>
 #include <clixon/clixon_cli.h>
 #include <clixon/cli_generate.h>
+#include <clixon/banned.h>
 
 /* Controller includes */
 #include "controller.h"
