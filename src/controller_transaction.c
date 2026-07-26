@@ -188,6 +188,7 @@ transaction_devdata_add(clixon_handle           h,
     cbuf      *cb = NULL;
     cvec      *nsc = NULL;
     int        ix;
+    cbuf      *cbxp = NULL;
     int        ret;
 
     if (ct->ct_devdata == NULL){
@@ -233,7 +234,17 @@ transaction_devdata_add(clixon_handle           h,
         }
         goto failed;
     }
-    if ((xdata = xpath_first(ct->ct_devdata, NULL, "devdata[name='%s']/data", name)) == NULL){
+    if ((cbxp = cbuf_new()) == NULL){
+        clixon_err(OE_UNIX, errno, "cbuf_new");
+        goto done;
+    }
+    cprintf(cbxp, "devdata[name=");
+    if (xpath_literal_encode(cbxp, name, 1) < 0){
+        goto done;
+    }
+    cprintf(cbxp, "]/data");
+    xdata = xpath_first(ct->ct_devdata, NULL, "%s", cbuf_get(cbxp));
+    if (xdata == NULL){
         clixon_err(OE_XML, 0, "devdata not found");
         goto done;
     }
@@ -255,6 +266,8 @@ transaction_devdata_add(clixon_handle           h,
     }
     retval = 1;
  done:
+    if (cbxp)
+        cbuf_free(cbxp);
     if (nsc)
         cvec_free(nsc);
     if (cb)

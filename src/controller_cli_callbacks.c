@@ -707,14 +707,22 @@ transaction_exist(clixon_handle h,
         clixon_err(OE_PLUGIN, errno, "cbuf_new");
         goto done;
     }
-    cprintf(cb, "co:transactions/co:transaction[co:tid='%s']", tidstr);
+    cprintf(cb, "co:transactions/co:transaction[co:tid=");
+    if (xpath_literal_encode(cb, tidstr, 1) < 0)
+        goto done;
+    cprintf(cb, "]");
     if (clicon_rpc_get(h, cbuf_get(cb), nsc, CONTENT_ALL, -1, "report-all", &xn) < 0)
         goto done;
     if ((xerr = xpath_first(xn, NULL, "/rpc-error")) != NULL){
         clixon_err_netconf(h, OE_XML, 0, xerr, "Get transactions");
         goto done;
     }
-    if (xpath_first(xn, nsc, "transactions/transaction[tid='%s']", tidstr) != NULL)
+    cbuf_reset(cb);
+    cprintf(cb, "transactions/transaction[tid=");
+    if (xpath_literal_encode(cb, tidstr, 1) < 0)
+        goto done;
+    cprintf(cb, "]");
+    if (xpath_first(xn, nsc, "%s", cbuf_get(cb)) != NULL)
         retval = 1;
     else
         retval = 0;
@@ -3006,6 +3014,7 @@ expand_device_rpc(void   *h,
     yang_stmt *ydesc;
     int        inext;
     int        inext1;
+    cbuf      *cbxp = NULL;
 
     if (argv == NULL || cvec_len(argv) < 1 || cvec_len(argv) > 1){
         clixon_err(OE_PLUGIN, EINVAL, "requires arguments: <name>");
@@ -3026,8 +3035,20 @@ expand_device_rpc(void   *h,
     }
     if (rpc_get_yanglib_mount_match(h, devname, 1, 1, &xdevs) < 0)
         goto done;
-    if (xdevs != NULL &&
-        (xdevc = xpath_first(xdevs, 0, "devices/device[name='%s']/config", devname)) != NULL){
+    if (xdevs != NULL){
+        if ((cbxp = cbuf_new()) == NULL){
+            clixon_err(OE_UNIX, errno, "cbuf_new");
+            goto done;
+        }
+        cprintf(cbxp, "devices/device[name=");
+        if (xpath_literal_encode(cbxp, devname, 1) < 0){
+            goto done;
+        }
+        cprintf(cbxp, "]/config");
+        xdevc = xpath_first(xdevs, 0, "%s", cbuf_get(cbxp));
+    } else
+        xdevc = NULL;
+    if (xdevc != NULL){
         if (xml_yang_mount_get(h, xdevc, NULL, NULL, &yspec1) < 0)
             goto done;
         inext = 0;
@@ -3051,6 +3072,8 @@ expand_device_rpc(void   *h,
     }
     retval = 0;
  done:
+    if (cbxp)
+        cbuf_free(cbxp);
     if (xdevs)
         xml_free(xdevs);
     if (cb)
@@ -3139,8 +3162,16 @@ cli_generic_rpc_match(clixon_handle h,
         xdevs1 = NULL;
         if (rpc_get_yanglib_mount_match(h, devname, 0, 1, &xdevs1) < 0)
             goto done;
-        if (xdevs1 != NULL &&
-            (xdevc = xpath_first(xdevs1, 0, "devices/device[name='%s']/config", devname)) != NULL){
+        if (xdevs1 != NULL){
+            cbuf_reset(cb);
+            cprintf(cb, "devices/device[name=");
+            if (xpath_literal_encode(cb, devname, 1) < 0)
+                goto done;
+            cprintf(cb, "]/config");
+            xdevc = xpath_first(xdevs1, 0, "%s", cbuf_get(cb));
+        } else
+            xdevc = NULL;
+        if (xdevc != NULL){
             if (xml_yang_mount_get(h, xdevc, NULL, NULL, &yspec1) < 0)
                 goto done;
             inext = 0;

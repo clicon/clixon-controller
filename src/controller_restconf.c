@@ -112,6 +112,7 @@ device_check_open(clixon_handle h,
     cxobj *xret = NULL;
     cxobj *xerr;
     cxobj *xconn;
+    cbuf  *cbxp = NULL;
 
     if ((nsc = xml_nsctx_init("co", CONTROLLER_NAMESPACE)) == NULL)
         goto done;
@@ -123,12 +124,22 @@ device_check_open(clixon_handle h,
         clixon_err_netconf(h, OE_XML, 0, xerr, "Get devices");
         goto done;
     }
-    if ((xconn = xpath_first(xret, NULL, "devices/device[name='%s']/conn-state", name)) != NULL){
+    if ((cbxp = cbuf_new()) == NULL){
+        clixon_err(OE_UNIX, errno, "cbuf_new");
+        goto done;
+    }
+    cprintf(cbxp, "devices/device[name=");
+    if (xpath_literal_encode(cbxp, name, 1) < 0)
+        goto done;
+    cprintf(cbxp, "]/conn-state");
+    if ((xconn = xpath_first(xret, NULL, "%s", cbuf_get(cbxp))) != NULL){
         if (strcmp(xml_body(xconn), "OPEN") == 0)
             goto open;
     }
     retval = 0;
  done:
+    if (cbxp)
+        cbuf_free(cbxp);
     if (xret)
         xml_free(xret);
     if (nsc)

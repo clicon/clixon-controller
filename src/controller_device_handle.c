@@ -980,6 +980,7 @@ device_handle_yang_lib_append(device_handle dh,
     cxobj                           *xm1;
     char                            *name;
     int                              ix;
+    cbuf                            *cbxp = NULL;
 
     /* Sanity check */
     if (xylib){
@@ -995,13 +996,23 @@ device_handle_yang_lib_append(device_handle dh,
                 goto done;
             }
             if (xml_tree_equal(xms0, xms1) != 0) {
+                if ((cbxp = cbuf_new()) == NULL){
+                    clixon_err(OE_UNIX, errno, "cbuf_new");
+                    goto done;
+                }
                 ix = 0;
                 while ((xm1 = xml_child_iter(xms1, &ix, CX_ELMNT)) != NULL) {
                     if (strcmp(xml_name(xm1), "module") != 0)
                         continue;
                     if ((name = xml_find_body(xm1, "name")) == NULL)
                         continue;
-                    if ((xm0 = xpath_first(xms0, NULL, "module[name='%s']", name)) != NULL){
+                    cbuf_reset(cbxp);
+                    cprintf(cbxp, "module[name=");
+                    if (xpath_literal_encode(cbxp, name, 1) < 0)
+                        goto done;
+                    cprintf(cbxp, "]");
+                    xm0 = xpath_first(xms0, NULL, "%s", cbuf_get(cbxp));
+                    if (xm0 != NULL){
                         if (xml_tree_equal(xm0, xm1) != 0) {
                             if (xml_rm_children(xm0, -1) < 0)
                                 goto done;
@@ -1016,6 +1027,8 @@ device_handle_yang_lib_append(device_handle dh,
                             goto done;
                     }
                 }
+                cbuf_free(cbxp);
+                cbxp = NULL;
             }
         }
     }
@@ -1025,6 +1038,8 @@ device_handle_yang_lib_append(device_handle dh,
     }
     retval = 0;
  done:
+    if (cbxp)
+        cbuf_free(cbxp);
     if (xylib)
         xml_free(xylib);
     return retval;

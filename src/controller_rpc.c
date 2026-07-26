@@ -59,6 +59,46 @@
 /* Forward */
 static int traverse_device_group(clixon_handle h, cxobj *xdevs, cxobj **vec1, size_t vec1len, cxobj **vec2, size_t vec2len, cvec *devvec);
 
+/*! Find first matching xml node given an xpath prefix, a name-value literal, and a suffix
+ *
+ * Builds an xpath of the form "<prefix>[<key>=<value>]<suffix>" where value is safely
+ * escaped/quoted using xpath_literal_encode() to avoid xpath injection via values containing
+ * quote characters.
+ * @param[in]  xtop    Top xml node
+ * @param[in]  nsc     Namespace context
+ * @param[in]  prefix  Xpath prefix, e.g. "devices/device"
+ * @param[in]  key     Key/leaf name inside predicate, e.g. "name"
+ * @param[in]  value   Value to match (may contain quote characters)
+ * @param[in]  suffix  Xpath suffix appended after predicate, e.g. "/config" or "" (may be NULL)
+ * @retval     xn      First matching node, or NULL if no match
+ * @retval     NULL    Error (indistinguishable from no match, see clixon_err())
+ */
+static cxobj *
+xpath_first_name(cxobj      *xtop,
+                 cvec       *nsc,
+                 const char *prefix,
+                 const char *key,
+                 const char *value,
+                 const char *suffix)
+{
+    cxobj *xn = NULL;
+    cbuf  *cbxp = NULL;
+
+    if ((cbxp = cbuf_new()) == NULL){
+        clixon_err(OE_UNIX, errno, "cbuf_new");
+        goto done;
+    }
+    cprintf(cbxp, "%s[%s=", prefix, key);
+    if (xpath_literal_encode(cbxp, value, 1) < 0)
+        goto done;
+    cprintf(cbxp, "]%s", suffix?suffix:"");
+    xn = xpath_first(xtop, nsc, "%s", cbuf_get(cbxp));
+ done:
+    if (cbxp)
+        cbuf_free(cbxp);
+    return xn;
+}
+
 /*! Connect to device via Netconf SSH
  *
  * @param[in]  h             Clixon handle
@@ -175,7 +215,7 @@ controller_connect(clixon_handle           h,
     }
     /* Find device-profile object if any */
     if ((xb = xml_find_type(xn, NULL, "device-profile", CX_ELMNT)) != NULL)
-        xdevprofile = xpath_first(xn, NULL, "../device-profile[name='%s']", xml_body(xb));
+        xdevprofile = xpath_first_name(xn, NULL, "../device-profile", "name", xml_body(xb), NULL);
     if ((xb = xml_find_type(xn, NULL, "conn-type", CX_ELMNT)) == NULL)
         goto ok;
     /* If not explicit value (default value set) AND device-profile set, use that */
@@ -1516,9 +1556,9 @@ devices_diff(clixon_handle           h,
         if (device_handle_tid_get(dh) == ct->ct_id)
             continue;
         name = device_handle_name_get(dh);
-        if ((xn = xpath_first(td->td_src, nsc, "devices/device[name='%s']", name)) != NULL)
+        if ((xn = xpath_first_name(td->td_src, nsc, "devices/device", "name", name, NULL)) != NULL)
             xml_flag_set(xn, XML_FLAG_SKIP);
-        if ((xn = xpath_first(td->td_target, nsc, "devices/device[name='%s']", name)) != NULL)
+        if ((xn = xpath_first_name(td->td_target, nsc, "devices/device", "name", name, NULL)) != NULL)
             xml_flag_set(xn, XML_FLAG_SKIP);
     }
     if (xml_diff(td->td_src,
@@ -1559,11 +1599,11 @@ devices_diff(clixon_handle           h,
         if (device_handle_tid_get(dh) != ct->ct_id)
             continue;
         name = device_handle_name_get(dh);
-        if ((xn = xpath_first(td->td_src, nsc, "devices/device[name='%s']", name)) != NULL){
+        if ((xn = xpath_first_name(td->td_src, nsc, "devices/device", "name", name, NULL)) != NULL){
             if (xml_flag(xn, XML_FLAG_CHANGE) != 0)
                 touch++;
         }
-        if ((xn = xpath_first(td->td_target, nsc, "devices/device[name='%s']", name)) != NULL){
+        if ((xn = xpath_first_name(td->td_target, nsc, "devices/device", "name", name, NULL)) != NULL){
             if (xml_flag(xn, XML_FLAG_CHANGE) != 0)
                 touch++;
         }
@@ -2951,7 +2991,7 @@ rpc_device_config_template_apply(clixon_handle h,
             goto done;
         goto ok;
     }
-    if ((xtmpl = xpath_first(xret, nsc, "devices/template[name='%s']/config", tmplname)) == NULL){
+    if ((xtmpl = xpath_first_name(xret, nsc, "devices/template", "name", tmplname, "/config")) == NULL){
         if (netconf_operation_failed(cbret, "application", "Template not found")< 0)
             goto done;
         goto ok;
@@ -2967,12 +3007,12 @@ rpc_device_config_template_apply(clixon_handle h,
     }
     pattern = xml_body(xn);
     xvars = xml_find_type(xe, NULL, "variables", CX_ELMNT);
-    xvars0 = xpath_first(xret, nsc, "devices/template[name='%s']/variables", tmplname);
+    xvars0 = xpath_first_name(xret, nsc, "devices/template", "name", tmplname, "/variables");
     /* Match actual parameters in xvars with formal paremeters in xvars0 */
     ix = 0;
     while ((xv = xml_child_iter(xvars, &ix, CX_ELMNT)) != NULL) {
         varname = xml_find_body(xv, "name");
-        if (xpath_first(xvars0, nsc, "variable[name='%s']", varname) == NULL){
+        if (xpath_first_name(xvars0, nsc, "variable", "name", varname, NULL) == NULL){
             if (netconf_unknown_element(cbret, "application", varname, "No such template variable")< 0)
                 goto done;
             goto ok;
@@ -2981,7 +3021,7 @@ rpc_device_config_template_apply(clixon_handle h,
     ix = 0;
     while ((xv = xml_child_iter(xvars0, &ix, CX_ELMNT)) != NULL) {
         varname = xml_find_body(xv, "name");
-        if (xpath_first(xvars, nsc, "variable[name='%s']", varname) == NULL){
+        if (xpath_first_name(xvars, nsc, "variable", "name", varname, NULL) == NULL){
             if (netconf_missing_element(cbret, "application", varname, "Template variable")< 0)
                 goto done;
             goto ok;
@@ -3154,12 +3194,12 @@ rpc_device_rpc_template_apply(clixon_handle h,
     if (xmldb_get0(h, "running", YB_MODULE, nsc, "devices", 1, WITHDEFAULTS_EXPLICIT, &xret, NULL, NULL) < 0)
         goto done;
     if ((tmplname = xml_find_body(xe, "template")) != NULL){
-        if ((xconfig = xpath_first(xret, nsc, "devices/rpc-template[name='%s']/config", tmplname)) == NULL){
+        if ((xconfig = xpath_first_name(xret, nsc, "devices/rpc-template", "name", tmplname, "/config")) == NULL){
             if (netconf_operation_failed(cbret, "application", "Template config not found")< 0)
                 goto done;
             goto ok;
         }
-        xvars0 = xpath_first(xret, nsc, "devices/rpc-template[name='%s']/variables", tmplname);
+        xvars0 = xpath_first_name(xret, nsc, "devices/rpc-template", "name", tmplname, "/variables");
     }
     else if ((xinline = xml_find_type(xe, NULL, "inline", CX_ELMNT)) != NULL) {
         if ((xconfig = xml_find_type(xinline, NULL, "config", CX_ELMNT)) == NULL) {
@@ -3190,7 +3230,7 @@ rpc_device_rpc_template_apply(clixon_handle h,
     ix = 0;
     while ((xv = xml_child_iter(xvars, &ix, CX_ELMNT)) != NULL) {
         varname = xml_find_body(xv, "name");
-        if (xpath_first(xvars0, nsc, "variable[name='%s']", varname) == NULL){
+        if (xpath_first_name(xvars0, nsc, "variable", "name", varname, NULL) == NULL){
             if (netconf_unknown_element(cbret, "application", varname, "No such template variable")< 0)
                 goto done;
             goto ok;
@@ -3199,7 +3239,7 @@ rpc_device_rpc_template_apply(clixon_handle h,
     ix = 0;
     while ((xv = xml_child_iter(xvars0, &ix, CX_ELMNT)) != NULL) {
         varname = xml_find_body(xv, "name");
-        if (xpath_first(xvars, nsc, "variable[name='%s']", varname) == NULL){
+        if (xpath_first_name(xvars, nsc, "variable", "name", varname, NULL) == NULL){
             if (clixon_xml_parse_va(YB_NONE, NULL, &xvars, NULL, "<variable><name>%s</name><value></value></variable>", varname) < 0)
                 goto done;
         }
