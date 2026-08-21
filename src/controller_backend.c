@@ -84,10 +84,15 @@ controller_statedata(clixon_handle   h,
 }
 
 /*! Disconnect device
+ *
+ * @param[in] h    Clixon handle
+ * @param[in] xn   XML device tree
+ * @param[in] free Free device handle after disconnect
  */
 static int
 disconnect_device_byxml(clixon_handle h,
-                        cxobj        *xn)
+                        cxobj        *xn,
+                        int           free)
 {
     char         *name;
     device_handle dh = NULL;
@@ -97,10 +102,8 @@ disconnect_device_byxml(clixon_handle h,
         device_handle_conn_state_get(dh) != CS_CLOSED){
         device_close_connection(dh, NULL); /* Regular disconnect, no reason */
     }
-#if 0 /* Disabling this, makes DISABLE and CLOSED equal */
-    if (dh)
+    if (dh && free)
         device_handle_free(dh);
-#endif
     return 0;
 }
 
@@ -247,7 +250,7 @@ controller_commit_devices(clixon_handle h,
         goto done;
     for (i=0; i<veclen1; i++){
         x = vec1[i];
-        if (disconnect_device_byxml(h, x) < 0)
+        if (disconnect_device_byxml(h, x, 1) < 0)
             goto done;
     }
     /* 2a) if enable changed to false, disconnect, to true connect
@@ -260,7 +263,7 @@ controller_commit_devices(clixon_handle h,
         x = vec2[i];
         if ((body = xml_body(x)) != NULL){
             if (strcmp(body, "false") == 0){
-                if (disconnect_device_byxml(h, xml_parent(x)) < 0)
+                if (disconnect_device_byxml(h, xml_parent(x), 0) < 0)
                     goto done;
             }
         }
@@ -274,7 +277,7 @@ controller_commit_devices(clixon_handle h,
         goto done;
     for (i=0; i<veclen3; i++){
         x = vec3[i];
-        if (disconnect_device_byxml(h, xml_parent(x)) < 0)
+        if (disconnect_device_byxml(h, xml_parent(x), 0) < 0)
             goto done;
     }
     /* 2d) if device changed domain,profile:
@@ -286,7 +289,7 @@ controller_commit_devices(clixon_handle h,
         goto done;
     for (i=0; i<veclen4; i++){
         x = vec4[i];
-        if (disconnect_device_byxml(h, xml_parent(x)) < 0)
+        if (disconnect_device_byxml(h, xml_parent(x), 0) < 0)
             goto done;
     }
     retval = 0;
