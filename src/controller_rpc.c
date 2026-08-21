@@ -1837,15 +1837,28 @@ rpc_controller_commit(clixon_handle h,
         clixon_err(OE_UNIX, errno, "cbuf_new");
         goto done;
     }
-    cprintf(cbtr, "Controller commit");
-    if ((str = xml_find_body(xe, "actions")) != NULL){
+    if ((str = xml_find_body(xe, "actions")) != NULL)
         actions = actions_type_str2int(str);
-        cprintf(cbtr, " actions:%s", str);
-    }
-    if ((str = xml_find_body(xe, "push")) != NULL){
+    if ((str = xml_find_body(xe, "push")) != NULL)
         pusht = push_type_str2int(str);
-        cprintf(cbtr, " push:%s", str);
-    }
+    if (actions == AT_NONE && pusht == PT_VALIDATE)
+        cprintf(cbtr, "validate");
+    else if (actions == AT_NONE && pusht == PT_COMMIT)
+        cprintf(cbtr, "commit");
+    else if (actions == AT_CHANGE && pusht == PT_NONE)
+        cprintf(cbtr, "commit diff");
+    else if (actions == AT_CHANGE && pusht == PT_VALIDATE)
+        cprintf(cbtr, "validate");
+    else if (actions == AT_CHANGE && pusht == PT_COMMIT)
+        cprintf(cbtr, "commit");
+    else if (actions == AT_FORCE && pusht == PT_NONE)
+        cprintf(cbtr, "apply diff");
+    else if (actions == AT_FORCE && pusht == PT_COMMIT)
+        cprintf(cbtr, "apply");
+    else if (actions == AT_DELETE && pusht == PT_COMMIT)
+        cprintf(cbtr, "apply delete");
+    else
+        cprintf(cbtr, "controller commit");
     service_instance = xml_find_body(xe, "service-instance");
     /* Initiate new transaction.
      * NB: this locks candidate, which always needs to be unlocked, eg by controller_transaction_done
@@ -2320,11 +2333,6 @@ rpc_connection_change(clixon_handle h,
     int                     ret;
 
     clixon_debug(CLIXON_DBG_CTRL, "");
-    if ((cbtr = cbuf_new()) == NULL){
-        clixon_err(OE_UNIX, errno, "cbuf_new");
-        goto done;
-    }
-    cprintf(cbtr, "Controller connect");
     if ((xn = xml_find(xe, "device")) != NULL)
         ;
     else if ((xn = xml_find(xe, "device-group")) != NULL)
@@ -2336,7 +2344,11 @@ rpc_connection_change(clixon_handle h,
     }
     pattern = xml_body(xn);
     operation = xml_find_body(xe, "operation");
-    cprintf(cbtr, " %s", operation);
+    if ((cbtr = cbuf_new()) == NULL){
+        clixon_err(OE_UNIX, errno, "cbuf_new");
+        goto done;
+    }
+    cprintf(cbtr, "connection %s", operation);
     if ((ret = controller_transaction_new(h, ce, clicon_username_get(h), cbuf_get(cbtr), 1, &ct, &cberr)) < 0)
         goto done;
     if (ret == 0){
