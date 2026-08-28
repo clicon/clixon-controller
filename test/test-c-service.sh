@@ -591,6 +591,15 @@ if [ -z "$match" ]; then
     err "diff - Ax entry" "$ret"
 fi
 
+# Regression: after a service commit diff, devices must appear in the transaction.
+new "commit diff 4: devices in transaction"
+ret=$(${clixon_cli} -1f $CFG -E $CFD show transactions detail 2>&1)
+#echo "ret:$ret"
+match=$(echo "$ret" | grep --null -Eo "<name>${IMG}1</name>") || true
+if [ -z "$match" ]; then
+    err "${IMG}1 in transaction detail" "$ret"
+fi
+
 # Delete testA completely
 new "delete testA(3)"
 ret=$(${clixon_netconf} -0 -f $CFG -E $CFD <<EOF

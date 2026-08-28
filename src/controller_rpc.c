@@ -57,6 +57,7 @@
 #include "controller_rpc.h"
 
 /* Forward */
+static int commit_push_after_actions(clixon_handle h, controller_transaction *ct, const char *candidate);
 static int traverse_device_group(clixon_handle h, cxobj *xdevs, cxobj **vec1, size_t vec1len, cxobj **vec2, size_t vec2len, cvec *devvec);
 static int device_error(clixon_handle h, controller_transaction *ct, device_handle dh, int reason, cbuf *cbret);
 
@@ -1208,117 +1209,6 @@ controller_commit_push(clixon_handle           h,
     goto done;
 }
 
-/*! Push commit after actions completed, potentially start device push process
- *
- * Devices are removed of no device diff
- * @param[in]  h    Clixon handle
- * @param[in]  ct   Transaction
- * @param[in]  candidate Name of candidate-db
- * @retval     0    OK
- * @retval    -1    Error
- */
-static int
-commit_push_after_actions(clixon_handle           h,
-                          controller_transaction *ct,
-                          const char             *candidate)
-{
-    int           retval = -1;
-    cbuf         *cberr = NULL;
-    int           ret;
-
-    /* Dump volatile actions db to disk */
-    if (ct->ct_actions_type != AT_NONE && strcmp(ct->ct_sourcedb, "actions") == 0) {
-        if (xmldb_populate(h, "actions") < 0)
-            goto done;
-        if (xmldb_write_cache2file(h, "actions") < 0)
-            goto done;
-        // XXX validate actions?
-    }
-    if (ct->ct_push_type == PT_NONE){
-        if (controller_transaction_done(h, ct, TR_SUCCESS) < 0)
-            goto done;
-    }
-    else{
-        /* Compute diff of candidate + commit and trigger service
-         * If some device diff is zero, then remove device from transaction
-         */
-        if ((ret = controller_commit_push(h, ct, "actions", &cberr)) < 0)
-            goto done;
-        if (ret == 0){
-            if ((ct->ct_origin = strdup("controller")) == NULL){
-                clixon_err(OE_UNIX, errno, "strdup");
-                goto done;
-            }
-            if ((ct->ct_reason = strdup(cbuf_get(cberr))) == NULL){
-                clixon_err(OE_UNIX, errno, "strdup");
-                goto done;
-            }
-            if (controller_transaction_done(h, ct, TR_FAILED) < 0)
-                goto done;
-        }
-        /* No device started, close transaction */
-        else if (controller_transaction_nr_devices(h, ct->ct_id) == 0){
-            if (ct->ct_actions_type != AT_NONE && strcmp(ct->ct_sourcedb, "candidate")==0){
-                if ((cberr = cbuf_new()) == NULL){
-                    clixon_err(OE_UNIX, errno, "cbuf_new");
-                    goto done;
-                }
-                /* What to copy to candidate and commit to running? */
-                if (xmldb_copy(h, "actions", candidate) < 0)
-                    goto done;
-                /* XXX: recursive creates transaction */
-                if ((ret = candidate_commit(h, NULL, candidate, 0, 0, cberr)) < 0){
-                    /* Handle that candidate_commit can return < 0 if transaction ongoing */
-                    cprintf(cberr, "%s", clixon_err_reason()); // XXX encode
-                    ret = 0;
-                }
-                if (ret == 1){
-                    if (xmldb_post_commit(h, ct->ct_client_id) < 0)
-                        goto done;
-                }
-                if (clicon_option_bool(h, "CLICON_AUTOLOCK"))
-                    xmldb_unlock(h, candidate);
-                if (ret == 0){ // XXX awkward, cb ->xml->cb
-                    cxobj *xerr = NULL;
-                    cbuf *cberr2 = NULL;
-                    if ((cberr2 = cbuf_new()) == NULL){
-                        clixon_err(OE_UNIX, errno, "cbuf_new");
-                        goto done;
-                    }
-                    if (clixon_xml_parse_string(cbuf_get(cberr), YB_NONE, NULL, &xerr, NULL) < 0)
-                        goto done;
-                    if (netconf_err2cb(h, xerr, cberr2) < 0)
-                        goto done;
-                    if (controller_transaction_failed(h, ct->ct_id, ct, NULL, TR_FAILED_DEV_LEAVE,
-                                                      NULL,
-                                                      cbuf_get(cberr2)) < 0)
-                        goto done;
-                    if (xerr)
-                        xml_free(xerr);
-                    if (cberr2)
-                        cbuf_free(cberr2);
-                    goto ok;
-                }
-            }
-            if ((ct->ct_reason = strdup("No device configuration changed, no push necessary")) == NULL){
-                clixon_err(OE_UNIX, errno, "strdup");
-                goto done;
-            }
-            if (controller_transaction_done(h, ct, TR_SUCCESS) < 0)
-                goto done;
-        }
-        else{
-            /* Some or all started */
-        }
-    }
- ok:
-    retval = 0;
- done:
-    if (cberr)
-        cbuf_free(cberr);
-    return retval;
-}
-
 /*! Send NETCONF service-commit notification
  *
  * @param[in]  h     Clixon handle
@@ -1686,6 +1576,182 @@ devices_diff(clixon_handle           h,
     return retval;
 }
 
+/*! Add devices with XML changes in td diff to a transaction
+ *
+ * Iterates all OPEN devices with TID == ct->ct_id. Checks XML_FLAG_CHANGE in
+ * both the source and target sides of the diff. Calls
+ * controller_transaction_device_add() for each touched device.
+ * @param[in]  h   Clixon handle
+ * @param[in]  ct  Transaction
+ * @param[in]  td  Pre-computed diff (from devices_diff)
+ * @retval     0   OK
+ * @retval    -1   Error
+ */
+static int
+populate_devices_from_diff(clixon_handle           h,
+                           controller_transaction *ct,
+                           transaction_data_t     *td)
+{
+    int           retval = -1;
+    device_handle dh;
+    char         *devname;
+    cxobj        *xn;
+    int           touch;
+
+    dh = NULL;
+    while ((dh = device_handle_each(h, dh)) != NULL){
+        if (device_handle_tid_get(dh) != ct->ct_id)
+            continue;
+        if (device_handle_conn_state_get(dh) != CS_OPEN)
+            continue;
+        touch = 0;
+        devname = device_handle_name_get(dh);
+        if ((xn = xpath_first_name(td->td_src, NULL, "devices/device", "name", devname, NULL)) != NULL)
+            if (xml_flag(xn, XML_FLAG_CHANGE) != 0)
+                touch++;
+        if ((xn = xpath_first_name(td->td_target, NULL, "devices/device", "name", devname, NULL)) != NULL)
+            if (xml_flag(xn, XML_FLAG_CHANGE) != 0)
+                touch++;
+        if (touch){
+            if (controller_transaction_device_add(ct, devname) < 0)
+                goto done;
+        }
+    }
+    retval = 0;
+  done:
+    return retval;
+}
+
+/*! Push commit after actions completed, potentially start device push process
+ *
+ * Devices are removed of no device diff
+ * @param[in]  h    Clixon handle
+ * @param[in]  ct   Transaction
+ * @param[in]  candidate Name of candidate-db
+ * @retval     0    OK
+ * @retval    -1    Error
+ */
+static int
+commit_push_after_actions(clixon_handle           h,
+                          controller_transaction *ct,
+                          const char             *candidate)
+{
+    int                 retval = -1;
+    cbuf               *cberr = NULL;
+    int                 ret;
+    transaction_data_t *td = NULL;
+    device_handle       closed;
+
+    /* Dump volatile actions db to disk */
+    if (ct->ct_actions_type != AT_NONE && strcmp(ct->ct_sourcedb, "actions") == 0) {
+        if (xmldb_populate(h, "actions") < 0)
+            goto done;
+        if (xmldb_write_cache2file(h, "actions") < 0)
+            goto done;
+        // XXX validate actions?
+    }
+    if (ct->ct_push_type == PT_NONE){
+        /* For diff mode with service actions: compute diff of actions vs running
+         * to populate ct_devices.  The pre-populate block in rpc_controller_commit()
+         * runs before services modify the actions db, so no device changes are found
+         * there and no devices are added.
+         */
+        if (ct->ct_actions_type != AT_NONE){
+            if ((td = transaction_new()) == NULL)
+                goto done;
+            if (devices_diff(h, ct, "actions", td, &closed) < 0)
+                goto done;
+            if (populate_devices_from_diff(h, ct, td) < 0)
+                goto done;
+            transaction_free1(td, 0);
+            td = NULL;
+        }
+        if (controller_transaction_done(h, ct, TR_SUCCESS) < 0)
+            goto done;
+    }
+    else{
+        /* Compute diff of candidate + commit and trigger service
+         * If some device diff is zero, then remove device from transaction
+         */
+        if ((ret = controller_commit_push(h, ct, "actions", &cberr)) < 0)
+            goto done;
+        if (ret == 0){
+            if ((ct->ct_origin = strdup("controller")) == NULL){
+                clixon_err(OE_UNIX, errno, "strdup");
+                goto done;
+            }
+            if ((ct->ct_reason = strdup(cbuf_get(cberr))) == NULL){
+                clixon_err(OE_UNIX, errno, "strdup");
+                goto done;
+            }
+            if (controller_transaction_done(h, ct, TR_FAILED) < 0)
+                goto done;
+        }
+        /* No device started, close transaction */
+        else if (controller_transaction_nr_devices(h, ct->ct_id) == 0){
+            if (ct->ct_actions_type != AT_NONE && strcmp(ct->ct_sourcedb, "candidate")==0){
+                if ((cberr = cbuf_new()) == NULL){
+                    clixon_err(OE_UNIX, errno, "cbuf_new");
+                    goto done;
+                }
+                /* What to copy to candidate and commit to running? */
+                if (xmldb_copy(h, "actions", candidate) < 0)
+                    goto done;
+                /* XXX: recursive creates transaction */
+                if ((ret = candidate_commit(h, NULL, candidate, 0, 0, cberr)) < 0){
+                    /* Handle that candidate_commit can return < 0 if transaction ongoing */
+                    cprintf(cberr, "%s", clixon_err_reason()); // XXX encode
+                    ret = 0;
+                }
+                if (ret == 1){
+                    if (xmldb_post_commit(h, ct->ct_client_id) < 0)
+                        goto done;
+                }
+                if (clicon_option_bool(h, "CLICON_AUTOLOCK"))
+                    xmldb_unlock(h, candidate);
+                if (ret == 0){ // XXX awkward, cb ->xml->cb
+                    cxobj *xerr = NULL;
+                    cbuf *cberr2 = NULL;
+                    if ((cberr2 = cbuf_new()) == NULL){
+                        clixon_err(OE_UNIX, errno, "cbuf_new");
+                        goto done;
+                    }
+                    if (clixon_xml_parse_string(cbuf_get(cberr), YB_NONE, NULL, &xerr, NULL) < 0)
+                        goto done;
+                    if (netconf_err2cb(h, xerr, cberr2) < 0)
+                        goto done;
+                    if (controller_transaction_failed(h, ct->ct_id, ct, NULL, TR_FAILED_DEV_LEAVE,
+                                                      NULL,
+                                                      cbuf_get(cberr2)) < 0)
+                        goto done;
+                    if (xerr)
+                        xml_free(xerr);
+                    if (cberr2)
+                        cbuf_free(cberr2);
+                    goto ok;
+                }
+            }
+            if ((ct->ct_reason = strdup("No device configuration changed, no push necessary")) == NULL){
+                clixon_err(OE_UNIX, errno, "strdup");
+                goto done;
+            }
+            if (controller_transaction_done(h, ct, TR_SUCCESS) < 0)
+                goto done;
+        }
+        else{
+            /* Some or all started */
+        }
+    }
+ ok:
+    retval = 0;
+ done:
+    if (td)
+        transaction_free1(td, 0);
+    if (cberr)
+        cbuf_free(cberr);
+    return retval;
+}
+
 /*! Helpful error message if a device is closed or changed
  *
  * @param[in]  h      Clixon handle
@@ -1981,28 +2047,12 @@ rpc_controller_commit(clixon_handle h,
     }
     /* For diff mode (PT_NONE): pre-populate ct_devices with OPEN changed devices.
      * For push mode (PT_COMMIT): devices are added to ct_devices during push_device_one().
+     * Note: for service actions (AT_CHANGE/FORCE with PT_NONE), services have not yet
+     * written to the actions db at this point
      */
     if (pusht == PT_NONE){
-        int touch;
-        dh = NULL;
-        while ((dh = device_handle_each(h, dh)) != NULL){
-            if (device_handle_tid_get(dh) != ct->ct_id)
-                continue;
-            if (device_handle_conn_state_get(dh) != CS_OPEN)
-                continue;
-            touch = 0;
-            devname = device_handle_name_get(dh);
-            if ((xn = xpath_first(td->td_src, NULL, "devices/device[name='%s']", devname)) != NULL)
-                if (xml_flag(xn, XML_FLAG_CHANGE) != 0)
-                    touch++;
-            if ((xn = xpath_first(td->td_target, NULL, "devices/device[name='%s']", devname)) != NULL)
-                if (xml_flag(xn, XML_FLAG_CHANGE) != 0)
-                    touch++;
-            if (touch){
-                if (controller_transaction_device_add(ct, devname) < 0)
-                    goto done;
-            }
-        }
+        if (populate_devices_from_diff(h, ct, td) < 0)
+            goto done;
     }
     switch (actions){
     case AT_NONE: /* Bypass actions, directly to push */
