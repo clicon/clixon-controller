@@ -691,6 +691,33 @@ device_state_set(device_handle dh,
     return retval;
 }
 
+/*! Validate a device name/config-type used to construct a local datastore filename
+ *
+ * The device datastore name is built as "device-<devname>-<config_type>" and later
+ * mapped directly to a filesystem path (CLICON_XMLDB_DIR/<db>_db). A '/' in either
+ * component would allow path traversal outside the datastore directory. Names are
+ * normally constrained by the YANG "pattern" on the device name leaf; this is
+ * defense-in-depth for the raw file-construction path.
+ * @param[in]  devname      Device name
+ * @param[in]  config_type  Device config type
+ * @retval     0            OK
+ * @retval    -1            Error (invalid, clixon_err set)
+ */
+static int
+device_db_name_check(const char *devname,
+                     const char *config_type)
+{
+    if (devname == NULL || config_type == NULL){
+        clixon_err(OE_UNIX, EINVAL, "devname or config_type is NULL");
+        return -1;
+    }
+    if (strchr(devname, '/') != NULL || strchr(config_type, '/') != NULL){
+        clixon_err(OE_XML, EINVAL, "Invalid device datastore name: '/' not allowed in device name or config-type");
+        return -1;
+    }
+    return 0;
+}
+
 /*! Write device config to db file without sanity of yang checks
  *
  * @param[in]  h           Clixon handle.
@@ -713,10 +740,8 @@ device_config_write(clixon_handle h,
     cbuf  *cb = NULL;
     char  *db;
 
-    if (devname == NULL || config_type == NULL){
-        clixon_err(OE_UNIX, EINVAL, "devname or config_type is NULL");
+    if (device_db_name_check(devname, config_type) < 0)
         goto done;
-    }
     if ((cb = cbuf_new()) == NULL){
         clixon_err(OE_UNIX, errno, "cbuf_new");
         goto done;
@@ -757,10 +782,8 @@ device_config_read(clixon_handle h,
     cxobj *xt = NULL;
     cxobj *xroot;
 
-    if (devname == NULL || config_type == NULL){
-        clixon_err(OE_UNIX, EINVAL, "devname or config_type is NULL");
+    if (device_db_name_check(devname, config_type) < 0)
         goto done;
-    }
     if ((cb = cbuf_new()) == NULL){
         clixon_err(OE_UNIX, errno, "cbuf_new");
         goto done;
@@ -819,10 +842,8 @@ device_config_read_cache(clixon_handle h,
     cxobj *xerr = NULL;
     int    ret;
 
-    if (devname == NULL || config_type == NULL){
-        clixon_err(OE_UNIX, EINVAL, "devname or config_type is NULL");
+    if (device_db_name_check(devname, config_type) < 0)
         goto done;
-    }
     if ((cb = cbuf_new()) == NULL){
         clixon_err(OE_UNIX, errno, "cbuf_new");
         goto done;
@@ -886,6 +907,10 @@ device_config_copy(clixon_handle h,
         clixon_err(OE_UNIX, EINVAL, "devname, from or to is NULL");
         goto done;
     }
+    if (device_db_name_check(devname, from) < 0)
+        goto done;
+    if (device_db_name_check(devname, to) < 0)
+        goto done;
     if ((db0 = cbuf_new()) == NULL){
         clixon_err(OE_UNIX, errno, "cbuf_new");
         goto done;

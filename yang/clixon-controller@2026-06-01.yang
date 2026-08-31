@@ -41,6 +41,7 @@ module clixon-controller {
         description
             "Obsoleted transaction-common/devices/devdata and skipped
              Added result and reason in transaction-common/devices/device instead and added SKIPPED as result
+             Added pattern for device names
              Released in 1.9.0";
     }
     revision 2026-03-01 {
@@ -708,7 +709,15 @@ module clixon-controller {
             key name;
             leaf name{
                 description "device name";
-                type string;
+                type string {
+                    pattern '[^/]+' {
+                        error-message
+                            "Device name must not contain '/': the name is used "
+                          + "to construct local datastore filenames "
+                          + "(device-<name>-<type>) and a '/' would allow path "
+                          + "traversal outside CLICON_XMLDB_DIR.";
+                    }
+                }
             }
             leaf enabled {
                 type boolean;

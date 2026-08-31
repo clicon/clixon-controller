@@ -1451,8 +1451,8 @@ device_config_diff(transaction_data_t *td,
     size_t  chlen;
 
     *changep = 0;
-    xdev_run  = xpath_first(td->td_src,    NULL, "devices/device[name='%s']/config", devname);
-    xdev_cand = xpath_first(td->td_target, NULL, "devices/device[name='%s']/config", devname);
+    xdev_run  = xpath_first_name(td->td_src,    NULL, "devices/device", "name", devname, "/config");
+    xdev_cand = xpath_first_name(td->td_target, NULL, "devices/device", "name", devname, "/config");
     if (xdev_run == NULL && xdev_cand == NULL)
         ; /* no config on either side: no change */
     else if (xdev_run == NULL || xdev_cand == NULL)
