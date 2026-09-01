@@ -92,8 +92,11 @@
 /*! Service (action)  timeout if service-timeout config is invalid in s */
 #define CONTROLLER_SERVICE_TIMEOUT_DEFAULT 10
 
-/*! Device state timeout if device-timeout config is invalid in s*/
+/*! Device state timeout if device-timeout config is invalid (in s) */
 #define CONTROLLER_DEVICE_TIMEOUT_DEFAULT 60
+
+/*! Device connect state timeout if connect-timeout config is invalid (in s) */
+#define CONTROLLER_CONNECT_TIMEOUT_DEFAULT 20
 
 /*! Controller periodic timer for resoure handling in s */
 #define CONTROLLER_PERIODIC_TIMER 60

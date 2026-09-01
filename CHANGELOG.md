@@ -16,6 +16,10 @@ Expected: September 2026
 
 ### New features
 
+* Added a separate `connect-timeout` timer for setting up connection and syncing the config
+  * This is a separate timer from `device-timeout` which is expected to be longer
+  * See: [Handling unrecoverable transaction errors (including timeouts)](https://github.com/clicon/clixon-controller/issues/247) (point 1).
+  * See also: https://clixon-controller-docs.readthedocs.io/en/latest/cli.html#timeouts
 * Clarified controller transaction operations
   * Add device skiplist to transaction when device is disabled or closed for pull and commit
   * CLI added "disabled" as connection state in show connections
@@ -29,6 +33,8 @@ Users may have to change how they access the system
 * New `clixon-controller@2026-06-01.yang` revision
   * Obsoleted transaction-common/devices/devdata and skipped
   * Added result and reason in transaction-common/devices/device instead and added SKIPPED as result
+  * Added pattern for device names
+  * Added connect-timeout, differentiated connect state machine from device-timeout
 
 ### Corrected Bugs
 

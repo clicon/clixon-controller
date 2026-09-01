@@ -79,7 +79,7 @@ cli_apipath2xpath(clixon_handle h,
     if (cli_apipath(h, cvv, domain, spec, api_path_fmt, &cvvi, &api_path) < 0)
         goto done;
     if (clixon_rpc_config_path_info(h, api_path, 0, NULL, NULL,
-                                    0, NULL, NULL,
+                                    0, 0, NULL, NULL,
                                     NULL, xpath, nsc,
                                     NULL, NULL, NULL, NULL, NULL) < 0)
         goto done;
@@ -2255,7 +2255,7 @@ cli_dbxml_devs_sub(clixon_handle       h,
                 goto done;
             }
         }
-        if (clixon_rpc_api_path2xml(h, api_path, body, xtop, &xpath, &nsc) < 0)
+        if (clixon_rpc_api_path2xml(h, api_path, body, 0, xtop, &xpath, &nsc) < 0)
             goto done;
         if ((xbot = xpath_first(xtop, nsc, "%s", xpath)) == NULL){
             clixon_err(OE_XML, 0, "No XML from XPath %s", xpath);

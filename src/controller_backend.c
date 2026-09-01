@@ -217,11 +217,13 @@ controller_commit_devices(clixon_handle h,
     cxobj   **vec2 = NULL;
     cxobj   **vec3 = NULL;
     cxobj   **vec4 = NULL;
+    cxobj   **vec5 = NULL;
     size_t    veclen0;
     size_t    veclen1;
     size_t    veclen2;
     size_t    veclen3;
     size_t    veclen4;
+    size_t    veclen5;
     int       i;
     cxobj    *x;
     char     *body;
@@ -241,6 +243,21 @@ controller_commit_devices(clixon_handle h,
         }
         clixon_debug(CLIXON_DBG_CTRL, "controller-device-timeout: %u", dt);
         clicon_data_int_set(h, "controller-device-timeout", dt);
+    }
+    if (xpath_vec_flag(target, nsc, "devices/connect-timeout",
+                       XML_FLAG_ADD | XML_FLAG_CHANGE,
+                       &vec5, &veclen5) < 0)
+        goto done;
+    for (i=0; i<veclen5; i++){ /* veclen5 should be 1 */
+        x = vec5[i];
+        if ((body = xml_body(x)) == NULL)
+            continue;
+        if (parse_uint32(body, &dt, NULL) < 1){
+            clixon_err(OE_UNIX, errno, "error parsing limit:%s", body);
+            goto done;
+        }
+        clixon_debug(CLIXON_DBG_CTRL, "controller-connect-timeout: %u", dt);
+        clicon_data_int_set(h, "controller-connect-timeout", dt);
     }
 
     /* 1) if device removed, disconnect */
@@ -304,6 +321,8 @@ controller_commit_devices(clixon_handle h,
         free(vec3);
     if (vec4)
         free(vec4);
+    if (vec5)
+        free(vec5);
     return retval;
 }
 

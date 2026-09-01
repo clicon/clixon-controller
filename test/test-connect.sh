@@ -93,6 +93,28 @@ fi
 new "Wait backend"
 wait_backend
 
+# Regression: connect-timeout leaf (separate from device-timeout), see issue #247
+new "set device-timeout 120"
+expectpart "$($clixon_cli -1 -m configure -f $CFG -E $CFD set devices device-timeout 120)" 0 "^$"
+
+new "set connect-timeout 5"
+expectpart "$($clixon_cli -1 -m configure -f $CFG -E $CFD set devices connect-timeout 5)" 0 "^$"
+
+new "commit local timeouts"
+expectpart "$($clixon_cli -1 -m configure -f $CFG -E $CFD commit local)" 0 "^$"
+
+new "show connect-timeout"
+expectpart "$($clixon_cli -1 -m configure -f $CFG -E $CFD show devices 2>&1)" 0 "connect-timeout 5"
+
+new "delete connect-timeout"
+expectpart "$($clixon_cli -1 -m configure -f $CFG -E $CFD delete devices connect-timeout 5)" 0 "^$"
+
+new "delete device-timeout"
+expectpart "$($clixon_cli -1 -m configure -f $CFG -E $CFD delete devices device-timeout 120)" 0 "^$"
+
+new "commit local delete timeouts"
+expectpart "$($clixon_cli -1 -m configure -f $CFG -E $CFD commit local)" 0 "^$"
+
 # Reset controller
 ii=1
 for ip in $CONTAINERS; do

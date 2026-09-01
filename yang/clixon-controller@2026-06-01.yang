@@ -42,6 +42,7 @@ module clixon-controller {
             "Obsoleted transaction-common/devices/devdata and skipped
              Added result and reason in transaction-common/devices/device instead and added SKIPPED as result
              Added pattern for device names
+             Added connect-timeout, differentiated connect state machine from device-timeout
              Released in 1.9.0";
     }
     revision 2026-03-01 {
@@ -648,9 +649,21 @@ module clixon-controller {
                 "Device transient state timeout in seconds, ie all states except 'open' and 'close'
                  Every time a device state is changed to a 'transient' state, this timer is set, if the device
                  has not left the state within this timeout, a transaction failure 'waiting for remote peer' will be
-                 sent as a notification.";
+                 sent as a notification.
+                 This applies to the config push and generic RPC state machines, and is the fallback
+                 timeout for the connect state machine if connect-timeout is not set.";
             type uint32;
             default 60;
+            units s;
+        }
+        leaf connect-timeout{
+            description
+                "Device connect state timeout in seconds for the connect state machine, ie
+                 connecting, schema retrieval and initial device sync.
+                 A connection to an unreachable device should fail quickly, whereas config push
+                 and RPC operations (see device-timeout) may legitimately take longer.
+                 If not set, device-timeout is used for the connect state machine as well.";
+            type uint32;
             units s;
         }
         list device-group{

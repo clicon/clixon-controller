@@ -598,14 +598,36 @@ device_state_timeout_register(device_handle dh)
     clixon_handle  h;
     cbuf          *cb = NULL;
     char          *name;
+    conn_state     state;
 
     name = device_handle_name_get(dh);
     gettimeofday(&t, NULL);
     h = device_handle_handle_get(dh);
-    if ((d = clicon_data_int_get(h, "controller-device-timeout")) < 0)
-        t1.tv_sec = CONTROLLER_DEVICE_TIMEOUT_DEFAULT;
-    else
-        t1.tv_sec = d;
+    state = device_handle_conn_state_get(dh);
+    /* The connect state machine (connecting, schema retrieval, initial sync) uses
+     * connect-timeout if configured, so an unreachable device fails quickly.
+     * Push and generic-RPC states use device-timeout. device-timeout is also the
+     * fallback for connect states if connect-timeout is not set.
+     */
+    switch (state){
+    case CS_CONNECTING:
+    case CS_SCHEMA_LIST:
+    case CS_SCHEMA_ONE:
+    case CS_DEVICE_SYNC:
+        if ((d = clicon_data_int_get(h, "controller-connect-timeout")) < 0)
+            d = clicon_data_int_get(h, "controller-device-timeout");
+        if (d < 0)
+            t1.tv_sec = CONTROLLER_CONNECT_TIMEOUT_DEFAULT;
+        else
+            t1.tv_sec = d;
+        break;
+    default:
+        if ((d = clicon_data_int_get(h, "controller-device-timeout")) < 0)
+            t1.tv_sec = CONTROLLER_DEVICE_TIMEOUT_DEFAULT;
+        else
+            t1.tv_sec = d;
+        break;
+    }
     t1.tv_usec = 0;
     clixon_debug(CLIXON_DBG_CTRL | CLIXON_DBG_DETAIL, "timeout:%ld s", t1.tv_sec);
     timeradd(&t, &t1, &t);
