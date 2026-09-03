@@ -34,6 +34,7 @@
 #include <signal.h> /* matching strings */
 #include <sys/stat.h>
 #include <sys/time.h>
+#include <sys/select.h>
 #include <sys/param.h>
 #include <netinet/in.h>
 
@@ -631,6 +632,97 @@ send_transaction_error(clixon_handle h,
     return retval;
 }
 
+/*! Show one-line progress of an ongoing transaction on a terminal
+ *
+ * Called periodically by transaction_notification_poll() while waiting for the
+ * final transaction notification, to give interactive feedback while a push
+ * commit/validate (or other transaction) is running, see issue #247.
+ * Queries the per-device connection state of devices currently part of the
+ * transaction and prints a single, updated status line. Errors from the state
+ * query are ignored (progress display is best-effort and must not abort the
+ * ongoing wait for the actual transaction result).
+ * @param[in] h       Clixon handle
+ * @param[in] tidstr  Transaction id (string)
+ * @param[in] elapsed Elapsed whole seconds since the wait started
+ * @retval    0       OK
+ * @retval   -1       Error
+ */
+static int
+transaction_progress_show(clixon_handle h,
+                          char         *tidstr,
+                          int           elapsed)
+{
+    int      retval = -1;
+    cvec    *nsc = NULL;
+    cxobj   *xn = NULL;
+    cxobj   *xerr;
+    cxobj  **vec = NULL;
+    size_t   veclen = 0;
+    cbuf    *cb = NULL;
+    int      i;
+
+    if ((nsc = xml_nsctx_init("co", CONTROLLER_NAMESPACE)) == NULL)
+        goto done;
+    if ((cb = cbuf_new()) == NULL){
+        clixon_err(OE_PLUGIN, errno, "cbuf_new");
+        goto done;
+    }
+    cprintf(cb, "co:devices/co:device[co:tid=");
+    if (xpath_literal_encode(cb, tidstr, 1) < 0)
+        goto done;
+    cprintf(cb, "]/co:name | co:devices/co:device[co:tid=");
+    if (xpath_literal_encode(cb, tidstr, 1) < 0)
+        goto done;
+    cprintf(cb, "]/co:conn-state");
+    if (clicon_rpc_get(h, cbuf_get(cb), nsc, CONTENT_ALL, -1, "explicit", &xn) < 0)
+        goto done;
+    if ((xerr = xpath_first(xn, NULL, "/rpc-error")) != NULL){
+        /* Ignore transient state-query errors, dont abort the transaction wait */
+        retval = 0;
+        goto done;
+    }
+    cbuf_reset(cb);
+    cprintf(cb, "Transaction %s: %ds", tidstr, elapsed);
+    if (xpath_vec(xn, nsc, "devices/device", &vec, &veclen) == 0){
+        for (i = 0; i < veclen; i++){
+            char *name = xml_find_body(vec[i], "name");
+            char *state = xml_find_body(vec[i], "conn-state");
+
+            if (name)
+                cprintf(cb, " %s=%s", name, state?state:"?");
+        }
+    }
+    cligen_output(stdout, "\r\033[2K%s", cbuf_get(cb));
+    fflush(stdout);
+    retval = 0;
+ done:
+    if (vec)
+        free(vec);
+    if (cb)
+        cbuf_free(cb);
+    if (xn)
+        xml_free(xn);
+    if (nsc)
+        cvec_free(nsc);
+    return retval;
+}
+
+/*! SIGINT flag for transaction_notification_poll's progress-wait select()
+ *
+ * clixon_msg_rcv11() installs its own SIGINT handling while blocked in read(),
+ * see the intr parameter. transaction_notification_poll() also blocks in
+ * select() while showing progress (see transaction_progress_show()), so it
+ * needs its own minimal SIGINT handling to let ^C abort the transaction during
+ * that wait, same as during the blocking read.
+ */
+static volatile sig_atomic_t _transaction_poll_sigint = 0;
+
+static void
+transaction_poll_sigint_handler(int sig)
+{
+    _transaction_poll_sigint = 1;
+}
+
 /*! Poll controller notification socket
  *
  * param[in]  h      Clixon handle
@@ -649,6 +741,10 @@ transaction_notification_poll(clixon_handle       h,
     int                eof = 0;
     int                s;
     int                match = 0;
+    int                istty = 0;
+    int                elapsed = 0;
+    void             (*oldhandler)(int) = NULL;
+    int                aborted = 0;
 
     clixon_debug(CLIXON_DBG_CTRL, "tid:%s", tidstr);
     if (result)
@@ -657,18 +753,62 @@ transaction_notification_poll(clixon_handle       h,
         clixon_err(OE_EVENTS, 0, "controller-transaction-notify-socket is closed");
         goto done;
     }
+    /* Only show progress on an interactive terminal: avoids interfering with
+     * scripted/piped output (eg regression tests) and matches issue #247
+     * proposal 2: give feedback while a push commit/validate is running. */
+    istty = isatty(STDOUT_FILENO);
+    if (istty){
+        _transaction_poll_sigint = 0;
+        if (set_signal(SIGINT, transaction_poll_sigint_handler, &oldhandler) < 0){
+            clixon_err(OE_UNIX, errno, "set_signal");
+            goto done;
+        }
+    }
     while (!match){
+        if (istty){
+            fd_set         fds;
+            struct timeval tv = { 1, 0 }; /* progress update interval */
+            int            n;
+
+            FD_ZERO(&fds);
+            FD_SET(s, &fds);
+            n = select(s + 1, &fds, NULL, NULL, &tv);
+            if (n < 0){
+                if (errno == EINTR){
+                    if (_transaction_poll_sigint){
+                        aborted = 1;
+                        break;
+                    }
+                    continue;
+                }
+                clixon_err(OE_EVENTS, errno, "select");
+                goto done;
+            }
+            if (n == 0){
+                /* No notification yet within this interval: show progress */
+                elapsed++;
+                if (transaction_progress_show(h, tidstr, elapsed) < 0)
+                    goto done;
+                continue;
+            }
+        }
         if (transaction_notification_handler(h, s, tidstr, &match, result, &eof) < 0){
             if (eof)
                 goto done;
             /* Interpret as user stop transaction: abort transaction */
-            if (send_transaction_error(h, tidstr) < 0)
-                goto done;
-            cligen_output(stderr, "Aborted by user\n");
+            aborted = 1;
             break;
         }
     }
-    if (match){
+    if (istty && elapsed > 0)
+        /* Clear the progress line before printing the final result */
+        cligen_output(stdout, "\r\033[2K");
+    if (aborted){
+        if (send_transaction_error(h, tidstr) < 0)
+            goto done;
+        cligen_output(stderr, "Aborted by user\n");
+    }
+    else if (match){
         switch (*result){
         case TR_ERROR:
             cligen_output(stderr, "Error\n"); // XXX: Not recoverable??
@@ -684,6 +824,8 @@ transaction_notification_poll(clixon_handle       h,
     }
     retval = 0;
  done:
+    if (istty)
+        set_signal(SIGINT, oldhandler, NULL);
     clixon_debug(CLIXON_DBG_CTRL, "%d", retval);
     return retval;
 }
