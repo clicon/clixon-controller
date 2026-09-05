@@ -1060,6 +1060,9 @@ controller_transaction_wait(clixon_handle h,
 
 /*! For all devices in WAIT state trigger commit or discard
  *
+ * When discarding (commit=0), the devices in WAIT have already validated their
+ * edits successfully; they are only rolled back because a peer device (or a
+ * local controller-side commit/validate) failed.
  * @param[in]  h      Clixon handle
  * @param[in]  tid    Transaction id
  * @param[in]  commit 0: discard, 1: commit
@@ -1071,9 +1074,20 @@ controller_transaction_wait_trigger(clixon_handle h,
                                     uint64_t      tid,
                                     int           commit)
 {
-    int           retval = -1;
-    device_handle dh = NULL;
+    int                      retval = -1;
+    device_handle            dh = NULL;
+    controller_transaction  *ct = NULL;
+    cbuf                    *cb = NULL;
 
+    if (!commit && (ct = controller_transaction_find(h, tid)) != NULL){
+        if ((cb = cbuf_new()) == NULL){
+            clixon_err(OE_UNIX, errno, "cbuf_new");
+            goto done;
+        }
+        cprintf(cb, "Aborted: transaction failed");
+        if (ct->ct_origin)
+            cprintf(cb, " (%s%s%s)", ct->ct_origin, ct->ct_reason?": ":"", ct->ct_reason?ct->ct_reason:"");
+    }
     while ((dh = device_handle_each(h, dh)) != NULL){
         if (device_handle_tid_get(dh) != tid)
             continue;
@@ -1086,6 +1100,9 @@ controller_transaction_wait_trigger(clixon_handle h,
                 goto done;
         }
         else{
+            if (ct != NULL &&
+                controller_transaction_device_fail(ct, device_handle_name_get(dh), cbuf_get(cb)) < 0)
+                goto done;
             if (device_send_discard_changes(h, dh) < 0)
                 goto done;
             if (device_state_set(dh, CS_PUSH_DISCARD) < 0)
@@ -1094,6 +1111,8 @@ controller_transaction_wait_trigger(clixon_handle h,
     }
     retval = 0;
  done:
+    if (cb)
+        cbuf_free(cb);
     return retval;
 }
 

@@ -1072,6 +1072,9 @@ device_shared_yspec(clixon_handle h,
 
 /*! Helper device_state_handler: check if transaction has ended, if so send [discard;]lock
  *
+ * If the transaction has already failed (eg because a peer device failed or
+ * timed out), this device is aborted even though it may be OK so far.
+ * Record this device's per-device result as FAILED (reverted successfully)
  * @param[in]  h       Clixon handle
  * @param[in]  dh      Device handle.
  * @param[in]  ct      Controller transaction
@@ -1086,14 +1089,24 @@ device_state_check_fail(clixon_handle           h,
                         controller_transaction *ct,
                         int                     discard)
 {
-    int retval = -1;
+    int   retval = -1;
+    cbuf *cb = NULL;
 
     if (ct->ct_state == TS_RESOLVED) {
         if (ct->ct_result == TR_SUCCESS){
             clixon_err(OE_XML, 0, "Transaction unexpected SUCCESS state");
             goto done;
         }
-        else if (discard){        /* Trigger DISCARD of the device */
+        if ((cb = cbuf_new()) == NULL){
+            clixon_err(OE_UNIX, errno, "cbuf_new");
+            goto done;
+        }
+        cprintf(cb, "Aborted: transaction failed");
+        if (ct->ct_origin)
+            cprintf(cb, " (%s%s%s)", ct->ct_origin, ct->ct_reason?": ":"", ct->ct_reason?ct->ct_reason:"");
+        if (controller_transaction_device_fail(ct, device_handle_name_get(dh), cbuf_get(cb)) < 0)
+            goto done;
+        if (discard){        /* Trigger DISCARD of the device */
             if (device_send_discard_changes(h, dh) < 0)
                 goto done;
             if (device_state_set(dh, CS_PUSH_DISCARD) < 0)
@@ -1110,6 +1123,8 @@ device_state_check_fail(clixon_handle           h,
     else
         retval = 1;
  done:
+    if (cb)
+        cbuf_free(cb);
     return retval;
 }
 
@@ -1972,7 +1987,7 @@ device_state_handler(clixon_handle h,
                     break;
                 }
             }
-            if (controller_transaction_wait_trigger(h, tid, 1) < 0)
+            if (controller_transaction_wait_trigger(h, tid, 1) < 0) /* Here goes to CS_PUSH_COMMIT */
                 goto done;
         } /* All devices are in WAIT state */
         break;

@@ -1907,6 +1907,7 @@ rpc_controller_commit(clixon_handle h,
         actions = actions_type_str2int(str);
     if ((str = xml_find_body(xe, "push")) != NULL)
         pusht = push_type_str2int(str);
+    service_instance = xml_find_body(xe, "service-instance");
     if (actions == AT_NONE && pusht == PT_VALIDATE)
         cprintf(cbtr, "validate");
     else if (actions == AT_NONE && pusht == PT_COMMIT)
@@ -1925,7 +1926,10 @@ rpc_controller_commit(clixon_handle h,
         cprintf(cbtr, "apply delete");
     else
         cprintf(cbtr, "controller commit");
-    service_instance = xml_find_body(xe, "service-instance");
+    /* Include which service-instance triggered this (forced reapply / delete), so the
+     * transaction log can be correlated with the CLI command that initiated it. */
+    if (service_instance != NULL)
+        cprintf(cbtr, " %s", service_instance);
     /* Initiate new transaction.
      * NB: this locks candidate, which always needs to be unlocked, eg by controller_transaction_done
      */

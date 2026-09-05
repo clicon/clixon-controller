@@ -143,34 +143,7 @@ if [ -n "$match" ]; then
 fi
 
 sleep $sleep
-jmax=10
-for j in $(seq 1 $jmax); do
-    new "reset-controller: Verify open devices 1"
-    ret=$(${clixon_netconf} -q0 -f $CFG -E $CFD <<EOF
-<rpc xmlns="urn:ietf:params:xml:ns:netconf:base:1.0" xmlns:nc="urn:ietf:params:xml:ns:netconf:base:1.0" message-id="43">
-   <get cl:content="all" xmlns:cl="http://clicon.org/lib">
-      <nc:filter nc:type="xpath" nc:select="co:devices/co:device/co:conn-state" xmlns:co="http://clicon.org/controller"/>
-   </get>
-</rpc>]]>]]>
-EOF
-   )
-    #echo "$ret"
-    match=$(echo "$ret" | grep --null -Eo "<rpc-error>") || true
-    if [ -n "$match" ]; then
-        err1 "Error: $ret"
-    fi
-
-    res=$(echo "$ret" | sed 's/OPEN/OPEN\n/g' | grep "$IMG" | grep -c "OPEN") || true
-    if [ "$res" != "$nr" ]; then
-        new "reset-controller: retry after sleep"
-        sleep $sleep
-        continue
-    fi
-    break
-done # verify open
-if [ $j -eq $jmax ]; then
-    err "$nr devices open" "$res devices open"
-fi
+wait_devices_open_netconf $CFG $CFD 10 "reset-controller: Verify open devices 1"
 
 new "reset-controller: Netconf pull"
 ret=$(${clixon_netconf} -q0 -f $CFG -E $CFD <<EOF

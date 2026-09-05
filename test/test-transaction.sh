@@ -561,6 +561,8 @@ sleep 6
 new "G: show transactions detail: $NAME2 Timeout reason"
 expectpart "$($clixon_cli -1 -f $CFG -E $CFD show transactions detail)" 0 "<name>$NAME2</name>" "<result>ERROR</result>" "Timeout waiting for remote peer"
 
+new "G: show transactions: brief table Devices column shows 1 ERROR"
+expectpart "$($clixon_cli -1 -f $CFG -E $CFD show transactions)" 0 "1 ERROR"
 
 new "G: stop blackhole listener on $NAME2"
 blackhole_stop $ip2

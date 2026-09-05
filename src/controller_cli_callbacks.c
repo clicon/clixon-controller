@@ -1640,6 +1640,87 @@ cli_show_services_process(clixon_handle h,
     return retval;
 }
 
+/*! Build a compact per-device result summary for brief transaction table
+ *
+ * Produces eg "2 ok" if all devices in xc/devices/device succeeded, or a
+ * breakdown like "1 ok, 1 ERROR" if some did not, so a broken device can be
+ * spotted without switching to "show transactions detail"
+ * @param[in]  xc  XML transaction
+ * @param[out] cb  Buffer to append summary to (not reset)
+ * @retval     0   OK
+ * @retval    -1   Error
+ */
+static int
+show_transaction_devsummary(cxobj *xc,
+                            cbuf  *cb)
+{
+    int    retval = -1;
+    cxobj *xdevices;
+    cxobj *xd;
+    char  *result;
+    int    n_success = 0;
+    int    n_failed = 0;
+    int    n_error = 0;
+    int    n_skipped = 0;
+    int    n_other = 0;
+    int    first;
+
+    if ((xdevices = xml_find_type(xc, NULL, "devices", CX_ELMNT)) == NULL){
+        cprintf(cb, "-");
+        goto ok;
+    }
+    xd = NULL;
+    while ((xd = xml_child_each(xdevices, xd, CX_ELMNT)) != NULL){
+        if (strcmp(xml_name(xd), "device") != 0)
+            continue;
+        result = xml_find_body(xd, "result");
+        if (result == NULL)
+            n_other++;
+        else if (strcmp(result, "SUCCESS") == 0)
+            n_success++;
+        else if (strcmp(result, "FAILED") == 0)
+            n_failed++;
+        else if (strcmp(result, "ERROR") == 0)
+            n_error++;
+        else if (strcmp(result, "SKIPPED") == 0)
+            n_skipped++;
+        else
+            n_other++;
+    }
+    if (n_failed == 0 && n_error == 0 && n_skipped == 0 && n_other == 0){
+        if (n_success == 0)
+            cprintf(cb, "-");
+        else
+            cprintf(cb, "%d ok", n_success);
+        goto ok;
+    }
+    /* Mixed/problem outcomes: show a breakdown, only non-zero categories */
+    first = 1;
+    if (n_success){
+        cprintf(cb, "%d ok", n_success);
+        first = 0;
+    }
+    if (n_error){
+        cprintf(cb, "%s%d ERROR", first?"":", ", n_error);
+        first = 0;
+    }
+    if (n_failed){
+        cprintf(cb, "%s%d FAILED", first?"":", ", n_failed);
+        first = 0;
+    }
+    if (n_skipped){
+        cprintf(cb, "%s%d SKIPPED", first?"":", ", n_skipped);
+        first = 0;
+    }
+    if (n_other){
+        cprintf(cb, "%s%d ?", first?"":", ", n_other);
+        first = 0;
+    }
+ ok:
+    retval = 0;
+    return retval;
+}
+
 /*! Show one transaction
  *
  * @param[in]  xc  XML transaction
@@ -1649,6 +1730,7 @@ show_transaction_one(cxobj *xc)
 {
     int            retval = -1;
     cbuf          *cb = NULL;
+    cbuf          *cbdev = NULL;
     char          *tid;
     char          *description;
     char          *state;
@@ -1658,7 +1740,7 @@ show_transaction_one(cxobj *xc)
     char          *display_reason;
     char          *timestamp0;
     char          *timestamp;
-    char           desc_truncated[41] = {0,};
+    char           desc_truncated[25] = {0,};
     char           duration_str[26] = {0,};
     struct timeval tv0;
     struct timeval tv1;
@@ -1697,6 +1779,12 @@ show_transaction_one(cxobj *xc)
         clixon_err(OE_UNIX, errno, "cbuf_new");
         goto done;
     }
+    if ((cbdev = cbuf_new()) == NULL){
+        clixon_err(OE_UNIX, errno, "cbuf_new");
+        goto done;
+    }
+    if (show_transaction_devsummary(xc, cbdev) < 0)
+        goto done;
     if (timestamp0 && timestamp){
         if (str2time(timestamp0, &tv0) == 0 &&
             str2time(timestamp, &tv1) == 0){
@@ -1708,17 +1796,20 @@ show_transaction_one(cxobj *xc)
     }
     else
         cprintf(cb, "-");
-    cligen_output(stdout, "%7s %-40s %-10s %-10s %10s %s\n",
+    cligen_output(stdout, "%7s %-24s %-10s %-10s %-14.14s %8s %s\n",
                   tid?tid:"-",
                   desc_truncated,
                   state?state:"-",
                   result?result:"-",
+                  cbuf_get(cbdev),
                   cbuf_get(cb),
                   display_reason?display_reason:"-");
     retval = 0;
  done:
     if (cb)
         cbuf_free(cb);
+    if (cbdev)
+        cbuf_free(cbdev);
     return retval;
 }
 
@@ -1782,11 +1873,13 @@ cli_show_transactions(clixon_handle h,
         }
         else{
             /* Brief mode: show table */
-            cligen_output(stdout, "%7s %-40s %-10s %-10s %12s %s\n",
-                          "TID", "Description", "State", "Result", "Time[s]", "Reason");
-            cligen_output(stdout, "%7s %-40s %-10s %-10s %10s %s\n",
-                          "-------", "----------------------------------------",
-                          "----------", "----------", "------------",
+            cligen_output(stdout, "%7s %-24s %-10s %-10s %-14s %8s %s\n",
+                          "TID", "Description", "State", "Result", "Devices",
+                          "Time[s]", "Reason");
+            cligen_output(stdout, "%7s %-24s %-10s %-10s %-14s %8s %s\n",
+                          "-------", "------------------------",
+                          "----------", "----------", "--------------",
+                          "--------",
                           "------------------------------");
 
             if (all){

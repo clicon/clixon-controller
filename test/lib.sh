@@ -388,6 +388,54 @@ function sleep_open()
     fi
 }
 
+# Verify all $nr devices are OPEN, retrying via a raw NETCONF <get> xpath
+# filter on conn-state. Used both after a config-push RPC/reconnect and after
+# releasing an externally-held device lock, where the CLI/controller state
+# may take a moment to settle.
+# Args:
+# 1: CFG    Config file
+# 2: CFD    Config dir
+# 3: jmax   (optional) max retries, default 5
+# 4: label  (optional) "new" test label, default "Verify open devices"
+function wait_devices_open_netconf()
+{
+    local CFG=$1
+    local CFD=$2
+    local jmax=${3:-5}
+    local label=${4:-"Verify open devices"}
+    local j
+    local ret
+    local match
+    local res
+
+    for j in $(seq 1 $jmax); do
+        new "$label"
+        ret=$(${clixon_netconf} -q0 -f $CFG -E $CFD <<EOF
+<rpc xmlns="urn:ietf:params:xml:ns:netconf:base:1.0" xmlns:nc="urn:ietf:params:xml:ns:netconf:base:1.0" message-id="43">
+   <get cl:content="all" xmlns:cl="http://clicon.org/lib">
+      <nc:filter nc:type="xpath" nc:select="co:devices/co:device/co:conn-state" xmlns:co="http://clicon.org/controller"/>
+   </get>
+</rpc>]]>]]>
+EOF
+       )
+        match=$(echo "$ret" | grep --null -Eo "<rpc-error>") || true
+        if [ -n "$match" ]; then
+            err1 "Error: $ret"
+        fi
+        res=$(echo "$ret" | sed 's/OPEN/OPEN\n/g' | grep "$IMG" | grep -c "OPEN") || true
+        if [ "$res" != "$nr" ]; then
+            echo "retry after sleep"
+            sleep $sleep
+            continue
+        fi
+        break
+    done
+    if [ $j -eq $jmax ]; then
+        err "$nr devices open" "$res devices open"
+    fi
+}
+
+
 # Evaluate and return
 # Example: expectpart $(fn arg) 0 "my return" -- "foo"
 # - evaluated expression
