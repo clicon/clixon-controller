@@ -1994,7 +1994,7 @@ rpc_controller_commit(clixon_handle h,
     if (closed != NULL){
         devname = device_handle_name_get(closed);
         if (pusht != PT_NONE){
-            if (controller_transaction_device_fail(ct, devname) < 0)
+            if (controller_transaction_device_fail(ct, devname, "closed") < 0)
                 goto done;
             if (device_error(h, ct, closed, 0, cbret) < 0)
                 goto done;

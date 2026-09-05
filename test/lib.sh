@@ -333,6 +333,31 @@ function endtest()
     >&2 echo "OK"
 }
 
+# Start a background "blackhole" TCP listener on a device container that
+# accepts connections but never sends or reads any data. Used to simulate a
+# hung (but not failed/refused) device connection, eg to test connect-timeout
+# / device-timeout, without requiring the docker CLI/socket to be available
+# Args:
+# 1: ip     Device IP address
+# 2: port   TCP port to listen on
+function blackhole_start(){
+    local ip=$1
+    local port=$2
+
+    ssh ${SSHID} -l $USER $ip -o StrictHostKeyChecking=no -o PasswordAuthentication=no \
+        "rm -f /tmp/blackhole; mkfifo /tmp/blackhole; nc -l -p $port <>/tmp/blackhole >/dev/null 2>&1 &" </dev/null
+}
+
+# Stop a blackhole listener started by blackhole_start() and remove its fifo.
+# Args:
+# 1: ip     Device IP address
+function blackhole_stop(){
+    local ip=$1
+
+    ssh ${SSHID} -l $USER $ip -o StrictHostKeyChecking=no -o PasswordAuthentication=no \
+        "pkill nc 2>/dev/null; rm -f /tmp/blackhole" </dev/null
+}
+
 # Sleep and verify devices are open
 # Args:
 # 1: configdir/CFD

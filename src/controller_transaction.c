@@ -580,6 +580,8 @@ controller_transaction_free1(controller_transaction *ct)
         free(ct->ct_sourcedb);
     if (ct->ct_devices)
         cvec_free(ct->ct_devices);
+    if (ct->ct_devices_result)
+        cvec_free(ct->ct_devices_result);
     if (ct->ct_devdata)
         xml_free(ct->ct_devdata);
     free(ct);
@@ -667,8 +669,8 @@ controller_transaction_done(clixon_handle           h,
     /* Set warning if transaction succeeded but some devices were skipped */
     if (ct->ct_result == TR_SUCCESS && ct->ct_warning == NULL){
         cv = NULL;
-        while ((cv = cvec_each(ct->ct_devices, cv)) != NULL){
-            if (cv_string_get(cv) != NULL){
+        while ((cv = cvec_each(ct->ct_devices_result, cv)) != NULL){
+            if (cv_int32_get(cv) == TR_SKIPPED){
                 if ((ct->ct_warning = strdup("Warning: devices skipped")) == NULL){
                     clixon_err(OE_UNIX, errno, "strdup");
                     goto done;
@@ -763,7 +765,69 @@ controller_transaction_nr_devices(clixon_handle h,
     return nr;
 }
 
-/*! Add device name to transation struct
+/*! Set/update per-device result and optional reason in the transaction
+ *
+ * Internal helper shared by controller_transaction_device_add/skip/fail/error.
+ * Records the device's outcome as a typed enum (ct_devices_result) and an
+ * independent, optional reason string (ct_devices), so that no meaning is
+ * encoded in string content/emptiness: every value means exactly one thing.
+ * @param[in] ct     Transaction
+ * @param[in] name   Device name
+ * @param[in] result Per-device result (SUCCESS/FAILED/ERROR/SKIPPED)
+ * @param[in] reason Reason text, or NULL if none
+ * @retval    0      OK
+ * @retval   -1      Error
+ */
+static int
+controller_transaction_device_set(controller_transaction *ct,
+                                  const char             *name,
+                                  transaction_result      result,
+                                  const char             *reason)
+{
+    int     retval = -1;
+    cg_var *cv;
+
+    if (ct->ct_devices_result == NULL){
+        if ((ct->ct_devices_result = cvec_new(0)) == NULL){
+            clixon_err(OE_UNIX, errno, "cvec_new");
+            goto done;
+        }
+    }
+    if ((cv = cvec_find(ct->ct_devices_result, name)) == NULL){
+        if ((cv = cvec_add(ct->ct_devices_result, CGV_INT32)) == NULL){
+            clixon_err(OE_UNIX, errno, "cvec_add");
+            goto done;
+        }
+        if (cv_name_set(cv, name) == NULL){
+            clixon_err(OE_UNIX, errno, "cv_name_set");
+            goto done;
+        }
+    }
+    cv_int32_set(cv, result);
+    if (reason){
+        if (ct->ct_devices == NULL){
+            if ((ct->ct_devices = cvec_new(0)) == NULL){
+                clixon_err(OE_UNIX, errno, "cvec_new");
+                goto done;
+            }
+        }
+        if ((cv = cvec_find(ct->ct_devices, name)) != NULL){
+            if (cv_string_set(cv, reason) == NULL){
+                clixon_err(OE_UNIX, errno, "cv_string_set");
+                goto done;
+            }
+        }
+        else if (cvec_add_string(ct->ct_devices, name, reason) < 0){
+            clixon_err(OE_UNIX, errno, "cvec_add_string");
+            goto done;
+        }
+    }
+    retval = 0;
+ done:
+    return retval;
+}
+
+/*! Add device name to transaction struct, result defaults to SUCCESS
  *
  * @param[in] ct   Transaction
  * @param[in] name Device name
@@ -774,29 +838,14 @@ int
 controller_transaction_device_add(controller_transaction *ct,
                                   const char             *name)
 {
-    int retval = -1;
-
-    if (ct->ct_devices == NULL){
-        if ((ct->ct_devices = cvec_new(0)) == NULL){
-            clixon_err(OE_UNIX, errno, "cvec_new");
-            goto done;
-        }
-    }
-    if (cvec_find(ct->ct_devices, name) == NULL)
-        if (cvec_add_string(ct->ct_devices, name, NULL) < 0){
-            clixon_err(OE_UNIX, errno, "cvec_add_string");
-            goto done;
-        }
-    retval = 0;
- done:
-    return retval;
+    /* Dont overwrite an existing (non-default) result if already tracked */
+    if (ct->ct_devices_result && cvec_find(ct->ct_devices_result, name) != NULL)
+        return 0;
+    return controller_transaction_device_set(ct, name, TR_SUCCESS, NULL);
 }
 
 /*! Record a skipped device in the transaction
  *
- * Adds device to the ct_devices list with result=SKIPPED and the given reason.
- * If the device is already in ct_devices (e.g. added via device_add), the
- * reason is set in-place to mark it as skipped.
  * @param[in] ct     Transaction
  * @param[in] name   Device name
  * @param[in] reason Reason for skipping (e.g. "disabled" or "closed")
@@ -808,71 +857,45 @@ controller_transaction_device_skip(controller_transaction *ct,
                                    const char             *name,
                                    const char             *reason)
 {
-    int     retval = -1;
-    cg_var *cv;
-
-    if (ct->ct_devices == NULL){
-        if ((ct->ct_devices = cvec_new(0)) == NULL){
-            clixon_err(OE_UNIX, errno, "cvec_new");
-            goto done;
-        }
-    }
-    if ((cv = cvec_find(ct->ct_devices, name)) != NULL){
-        /* Already in list, update reason in-place */
-        if (cv_string_set(cv, reason) == NULL){
-            clixon_err(OE_UNIX, errno, "cv_string_set");
-            goto done;
-        }
-    }
-    else {
-        if (cvec_add_string(ct->ct_devices, name, reason) < 0){
-            clixon_err(OE_UNIX, errno, "cvec_add_string");
-            goto done;
-        }
-    }
-    retval = 0;
- done:
-    return retval;
+    return controller_transaction_device_set(ct, name, TR_SKIPPED, reason);
 }
 
-/*! Record a failed device in the transaction for later display.
+/*! Record a failed device in the transaction for later display
  *
- * Adds device to ct_devices with an empty-string value (encoding: NULL=SUCCESS,
- * ""=FAILED, non-empty=SKIPPED) so that show-transaction-detail can output
- * <result>FAILED</result> for this device.
+ * Used when a device was reverted/discarded successfully after an error, ie
+ * the failure is "recoverable" and the controller's view of the device is
+ * still consistent.
  * @param[in] ct     Transaction
  * @param[in] name   Device name
+ * @param[in] reason Reason text, or NULL if none
  * @retval    0      OK
  * @retval   -1      Error
  */
 int
 controller_transaction_device_fail(controller_transaction *ct,
-                                   const char             *name)
+                                   const char             *name,
+                                   const char             *reason)
 {
-    int     retval = -1;
-    cg_var *cv;
+    return controller_transaction_device_set(ct, name, TR_FAILED, reason);
+}
 
-    if (ct->ct_devices == NULL){
-        if ((ct->ct_devices = cvec_new(0)) == NULL){
-            clixon_err(OE_UNIX, errno, "cvec_new");
-            goto done;
-        }
-    }
-    if ((cv = cvec_find(ct->ct_devices, name)) != NULL){
-        if (cv_string_set(cv, "") == NULL){
-            clixon_err(OE_UNIX, errno, "cv_string_set");
-            goto done;
-        }
-    }
-    else {
-        if (cvec_add_string(ct->ct_devices, name, "") < 0){
-            clixon_err(OE_UNIX, errno, "cvec_add_string");
-            goto done;
-        }
-    }
-    retval = 0;
-  done:
-    return retval;
+/*! Record a device that left the transaction in an unrecoverable/inconsistent state
+ *
+ * Used when a device connection is force-closed mid-transaction (eg timeout,
+ * invalid frame, lost connection during commit/discard), so the controller's
+ * view of that device's configuration can no longer be trusted, see issue #247.
+ * @param[in] ct     Transaction
+ * @param[in] name   Device name
+ * @param[in] reason Reason text, or NULL if none
+ * @retval    0      OK
+ * @retval   -1      Error
+ */
+int
+controller_transaction_device_error(controller_transaction *ct,
+                                    const char             *name,
+                                    const char             *reason)
+{
+    return controller_transaction_device_set(ct, name, TR_ERROR, reason);
 }
 
 /*! A controller transaction (device) has failed
@@ -932,6 +955,14 @@ controller_transaction_failed_fn(clixon_handle           h,
             /* 1.2 The error is not recoverable */
             /* 1.2.1 close the device */
             if (device_close_connection(dh, "%s", reason) < 0)
+                goto done;
+            /* Device left in an unrecoverable/inconsistent state, see issue #247 */
+            if (controller_transaction_device_error(ct, device_handle_name_get(dh), reason) < 0)
+                goto done;
+        }
+        else {
+            /* Device leaves the transaction but was reverted/discarded OK */
+            if (controller_transaction_device_fail(ct, device_handle_name_get(dh), reason) < 0)
                 goto done;
         }
         /* 1.2.2 Leave transaction */
@@ -1111,20 +1142,21 @@ controller_transaction_statedata(clixon_handle h,
                 xml_chardata_cbuf_append(cb, 0, ct->ct_reason);
                 cprintf(cb, "</reason>");
             }
-            if (ct->ct_devices){
+            if (ct->ct_devices_result){
                 cv = NULL;
                 cprintf(cb, "<devices>");
-                while ((cv = cvec_each(ct->ct_devices, cv)) != NULL){
-                    const char *devr = cv_string_get(cv);
-                    cprintf(cb, "<device><name>%s</name>", cv_name_get(cv));
-                    if (devr != NULL){
-                        if (*devr == '\0')
-                            /* empty string encodes FAILED (no per-device reason) */
-                            cprintf(cb, "<result>%s</result>", transaction_result_int2str(TR_FAILED));
-                        else {
-                            cprintf(cb, "<result>%s</result>", transaction_result_int2str(TR_SKIPPED));
-                            cprintf(cb, "<reason>%s</reason>", devr);
-                        }
+                while ((cv = cvec_each(ct->ct_devices_result, cv)) != NULL){
+                    const char *devname = cv_name_get(cv);
+                    transaction_result devresult = cv_int32_get(cv);
+                    const char *devreason = ct->ct_devices ? cvec_find_str(ct->ct_devices, devname) : NULL;
+
+                    cprintf(cb, "<device><name>%s</name>", devname);
+                    cprintf(cb, "<result>%s</result>", transaction_result_int2str(devresult));
+                    if (devreason){
+                        cprintf(cb, "<reason>");
+                        if (xml_chardata_cbuf_append(cb, 0, devreason) < 0)
+                            goto done;
+                        cprintf(cb, "</reason>");
                     }
                     cprintf(cb, "</device>");
                 }
@@ -1282,6 +1314,8 @@ controller_transaction_stats(clixon_handle  h,
                 sz += strlen(ct->ct_warning)+1;
             if (ct->ct_devices)
                 sz += cvec_size(ct->ct_devices)*sizeof(char *);
+            if (ct->ct_devices_result)
+                sz += cvec_size(ct->ct_devices_result)*sizeof(char *);
             if (ct->ct_devdata){
                 if (xml_stats(ct->ct_devdata, xml_type, NULL, &sz) < 0)
                     goto done;

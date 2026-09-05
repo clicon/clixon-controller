@@ -21,6 +21,7 @@ Expected: September 2026
   * See: [Handling unrecoverable transaction errors (including timeouts)](https://github.com/clicon/clixon-controller/issues/247) (point 1).
   * See also: https://clixon-controller-docs.readthedocs.io/en/latest/cli.html#timeouts
 * Clarified controller transaction operations
+  * Added per-device error handling of closed devices
   * Add device skiplist to transaction when device is disabled or closed for pull and commit
   * CLI added "disabled" as connection state in show connections
   * CLI return silent instead of "OK" from successful transaction

@@ -265,7 +265,7 @@ function delete_device_config(){
 # Performs three checks:
 #   1. Runs CLI command and checks output type (silent|warning|error|diff)
 #   2. Runs "show transactions"        - checks overall result (success|failed)
-#   3. Runs "show transactions detail" - checks per-device result (success|skip|failed|absent)
+#   3. Runs "show transactions detail" - checks per-device result (success|skip|failed|error|absent)
 # Args:
 #   $1 dev    - device name for per-device detail check               (or "" to skip check)
 #   $2 desc   - test description prefix (used for "new" labels)
@@ -273,7 +273,7 @@ function delete_device_config(){
 #   $4 cmd    - CLI command arguments (e.g. "connection open '*'" or "commit push")
 #   $5 expect - expected CLI output: silent|warning|error|diff
 #   $6 tx     - expected overall transaction result: success|failed  (or "" to skip check)
-#   $7 devr   - expected per-device result: success|skip|failed|absent (or "" to skip check)
+#   $7 devr   - expected per-device result: success|skip|failed|error|absent (or "" to skip check)
 function check_tx(){
     local dev="$1"
     local desc="$2"
@@ -353,6 +353,12 @@ function check_tx(){
                 devblock=$(echo "$out" | grep -A 5 "<name>$dev</name>")
                 if ! echo "$devblock" | grep -q "FAILED"; then
                     err1 "$dev result FAILED in transaction detail" "$out"
+                fi
+                ;;
+            error)
+                devblock=$(echo "$out" | grep -A 5 "<name>$dev</name>")
+                if ! echo "$devblock" | grep -q "ERROR"; then
+                    err1 "$dev result ERROR in transaction detail" "$out"
                 fi
                 ;;
         esac
@@ -517,6 +523,62 @@ check_tx $NAME2 "F3 commit diff manual changed open" configure "commit diff" dif
 
 delete_device_config "$NAME2" "test" false
 check_tx $NAME2 "commit reset" configure "commit push" silent success success
+
+# ============================================================
+# G: Connect-timeout ERROR (hung connect, simulated via a blackhole listener)
+#
+# Unlike CLOSED (connection refused immediately) this simulates a device
+# that accepts the TCP connection but never responds (e.g. network black
+# hole), which the connect-timeout mechanism must actively detect. See
+# blackhole_start/blackhole_stop in lib.sh.
+# ============================================================
+: ${BLACKHOLE_PORT:=12345}
+
+new "G: set connect-timeout 3"
+expectpart "$($clixon_cli -1 -m configure -f $CFG -E $CFD set devices connect-timeout 3)" 0 "^$"
+
+new "G: commit local connect-timeout"
+expectpart "$($clixon_cli -1 -m configure -f $CFG -E $CFD commit local)" 0 "^$"
+
+new "G: close $NAME2"
+expectpart "$($clixon_cli -1 -f $CFG -E $CFD connection close $NAME2)" 0 "^$"
+
+new "G: start blackhole listener on $NAME2 ($ip2:$BLACKHOLE_PORT) to simulate a hung connect"
+blackhole_start $ip2 $BLACKHOLE_PORT
+
+new "G: point $NAME2 port at the blackhole listener"
+expectpart "$($clixon_cli -1 -m configure -f $CFG -E $CFD set devices device $NAME2 port $BLACKHOLE_PORT)" 0 "^$"
+
+new "G: commit local blackhole port"
+expectpart "$($clixon_cli -1 -m configure -f $CFG -E $CFD commit local)" 0 "^$"
+
+new "G: connection open $NAME2 (async, would otherwise block until connect-timeout)"
+expectpart "$($clixon_cli -1 -f $CFG -E $CFD connection open async $NAME2)" 0 "^$"
+
+new "G: wait past connect-timeout"
+sleep 6
+
+new "G: show transactions detail: $NAME2 Timeout reason"
+expectpart "$($clixon_cli -1 -f $CFG -E $CFD show transactions detail)" 0 "<name>$NAME2</name>" "<result>ERROR</result>" "Timeout waiting for remote peer"
+
+
+new "G: stop blackhole listener on $NAME2"
+blackhole_stop $ip2
+
+new "G: restore $NAME2 port to default"
+expectpart "$($clixon_cli -1 -m configure -f $CFG -E $CFD delete devices device $NAME2 port $BLACKHOLE_PORT)" 0 "^$"
+
+new "G: commit local restore port"
+expectpart "$($clixon_cli -1 -m configure -f $CFG -E $CFD commit local)" 0 "^$"
+
+new "G: reopen $NAME2 (cleanup)"
+expectpart "$($clixon_cli -1 -f $CFG -E $CFD connection open $NAME2)" 0 "^$"
+
+new "G: reset connect-timeout to default"
+expectpart "$($clixon_cli -1 -m configure -f $CFG -E $CFD delete devices connect-timeout 3)" 0 "^$"
+
+new "G: commit local reset connect-timeout"
+expectpart "$($clixon_cli -1 -m configure -f $CFG -E $CFD commit local)" 0 "^$"
 
 # ============================================================
 # X: No local edits:
