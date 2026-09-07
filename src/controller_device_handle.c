@@ -317,6 +317,7 @@ device_handle_connect(device_handle      dh,
     int                              retval = -1;
     struct controller_device_handle *cdh = (struct controller_device_handle *)dh;
     clixon_handle                    h;
+    int                              conntimeout;
 
     clixon_debug(CLIXON_DBG_CTRL, "");
     if (cdh == NULL){
@@ -336,7 +337,9 @@ device_handle_connect(device_handle      dh,
         break;
 #ifdef SSH_BIN
     case CLIXON_CLIENT_SSH:
-        if (clixon_client_connect_ssh(h, dest, port, stricthostkey, &cdh->cdh_pid, &cdh->cdh_socket, &cdh->cdh_sockerr) < 0)
+        if ((conntimeout = clicon_data_int_get(h, "controller-device-timeout")) < 0)
+            conntimeout = CONTROLLER_CONNECT_TIMEOUT_DEFAULT;
+        if (clixon_client_connect_ssh(h, dest, port, stricthostkey, conntimeout, &cdh->cdh_pid, &cdh->cdh_socket, &cdh->cdh_sockerr) < 0)
             goto err;
 #else
         clixon_err(OE_UNIX, 0, "No ssh bin");

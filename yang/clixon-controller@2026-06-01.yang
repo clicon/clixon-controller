@@ -650,6 +650,7 @@ module clixon-controller {
                  Every time a device state is changed to a 'transient' state, this timer is set, if the device
                  has not left the state within this timeout, a transaction failure 'waiting for remote peer' will be
                  sent as a notification.
+                 Also applies for SSH ServerAliveInterval
                  This applies to the config push and generic RPC state machines, and is the fallback
                  timeout for the connect state machine if connect-timeout is not set.";
             type uint32;

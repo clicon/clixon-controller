@@ -120,6 +120,7 @@ clixon_client_connect_netconf(clixon_handle  h,
  * @param[in]  dest          SSH destination
  * @param[in]  port          SSH port
  * @param[in]  stricthostkey If set ensure strict hostkey checking. Only for ssh connections
+ * @param[in]  keepalive     SSH ServerAliveInterval in s (<=0 means use ssh default)
  * @param[out] pid           Sub-process-id
  * @param[out] sock          Stdin/stdout socket
  * @param[out] sockerr       Stderr socket
@@ -131,6 +132,7 @@ clixon_client_connect_ssh(clixon_handle h,
                           const char   *dest,
                           const char   *port,
                           int           stricthostkey,
+                          int           keepalive,
                           pid_t        *pid,
                           int          *sock,
                           int          *sockerr)
@@ -142,11 +144,14 @@ clixon_client_connect_ssh(clixon_handle h,
     char       *ssh_bin = SSH_BIN;
     struct stat st = {0,};
     char       *idfile = NULL;
+    char        keepaliveintstr[32];
 
     clixon_debug(CLIXON_DBG_MSG | CLIXON_DBG_DETAIL, "%s", dest);
-    nr = 16;  /* NOTE this is hardcoded */
+    nr = 14;  /* NOTE this is hardcoded */
     if ((idfile = clicon_option_str(h, "CONTROLLER_SSH_IDENTITYFILE")) != NULL)
         nr += 2;
+    if (keepalive > 0)
+        nr += 4; /* -o ServerAliveInterval=N -o ServerAliveCountMax=1 */
     if ((argv = calloc(nr, sizeof(char *))) == NULL){
         clixon_err(OE_UNIX, errno, "calloc");
         goto done;
@@ -170,8 +175,19 @@ clixon_client_connect_ssh(clixon_handle h,
         argv[i++] = "StrictHostKeyChecking=yes";
     else
         argv[i++] = "StrictHostKeyChecking=no";
-    argv[i++] = "-o";
-    argv[i++] = "ServerAliveInterval=300";
+    /* SSH keepalive: reuse the caller-supplied connect-timeout so an idle-but-dead SSH session
+     * (peer crashed, network black-holed, etc) is proactively detected and conn-state flipped to CLOSED
+     * within about one connect-timeout, ie before a new transaction would even be started on it
+     * (rather than only failing later via the device-state timeout while a transaction is already in progress).
+     * CountMax=1 avoids stacking multiple probe intervals on top of that budget.
+     */
+    if (keepalive > 0){
+        snprintf(keepaliveintstr, sizeof(keepaliveintstr)-1, "ServerAliveInterval=%d", keepalive);
+        argv[i++] = "-o";
+        argv[i++] = keepaliveintstr;
+        argv[i++] = "-o";
+        argv[i++] = "ServerAliveCountMax=1";
+    }
     argv[i++] = "-o";
     argv[i++] = "PasswordAuthentication=no"; // dont query
     argv[i++] = "-o";

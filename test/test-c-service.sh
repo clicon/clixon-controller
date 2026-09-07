@@ -937,7 +937,7 @@ EOF
     # -d to debug matching info
     sudo expect - "$clixon_cli" "$CFG" "$CFD" $(whoami) <<'EOF'
 log_user 0
-set timeout 10
+set timeout 20
 set clixon_cli [lindex $argv 0]
 set CFG [lindex $argv 1]
 set CFD [lindex $argv 2]

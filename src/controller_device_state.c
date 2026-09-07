@@ -350,15 +350,16 @@ device_input_cb(int   s,
                 clixon_err(OE_UNIX, errno, "cbuf_new");
                 goto done;
             }
+            cprintf(cberr, "Invalid NETCONF message received: ");
             if (netconf_err2cb(h, xerr, cberr) < 0)
                 goto done;
+            clixon_log(h, LOG_WARNING, "%s: %s: %s", __FUNCTION__, name, cbuf_get(cberr));
             if (ct){
-                // use XXX cberr but its XML
-                if (controller_transaction_failed(h, tid, ct, dh, TR_FAILED_DEV_CLOSE, name, "Invalid frame") < 0)
+                if (controller_transaction_failed(h, tid, ct, dh, TR_FAILED_DEV_CLOSE, name, cbuf_get(cberr)) < 0)
                     goto done;
             }
             else
-                device_close_connection(dh, "Invalid frame");
+                device_close_connection(dh, "%s", cbuf_get(cberr));
             goto ok;
         }
         xmsg = xml_child_i_type(xtop, 0, CX_ELMNT);
@@ -562,23 +563,33 @@ device_state_timeout(int   s,
     controller_transaction *ct = NULL;
     clixon_handle           h;
     char                   *name;
+    char                   *statename;
+    cbuf                   *cberr = NULL;
 
     name = device_handle_name_get(dh);
     clixon_debug(CLIXON_DBG_CTRL, "%s", name);
     h = device_handle_handle_get(dh);
+    statename = device_state_int2str(device_handle_conn_state_get(dh));
     clixon_log(h, LOG_NOTICE, "%s Device state timeout. Waiting for device %s to change state from %s",
-               __func__, name, device_state_int2str(device_handle_conn_state_get(dh)));
+               __func__, name, statename);
+    if ((cberr = cbuf_new()) == NULL){
+        clixon_err(OE_UNIX, errno, "cbuf_new");
+        goto done;
+    }
+    cprintf(cberr, "Timeout waiting for remote peer in state %s", statename);
     if ((tid = device_handle_tid_get(dh)) != 0){
         ct = controller_transaction_find(h, tid);
     }
     if (ct){
-        if (controller_transaction_failed(device_handle_handle_get(dh), tid, ct, dh, TR_FAILED_DEV_CLOSE, name, "Timeout waiting for remote peer") < 0)
+        if (controller_transaction_failed(device_handle_handle_get(dh), tid, ct, dh, TR_FAILED_DEV_CLOSE, name, cbuf_get(cberr)) < 0)
             goto done;
     }
-    else if (device_close_connection(dh, "Timeout waiting for remote peer") < 0)
+    else if (device_close_connection(dh, "%s", cbuf_get(cberr)) < 0)
         goto done;
     retval = 0;
  done:
+    if (cberr)
+        cbuf_free(cberr);
     return retval;
 }
 
