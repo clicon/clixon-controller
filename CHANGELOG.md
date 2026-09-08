@@ -16,6 +16,8 @@ Expected: September 2026
 
 ### New features
 
+* Improved device error handling
+  * Added a "dead socket" check to make timeout handling faster
 * Added a separate `connect-timeout` timer for setting up connection and syncing the config
   * This is a separate timer from `device-timeout` which is expected to be longer
   * See: [Handling unrecoverable transaction errors (including timeouts)](https://github.com/clicon/clixon-controller/issues/247) (point 1).

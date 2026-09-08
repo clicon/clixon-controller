@@ -705,6 +705,35 @@ devvec_create(clixon_handle h,
     return retval;
 }
 
+/*! Check for and handle a device whose bookkeeping says OPEN but whose socket is dead
+ *
+ * A cheap non-blocking check for a socket the OS already knows is dead (peer sent FIN/RST,
+ * or the ssh sub-process already exited), so an operation is not attempted against it only
+ * to fail later via device-timeout.
+ * This does not detect a silently unresponsive/black-holed peer; the SSH keepalive
+ * (see clixon_client_connect_ssh) proactively closes those over time instead.
+ * @param[in]  dh    Device handle
+ * @param[in]  name  Device name (for logging)
+ * @retval     1     Device socket was dead; connection is now closed
+ * @retval     0     Device socket is alive (or could not be checked)
+ * @retval    -1     Error
+ */
+static int
+device_dead_socket_check(device_handle dh,
+                          const char   *name)
+{
+    int sock;
+
+    if ((sock = device_handle_socket_get(dh)) < 0)
+        return 0;
+    if (clixon_event_poll_hup(sock) != 1)
+        return 0;
+    clixon_debug(CLIXON_DBG_CTRL, "%s: %s: dead socket detected, closing", __FUNCTION__, name);
+    if (device_close_connection(dh, "Socket already closed") < 0)
+        return -1;
+    return 1;
+}
+
 /*! Read the config of one or several remote devices
  *
  * @param[in]  h       Clixon handle
@@ -792,6 +821,13 @@ rpc_config_pull(clixon_handle h,
         }
         if ((dh = device_handle_find(h, devname)) == NULL ||
             device_handle_conn_state_get(dh) != CS_OPEN){
+            if (controller_transaction_device_skip(ct, devname, "closed") < 0)
+                goto done;
+            continue;
+        }
+        if ((ret = device_dead_socket_check(dh, devname)) < 0)
+            goto done;
+        if (ret == 1){
             if (controller_transaction_device_skip(ct, devname, "closed") < 0)
                 goto done;
             continue;
@@ -1498,6 +1534,7 @@ devices_diff(clixon_handle           h,
     char         *name;
     int           i;
     int           touch;
+    int           dead;
 
     if (candidate == NULL){
         clixon_err(OE_DB, EINVAL, "candidate is NULL");
@@ -1566,6 +1603,12 @@ devices_diff(clixon_handle           h,
         }
         if (touch){
             if (device_handle_conn_state_get(dh) != CS_OPEN){
+                *closed = dh;
+                break;
+            }
+            if ((dead = device_dead_socket_check(dh, name)) < 0)
+                goto done;
+            if (dead == 1){
                 *closed = dh;
                 break;
             }
@@ -3538,6 +3581,10 @@ rpc_device_rpc_template_apply(clixon_handle h,
             continue;
         if (device_handle_conn_state_get(dh) != CS_OPEN)
             continue;
+        if ((ret = device_dead_socket_check(dh, devname)) < 0)
+            goto done;
+        if (ret == 1)
+            continue;
         if ((ret = device_send_rpc_one(h, dh, ct->ct_id, xconfig, cbret)) < 0)
             goto done;
         if (ret == 0)  /* Failed but cbret set */
@@ -3685,6 +3732,10 @@ rpc_device_rpc(clixon_handle h,
         if ((dh = device_handle_find(h, devname)) == NULL)
             continue;
         if (device_handle_conn_state_get(dh) != CS_OPEN)
+            continue;
+        if ((ret = device_dead_socket_check(dh, devname)) < 0)
+            goto done;
+        if (ret == 1)
             continue;
         if ((ret = device_send_rpc_one(h, dh, ct->ct_id, xconfig, cbret)) < 0)
             goto done;
