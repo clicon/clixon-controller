@@ -58,6 +58,8 @@ struct controller_transaction_t{
     char              *ct_username;      /* Client username creating the transaction */
     int                ct_pull_transient;/* pull: dont commit locally */
     int                ct_pull_merge;    /* pull: Merge instead of replace */
+    int                ct_device_synced; /* Set when at least one device has written its
+                                            pulled config to tmpdev: this transaction needs commit_pulled_devices() */
     push_type          ct_push_type;     /* push to remote devices: Do not, validate, or commit */
     actions_type       ct_actions_type;  /* How to trigger service-commit notifications,
                                             and thereby action scripts */

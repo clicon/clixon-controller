@@ -640,8 +640,27 @@ controller_transaction_done(clixon_handle           h,
     char         *db = NULL;
     device_handle dh;
     cg_var       *cv;
+    cbuf         *cberr = NULL;
+    int           ret;
 
     clixon_debug(CLIXON_DBG_CTRL | CLIXON_DBG_DETAIL, "");
+    /* If any device wrote its pulled config to tmpdev during this transaction
+     * merge whatever was successfully pulled into running exactly once, here, before the result is finalized.
+     */
+    if (ct->ct_device_synced && !ct->ct_pull_transient){
+        if ((ret = commit_pulled_devices(h, ct, "tmpdev", &cberr)) < 0)
+            goto done;
+        if (ret == 0){
+            clixon_log(h, LOG_NOTICE, "%s: Failed to commit pulled devices to running: %s",
+                      __FUNCTION__, cbuf_get(cberr));
+            if (ct->ct_reason == NULL &&
+                (ct->ct_reason = strdup(cbuf_get(cberr))) == NULL){
+                clixon_err(OE_UNIX, errno, "strdup");
+                goto done;
+            }
+            result = TR_FAILED;
+        }
+    }
     controller_transaction_state_set(ct, TS_DONE, result);
     if (xmldb_candidate_find(h, "candidate", ct->ct_client_id, NULL, &db) < 0)
         goto done;
@@ -684,6 +703,8 @@ controller_transaction_done(clixon_handle           h,
         goto done;
     retval = 0;
  done:
+    if (cberr)
+        cbuf_free(cberr);
     return retval;
 }
 

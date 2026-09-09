@@ -117,6 +117,8 @@ typedef enum yang_config_t yang_config_t;
 extern "C" {
 #endif
 
+struct controller_transaction_t; /* forward, see controller_transaction.h */
+
 char        *device_state_int2str(conn_state state);
 conn_state   device_state_str2int(char *str);
 yang_config_t  yang_config_str2int(char *str);
@@ -132,6 +134,8 @@ int          device_config_read_cache(clixon_handle h, char *devname, char *conf
 int          device_config_write(clixon_handle h, char *name, char *config_type, cxobj *xdata, cbuf *cbret);
 int          device_state_handler(clixon_handle h, device_handle ch, int s, cxobj *xmsg);
 int          devices_statedata(clixon_handle h, cvec *nsc, char *xpath, cxobj *xstate);
+int          commit_pulled_devices(clixon_handle h, struct controller_transaction_t *ct,
+                                   const char *db, cbuf **cberr);
 
 #ifdef __cplusplus
 }

@@ -345,6 +345,7 @@ device_recv_config(clixon_handle h,
             goto done;
         goto closed;
     }
+    ct->ct_device_synced = 1;
     device_handle_sync_time_set(dh, NULL);
     /* 2. Put same to candidate */
     if (xmldb_candidate_find(h, "candidate", ct->ct_client_id, NULL, &db) < 0)

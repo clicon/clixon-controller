@@ -1159,6 +1159,7 @@ device_state_check_ok(clixon_handle           h,
 {
     int      retval = -1;
     uint64_t tid;
+    int      resolve;
 
     tid = ct->ct_id;
     if (ct->ct_state == TS_RESOLVED && ct->ct_result == TR_SUCCESS){
@@ -1174,15 +1175,21 @@ device_state_check_ok(clixon_handle           h,
     device_handle_tid_set(dh, 0);
     /* 2.2.2.2 If no devices in transaction, mark as OK and close it*/
     if (controller_transaction_nr_devices(h, tid) == 0){
-        if (ct->ct_state != TS_RESOLVED){
+        resolve = (ct->ct_state != TS_RESOLVED);
+        if (resolve){
             controller_transaction_state_set(ct, TS_RESOLVED, TR_SUCCESS);
-        /* Garbage-collect yspecs with no mount-points */
+        }
+        if (controller_transaction_done(h, ct, -1) < 0)
+            goto done;
+        /* Garbage-collect yspecs with no mount-points.
+         * Must run after controller_transaction_done(), which may still need the
+         * mount-point yang (eg to commit a pull's tmpdev to running), not before.
+         */
+        if (resolve){
             if (1) /* Causes SEGV when reconnect */
                 if (yang_mount_cleanup(h) < 0)
                     goto done;
         }
-        if (controller_transaction_done(h, ct, -1) < 0)
-            goto done;
     }
     retval = 0;
  done:
@@ -1227,14 +1234,20 @@ device_state_check_sanity(device_handle           dh,
     return 1;
 }
 
-/*! Commit db to running after pull transaction done
+/*! Commit db to running after a pull transaction ends
  *
- * @param[in] h     Clixon handle
- * @param[in] dh    Clixon device handle.
- * @param[in] ct    Transaction
- * @param[in] db0   Database name
- * @retval    0     OK
- * @retval   -1     Error
+ * Called exactly once per pull transaction, from controller_transaction_done(),
+ * regardless of whether the transaction as a whole succeeded or some devices
+ * failed/timed out: whatever config was successfully pulled and accumulated in
+ * db (eg tmpdev) by the devices that did answer (see per-device puts in
+ * device_recv_config()) is merged into running.
+ * @param[in]  h      Clixon handle
+ * @param[in]  ct     Transaction
+ * @param[in]  db     Database name (eg tmpdev)
+ * @param[out] cberr  Reason if retval=0, must be freed by caller
+ * @retval     1      OK, committed (or nothing to commit)
+ * @retval     0      Commit failed, cberr set
+ * @retval    -1      Error
  * @note some complexities: db is a special candidate (eg tmpdev) with some potential changes of device config
  *       One cannot use (or overwrite) candidate itself since it may have changes you dont want overwritten that
  *       are in the parts that were NOT pulled, ie other devices or top-level.
@@ -1242,11 +1255,11 @@ device_state_check_sanity(device_handle           dh,
  *       orig cand is deleted. Maybe this should be done only under certain circumstances, and maybe it should be
  *       copied from candidate instead?
  */
-static int
-commit_after_pull(clixon_handle           h,
-                  device_handle           dh,
-                  controller_transaction *ct,
-                  const char             *db)
+int
+commit_pulled_devices(clixon_handle           h,
+                      controller_transaction *ct,
+                      const char             *db,
+                      cbuf                  **cberr)
 {
     int       retval = -1;
     cbuf     *cbret = NULL;
@@ -1254,6 +1267,7 @@ commit_after_pull(clixon_handle           h,
     uint32_t  ceid;
     int       ret;
 
+    *cberr = NULL;
     ceid = ct->ct_client_id;
     if ((cbret = cbuf_new()) == NULL){
         clixon_err(OE_UNIX, errno, "cbuf_new");
@@ -1274,22 +1288,17 @@ commit_after_pull(clixon_handle           h,
         xmldb_unlock(h, db);
     if (ret == 0){ /* discard */
         clixon_debug(CLIXON_DBG_CTRL, "%s", cbuf_get(cbret));
-        if (device_close_connection(dh, "%s", cbuf_get(cbret)) < 0)
-            goto done;
-        if (controller_transaction_failed(h, ct->ct_id, ct, dh, TR_FAILED_DEV_LEAVE,
-                                          device_handle_name_get(dh),
-                                          device_handle_logmsg_get(dh)) < 0)
-            goto done;
-        goto failed;
+        *cberr = cbret;
+        cbret = NULL;
+        retval = 0;
+        goto done;
     }
+    xmldb_delete(h, db);
     retval = 1;
  done:
     if (cbret)
         cbuf_free(cbret);
     return retval;
- failed:
-    retval = 0;
-    goto done;
 }
 
 /*! Map device capabilities to local settings
@@ -1539,6 +1548,10 @@ device_state_handler(clixon_handle h,
                     break;
                 }
             }
+            /* Mount is now ready for this device: rebind any already-cached
+             */
+            if (xmldb_populate(h, "running") < 0)
+                goto done;
             /* Send a <get-config> request to a device */
             if (device_send_get(h, dh, s, 0, NULL) < 0)
                 goto done;
@@ -1633,6 +1646,10 @@ device_state_handler(clixon_handle h,
                     break;
                 }
             }
+            /* Mount is now ready for this device: rebind any already-cached
+             */
+            if (xmldb_populate(h, "running") < 0)
+                goto done;
             /* Unconditionally sync */
             if (device_send_get(h, dh, s, 0, NULL) < 0)
                 goto done;
@@ -1683,6 +1700,10 @@ device_state_handler(clixon_handle h,
                     goto done;
                 break;
             }
+            /* Mount is now ready for this device: rebind any already-cached
+             */
+            if (xmldb_populate(h, "running") < 0)
+                goto done;
             /* Unconditionally sync */
             if (device_send_get(h, dh, s, 0, NULL) < 0)
                 goto done;
@@ -1708,16 +1729,10 @@ device_state_handler(clixon_handle h,
                 goto done;
             break;
         }
-        if (controller_transaction_nr_devices(h, tid) == 1 &&
-            !ct->ct_pull_transient) {
-            /* See puts from each device in device_recv_config() */
-            if ((ret = commit_after_pull(h, dh, ct, "tmpdev")) < 0)
-                goto done;
-            if (ret == 0)
-                break;
-            xmldb_delete(h, "tmpdev");
-        }
-        /* The device is OK */
+        /* See puts from each device in device_recv_config() above: tmpdev accumulates
+         * this device's pulled config.
+         *
+         * The device is OK */
         if (device_state_check_ok(h, dh, ct) < 0)
             goto done;
         break;
