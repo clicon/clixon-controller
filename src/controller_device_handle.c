@@ -83,6 +83,9 @@ struct controller_device_handle{
     conn_state         cdh_conn_state; /* Connection state */
     struct timeval     cdh_conn_time;  /* Time when entering last connection state */
     struct timeval     cdh_sync_time;  /* Time when last sync (0 if unsynched) */
+    struct timeval     cdh_running_time; /* Value of cdh_sync_time when this device's own
+                                           subtree in the shared running db was last
+                                           refreshed from a completed pull (0 if never) */
     struct timeval     cdh_stable_time; /* Time when last time entered stable state: open or close - after connect/close,
                                            skip push/rpc states */
     clixon_handle      cdh_h;          /* Clixon handle */
@@ -747,6 +750,42 @@ device_handle_sync_time_set(device_handle   dh,
         gettimeofday(&cdh->cdh_sync_time, NULL);
     else
         cdh->cdh_sync_time = *t;
+    return 0;
+}
+
+/*! Get running-refreshed timestamp
+ *
+ * Value of sync-time when this device's own subtree in the shared running
+ * db was last known to be refreshed from a completed pull. Compared against
+ * the current sync-time to detect a stale running (see push_device_one()).
+ * @param[in]  dh     Device handle
+ * @param[out] t      Running-refreshed timestamp (=0 if never set)
+ */
+int
+device_handle_running_time_get(device_handle    dh,
+                               struct timeval *t)
+{
+    struct controller_device_handle *cdh = devhandle(dh);
+
+    *t = cdh->cdh_running_time;
+    return 0;
+}
+
+/*! Set running-refreshed timestamp
+ *
+ * @param[in]  dh     Device handle
+ * @param[in]  t      Timestamp, if NULL set w gettimeofday
+ */
+int
+device_handle_running_time_set(device_handle   dh,
+                               struct timeval *t)
+{
+    struct controller_device_handle *cdh = devhandle(dh);
+
+    if (t == NULL)
+        gettimeofday(&cdh->cdh_running_time, NULL);
+    else
+        cdh->cdh_running_time = *t;
     return 0;
 }
 

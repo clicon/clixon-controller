@@ -582,6 +582,8 @@ controller_transaction_free1(controller_transaction *ct)
         cvec_free(ct->ct_devices);
     if (ct->ct_devices_result)
         cvec_free(ct->ct_devices_result);
+    if (ct->ct_devices_synced)
+        cvec_free(ct->ct_devices_synced);
     if (ct->ct_devdata)
         xml_free(ct->ct_devdata);
     free(ct);

@@ -529,6 +529,28 @@ push_device_one(clixon_handle           h,
     /* Note x0 and x1 are directly modified in device_create_edit_config_diff, cannot do no-copy
        1) get previous device synced xml */
     name = device_handle_name_get(dh);
+    /* If pushing from running (the default, non-actions path), running must
+     * itself not be stale relative to the last successful device sync -
+     * otherwise the diff below (SYNCED vs running) would silently revert
+     * whatever a completed pull already learned about the device but never
+     * got merged into running (github issue #253, item 2). A local edit to
+     * running never touches sync-time/running-time, so this never flags a
+     * legitimate "commit local, then push" workflow. */
+    if (strcmp(db, "running") == 0){
+        struct timeval st;
+        struct timeval rt;
+
+        device_handle_sync_time_get(dh, &st);
+        device_handle_running_time_get(dh, &rt);
+        if (timercmp(&st, &rt, !=)){
+            if ((*cberr = cbuf_new()) == NULL){
+                clixon_err(OE_UNIX, errno, "cbuf_new");
+                goto done;
+            }
+            cprintf(*cberr, "Device %s: running config predates the most recent successful device sync - a previous pull may not have completed correctly; pull before pushing", name);
+            goto failed;
+        }
+    }
     if ((ret = device_config_read(h, name, "SYNCED", &x0, cberr)) < 0)
         goto done;
     if (ret == 0)

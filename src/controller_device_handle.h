@@ -91,6 +91,8 @@ int    device_handle_conn_time_get(device_handle dh, struct timeval *t);
 int    device_handle_conn_time_set(device_handle dh, struct timeval *t);
 int    device_handle_sync_time_get(device_handle dh, struct timeval *t);
 int    device_handle_sync_time_set(device_handle dh, struct timeval *t);
+int    device_handle_running_time_get(device_handle dh, struct timeval *t);
+int    device_handle_running_time_set(device_handle dh, struct timeval *t);
 int    device_handle_stable_time_get(device_handle dh, struct timeval *t);
 int    device_handle_stable_time_set(device_handle dh, struct timeval *t);
 int    device_handle_frame_state_get(device_handle dh);

@@ -346,6 +346,17 @@ device_recv_config(clixon_handle h,
         goto closed;
     }
     ct->ct_device_synced = 1;
+    if (ct->ct_devices_synced == NULL){
+        if ((ct->ct_devices_synced = cvec_new(0)) == NULL){
+            clixon_err(OE_UNIX, errno, "cvec_new");
+            goto done;
+        }
+    }
+    if (cvec_find(ct->ct_devices_synced, name) == NULL &&
+        cvec_add_string(ct->ct_devices_synced, name, "") < 0){
+        clixon_err(OE_UNIX, errno, "cvec_add_string");
+        goto done;
+    }
     device_handle_sync_time_set(dh, NULL);
     /* 2. Put same to candidate */
     if (xmldb_candidate_find(h, "candidate", ct->ct_client_id, NULL, &db) < 0)

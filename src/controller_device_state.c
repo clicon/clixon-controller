@@ -1266,6 +1266,8 @@ commit_pulled_devices(clixon_handle           h,
     char     *db1 = NULL;
     uint32_t  ceid;
     int       ret;
+    cg_var   *cv;
+    struct timeval st;
 
     *cberr = NULL;
     ceid = ct->ct_client_id;
@@ -1294,6 +1296,21 @@ commit_pulled_devices(clixon_handle           h,
         goto done;
     }
     xmldb_delete(h, db);
+    /* running now reflects the config of every device that wrote to db (tmpdev)
+     * as of its own current sync-time: record that per device so push_device_one()
+     * can later detect a stale running (see ct_devices_synced in device_recv_config()).
+     */
+    cv = NULL;
+    while ((cv = cvec_each(ct->ct_devices_synced, cv)) != NULL){
+        const char    *devname = cv_name_get(cv);
+        device_handle  dh;
+
+        if ((dh = device_handle_find(h, devname)) == NULL)
+            continue;
+        if (device_handle_sync_time_get(dh, &st) < 0)
+            continue;
+        device_handle_running_time_set(dh, &st);
+    }
     retval = 1;
  done:
     if (cbret)
