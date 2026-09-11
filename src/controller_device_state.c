@@ -615,16 +615,10 @@ device_state_timeout_register(device_handle dh)
     gettimeofday(&t, NULL);
     h = device_handle_handle_get(dh);
     state = device_handle_conn_state_get(dh);
-    /* The connect state machine (connecting, schema retrieval, initial sync) uses
-     * connect-timeout if configured, so an unreachable device fails quickly.
-     * Push and generic-RPC states use device-timeout. device-timeout is also the
-     * fallback for connect states if connect-timeout is not set.
+    /* The connect state machine connecting over SSH/TCP uses connect-timeout if configured, an unreachable device fails quickly.
      */
     switch (state){
     case CS_CONNECTING:
-    case CS_SCHEMA_LIST:
-    case CS_SCHEMA_ONE:
-    case CS_DEVICE_SYNC:
         if ((d = clicon_data_int_get(h, "controller-connect-timeout")) < 0)
             d = clicon_data_int_get(h, "controller-device-timeout");
         if (d < 0)
@@ -1302,8 +1296,8 @@ commit_pulled_devices(clixon_handle           h,
      */
     cv = NULL;
     while ((cv = cvec_each(ct->ct_devices_synced, cv)) != NULL){
-        const char    *devname = cv_name_get(cv);
-        device_handle  dh;
+        const char   *devname = cv_name_get(cv);
+        device_handle dh;
 
         if ((dh = device_handle_find(h, devname)) == NULL)
             continue;

@@ -659,11 +659,9 @@ module clixon-controller {
         }
         leaf connect-timeout{
             description
-                "Device connect state timeout in seconds for the connect state machine, ie
-                 connecting, schema retrieval and initial device sync.
-                 A connection to an unreachable device should fail quickly, whereas config push
-                 and RPC operations (see device-timeout) may legitimately take longer.
-                 If not set, device-timeout is used for the connect state machine as well.";
+                "Device connect state timeout in seconds for making a initial SSH/TCP connect.
+                 A connection to an unreachable device should fail quickly.
+                 If not set, device-timeout is used for conecting as well.";
             type uint32;
             units s;
         }

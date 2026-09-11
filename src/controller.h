@@ -96,7 +96,7 @@
 #define CONTROLLER_DEVICE_TIMEOUT_DEFAULT 60
 
 /*! Device connect state timeout if connect-timeout config is invalid (in s) */
-#define CONTROLLER_CONNECT_TIMEOUT_DEFAULT 20
+#define CONTROLLER_CONNECT_TIMEOUT_DEFAULT 10
 
 /*! Controller periodic timer for resoure handling in s */
 #define CONTROLLER_PERIODIC_TIMER 60
