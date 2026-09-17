@@ -275,7 +275,7 @@ sudo expect - "$clixon_cli" "$CFG" "$ADMIN" "$LIMITED" "$IMG" <<'EOF'
 set stty_init "rows 10000 cols 128"
 
 # valgrind requires timeout > 2
-set timeout 5
+set timeout 10
 set clixon_cli [lindex $argv 0]
 set CFG [lindex $argv 1]
 set ADMIN [lindex $argv 2]

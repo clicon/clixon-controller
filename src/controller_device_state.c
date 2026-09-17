@@ -1544,11 +1544,12 @@ device_state_handler(clixon_handle h,
                     new++;
                     yang_flag_set(yspec1, YANG_FLAG_SPEC_MOUNT);
                 }
-                if (yang_cvec_add(yspec1, CGV_STRING, cbuf_get(cbxpath)) == NULL)
-                    goto done;
-                if (controller_mount_yspec_set(h, name, yspec1) < 0)
-                    goto done;
             }
+            /* Unconditionally (re-)register this device's mount-point xpath */
+            if (yang_mount_xpath_bind(h, yspec1, cbuf_get(cbxpath)) < 0)
+                goto done;
+            if (controller_mount_yspec_set(h, name, yspec1) < 0)
+                goto done;
             /* All schemas ready, parse them (may do device_close) */
             if (new){
                 if ((ret = device_schemas_mount_parse(h, dh, xyanglib)) < 0)
@@ -1634,7 +1635,10 @@ device_state_handler(clixon_handle h,
                 new++;
             }
         }
-        if (yang_cvec_add(yspec1, CGV_STRING, cbuf_get(cbxpath)) == NULL)
+        /* yang_mount_xpath_bind() removes any stale binding of this xpath in
+         * other yspecs and (re-)adds it to yspec1. See comment at the
+         * equivalent CS_CONNECTING code above. */
+        if (yang_mount_xpath_bind(h, yspec1, cbuf_get(cbxpath)) < 0)
             goto done;
         if (controller_mount_yspec_set(h, name, yspec1) < 0)
             goto done;
