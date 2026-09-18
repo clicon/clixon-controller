@@ -390,6 +390,7 @@ device_state_mount_point_get(char      *devicename,
  *
  * @param[in] h        Clixon handle.
  * @param[in] dh       Clixon client handle.
+ * @param[in] conn_state Device connection state
  * @param[in] xyanglib XML tree of yang module-set
  * @retval    1        OK
  * @retval    0        Fail, parse or other error, device is closed
@@ -399,12 +400,16 @@ device_state_mount_point_get(char      *devicename,
 static int
 device_schemas_mount_parse(clixon_handle h,
                            device_handle dh,
+                           conn_state    conn_state,
                            cxobj        *xyanglib)
 {
     int        retval = -1;
     yang_stmt *yspec1;
     char      *domain;
     int        ret;
+    struct timeval t0;
+    struct timeval t1;
+    struct timeval td;
 
     clixon_debug(CLIXON_DBG_CTRL | CLIXON_DBG_DETAIL, "");
     if (xpath_first(xyanglib, 0, "module-set/module") == NULL){
@@ -424,6 +429,7 @@ device_schemas_mount_parse(clixon_handle h,
         clixon_err(OE_YANG, 0, "No YANG domain");
         goto done;
     }
+    gettimeofday(&t0, NULL);
     /* Given yang-lib, actual parsing of all modules into yspec */
     if ((ret = yang_lib2yspec(h, xyanglib, device_handle_name_get(dh), domain, yspec1)) < 0)
         goto done;
@@ -432,6 +438,12 @@ device_schemas_mount_parse(clixon_handle h,
         clixon_err_reset();
         goto fail;
     }
+    gettimeofday(&t1, NULL);
+    timersub(&t1, &t0, &td);
+    clixon_debug(CLIXON_DBG_CTRL, "%s %s: YANG parse: %ld.%03lds",
+                 device_handle_name_get(dh),
+                 device_state_int2str(conn_state),
+                 td.tv_sec, td.tv_usec/1000);
     retval = 1;
  done:
     clixon_debug(CLIXON_DBG_CTRL | CLIXON_DBG_DETAIL, "retval %d", retval);
@@ -1514,7 +1526,7 @@ device_state_handler(clixon_handle h,
                 goto done;
             /* All schemas ready, parse them (may do device_close) */
             if (new){
-                if ((ret = device_schemas_mount_parse(h, dh, xyanglib)) < 0)
+                if ((ret = device_schemas_mount_parse(h, dh, conn_state, xyanglib)) < 0)
                     goto done;
                 if (ret == 0){
                     if (controller_transaction_failed(h, tid, ct, dh, TR_FAILED_DEV_LEAVE, name, device_handle_logmsg_get(dh)) < 0)
@@ -1615,7 +1627,7 @@ device_state_handler(clixon_handle h,
         else if (ret == 0){ /* None found */
             if (new){
                 /* All schemas ready, parse them */
-                if ((ret = device_schemas_mount_parse(h, dh, xyanglib)) < 0)
+                if ((ret = device_schemas_mount_parse(h, dh, conn_state, xyanglib)) < 0)
                     goto done;
                 if (ret == 0){
                     if (controller_transaction_failed(h, tid, ct, dh, TR_FAILED_DEV_LEAVE, name, device_handle_logmsg_get(dh)) < 0)
@@ -1670,7 +1682,7 @@ device_state_handler(clixon_handle h,
                     goto done;
                 break;
             }
-            if ((ret = device_schemas_mount_parse(h, dh, xyanglib)) < 0)
+            if ((ret = device_schemas_mount_parse(h, dh, conn_state, xyanglib)) < 0)
                 goto done;
             if (ret == 0){
                 if (controller_transaction_failed(h, tid, ct, dh, TR_FAILED_DEV_LEAVE, name, device_handle_logmsg_get(dh)) < 0)
@@ -1921,6 +1933,9 @@ device_state_handler(clixon_handle h,
         if ((ret = controller_transaction_wait(h, tid)) < 0)
             goto done;
         if (ret == 1){
+            struct timeval t0;
+            struct timeval t1;
+            struct timeval tdiff;
             /* Check if action, skip if dryrun */
             if (ct->ct_actions_type != AT_NONE && strcmp(ct->ct_sourcedb, "candidate")==0){
                 if ((cberr = cbuf_new()) == NULL){
@@ -1935,6 +1950,7 @@ device_state_handler(clixon_handle h,
                         goto done;
                     break;
                 }
+                gettimeofday(&t0, NULL);
                 if (xmldb_copy(h, "actions", candidate) < 0)
                     goto done;
                 /* Third validate,
@@ -1969,6 +1985,10 @@ device_state_handler(clixon_handle h,
                     if (xmldb_post_commit(h, ct->ct_client_id) < 0)
                         goto done;
                 }
+                gettimeofday(&t1, NULL);
+                timersub(&t1, &t0, &tdiff);
+                clixon_debug(CLIXON_DBG_CTRL, "%s: config-template apply: %ld.%03lds",
+                             name, tdiff.tv_sec, tdiff.tv_usec/1000);
                 if (clicon_option_bool(h, "CLICON_AUTOLOCK")) // XXX maybe also when ret = 0
                     xmldb_unlock(h, candidate);
 

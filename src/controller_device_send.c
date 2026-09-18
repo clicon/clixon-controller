@@ -440,8 +440,12 @@ device_create_edit_config_diff(clixon_handle h,
     int     i;
     cxobj  *xn;
     cxobj  *xa;
+    struct timeval t0;
+    struct timeval t1;
+    struct timeval tdiff;
 
     clixon_debug(CLIXON_DBG_CTRL, "");
+    gettimeofday(&t0, NULL);
     /* 1. Add netconf operation attributes to add/del/change nodes in x0 and x1 and mark */
     for (i=0; i<dlen; i++){
         xn = dvec[i];
@@ -537,6 +541,10 @@ device_create_edit_config_diff(clixon_handle h,
  done:
     if (cb)
         cbuf_free(cb);
+    gettimeofday(&t1, NULL);
+    timersub(&t1, &t0, &tdiff);
+    clixon_debug(CLIXON_DBG_CTRL, "%s: edit-config build (del:%d add:%d ch:%d): %ld.%03lds",
+                 device_handle_name_get(dh), dlen, alen, chlen, tdiff.tv_sec, tdiff.tv_usec/1000);
     return retval;
 }
 

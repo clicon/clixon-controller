@@ -264,6 +264,7 @@ check_services_commit_subscription(clixon_handle h,
     struct stream_subscription *ss;
     int                         i;
 
+    clixon_debug(CLIXON_DBG_CTRL | CLIXON_DBG_DETAIL, "");
     /* XXX should use prefix cf edit_config */
     if ((nsc = xml_nsctx_init(NULL, EVENT_RFC5277_NAMESPACE)) == NULL)
         goto done;

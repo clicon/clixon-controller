@@ -526,6 +526,9 @@ push_device_one(clixon_handle           h,
     cbuf      *cbmsg2 = NULL;
     cvec      *nsc = NULL;
     int        ret;
+    struct timeval t0;
+    struct timeval t1;
+    struct timeval tdiff;
 
     /* Note x0 and x1 are directly modified in device_create_edit_config_diff, cannot do no-copy
        1) get previous device synced xml */
@@ -557,6 +560,7 @@ push_device_one(clixon_handle           h,
     if (ret == 0)
         goto failed;
     /* 2) get current and compute diff with previous */
+    gettimeofday(&t0, NULL);
     if ((cb = cbuf_new()) == NULL){
         clixon_err(OE_UNIX, errno, "cbuf_new");
         goto done;
@@ -589,6 +593,10 @@ push_device_one(clixon_handle           h,
                  &avec, &alen,
                  &chvec0, &chvec1, &chlen) < 0)
         goto done;
+    gettimeofday(&t1, NULL);
+    timersub(&t1, &t0, &tdiff);
+    clixon_debug(CLIXON_DBG_CTRL, "%s: push diff (del:%zu add:%zu ch:%zu): %ld.%03lds",
+                 name, dlen, alen, chlen, tdiff.tv_sec, tdiff.tv_usec/1000);
     /* 3) construct an edit-config, send it and validate it */
     if (dlen || alen || chlen){
         if (device_create_edit_config_diff(h, dh,
@@ -1737,6 +1745,9 @@ devices_diff(clixon_handle           h,
     int           i;
     int           touch;
     int           dead;
+    struct timeval t0;
+    struct timeval t1;
+    struct timeval tdiff;
 
     *closed = NULL;
     if (candidate == NULL){
@@ -1758,6 +1769,7 @@ devices_diff(clixon_handle           h,
         if ((xn = xpath_first_name(td->td_target, nsc, "devices/device", "name", name, NULL)) != NULL)
             xml_flag_set(xn, XML_FLAG_SKIP);
     }
+    gettimeofday(&t0, NULL);
     if (xml_diff(td->td_src,
                  td->td_target,
                 &td->td_dvec,      /* removed: only in running */
@@ -1768,6 +1780,10 @@ devices_diff(clixon_handle           h,
                 &td->td_tcvec,     /* changed: wanted values */
                 &td->td_clen) < 0)
         goto done;
+    gettimeofday(&t1, NULL);
+    timersub(&t1, &t0, &tdiff);
+    clixon_debug(CLIXON_DBG_CTRL, "transaction %" PRIu64 ": devices diff (del:%zu add:%zu ch:%zu): %ld.%03lds",
+                 ct->ct_id, td->td_dlen, td->td_alen, td->td_clen, tdiff.tv_sec, tdiff.tv_usec/1000);
     /* Mark flags, see also validate_common */
     for (i=0; i<td->td_dlen; i++){ /* Also down */
         xn = td->td_dvec[i];
@@ -2690,7 +2706,7 @@ connection_change_one(clixon_handle           h,
         clixon_err(OE_NETCONF, 0, "%s is not a connection-operation", operation);
         goto done;
     }
-    clixon_debug(CLIXON_DBG_CTRL, "%s connection op:%s", devname, operation);
+    clixon_debug(CLIXON_DBG_CTRL | CLIXON_DBG_DETAIL, "%s connection op:%s", devname, operation);
     retval = 1;
  done:
     if (reason)
@@ -2735,7 +2751,7 @@ rpc_connection_change(clixon_handle h,
     int                     tmpdev = 0;
     int                     ret;
 
-    clixon_debug(CLIXON_DBG_CTRL, "");
+    clixon_debug(CLIXON_DBG_CTRL | CLIXON_DBG_DETAIL, "");
     if ((xn = xml_find(xe, "device")) != NULL)
         ;
     else if ((xn = xml_find(xe, "device-group")) != NULL)
@@ -2999,7 +3015,7 @@ rpc_device_rpc_result(clixon_handle h,
     controller_transaction *ct;
     int                     ret;
 
-    clixon_debug(CLIXON_DBG_CTRL|CLIXON_DBG_DETAIL, "");
+    clixon_debug(CLIXON_DBG_CTRL | CLIXON_DBG_DETAIL, "");
     if ((tidstr = xml_find_body(xe, "tid")) == NULL){
         if (netconf_operation_failed(cbret, "application", "No tid")< 0)
             goto done;
@@ -3589,6 +3605,9 @@ rpc_device_config_template_apply(clixon_handle h,
     char         *candidate = NULL;
     int           ix;
     int           ret;
+    struct timeval t0;
+    struct timeval t1;
+    struct timeval tdiff;
 
     clixon_debug(CLIXON_DBG_CTRL, "");
     yspec0 = clicon_dbspec_yang(h);
@@ -3674,6 +3693,7 @@ rpc_device_config_template_apply(clixon_handle h,
             device_close_connection(dh, "No YANGs available");
             goto done;
         }
+        gettimeofday(&t0, NULL);
         if ((xtc = xml_dup(xtmpl)) == NULL)
             goto done;
         if ((ret = xml_bind_yang(h, xtc, YB_MODULE, yspec1, 0, &xerr)) < 0)
@@ -3691,6 +3711,10 @@ rpc_device_config_template_apply(clixon_handle h,
             goto done;
         if (ret == 0)
             goto ok;
+        gettimeofday(&t1, NULL);
+        timersub(&t1, &t0, &tdiff);
+        clixon_debug(CLIXON_DBG_CTRL, "%s: config-template apply: %ld.%03lds",
+                     devname, tdiff.tv_sec, tdiff.tv_usec/1000);
         xml_rm(xroot);
         if (xtc){
             xml_free(xtc);

@@ -215,6 +215,9 @@ device_recv_config(clixon_handle h,
     cxobj                  *xt1 = NULL;
     char                   *db = NULL;
     int                     ret;
+    struct timeval          t0;
+    struct timeval          t1;
+    struct timeval          td;
 
     clixon_debug(CLIXON_DBG_CTRL | CLIXON_DBG_DETAIL, "");
     if ((ret = rpc_reply_sanity(dh, xmsg, rpcname, conn_state)) < 0)
@@ -333,6 +336,7 @@ device_recv_config(clixon_handle h,
         }
         goto ok;
     }
+    gettimeofday(&t0, NULL);
     /* Must make a copy: xmldb_put strips attributes */
     if ((xt1 = xml_dup(xt)) == NULL)
         goto done;
@@ -380,6 +384,12 @@ device_recv_config(clixon_handle h,
         goto closed;
     }
     device_handle_sync_time_set(dh, NULL);
+    gettimeofday(&t1, NULL);
+    timersub(&t1, &t0, &td);
+    clixon_debug(CLIXON_DBG_CTRL, "%s %s: XML merge: %ld.%03lds",
+                 device_handle_name_get(dh),
+                 device_state_int2str(conn_state),
+                 td.tv_sec, td.tv_usec/1000);
  ok:
     retval = 1;
  done:
