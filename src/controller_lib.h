@@ -103,6 +103,41 @@ enum actions_type_t{
 };
 typedef enum actions_type_t actions_type;
 
+/*! State of connection
+ *
+ * Only closed and open are "stable", the others are transient and timeout to closed
+ * @see clixon-controller@2023-01-01.yang connection-state
+ * @see csmap translation table
+ */
+enum conn_state_t {
+    CS_CLOSED = 0,    /* Closed, also "closed" if handle non-existent but then no state */
+    CS_OPEN,          /* Connection established and Hello sent to device. */
+
+    /* Connect state machine */
+    CS_CONNECTING,    /* Connect() called, expect to receive hello from device
+                         May fail due to (1) connect fails or (2) hello not receivd */
+    CS_SCHEMA_LIST,   /* Get ietf-netconf-monitor schema state */
+    CS_SCHEMA_ONE,    /* Connection established and Hello sent to device (nr substate) */
+    CS_DEVICE_SYNC,   /* Get all config (transient+merge are sub-state parameters) */
+
+    /* Push state machine */
+    CS_PUSH_LOCK,     /* Lock device candidate */
+    CS_PUSH_CHECK,    /* sync device transient to check if device is unchanged */
+    CS_PUSH_EDIT,     /* First edit-config sent (if any) waiting for reply */
+    CS_PUSH_EDIT2,    /* Second edit-config sent (if any), waiting for reply */
+    CS_PUSH_VALIDATE, /* validate sent, waiting for reply  */
+    CS_PUSH_WAIT,     /* Waiting for other devices to validate */
+    CS_PUSH_COMMIT,   /* commit sent, waiting for reply ok */
+    CS_PUSH_COMMIT_SYNC, /* After remote commit, received remote config, commit it in
+                     controller (only used if CONTROLLER_EXTRA_PUSH_SYNC */
+    CS_PUSH_DISCARD,  /* discard sent, waiting for reply ok */
+    CS_PUSH_UNLOCK,   /* Unlock device candidate */
+
+    /* Generic RPC state machine */
+    CS_RPC_GENERIC,   /* Sent a generic RPC to device, wait for reply */
+};
+typedef enum conn_state_t conn_state;
+
 /*! Netconf recv/send type
  */
 enum netconf_xmit_type_t{
@@ -127,6 +162,8 @@ char *push_type_int2str(push_type t);
 push_type push_type_str2int(char *str);
 char *actions_type_int2str(actions_type t);
 actions_type actions_type_str2int(char *str);
+char        *device_state_int2str(conn_state state);
+conn_state   device_state_str2int(char *str);
 int controller_yang_library_bind(clixon_handle h, cxobj *yanglib);
 int schema_list2yang_library(clixon_handle h, cxobj *xschemas, char *domain, cxobj **xyanglib);
 int xdev2yang_library(cxobj *xdev, char *domain, cxobj **xyanglib);

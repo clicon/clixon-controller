@@ -93,34 +93,6 @@ Push state-machine:
 #include "controller_transaction.h"
 #include "controller_device_recv.h"
 
-/*! Mapping between enum conn_state and yang connection-state
- *
- * @see clixon-controller@2023-01-01.yang connection-state
- */
-static const map_str2int csmap[] = {
-    {"CLOSED",           CS_CLOSED},
-    {"OPEN",             CS_OPEN},
-    /* Connect state machine */
-    {"CONNECTING",       CS_CONNECTING},
-    {"SCHEMA-LIST",      CS_SCHEMA_LIST},
-    {"SCHEMA-ONE",       CS_SCHEMA_ONE}, /* substate is schema-nr */
-    {"DEVICE-SYNC",      CS_DEVICE_SYNC},
-    /* Push state machine */
-    {"PUSH-LOCK",        CS_PUSH_LOCK},
-    {"PUSH-CHECK",       CS_PUSH_CHECK},
-    {"PUSH-EDIT",        CS_PUSH_EDIT},
-    {"PUSH-EDIT2",       CS_PUSH_EDIT2},
-    {"PUSH-VALIDATE",    CS_PUSH_VALIDATE},
-    {"PUSH-WAIT",        CS_PUSH_WAIT},
-    {"PUSH-COMMIT",      CS_PUSH_COMMIT},
-    {"PUSH-COMMIT-SYNC", CS_PUSH_COMMIT_SYNC},
-    {"PUSH-DISCARD",     CS_PUSH_DISCARD},
-    {"PUSH-UNLOCK",      CS_PUSH_UNLOCK},
-    /* Generic RPC state machine */
-    {"RPC-GENERIC",      CS_RPC_GENERIC},
-    {NULL,              -1}
-};
-
 /*! Mapping between enum yang_config and yang config
  *
  * How to bind device configuration to YANG
@@ -133,28 +105,6 @@ static const map_str2int yfmap[] = {
     {"VALIDATE", YF_VALIDATE},
     {NULL,       -1}
 };
-
-/*! Map controller device connection state from int to string
- *
- * @param[in]  state  Device state as int
- * @retval     str    Device state as string
- */
-char *
-device_state_int2str(conn_state state)
-{
-    return (char*)clicon_int2str(csmap, state);
-}
-
-/*! Map controller device connection state from string to int
- *
- * @param[in]  str    Device state as string
- * @retval     state  Device state as int
- */
-conn_state
-device_state_str2int(char *str)
-{
-    return clicon_str2int(csmap, str);
-}
 
 /*! Map yang config from string to int
  *

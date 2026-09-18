@@ -43,7 +43,7 @@ Users may have to change how they access the system
 ### Corrected Bugs
 
 * Fixed: [Pull discarded on tail-device timeout, then silently reverts the device on the next push](https://github.com/clicon/clixon-controller/issues/253)
-* Fixed (partially): [Handling unrecoverable transaction errors (including timeouts)](https://github.com/clicon/clixon-controller/issues/247) (item 2 remains)
+* Fixed: [Handling unrecoverable transaction errors (including timeouts)](https://github.com/clicon/clixon-controller/issues/247)
 * Fixed: double freed transaction in controller-commit sometimes caused segv
 
 ## 1.8.0
