@@ -791,6 +791,21 @@ transaction_notification_poll(clixon_handle       h,
     gettimeofday(&tv0, NULL);
     while (!match){
         if (istty){
+            /* Check first: a ^C may already have been caught (and the
+             * sentinel set) by our handler during the previous iteration's
+             * transaction_progress_show() call below, since clicon_rpc_get()
+             * blocks with intr=0 (see clixon_msg_rcv11()), ie using whatever
+             * SIGINT handler is currently installed (ours) rather than its
+             * own. Such an interrupt is silently retried inside that call
+             * (clixon_rw_retry() only checks the *library's own* sentinel,
+             * clixon_sig_atomic_get(), not ours) and would otherwise go
+             * unnoticed since clixon_event_poll_timeout() below may then
+             * simply time out normally (n==0, no new EINTR) without ever
+             * re-checking our sentinel. */
+            if (_transaction_poll_sigint){
+                aborted = 1;
+                break;
+            }
             /* First progress update comes quickly (100ms) for fast feedback,
              * subsequent updates are less frequent (500ms) to avoid excessive
              * screen redraws. */
@@ -809,9 +824,20 @@ transaction_notification_poll(clixon_handle       h,
                 goto done;
             }
             if (n == 0){
+                int pret;
+
                 /* No notification yet within this interval: show progress */
                 elapsed++;
-                if (transaction_progress_show(h, tidstr, &tv0) < 0)
+                pret = transaction_progress_show(h, tidstr, &tv0);
+                /* Check sentinel before treating a negative return as fatal:
+                 * a SIGINT-interrupted read inside transaction_progress_show()
+                 * surfaces as an ordinary error return, not eof/abort, see
+                 * comment above. */
+                if (_transaction_poll_sigint){
+                    aborted = 1;
+                    break;
+                }
+                if (pret < 0)
                     goto done;
                 continue;
             }
