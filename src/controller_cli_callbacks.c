@@ -738,6 +738,7 @@ transaction_poll_sigint_handler(int sig)
  *
  * param[in]  h      Clixon handle
  * param[in]  tidstr Transaction identifier
+ * param[in]  detail Show progress, if on a terminal (see below)
  * param[out] result
  * @retval    0      OK
  * @retval   -1      Error
@@ -746,6 +747,7 @@ transaction_poll_sigint_handler(int sig)
 static int
 transaction_notification_poll(clixon_handle       h,
                               char               *tidstr,
+                              int                 detail,
                               transaction_result *result)
 {
     int              retval = -1;
@@ -766,10 +768,8 @@ transaction_notification_poll(clixon_handle       h,
         clixon_err(OE_EVENTS, 0, "controller-transaction-notify-socket is closed");
         goto done;
     }
-    /* Only show progress on an interactive terminal: avoids interfering with
-     * scripted/piped output (eg regression tests) and matches issue #247
-     * proposal 2: give feedback while a push commit/validate is running. */
-    istty = isatty(STDOUT_FILENO);
+    /* Only show progress on an interactive terminal and if explicitly requested */
+    istty = detail && isatty(STDOUT_FILENO);
     if (istty){
         _transaction_poll_sigint = 0;
         if (clixon_signal_save(&oldsigset, oldsigaction) < 0)
@@ -791,7 +791,10 @@ transaction_notification_poll(clixon_handle       h,
     gettimeofday(&tv0, NULL);
     while (!match){
         if (istty){
-            struct timeval tv = { 1, 0 }; /* progress update interval */
+            /* First progress update comes quickly (100ms) for fast feedback,
+             * subsequent updates are less frequent (500ms) to avoid excessive
+             * screen redraws. */
+            struct timeval tv = elapsed == 0 ? (struct timeval){0, 100000} : (struct timeval){0, 500000};
             int            n;
 
             n = clixon_event_poll_timeout(s, &tv);
@@ -974,7 +977,7 @@ transaction_print_skipped(clixon_handle h,
 /*! Read(pull) the config of one or several devices.
  *
  * @param[in] h
- * @param[in] cvv  : name-pattern, [group]
+ * @param[in] cvv  : name-pattern, group, detail
  * @param[in] argv : replace/merge
  * @retval    0      OK
  * @retval   -1      Error
@@ -999,6 +1002,7 @@ cli_rpc_pull(clixon_handle h,
     char              *tidstr;
     transaction_result result = 0;
     int                ret;
+    int                detail = 0;
 
     if (argv == NULL || cvec_len(argv) != 1){
         clixon_err(OE_PLUGIN, EINVAL, "requires argument: replace/merge");
@@ -1017,6 +1021,8 @@ cli_rpc_pull(clixon_handle h,
         group = cv_string_get(cv);
     if ((cv = cvec_find(cvv, "name")) != NULL)
         name = cv_string_get(cv);
+    if (cvec_find(cvv, "detail") != NULL)
+        detail = 1;
     if ((cb = cbuf_new()) == NULL){
         clixon_err(OE_PLUGIN, errno, "cbuf_new");
         goto done;
@@ -1057,7 +1063,7 @@ cli_rpc_pull(clixon_handle h,
     if ((ret = transaction_exist(h, tidstr)) < 0)
         goto done;
     if (ret == 1){
-        if (transaction_notification_poll(h, tidstr, &result) < 0)
+        if (transaction_notification_poll(h, tidstr, detail, &result) < 0)
             goto done;
         if (transaction_print_skipped(h, tidstr, 1) < 0)
             goto done;
@@ -1230,6 +1236,7 @@ get_service_key(yang_stmt *yspec,
                     actions:NONE/CHANGE/FORCE,
                     push:NONE/VALIDATE/COMMIT,
                     group
+                    detail
  * @retval    0     OK
  * @retval   -1     Error
  * @see controller-commit in clixon-controller.yang
@@ -1262,6 +1269,7 @@ cli_rpc_controller_commit(clixon_handle h,
     yang_stmt         *yspec;
     char              *keyname = NULL;
     int                ret;
+    int                detail = 0;
 
     if (argv == NULL || cvec_len(argv) != 3){
         clixon_err(OE_PLUGIN, EINVAL, "requires arguments: <datastore> <actions-type> <push-type>");
@@ -1305,6 +1313,8 @@ cli_rpc_controller_commit(clixon_handle h,
         instance = cv_string_get(cv);
     if ((cv = cvec_find(cvv, "group")) != NULL)
         group = cv_string_get(cv);
+    if (cvec_find(cvv, "detail") != NULL)
+        detail = 1;
     if ((cb = cbuf_new()) == NULL){
         clixon_err(OE_PLUGIN, errno, "cbuf_new");
         goto done;
@@ -1359,7 +1369,7 @@ cli_rpc_controller_commit(clixon_handle h,
         if ((ret = transaction_exist(h, tidstr)) < 0)
             goto done;
         if (ret == 1){
-            if (transaction_notification_poll(h, tidstr, &result) < 0)
+            if (transaction_notification_poll(h, tidstr, detail, &result) < 0)
                 goto done;
             if (result != TR_SUCCESS)
                 goto ok;
@@ -1390,7 +1400,7 @@ cli_rpc_controller_commit(clixon_handle h,
 /*! Read the config of one or several devices, assumes a name variable for pattern, or NULL for all
  *
  * @param[in] h
- * @param[in] cvv    Vector of cli string and instantiated variable, assume <name> <async>, [group]
+ * @param[in] cvv    Vector of cli string and instantiated variable, assume <name> <async>, [group], [detail]
  * @param[in] argv : OPEN/CLOSE/RECONNECT
  * @retval    0      OK
  * @retval   -1      Error
@@ -1416,6 +1426,7 @@ cli_connection_change(clixon_handle h,
     char              *tidstr;
     transaction_result result = 0;
     int                ret;
+    int                detail = 0;
 
     if (argv == NULL || cvec_len(argv) != 1){
         clixon_err(OE_PLUGIN, EINVAL, "requires argument: <operation>");
@@ -1432,6 +1443,8 @@ cli_connection_change(clixon_handle h,
         dontwait = cv_string_get(cv);
     if ((cv = cvec_find(cvv, "group")) != NULL)
         group = cv_string_get(cv);
+    if (cvec_find(cvv, "detail") != NULL)
+        detail = 1;
     if ((cb = cbuf_new()) == NULL){
         clixon_err(OE_PLUGIN, errno, "cbuf_new");
         goto done;
@@ -1472,7 +1485,7 @@ cli_connection_change(clixon_handle h,
         if ((ret = transaction_exist(h, tidstr)) < 0)
             goto done;
         if (ret == 1){
-            if (transaction_notification_poll(h, tidstr, &result) < 0)
+            if (transaction_notification_poll(h, tidstr, detail, &result) < 0)
                 goto done;
         }
     }
@@ -2199,6 +2212,7 @@ compare_device_config_type(clixon_handle      h,
     size_t             veclen;
     int                i;
     int                ret;
+    int                detail = 0;
 
     if (cvec_len(argv) > 1){
         clixon_err(OE_PLUGIN, EINVAL, "Received %d arguments. Expected: <format>]", cvec_len(argv));
@@ -2226,6 +2240,8 @@ compare_device_config_type(clixon_handle      h,
         pattern = cv_string_get(cv);
     if ((cv = cvec_find(cvv, "group")) != NULL)
         group = cv_string_get(cv);
+    if (cvec_find(cvv, "detail") != NULL)
+        detail = 1;
     /* If remote, start with requesting it asynchrously */
     if (dt1 == DT_TRANSIENT || dt2 == DT_TRANSIENT){
         /* Send pull <transient> */
@@ -2235,7 +2251,7 @@ compare_device_config_type(clixon_handle      h,
             goto done;
         if (ret == 1){
             /* Wait to complete transaction try ^C here */
-            if (transaction_notification_poll(h, tidstr, &result) < 0)
+            if (transaction_notification_poll(h, tidstr, detail, &result) < 0)
                 goto done;
             if (result != TR_SUCCESS)
                 goto done;
@@ -2402,7 +2418,7 @@ compare_dbs_rpc(clixon_handle h,
 /*! Compare device dbs: running with current device (transient)
  *
  * @param[in] h     Clixon handle
- * @param[in] cvv  : name pattern or NULL
+ * @param[in] cvv  : name pattern or NULL, detail
  * @param[in] argv  arg: 0 as xml, 1: as text
  * @retval    0     OK
  * @retval   -1     Error
@@ -3195,6 +3211,7 @@ cli_apply_device_template(clixon_handle h,
  * @param[in] argv  Arguments given at the callback:
  *                     templ      Name of cv containing rpc template name
  *                     devpattern Name of cv containing device name pattern
+ *                     detail     Progress bar
  * @retval    0    OK
  * @retval   -1    Error
  * @see cli_generic_rpc_match  list device rpc:s
@@ -3221,6 +3238,7 @@ cli_device_rpc_template(clixon_handle h,
     char              *tidstr;
     transaction_result result = 0;
     int                ret;
+    int                detail = 0;
 
     if (argv == NULL || cvec_len(argv) < 1 || cvec_len(argv) > 2){
         clixon_err(OE_PLUGIN, EINVAL, "requires arguments: <templ> [<devpattern>]");
@@ -3246,6 +3264,8 @@ cli_device_rpc_template(clixon_handle h,
     }
     if ((cv = cvec_find(cvv, "group")) != NULL)
         group = cv_string_get(cv);
+    if (cvec_find(cvv, "detail") != NULL)
+        detail = 1;
     if ((cb = cbuf_new()) == NULL){
         clixon_err(OE_PLUGIN, errno, "cbuf_new");
         goto done;
@@ -3300,7 +3320,7 @@ cli_device_rpc_template(clixon_handle h,
     if ((ret = transaction_exist(h, tidstr)) < 0)
         goto done;
     if (ret == 1){
-        if (transaction_notification_poll(h, tidstr, &result) < 0)
+        if (transaction_notification_poll(h, tidstr, detail, &result) < 0)
             goto done;
         if (transaction_print_skipped(h, tidstr, 0) < 0)
             goto done;
@@ -3572,6 +3592,7 @@ cli_show_device_state(clixon_handle h,
     char              *tidstr;
     transaction_result result = 0;
     int                ret;
+    int                detail = 0;
 
     if (argv == NULL || cvec_len(argv) < 0 || cvec_len(argv) > 1){
         clixon_err(OE_PLUGIN, EINVAL, "requires arguments: [<devpattern>]");
@@ -3588,6 +3609,8 @@ cli_show_device_state(clixon_handle h,
             }
         }
     }
+    if (cvec_find(cvv, "detail") != NULL)
+        detail = 1;
     if ((cb = cbuf_new()) == NULL){
         clixon_err(OE_PLUGIN, errno, "cbuf_new");
         goto done;
@@ -3634,7 +3657,7 @@ cli_show_device_state(clixon_handle h,
     if ((ret = transaction_exist(h, tidstr)) < 0)
         goto done;
     if (ret == 1){
-        if (transaction_notification_poll(h, tidstr, &result) < 0)
+        if (transaction_notification_poll(h, tidstr, detail, &result) < 0)
             goto done;
         if (transaction_print_skipped(h, tidstr, 1) < 0)
                 goto done;

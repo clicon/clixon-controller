@@ -19,16 +19,17 @@ Expected: September 2026
 * Improved device error handling
   * Added a "dead socket" check to make timeout handling faster
   * Added generation tracking of synced device datastore to avoid running containing stale device configs
-* Added a separate `connect-timeout` timer for setting up connection and syncing the config
-  * This is a separate timer from `device-timeout` which is expected to be longer
-  * See: [Handling unrecoverable transaction errors (including timeouts)](https://github.com/clicon/clixon-controller/issues/247) (item 1).
-  * See also: https://clixon-controller-docs.readthedocs.io/en/latest/cli.html#timeouts
 * Clarified controller transaction operations
+  * Added progress bar showing device states for transaction detail commands (connect/pull/commit/rpc)
   * Added per-device error handling of closed devices
   * Add device skiplist to transaction when device is disabled or closed for pull and commit
   * CLI added "disabled" as connection state in show connections
   * CLI return silent instead of "OK" from successful transaction
   * This is a subset of part 3 in: https://github.com/clicon/clixon-controller/issues/247
+* Added a separate `connect-timeout` timer for setting up connection and syncing the config
+  * This is a separate timer from `device-timeout` which is expected to be longer
+  * See: [Handling unrecoverable transaction errors (including timeouts)](https://github.com/clicon/clixon-controller/issues/247) (item 1).
+  * See also: https://clixon-controller-docs.readthedocs.io/en/latest/cli.html#timeouts
 
 ### API changes on existing protocol/config features
 

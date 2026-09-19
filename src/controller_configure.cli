@@ -19,12 +19,22 @@ delete("Delete a configuration item") {
 }
 quit("Quit"), cli_quit();
 commit("Run services, commit and push to devices"), cli_rpc_controller_commit("candidate", "CHANGE", "COMMIT");{
-    diff("Show the result of running the services but do not commit"), cli_rpc_controller_commit("candidate", "CHANGE", "NONE");
-    push("Run services, commit and push to devices"), cli_rpc_controller_commit("candidate", "CHANGE", "COMMIT");
+    diff("Show the result of running the services but do not commit"), cli_rpc_controller_commit("candidate", "CHANGE", "NONE");{
+        <detail:string keyword:detail>("Show progress on a terminal"), cli_rpc_controller_commit("candidate", "CHANGE", "NONE");
+    }
+    push("Run services, commit and push to devices"), cli_rpc_controller_commit("candidate", "CHANGE", "COMMIT");{
+        <detail:string keyword:detail>("Show progress on a terminal"), cli_rpc_controller_commit("candidate", "CHANGE", "COMMIT");
+    }
     local("Local commit, do not push to devices"), cli_commit();
+    <detail:string keyword:detail>("Show progress on a terminal"), cli_rpc_controller_commit("candidate", "CHANGE", "COMMIT");{
+        diff("Show the result of running the services but do not commit"), cli_rpc_controller_commit("candidate", "CHANGE", "NONE");
+        push("Run services, commit and push to devices"), cli_rpc_controller_commit("candidate", "CHANGE", "COMMIT");
+    }
 }
 validate("Validate changes"), cli_validate();{
-    push("Run services and push to devices"), cli_rpc_controller_commit("candidate", "CHANGE", "VALIDATE");
+    push("Run services and push to devices"), cli_rpc_controller_commit("candidate", "CHANGE", "VALIDATE");{
+        <detail:string keyword:detail>("Show progress on a terminal"), cli_rpc_controller_commit("candidate", "CHANGE", "VALIDATE");
+    }
     local("Local commit, trigger scripts but do not "), cli_validate();
 }
 startup("Store running as startup config"), db_copy("running", "startup");
@@ -65,9 +75,25 @@ apply("Apply template or service") {
         <service:string expand_yang_list("/ctrl:services", "true")>
         <instance:string expand_dbvar("running", "/clixon-controller:services/%s/%k")>,
           cli_rpc_controller_commit("candidate", "FORCE", "COMMIT"); {
-              diff("Show the result of running the services but do not commit"), cli_rpc_controller_commit("candidate", "FORCE", "NONE");
-              delete("Delete service"), cli_rpc_controller_commit("candidate", "DELETE", "COMMIT");
+              diff("Show the result of running the services but do not commit"), cli_rpc_controller_commit("candidate", "FORCE", "NONE");{
+                  <detail:string keyword:detail>("Show progress on a terminal"), cli_rpc_controller_commit("candidate", "FORCE", "NONE");
+              }
+              delete("Delete service"), cli_rpc_controller_commit("candidate", "DELETE", "COMMIT");{
+                  <detail:string keyword:detail>("Show progress on a terminal"), cli_rpc_controller_commit("candidate", "DELETE", "COMMIT");
+              }
+              <detail:string keyword:detail>("Show progress on a terminal"), cli_rpc_controller_commit("candidate", "FORCE", "COMMIT"); {
+                  diff("Show the result of running the services but do not commit"), cli_rpc_controller_commit("candidate", "FORCE", "NONE");
+                  delete("Delete service"), cli_rpc_controller_commit("candidate", "DELETE", "COMMIT");
+              }
           }
+        <detail:string keyword:detail>("Show progress on a terminal"), cli_rpc_controller_commit("candidate", "FORCE", "COMMIT"); {
+            <service:string expand_yang_list("/ctrl:services", "true")>
+            <instance:string expand_dbvar("running", "/clixon-controller:services/%s/%k")>,
+              cli_rpc_controller_commit("candidate", "FORCE", "COMMIT"); {
+                  diff("Show the result of running the services but do not commit"), cli_rpc_controller_commit("candidate", "FORCE", "NONE");
+                  delete("Delete service"), cli_rpc_controller_commit("candidate", "DELETE", "COMMIT");
+              }
+        }
     }
 }
 lock("Lock candidate datastore"), cli_lock("candidate");

@@ -2,8 +2,8 @@ CLICON_MODE="controller_show_devices";
 CLICON_PROMPT="%U@%H[%W]# ";
 CLICON_PLUGIN="controller_cli";
 
-check("Check if device is in sync"), check_device_db("default");
-diff("Compare remote device config with local"), compare_device_db_dev("default");
+check("Check if device is in sync") [<detail:string keyword:detail>("Show progress on a terminal")], check_device_db("default");
+diff("Compare remote device config with local") [<detail:string keyword:detail>("Show progress on a terminal")], compare_device_db_dev("default");
 capability("Show device capbilities"), show_device_capability("name"); {
    @|pipe_show, show_device_capability("name");
 }
@@ -16,7 +16,7 @@ rpc("Show device RPC"), cli_generic_rpc_match("name");  {
       }
    }
 }
-state("Show device state"), cli_show_device_state("name");{
+state("Show device state") [<detail:string keyword:detail>("Show progress on a terminal")], cli_show_device_state("name");{
    @|pipe_show, cli_show_device_state("name");
 }
 yang("Show yang name and revisions"), cli_show_device_schema("name", "false"); {
