@@ -791,6 +791,12 @@ transaction_notification_poll(clixon_handle       h,
     gettimeofday(&tv0, NULL);
     while (!match){
         if (istty){
+            /* Check first: a ^C may already have been caught (and the
+             * sentinel set) by the handler during the previous iteration's */
+            if (_transaction_poll_sigint){
+                aborted = 1;
+                break;
+            }
             /* First progress update comes quickly (100ms) for fast feedback,
              * subsequent updates are less frequent (500ms) to avoid excessive
              * screen redraws. */
@@ -809,9 +815,17 @@ transaction_notification_poll(clixon_handle       h,
                 goto done;
             }
             if (n == 0){
+                int pret;
+
                 /* No notification yet within this interval: show progress */
                 elapsed++;
-                if (transaction_progress_show(h, tidstr, &tv0) < 0)
+                pret = transaction_progress_show(h, tidstr, &tv0);
+                /* Check sentinel before treating a negative return as fatal */
+                if (_transaction_poll_sigint){
+                    aborted = 1;
+                    break;
+                }
+                if (pret < 0)
                     goto done;
                 continue;
             }
