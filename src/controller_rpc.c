@@ -1558,6 +1558,7 @@ devices_diff(clixon_handle           h,
     int           touch;
     int           dead;
 
+    *closed = NULL;
     if (candidate == NULL){
         clixon_err(OE_DB, EINVAL, "candidate is NULL");
         goto done;
@@ -1687,6 +1688,44 @@ populate_devices_from_diff(clixon_handle           h,
     return retval;
 }
 
+/*! Fail a transaction because a device with a service-generated diff is closed
+ *
+ * Used post-actions (both diff and push modes) since a closed device cannot be
+ * diffed/pushed against live config, and the pre-populate closed-check in
+ * rpc_controller_commit() runs before services modify the actions db, so it
+ * cannot catch diffs that only materialize after service actions have run.
+ * @param[in]  h      Clixon handle
+ * @param[in]  ct     Transaction
+ * @param[in]  closed Device handle of the closed device
+ * @retval     0      OK
+ * @retval    -1      Error
+ */
+static int
+commit_push_fail_closed(clixon_handle           h,
+                        controller_transaction *ct,
+                        device_handle            closed)
+{
+    int   retval = -1;
+    char *devname;
+
+    devname = device_handle_name_get(closed);
+    if (controller_transaction_device_fail(ct, devname, "closed") < 0)
+        goto done;
+    if ((ct->ct_origin = strdup(devname)) == NULL){
+        clixon_err(OE_UNIX, errno, "strdup");
+        goto done;
+    }
+    if ((ct->ct_reason = strdup("Device is closed")) == NULL){
+        clixon_err(OE_UNIX, errno, "strdup");
+        goto done;
+    }
+    if (controller_transaction_done(h, ct, TR_FAILED) < 0)
+        goto done;
+    retval = 0;
+ done:
+    return retval;
+}
+
 /*! Push commit after actions completed, potentially start device push process
  *
  * Devices are removed of no device diff
@@ -1705,7 +1744,7 @@ commit_push_after_actions(clixon_handle           h,
     cbuf               *cberr = NULL;
     int                 ret;
     transaction_data_t *td = NULL;
-    device_handle       closed;
+    device_handle       closed = NULL;
 
     /* Dump volatile actions db to disk */
     if (ct->ct_actions_type != AT_NONE && strcmp(ct->ct_sourcedb, "actions") == 0) {
@@ -1726,6 +1765,13 @@ commit_push_after_actions(clixon_handle           h,
                 goto done;
             if (devices_diff(h, ct, "actions", td, &closed) < 0)
                 goto done;
+            if (closed != NULL){
+                transaction_free1(td, 0);
+                td = NULL;
+                if (commit_push_fail_closed(h, ct, closed) < 0)
+                    goto done;
+                goto ok;
+            }
             if (populate_devices_from_diff(h, ct, td) < 0)
                 goto done;
             transaction_free1(td, 0);
@@ -1737,7 +1783,21 @@ commit_push_after_actions(clixon_handle           h,
     else{
         /* Compute diff of candidate + commit and trigger service
          * If some device diff is zero, then remove device from transaction
-         */
+         * Closed devices are only caught by the pre-populate diff in rpc_controller_commit()
+         * if the diff was already present in candidate before actions ran (eg local edits).
+         * Service-generated diffs (eg 'apply') only appear here, in the actions-db, after
+         * actions have run - so re-check for closed devices with a diff before pushing. */
+        if ((td = transaction_new()) == NULL)
+            goto done;
+        if (devices_diff(h, ct, "actions", td, &closed) < 0)
+            goto done;
+        transaction_free1(td, 0);
+        td = NULL;
+        if (closed != NULL){
+            if (commit_push_fail_closed(h, ct, closed) < 0)
+                goto done;
+            goto ok;
+        }
         if ((ret = controller_commit_push(h, ct, "actions", &cberr)) < 0)
             goto done;
         if (ret == 0){
@@ -2059,20 +2119,16 @@ rpc_controller_commit(clixon_handle h,
      */
     if (devices_diff(h, ct, candidate, td, &closed) < 0)
         goto done;
-    /* If a closed device has changes: push mode → FAILED; diff mode → SKIPPED+warning */
+    /* If a closed device has changes: transaction fails (both push and diff mode) -
+     * a closed device cannot be diffed/pushed against its live config, so treat it
+     * the same as failing to push regardless of push type. */
     if (closed != NULL){
         devname = device_handle_name_get(closed);
-        if (pusht != PT_NONE){
-            if (controller_transaction_device_fail(ct, devname, "closed") < 0)
-                goto done;
-            if (device_error(h, ct, closed, 0, cbret) < 0)
-                goto done;
-            goto ok;
-        }
-        else {
-            if (controller_transaction_device_skip(ct, devname, "closed") < 0)
-                goto done;
-        }
+        if (controller_transaction_device_fail(ct, devname, "closed") < 0)
+            goto done;
+        if (device_error(h, ct, closed, 0, cbret) < 0)
+            goto done;
+        goto ok;
     }
     /* Process disabled devices: add to transaction only if config changed */
     if (disabled_devs){

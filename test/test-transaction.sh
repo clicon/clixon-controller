@@ -18,6 +18,12 @@
 #   E: Commit push/diff  commit push/diff in configure mode, with no edits
 #   F: Commit push       commit push in configure mode, with prior local edit
 #   G: Commit diff       commit diff in configure mode, with prior localedit
+#
+# Note: Row E (no edits) is tested separately at the end of this file as
+# Dx/Xb/Xc, since it is independent of device state transitions above.
+# The connect-timeout scenario (hung connect via a blackhole listener) is
+# an additional test unrelated to the A-G matrix and is labeled "Timeout"
+# below, not "G", to avoid clashing with the "Commit diff" row.
 
 # Magic line must be first in script (see README.md)
 s="$_" ; . ./lib.sh || if [ "$s" = $0 ]; then exit 0; else return 0; fi
@@ -470,116 +476,119 @@ check_tx $NAME2 "D3 show devices diff open" oper "show devices $NAME2 diff" diff
 delete_device_config "$NAME2" "test" true
 
 # ============================================================
-# E: Commit push manual changed
+# F: Commit push manual changed
 # ============================================================
 update_device "$NAME2" "$ip2" "830" "false"  # DISABLE
 edit_device_config "$NAME2" "test" false
 
-# E1: Commit push manual changed disabled XXX FAIL
-check_tx $NAME2 "E1 commit manual changed disabled" configure "commit push" warning success skip
+# F1: Commit push manual changed disabled XXX FAIL
+check_tx $NAME2 "F1 commit manual changed disabled" configure "commit push" warning success skip
 
 delete_device_config "$NAME2" "test" true
 
 update_device "$NAME2" "$ip2" "830" "true" # CLOSED
 edit_device_config "$NAME2" "test" false
 
-# E2: Commit push manual changed closed
-check_tx $NAME2 "E2 commit manual changed closed" configure "commit push" error failed failed
+# F2: Commit push manual changed closed
+check_tx $NAME2 "F2 commit manual changed closed" configure "commit push" error failed failed
 
 delete_device_config "$NAME2" "test" true
 
 connect_device $NAME2
 edit_device_config "$NAME2" "test" false
 
-# E3: Commit push manual changed open
-check_tx $NAME2 "E3 commit manual changed open" configure "commit push" silent success success
+# F3: Commit push manual changed open
+check_tx $NAME2 "F3 commit manual changed open" configure "commit push" silent success success
 
 delete_device_config "$NAME2" "test" true
 
 # ============================================================
-# F: Commit diff manual change
+# G: Commit diff manual change
 # ============================================================
 update_device "$NAME2" "$ip2" "830" "false"  # DISABLE
 edit_device_config "$NAME2" "test" false
 
-# F1: Commit diff manual change disabled
-check_tx $NAME2 "F1 commit diff manual changed disabled" configure "commit diff" diff success success
+# G1: Commit diff manual change disabled
+check_tx $NAME2 "G1 commit diff manual changed disabled" configure "commit diff" diff success success
 
 delete_device_config "$NAME2" "test" true
 
 update_device "$NAME2" "$ip2" "830" "true" # CLOSED
 edit_device_config "$NAME2" "test" false
 
-# F2: Commit diff manual change close
-check_tx $NAME2 "F2 commit diff manual changed close" configure "commit diff" skip warning skipped
+# G2: Commit diff manual change close
+check_tx $NAME2 "G2 commit diff manual changed close" configure "commit diff" error failed failed
 
 connect_device $NAME2
 
 delete_device_config "$NAME2" "test" true
 edit_device_config "$NAME2" "test" false
 
-# F3: Commit diff manual change open
-check_tx $NAME2 "F3 commit diff manual changed open" configure "commit diff" diff success success
+# G3: Commit diff manual change open
+check_tx $NAME2 "G3 commit diff manual changed open" configure "commit diff" diff success success
 
 delete_device_config "$NAME2" "test" false
 check_tx $NAME2 "commit reset" configure "commit push" silent success success
 
 # ============================================================
-# G: Connect-timeout ERROR (hung connect, simulated via a blackhole listener)
+# Timeout: Connect-timeout ERROR (hung connect, simulated via a blackhole listener)
 #
 # Unlike CLOSED (connection refused immediately) this simulates a device
 # that accepts the TCP connection but never responds (e.g. network black
 # hole), which the connect-timeout mechanism must actively detect. See
 # blackhole_start/blackhole_stop in lib.sh.
+# This scenario is not part of the A-G device-state matrix (it exercises a
+# transient "connecting" sub-state of CLOSED) and is therefore not labeled
+# with a matrix letter.
 # ============================================================
 : ${BLACKHOLE_PORT:=12345}
 
-new "G: set connect-timeout 3"
+new "Timeout: set connect-timeout 3"
 expectpart "$($clixon_cli -1 -m configure -f $CFG -E $CFD set devices connect-timeout 3)" 0 "^$"
 
-new "G: commit local connect-timeout"
+new "Timeout: commit local connect-timeout"
 expectpart "$($clixon_cli -1 -m configure -f $CFG -E $CFD commit local)" 0 "^$"
 
-new "G: close $NAME2"
+new "Timeout: close $NAME2"
 expectpart "$($clixon_cli -1 -f $CFG -E $CFD connection close $NAME2)" 0 "^$"
 
-new "G: start blackhole listener on $NAME2 ($ip2:$BLACKHOLE_PORT) to simulate a hung connect"
+new "Timeout: start blackhole listener on $NAME2 ($ip2:$BLACKHOLE_PORT) to simulate a hung connect"
 blackhole_start $ip2 $BLACKHOLE_PORT
 
-new "G: point $NAME2 port at the blackhole listener"
+new "Timeout: point $NAME2 port at the blackhole listener"
 expectpart "$($clixon_cli -1 -m configure -f $CFG -E $CFD set devices device $NAME2 port $BLACKHOLE_PORT)" 0 "^$"
 
-new "G: commit local blackhole port"
+new "Timeout: commit local blackhole port"
 expectpart "$($clixon_cli -1 -m configure -f $CFG -E $CFD commit local)" 0 "^$"
 
-new "G: connection open $NAME2 (async, would otherwise block until connect-timeout)"
+new "Timeout: connection open $NAME2 (async, would otherwise block until connect-timeout)"
 expectpart "$($clixon_cli -1 -f $CFG -E $CFD connection open async $NAME2)" 0 "^$"
 
-new "G: wait past connect-timeout"
+new "Timeout: wait past connect-timeout"
 sleep 6
 
-new "G: show transactions detail: $NAME2 Timeout reason"
+new "Timeout: show transactions detail: $NAME2 Timeout reason"
 expectpart "$($clixon_cli -1 -f $CFG -E $CFD show transactions detail)" 0 "<name>$NAME2</name>" "<result>ERROR</result>" "Timeout waiting for remote peer"
 
-new "G: show transactions: brief table Devices column shows 1 ERROR"
+new "Timeout: show transactions: brief table Devices column shows 1 ERROR"
 expectpart "$($clixon_cli -1 -f $CFG -E $CFD show transactions)" 0 "1 ERROR"
 
-new "G: stop blackhole listener on $NAME2"
+new "Timeout: stop blackhole listener on $NAME2"
 blackhole_stop $ip2
 
-new "G: restore $NAME2 port to default"
+new "Timeout: restore $NAME2 port to default"
 expectpart "$($clixon_cli -1 -m configure -f $CFG -E $CFD delete devices device $NAME2 port $BLACKHOLE_PORT)" 0 "^$"
 
-new "G: commit local restore port"
+new "Timeout: commit local restore port"
 expectpart "$($clixon_cli -1 -m configure -f $CFG -E $CFD commit local)" 0 "^$"
 
-new "G: reopen $NAME2 (cleanup)"
+new "Timeout: reopen $NAME2 (cleanup)"
 expectpart "$($clixon_cli -1 -f $CFG -E $CFD connection open $NAME2)" 0 "^$"
 
-new "G: reset connect-timeout to default"
+new "Timeout: reset connect-timeout to default"
 expectpart "$($clixon_cli -1 -m configure -f $CFG -E $CFD delete devices connect-timeout 3)" 0 "^$"
 
-new "G: commit local reset connect-timeout"
+new "Timeout: commit local reset connect-timeout"
 expectpart "$($clixon_cli -1 -m configure -f $CFG -E $CFD commit local)" 0 "^$"
 
 # ============================================================
