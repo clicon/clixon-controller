@@ -427,6 +427,8 @@ done
 
 new "Configure ssh-users with user test3 ssh-key"
 expectpart "$($clixon_cli -1 -f $CFG -m configure set service ssh-users test3 username test3 ssh-key key3)" 0 ""
+
+new "Configure ssh-users with user test3 role"
 expectpart "$($clixon_cli -1 -f $CFG -m configure set service ssh-users test3 username test3 role role3)" 0 ""
 
 # Commit local

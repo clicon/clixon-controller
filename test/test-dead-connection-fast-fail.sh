@@ -95,8 +95,10 @@ expectpart "$($clixon_cli -1 -m configure -f $CFG -E $CFD set devices device-tim
 new "commit local device-timeout"
 expectpart "$($clixon_cli -1 -m configure -f $CFG -E $CFD commit local)" 0 "^$"
 
-new "stage an uncommitted config change on $DEV (interface x name+type)"
+new "stage an uncommitted config change on $DEV (interface x name)"
 expectpart "$($clixon_cli -1 -m configure -f $CFG -E $CFD set devices device $DEV config interfaces interface x config name x)" 0 "^$"
+
+new "stage an uncommitted config change on $DEV (interface x type)"
 expectpart "$($clixon_cli -1 -m configure -f $CFG -E $CFD set devices device $DEV config interfaces interface x config type ianaift:ethernetCsmacd)" 0 "^$"
 
 new "find backend pid"
