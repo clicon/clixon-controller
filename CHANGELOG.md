@@ -23,7 +23,6 @@ The Controller 1.9 release focuses on improving device transaction handling in t
 ### New features
 
 * Clarified controller transaction operations
-  * Added progress bar showing device states for transaction detail commands (connect/pull/commit/rpc)
   * Added per-device error handling of closed devices
   * Add device skiplist to transaction when device is disabled or closed for pull and commit
   * CLI added "disabled" as connection state in show connections
