@@ -827,6 +827,17 @@ device_config_read_cache(clixon_handle h,
     }
     cprintf(cb, "device-%s-%s", devname, config_type);
     db = cbuf_get(cb);
+    /* The datastore file may not exist at all, eg for a device that has never been connected. */
+    if ((ret = xmldb_exists(h, db)) < 0)
+        goto done;
+    if (ret == 0){
+        if ((*cberr = cbuf_new()) == NULL){
+            clixon_err(OE_UNIX, errno, "cbuf_new");
+            goto done;
+        }
+        cprintf(*cberr, "No such datastore: %s", db);
+        goto failed;
+    }
     if ((ret = xmldb_get_cache(h, db, &xt, &xerr)) < 0)
         goto done;
     if (ret == 0){

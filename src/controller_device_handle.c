@@ -322,7 +322,7 @@ device_handle_connect(device_handle      dh,
     clixon_handle                    h;
     int                              conntimeout;
 
-    clixon_debug(CLIXON_DBG_CTRL, "");
+    clixon_debug(CLIXON_DBG_CTRL|CLIXON_DBG_DETAIL, "");
     if (cdh == NULL){
         clixon_err(OE_XML, EINVAL, "dh is NULL");
         goto done;
@@ -352,7 +352,7 @@ device_handle_connect(device_handle      dh,
     } /* switch */
     retval = 0;
  done:
-    clixon_debug(CLIXON_DBG_CTRL, "retval:%d", retval);
+    clixon_debug(CLIXON_DBG_CTRL|CLIXON_DBG_DETAIL, "retval:%d", retval);
     return retval;
  err:
     if (cdh)

@@ -256,15 +256,14 @@ check_services_commit_subscription(clixon_handle h,
                                    void         *arg,
                                    void         *regarg)
 {
-    int                  retval = -1;
-    char                *stream = "NETCONF";
-    cxobj               *x; /* Generic xml tree */
-    cvec                *nsc = NULL;
-    event_stream_t      *es;
+    int                         retval = -1;
+    char                       *stream = "NETCONF";
+    cxobj                      *x; /* Generic xml tree */
+    cvec                       *nsc = NULL;
+    event_stream_t             *es;
     struct stream_subscription *ss;
     int                         i;
 
-    clixon_debug(CLIXON_DBG_CTRL, "");
     /* XXX should use prefix cf edit_config */
     if ((nsc = xml_nsctx_init(NULL, EVENT_RFC5277_NAMESPACE)) == NULL)
         goto done;
@@ -286,6 +285,7 @@ check_services_commit_subscription(clixon_handle h,
                 goto done;
         }
     }
+    clixon_debug(CLIXON_DBG_CTRL, "%s", stream);
  ok:
     retval = 0;
  done:

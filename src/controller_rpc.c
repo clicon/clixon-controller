@@ -191,7 +191,7 @@ controller_connect(clixon_handle           h,
     int           ssh_stricthostkey = 1;
     char         *domain = NULL;
 
-    clixon_debug(CLIXON_DBG_CTRL, "");
+    clixon_debug(CLIXON_DBG_CTRL | CLIXON_DBG_DETAIL, "");
     if ((name = xml_find_body(xn, "name")) == NULL)
         goto ok;
     dh = device_handle_find(h, name); /* can be NULL */
@@ -792,14 +792,6 @@ rpc_config_pull(clixon_handle h,
     int                     ret;
 
     clixon_debug(CLIXON_DBG_CTRL, "");
-    /* Initiate new transaction */
-    if ((ret = controller_transaction_new(h, ce, clicon_username_get(h), "pull", 1, &ct, &cberr)) < 0)
-        goto done;
-    if (ret == 0){
-        if (netconf_operation_failed(cbret, "application", "%s", cbuf_get(cberr))< 0)
-            goto done;
-        goto ok;
-    }
     if ((xn = xml_find(xe, "device")) != NULL)
         ;
     else if ((xn = xml_find(xe, "device-group")) != NULL)
@@ -812,6 +804,15 @@ rpc_config_pull(clixon_handle h,
     pattern = xml_body(xn);
     if ((str = xml_find_body(xe, "transient")) != NULL)
         transient = strcmp(str, "true") == 0;
+    /* A transient pull is an internal step of "show devices diff/check" */
+    if ((ret = controller_transaction_new(h, ce, clicon_username_get(h),
+                                           transient ? "diff" : "pull", 1, &ct, &cberr)) < 0)
+        goto done;
+    if (ret == 0){
+        if (netconf_operation_failed(cbret, "application", "%s", cbuf_get(cberr))< 0)
+            goto done;
+        goto ok;
+    }
     ct->ct_pull_transient = transient;
     if ((str = xml_find_body(xe, "merge")) != NULL)
         ct->ct_pull_merge = strcmp(str, "true") == 0;
@@ -2153,14 +2154,18 @@ rpc_controller_commit(clixon_handle h,
             /* No config change: device stays absent from transaction */
         }
     }
-    /* Clear TID for remaining closed devices (no diffs detected by devices_diff) */
-    dh = NULL;
-    while ((dh = device_handle_each(h, dh)) != NULL){
-        if (device_handle_tid_get(dh) != ct->ct_id)
-            continue;
-        if (device_handle_conn_state_get(dh) == CS_OPEN)
-            continue;
-        device_handle_tid_set(dh, 0);
+    /* Clear TID for remaining closed devices (no diffs detected by devices_diff).
+     * Skip this when service actions are about to run (actions != AT_NONE):
+     */
+    if (actions == AT_NONE){
+        dh = NULL;
+        while ((dh = device_handle_each(h, dh)) != NULL){
+            if (device_handle_tid_get(dh) != ct->ct_id)
+                continue;
+            if (device_handle_conn_state_get(dh) == CS_OPEN)
+                continue;
+            device_handle_tid_set(dh, 0);
+        }
     }
     /* Check if any local/meta device fields have changed of selected devices */
     if (devices_local_change(h, td, &changed) < 0)
@@ -2771,7 +2776,7 @@ rpc_device_rpc_result(clixon_handle h,
     controller_transaction *ct;
     int                     ret;
 
-    clixon_debug(CLIXON_DBG_CTRL, "");
+    clixon_debug(CLIXON_DBG_CTRL|CLIXON_DBG_DETAIL, "");
     if ((tidstr = xml_find_body(xe, "tid")) == NULL){
         if (netconf_operation_failed(cbret, "application", "No tid")< 0)
             goto done;
@@ -3199,7 +3204,7 @@ rpc_datastore_diff(clixon_handle h,
     cxobj             *xn;
     int                groups = 0;
 
-    clixon_debug(CLIXON_DBG_CTRL, "");
+    clixon_debug(CLIXON_DBG_CTRL|CLIXON_DBG_DETAIL, "");
     if ((formatstr = xml_find_body(xe, "format")) != NULL){
         if ((int)(format = format_str2int(formatstr)) < 0){
             clixon_err(OE_PLUGIN, 0, "Not valid format: %s", formatstr);
