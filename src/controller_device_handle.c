@@ -172,7 +172,6 @@ device_handle_new(clixon_handle h,
     struct controller_device_handle *cdh_list = NULL;
     size_t                           sz;
 
-    clixon_debug(CLIXON_DBG_CTRL, "%s", name);
     sz = sizeof(struct controller_device_handle);
     if ((cdh = malloc(sz)) == NULL){
         clixon_err(OE_NETCONF, errno, "malloc");
@@ -184,6 +183,7 @@ device_handle_new(clixon_handle h,
     cdh->cdh_socket = -1;
     cdh->cdh_sockerr = -1;
     cdh->cdh_conn_state = CS_CLOSED;
+    gettimeofday(&cdh->cdh_conn_time, NULL); /* baseline for elapsed time in device_handle_conn_state_set() */
     cdh->cdh_flags = DH_FLAG_YANG_ANNOUNCE_LATEST; /* Default to announce latest yangs */
     if ((cdh->cdh_name = strdup(name)) == NULL){
         clixon_err(OE_UNIX, errno, "strdup");
@@ -198,6 +198,7 @@ device_handle_new(clixon_handle h,
     (void)clicon_ptr_get(h, "client-list", (void**)&cdh_list);
     ADDQ(cdh, cdh_list);
     clicon_ptr_set(h, "client-list", (void*)cdh_list);
+    clixon_debug(CLIXON_DBG_CTRL, "Device created: %s ", name);
     return cdh;
 }
 
@@ -378,7 +379,6 @@ device_handle_disconnect(device_handle dh)
         clixon_err(OE_XML, EINVAL, "Expected cdh handle");
         goto done;
     }
-    clixon_debug(CLIXON_DBG_CTRL, "%s", cdh->cdh_name);
     switch(cdh->cdh_type){
     case CLIXON_CLIENT_IPC:
         close(cdh->cdh_socket);
@@ -397,9 +397,9 @@ device_handle_disconnect(device_handle dh)
         cdh->cdh_socket = -1;
         break;
     }
+    clixon_debug(CLIXON_DBG_CTRL, "Disconnected device:%s", device_handle_name_get(dh));
     retval = 0;
  done:
-    clixon_debug(CLIXON_DBG_CTRL, "retval:%d", retval);
     return retval;
 }
 
@@ -667,12 +667,26 @@ device_handle_conn_state_set(device_handle dh,
 {
     struct controller_device_handle *cdh = devhandle(dh);
     struct timeval t;
+    struct timeval tdiff;
+    double         elapsed;
 
     assert(device_state_int2str(state)!=NULL);
-    clixon_debug(CLIXON_DBG_CTRL, "%s: %s -> %s",
-                 device_handle_name_get(dh),
-                 device_state_int2str(cdh->cdh_conn_state),
-                 device_state_int2str(state));
+    gettimeofday(&t, NULL);
+    /* Only show elapsed time when leaving a transient state, not a stable one (OPEN/CLOSED) */
+    if (cdh->cdh_conn_state != CS_OPEN && cdh->cdh_conn_state != CS_CLOSED){
+        timersub(&t, &cdh->cdh_conn_time, &tdiff);
+        elapsed = (double)tdiff.tv_sec + (double)tdiff.tv_usec/1000000.0;
+        clixon_debug(CLIXON_DBG_CTRL, "%s: %s -> %s (%.3fs)",
+                     device_handle_name_get(dh),
+                     device_state_int2str(cdh->cdh_conn_state),
+                     device_state_int2str(state),
+                     elapsed);
+    }
+    else
+        clixon_debug(CLIXON_DBG_CTRL, "%s: %s -> %s",
+                     device_handle_name_get(dh),
+                     device_state_int2str(cdh->cdh_conn_state),
+                     device_state_int2str(state));
     /* Free logmsg if leaving closed */
     if (cdh->cdh_conn_state == CS_CLOSED &&
         cdh->cdh_logmsg){
@@ -680,7 +694,6 @@ device_handle_conn_state_set(device_handle dh,
         cdh->cdh_logmsg = NULL;
     }
     cdh->cdh_conn_state = state;
-    gettimeofday(&t, NULL);
     device_handle_conn_time_set(dh, &t);
     if (state == CS_CLOSED)
         device_handle_stable_time_set(dh, &t);

@@ -58,6 +58,7 @@
 
 /* Forward */
 static int commit_push_after_actions(clixon_handle h, controller_transaction *ct, const char *candidate);
+static int commit_push_fail_closed(clixon_handle h, controller_transaction *ct, device_handle closed);
 static int traverse_device_group(clixon_handle h, cxobj *xdevs, cxobj **vec1, size_t vec1len, cxobj **vec2, size_t vec2len, cvec *devvec);
 static int device_error(clixon_handle h, controller_transaction *ct, device_handle dh, int reason, cbuf *cbret);
 
@@ -928,14 +929,14 @@ service_timeout_register(controller_transaction *ct)
     struct timeval t1;
     int            d;
 
-    clixon_debug(CLIXON_DBG_CTRL, "");
+    clixon_debug(CLIXON_DBG_CTRL|CLIXON_DBG_DETAIL, "");
     gettimeofday(&t, NULL);
     if ((d = clicon_data_int_get(ct->ct_h, "controller-service-timeout")) < 0)
         t1.tv_sec = CONTROLLER_SERVICE_TIMEOUT_DEFAULT;
     else
         t1.tv_sec = d;
     t1.tv_usec = 0;
-    clixon_debug(CLIXON_DBG_CTRL, "timeout:%ld s", t1.tv_sec);
+    clixon_debug(CLIXON_DBG_CTRL, "%s timeout:%ld s", ct->ct_description, t1.tv_sec);
     timeradd(&t, &t1, &t);
     if (clixon_event_reg_timeout(t, service_timeout, ct, "Controller service timeout") < 0)
         goto done;
@@ -1094,6 +1095,58 @@ xml_add_op(cxobj *x,
     return 0;
 }
 
+/*! Mark device-config nodes referenced by a service's "created" path list
+ *
+ * For each <path> child of xc0 (a services/<name>/created node, normally read
+ * from the read-only running datastore) find the corresponding node in xt1 and
+ * mark it, and its ancestors, so it can later be collected by
+ * xml_copy_marked() and turned into a delete edit.
+ *
+ * @param[in]     xc0     "created" node (from running) listing paths to device config
+ * @param[in]     xt1     Target tree (eg actions/running db) to mark nodes in
+ * @param[in,out] nmarked If non-NULL, incremented once per path marked
+ * @retval        0       OK (check *closedp)
+ * @retval       -1       Error
+ * @see strip_service_check_devstate
+ */
+static int
+strip_service_mark_created_paths(cxobj *xc0,
+                                 cxobj *xt1,
+                                 int   *nmarked)
+{
+    cxobj        *xp;
+    cxobj        *xd;
+    cxobj        *xdev;
+    char         *xpath;
+    char         *devname;
+    int           ix;
+
+    ix = 0;
+    while ((xp = xml_child_iter(xc0, &ix, CX_ELMNT)) != NULL) {
+        if (strcmp(xml_name(xp), "path") != 0)
+            continue;
+        if ((xpath = xml_body(xp)) == NULL)
+            continue;
+        if ((xd = xpath_first(xt1, NULL, "%s", xpath)) == NULL)
+            continue;
+        /* Find enclosing devices/device[name=...] element, if any, and stop
+         * if that device is closed. A disabled device is expected to be closed */
+        for (xdev = xd; xdev != NULL; xdev = xml_parent(xdev)){
+            if (strcmp(xml_name(xdev), "device") != 0)
+                continue;
+            if ((devname = xml_find_body(xdev, "name")) == NULL)
+                break;
+            break;
+        }
+        /* cache-dirty just to ensure copied to new tree */
+        xml_flag_set(xd, XML_FLAG_MARK|XML_FLAG_CACHE_DIRTY);
+        xml_apply_ancestor(xd, (xml_applyfn_t*)xml_flag_set, (void*)XML_FLAG_CHANGE);
+        if (nmarked)
+            (*nmarked)++;
+    }
+    return 0;
+}
+
 /*! Strip all service data in device config
  *
  * Read a datastore, for each device in the datastore, strip data created by services
@@ -1104,34 +1157,35 @@ xml_add_op(cxobj *x,
  *   3) Add operation="delete" to all marked nodes in xedit tree
  *   4) Unmark orig tree
  *   5) Modify tree with xmldb_put
- * @param[in]  h    Clixon handle
- * @param[in]  db   Database
- * @param[in]  cvv  Vector of services, if empty then all
- * @retval     0    OK
- * @retval    -1    Error
+ * If a path is created by a service but the corresponding device is closed,
+ * stop and report it via closedp instead of writing anything back - the
+ * caller must fail the transaction in an orderly way in that case (see
+ * commit_push_fail_closed()).
+ * @param[in]  h       Clixon handle
+ * @param[in]  db      Database
+ * @param[in]  cvv     Vector of services, if empty then all
+ * @param[out] closedp Set to device handle if a referenced device is closed
+ * @retval     0       OK (check *closedp)
+ * @retval    -1       Error
  * @note Differentiate between reading created from running while deleting from action-db
  */
 static int
-strip_service_data_from_device_config(clixon_handle h,
-                                      const char   *db,
-                                      cvec         *cvv)
+strip_service_data_from_device_config(clixon_handle  h,
+                                      const char    *db,
+                                      cvec          *cvv)
 {
     int     retval = -1;
     cxobj  *xt0 = NULL;
     cxobj  *xt1 = NULL;
     cxobj  *xc0;
     cxobj  *xc1;
-    cxobj  *xp;
-    cxobj  *xd;
     cbuf   *cbret = NULL;
     int     i;
     cxobj **vec = NULL;
     size_t  veclen;
     cg_var *cv;
-    char   *xpath;
     int     touch = 0;
     cxobj  *xedit = NULL;
-    int     ix;
     int     ret;
 
     /* Get services/created read-only from running_db for reading */
@@ -1152,18 +1206,8 @@ strip_service_data_from_device_config(clixon_handle h,
             if ((xc0 = xpath_first(xt0, NULL, "services/%s/created", cv_name_get(cv))) == NULL)
                 continue;
             /* Read created from read-only running */
-            ix = 0;
-            while ((xp = xml_child_iter(xc0, &ix, CX_ELMNT)) != NULL) {
-                if (strcmp(xml_name(xp), "path") != 0)
-                    continue;
-                if ((xpath = xml_body(xp)) == NULL)
-                    continue;
-                if ((xd = xpath_first(xt1, NULL, "%s", xpath)) == NULL)
-                    continue;
-                /* cache-dirty just to ensure copied to new tree */
-                xml_flag_set(xd, XML_FLAG_MARK|XML_FLAG_CACHE_DIRTY);
-                xml_apply_ancestor(xd, (xml_applyfn_t*)xml_flag_set, (void*)XML_FLAG_CHANGE);
-            }
+            if (strip_service_mark_created_paths(xc0, xt1, NULL) < 0)
+                goto done;
             xc1 = xpath_first(xt1, NULL, "services/%s/created", cv_name_get(cv));
             if (xc1){
                 /* cache-dirty just to ensure copied to new tree */
@@ -1184,19 +1228,8 @@ strip_service_data_from_device_config(clixon_handle h,
             goto done;
         for (i=0; i<veclen; i++){
             xc0 = vec[i];
-            ix = 0;
-            while ((xp = xml_child_iter(xc0, &ix, CX_ELMNT)) != NULL) {
-                if (strcmp(xml_name(xp), "path") != 0)
-                    continue;
-                if ((xpath = xml_body(xp)) == NULL)
-                    continue;
-                if ((xd = xpath_first(xt1, NULL, "%s", xpath)) == NULL)
-                    continue;
-                /* cache-dirty just to ensure copied to new tree */
-                xml_flag_set(xd, XML_FLAG_MARK|XML_FLAG_CACHE_DIRTY);
-                xml_apply_ancestor(xd, (xml_applyfn_t*)xml_flag_set, (void*)XML_FLAG_CHANGE);
-                touch++;
-            }
+            if (strip_service_mark_created_paths(xc0, xt1, &touch) < 0)
+                goto done;
         }
         if (vec)
             free(vec);
@@ -1230,6 +1263,146 @@ strip_service_data_from_device_config(clixon_handle h,
     if (xedit)
         xml_free(xedit);
     return retval;
+}
+
+/*! Check device state from service attributes
+ *
+ * For each <path> child of xc0 (a services/<name>/created node, normally read
+ * from the read-only running datastore) find the corresponding node in xt1 and
+ * mark it, and its ancestors, so it can later be collected by
+ * xml_copy_marked() and turned into a delete edit.
+ *
+ * If a path resolves to config of a device which is closed, report it as failed and
+ * end the transaction.
+ * A disabled device is marked as skipped
+ * @param[in]     h       Clixon handle
+ * @param[in]     ct      Transaction
+ * @param[in]     xc0     "created" node (from running) listing paths to device config
+ * @param[in]     xt1     Target tree (eg actions/running db) to mark nodes in
+ * @retval        1       OK
+ * @retval        0       Closed, caller should fail transaction
+ * @retval       -1       Error
+ * @see strip_service_mark_created_paths
+ */
+static int
+service_check_devstate(clixon_handle           h,
+                       controller_transaction *ct,
+                       cxobj                  *xc0,
+                       cxobj                  *xt1)
+{
+    int           retval = -1;
+    cxobj        *xp;
+    cxobj        *xd;
+    cxobj        *xdev;
+    char         *xpath;
+    char         *devname;
+    char         *enabled;
+    device_handle dh;
+    int           error = 0;
+    int           ix;
+
+    ix = 0;
+    while ((xp = xml_child_iter(xc0, &ix, CX_ELMNT)) != NULL) {
+        if (strcmp(xml_name(xp), "path") != 0)
+            continue;
+        if ((xpath = xml_body(xp)) == NULL)
+            continue;
+        if ((xd = xpath_first(xt1, NULL, "%s", xpath)) == NULL)
+            continue;
+        /* Find enclosing devices/device[name=...] element, if any, and stop
+         * if that device is closed. A disabled device is expected to be closed */
+        for (xdev = xd; xdev != NULL; xdev = xml_parent(xdev)){
+            if (strcmp(xml_name(xdev), "device") != 0)
+                continue;
+            if ((devname = xml_find_body(xdev, "name")) == NULL)
+                break;
+            enabled = xml_find_body(xdev, "enabled");
+            if (enabled != NULL && strcmp(enabled, "false") == 0){
+                if (controller_transaction_device_skip(ct, devname, "disabled") < 0)
+                    goto done;
+                break;
+            }
+            if ((dh = device_handle_find(h, devname)) != NULL &&
+                device_handle_conn_state_get(dh) != CS_OPEN){
+                if (error++){
+                    if (controller_transaction_device_fail(ct, devname, "closed") < 0)
+                        goto done;
+                }
+                else if (commit_push_fail_closed(h, ct, dh) < 0)
+                    goto done;
+            }
+            break;
+        }
+    }
+    retval = error ? 0 : 1;
+ done:
+    return retval;
+}
+
+/*! Check device status referenced by "created" paths of services in cvv, post-actions
+ *
+ * Read-only counterpart to strip_service_data_from_device_config(), used after service action
+ * scripts have completed (see commit_push_after_actions()). Action scripts run asynchronously,
+ * so a device referenced by a service's "created" config may have closed (or newly appeared)
+ * while actions were running; this re-checks that before the resulting device diff is pushed.
+ * A disabled device is exempted, same as strip_service_data_from_device_config()/
+ * strip_service_data_mark_created_paths().
+ * @param[in]  h       Clixon handle
+ * @param[in]  db      Database to read services/created and devices from (typically "actions")
+ * @param[in]  ct      Transaction
+ * @retval     1       OK
+ * @retval     0       Closed
+ * @retval    -1       Error
+ * @see strip_service_data_from_device_config
+ */
+static int
+commit_push_check_service_devices(clixon_handle           h,
+                                  const char             *db,
+                                  controller_transaction *ct)
+{
+    int           retval = -1;
+    cxobj        *xt = NULL;
+    cxobj        *xc0;
+    cxobj       **vec = NULL;
+    size_t        veclen;
+    int           i;
+    cvec         *cvv;
+    cg_var       *cv;
+    int           ret;
+
+    cvv = ct->ct_cvv;
+    if (xmldb_get_cache(h, db, &xt, NULL) < 0)
+        goto done;
+    if (cvec_len(cvv) != 0){ /* specific services */
+        cv = NULL;
+        while ((cv = cvec_each(cvv, cv)) != NULL){
+            if ((xc0 = xpath_first(xt, NULL, "services/%s/created", cv_name_get(cv))) == NULL)
+                continue;
+            if ((ret = service_check_devstate(h, ct, xc0, xt)) < 0)
+                goto done;
+            if (ret == 0)
+                goto closed;
+        }
+    }
+    else{ /* All services */
+        if (xpath_vec(xt, NULL, "services//created", &vec, &veclen) < 0)
+            goto done;
+        for (i=0; i<veclen; i++){
+            xc0 = vec[i];
+            if ((ret = service_check_devstate(h, ct, xc0, xt)) < 0)
+                goto done;
+            if (ret == 0)
+                goto closed;
+        }
+    }
+    retval = 1;
+ done:
+    if (vec)
+        free(vec);
+    return retval;
+ closed:
+    retval = 0;
+    goto done;
 }
 
 /*! Compute diff of candidate + commit and trigger service-commit notify
@@ -1317,6 +1490,10 @@ services_commit_notify(clixon_handle           h,
  *
  * Compute diff of candidate + commit, copy candidate to actions-db and
  * trigger service-commit notify
+ *
+ * If a service-created device config path belongs to a closed device, the
+ * transaction is failed in an orderly way (see commit_push_fail_closed()) and
+ * this function still returns 0.
  * @param[in]  h         Clixon handle
  * @param[in]  ct        Transaction
  * @param[in]  actions   How to trigger service-commit notifications
@@ -1324,7 +1501,7 @@ services_commit_notify(clixon_handle           h,
  * @param[in]  service_instance Optional service instance if actions=FORCE
  * @param[in]  diff      Diff of the services configuration
  * @param[in]  candidate Name of candidate-db
- * @retval     0         OK
+ * @retval     0         OK (transaction may have been failed, see above)
  * @retval    -1         Error
  */
 static int
@@ -1357,6 +1534,15 @@ controller_commit_actions(clixon_handle           h,
         if (service_instance)
             cvec_add_string(cvv, service_instance, NULL);
     }
+    /* Save service list so commit_push_after_actions() can re-check, after action scripts have
+     * run, that the devices these services reference are still open (see
+     * commit_push_check_service_devices()). Ownership is transferred to ct; cvv is only freed
+     * below if that transfer did not happen (error before this point, or no services). */
+    if (services){
+        if (ct->ct_cvv)
+            cvec_free(ct->ct_cvv);
+        ct->ct_cvv = cvv;
+    }
     /* 1) copy candidate to actions and remove all device config tagged with services */
     if ((de = xmldb_find(h, "actions")) == NULL)
         if ((de = xmldb_new(h, "actions")) == NULL)
@@ -1379,14 +1565,14 @@ controller_commit_actions(clixon_handle           h,
             goto done;
     }
     else if (services && (actions == AT_FORCE || cvec_len(cvv) > 0)){
+        /* Strip service data in device config for services that changed. */
+        if (strip_service_data_from_device_config(h, "actions", cvv) < 0)
+            goto done;
         /* IF Services exist AND
          * either service changes or forced,
          * THEN notify services
          */
         if (services_commit_notify(h, ct, cvv, diff) < 0)
-            goto done;
-        /* Strip service data in device config for services that changed */
-        if (strip_service_data_from_device_config(h, "actions", cvv) < 0)
             goto done;
         controller_transaction_state_set(ct, TS_ACTIONS, -1);
         if (service_timeout_register(ct) < 0)
@@ -1403,7 +1589,7 @@ controller_commit_actions(clixon_handle           h,
  done:
     if (td)
         transaction_free1(td, 0);
-    if (cvv)
+    if (cvv && cvv != ct->ct_cvv)
         cvec_free(cvv);
     return retval;
 }
@@ -1648,6 +1834,13 @@ devices_diff(clixon_handle           h,
  * Iterates all OPEN devices with TID == ct->ct_id. Checks XML_FLAG_CHANGE in
  * both the source and target sides of the diff. Calls
  * controller_transaction_device_add() for each touched device.
+ *
+ * Callers are expected to have already screened td for closed devices with a
+ * diff via devices_diff()'s closed output param and failed the transaction
+ * before reaching here (see commit_push_fail_closed()) - a closed device with
+ * a diff must never be silently included in a push. The check below is a
+ * defensive internal-error backstop in case that precondition is ever broken
+ * by a future caller, not the primary detection path.
  * @param[in]  h   Clixon handle
  * @param[in]  ct  Transaction
  * @param[in]  td  Pre-computed diff (from devices_diff)
@@ -1669,16 +1862,26 @@ populate_devices_from_diff(clixon_handle           h,
     while ((dh = device_handle_each(h, dh)) != NULL){
         if (device_handle_tid_get(dh) != ct->ct_id)
             continue;
-        if (device_handle_conn_state_get(dh) != CS_OPEN)
-            continue;
-        touch = 0;
         devname = device_handle_name_get(dh);
+        touch = 0;
         if ((xn = xpath_first_name(td->td_src, NULL, "devices/device", "name", devname, NULL)) != NULL)
             if (xml_flag(xn, XML_FLAG_CHANGE) != 0)
                 touch++;
         if ((xn = xpath_first_name(td->td_target, NULL, "devices/device", "name", devname, NULL)) != NULL)
             if (xml_flag(xn, XML_FLAG_CHANGE) != 0)
                 touch++;
+        if (device_handle_conn_state_get(dh) != CS_OPEN){
+            if (touch){
+                /* Should have been caught earlier by devices_diff()'s closed
+                 * detection; a closed device with a diff must never be
+                 * silently dropped here. */
+                clixon_err(OE_PLUGIN, 0,
+                          "Closed device %s has a diff but was not failed before populate_devices_from_diff",
+                          devname);
+                goto done;
+            }
+            continue;
+        }
         if (touch){
             if (controller_transaction_device_add(ct, devname) < 0)
                 goto done;
@@ -1704,7 +1907,7 @@ populate_devices_from_diff(clixon_handle           h,
 static int
 commit_push_fail_closed(clixon_handle           h,
                         controller_transaction *ct,
-                        device_handle            closed)
+                        device_handle           closed)
 {
     int   retval = -1;
     char *devname;
@@ -1730,11 +1933,18 @@ commit_push_fail_closed(clixon_handle           h,
 /*! Push commit after actions completed, potentially start device push process
  *
  * Devices are removed of no device diff
+ *
+ * If service actions ran (ct_actions_type != AT_NONE), the changed services and the devices
+ * their "created" config references are recomputed and re-checked for closed status, mirroring
+ * the pre-actions check in controller_commit_actions()/strip_service_data_from_device_config():
+ * action scripts run asynchronously, so a device can close (or a service reference can appear)
+ * while they were running, after the pre-actions check has already passed.
  * @param[in]  h    Clixon handle
  * @param[in]  ct   Transaction
  * @param[in]  candidate Name of candidate-db
  * @retval     0    OK
  * @retval    -1    Error
+ * @see commit_push_check_service_devices
  */
 static int
 commit_push_after_actions(clixon_handle           h,
@@ -1762,6 +1972,10 @@ commit_push_after_actions(clixon_handle           h,
          * there and no devices are added.
          */
         if (ct->ct_actions_type != AT_NONE){
+            /* This only catches changes to device config diffs, which is necessary for population and push
+             * However, it does not catch what the services actually has written to the actions db
+             * But catches what is deleted
+             */
             if ((td = transaction_new()) == NULL)
                 goto done;
             if (devices_diff(h, ct, "actions", td, &closed) < 0)
@@ -1773,10 +1987,16 @@ commit_push_after_actions(clixon_handle           h,
                     goto done;
                 goto ok;
             }
+            /* Re-check devices referenced by services that changed while actions ran:
+             * see comment on commit_push_check_service_devices() below */
+            if (cvec_len(ct->ct_cvv) > 0){
+                if ((ret = commit_push_check_service_devices(h, "actions", ct)) < 0)
+                    goto done;
+                if (ret == 0)
+                    goto ok;
+            }
             if (populate_devices_from_diff(h, ct, td) < 0)
                 goto done;
-            transaction_free1(td, 0);
-            td = NULL;
         }
         if (controller_transaction_done(h, ct, TR_SUCCESS) < 0)
             goto done;
@@ -1792,12 +2012,18 @@ commit_push_after_actions(clixon_handle           h,
             goto done;
         if (devices_diff(h, ct, "actions", td, &closed) < 0)
             goto done;
-        transaction_free1(td, 0);
-        td = NULL;
         if (closed != NULL){
             if (commit_push_fail_closed(h, ct, closed) < 0)
                 goto done;
             goto ok;
+        }
+        if (closed == NULL && cvec_len(ct->ct_cvv) > 0){
+            /* Re-check devices referenced by services that changed while actions ran:
+             * see comment on commit_push_check_service_devices() below */
+            if ((ret = commit_push_check_service_devices(h, "actions", ct)) < 0)
+                goto done;
+            if (ret == 0)
+                goto ok;
         }
         if ((ret = controller_commit_push(h, ct, "actions", &cberr)) < 0)
             goto done;
@@ -1945,6 +2171,16 @@ device_error(clixon_handle           h,
  * To find comparison with regular commit, see candidate_commit in:
  * - device_state_handler for PUSH-VALIDATE
  * - commit_push_after_action  (if no devices)
+ * The handling of the device state is dependent on if they are touched by the transaction or not, meaning
+ * there is a manual edit in that device config or if a service edits that config.
+ *
+ * Disabled devices are skipped
+ * Closed devices: if they are edited locally or by a service, the transaction fails as follows:
+ * 1. Local edits are checked initially in rpc_controller_commit() before any service actions are run
+ * 2. controller_commit_actions()/strip_service_data_from_device_config():
+ *    Service-generated edits: list of objects that have been changed by the service actions
+ * 3. commit_push_after_actions(): Service-generated edits after service actions have run
+ *
  * @param[in]  h       Clixon handle
  * @param[in]  xe      Request: <rpc><xn></rpc>
  * @param[out] cbret   Return xml tree, eg <rpc-reply>..., <rpc-error..
@@ -1987,6 +2223,7 @@ rpc_controller_commit(clixon_handle h,
     char                   *candidate = NULL;
     char                   *body;
     device_handle           dh;
+    int                     changed_flag;
     int                     ret;
 
     clixon_debug(CLIXON_DBG_CTRL, "");
@@ -2079,6 +2316,7 @@ rpc_controller_commit(clixon_handle h,
     }
     if (devvec_create(h, pattern, xret, nsc, groups, &devvec) < 0)
         goto done;
+    /* Skip disabled devices */
     cv = NULL;
     while ((cv = cvec_each(devvec, cv)) != NULL){
         xn = cv_void_get(cv);
@@ -2096,7 +2334,6 @@ rpc_controller_commit(clixon_handle h,
             }
             continue;
         }
-        /* Skip disabled devices */
         if ((body = xml_find_body(xn, "enabled")) == NULL)
             continue;
         if (strcmp(body, "true") != 0){
@@ -2116,13 +2353,13 @@ rpc_controller_commit(clixon_handle h,
     /* Start local commit/diff transaction */
     if ((td = transaction_new()) == NULL)
         goto done;
-    /* Diff candidate/running and fill in a diff transaction structure td for future use
+    /* Check local device edits.
+     * Diff candidate/running and fill in a diff transaction structure td for future use
      */
     if (devices_diff(h, ct, candidate, td, &closed) < 0)
         goto done;
-    /* If a closed device has changes: transaction fails (both push and diff mode) -
-     * a closed device cannot be diffed/pushed against its live config, so treat it
-     * the same as failing to push regardless of push type. */
+    /* If a closed device has local changes: transaction fails
+     */
     if (closed != NULL){
         devname = device_handle_name_get(closed);
         if (controller_transaction_device_fail(ct, devname, "closed") < 0)
@@ -2132,40 +2369,25 @@ rpc_controller_commit(clixon_handle h,
         goto ok;
     }
     /* Process disabled devices: add to transaction only if config changed */
-    if (disabled_devs){
-        int changed_flag;
-        cv = NULL;
-        while ((cv = cvec_each(disabled_devs, cv)) != NULL){
-            devname = cv_name_get(cv);
-            if ((ret = device_config_diff(td, devname, &changed_flag)) < 0)
-                goto done;
-            if (changed_flag){
-                if (pusht == PT_NONE){
-                    /* Diff mode: include device so it appears in transaction */
-                    if (controller_transaction_device_add(ct, devname) < 0)
-                        goto done;
-                }
-                else {
-                    /* Push mode: skip with warning */
-                    if (controller_transaction_device_skip(ct, devname, "disabled") < 0)
-                        goto done;
-                }
+    cv = NULL;
+    while ((cv = cvec_each(disabled_devs, cv)) != NULL){
+        devname = cv_name_get(cv);
+        changed_flag = 0;
+        if ((ret = device_config_diff(td, devname, &changed_flag)) < 0)
+            goto done;
+        if (changed_flag){
+            if (pusht == PT_NONE){
+                /* Diff mode: include device so it appears in transaction */
+                if (controller_transaction_device_add(ct, devname) < 0)
+                    goto done;
             }
-            /* No config change: device stays absent from transaction */
+            else {
+                /* Push mode: skip with warning */
+                if (controller_transaction_device_skip(ct, devname, "disabled") < 0)
+                    goto done;
+            }
         }
-    }
-    /* Clear TID for remaining closed devices (no diffs detected by devices_diff).
-     * Skip this when service actions are about to run (actions != AT_NONE):
-     */
-    if (actions == AT_NONE){
-        dh = NULL;
-        while ((dh = device_handle_each(h, dh)) != NULL){
-            if (device_handle_tid_get(dh) != ct->ct_id)
-                continue;
-            if (device_handle_conn_state_get(dh) == CS_OPEN)
-                continue;
-            device_handle_tid_set(dh, 0);
-        }
+        /* No config change: device stays absent from transaction */
     }
     /* Check if any local/meta device fields have changed of selected devices */
     if (devices_local_change(h, td, &changed) < 0)
@@ -2216,7 +2438,8 @@ rpc_controller_commit(clixon_handle h,
         }
 	if (pusht == PT_NONE)
 	    diff = 1;
-        /* Compute diff of candidate, copy to actions, trigger notify */
+        /* Compute diff of candidate, copy to actions, trigger notify
+         * If actions setup properly, see commit_push_after_actions() after actions have run */
         if (controller_commit_actions(h, ct, actions, td, service_instance, diff, candidate) < 0)
             goto done;
         td = NULL;
@@ -2398,7 +2621,6 @@ connection_change_one(clixon_handle           h,
         clixon_err(OE_NETCONF, 0, "name not found");
         goto done;
     }
-    clixon_debug(CLIXON_DBG_CTRL, "%s", devname);
     if ((body = xml_find_body(xn, "enabled")) == NULL){
         clixon_err(OE_NETCONF, 0, "enabled not found");
         goto done;
@@ -2468,6 +2690,7 @@ connection_change_one(clixon_handle           h,
         clixon_err(OE_NETCONF, 0, "%s is not a connection-operation", operation);
         goto done;
     }
+    clixon_debug(CLIXON_DBG_CTRL, "%s changed state to %s", devname, operation);
     retval = 1;
  done:
     if (reason)
@@ -2672,7 +2895,6 @@ rpc_transactions_actions_done(clixon_handle h,
     char                   *candidate = NULL;
     int                     ret;
 
-    clixon_debug(CLIXON_DBG_CTRL, "");
     if ((tidstr = xml_find_body(xe, "tid")) == NULL){
         if (netconf_operation_failed(cbret, "application", "No tid")< 0)
             goto done;
@@ -2690,6 +2912,7 @@ rpc_transactions_actions_done(clixon_handle h,
             goto done;
         goto ok;
     }
+    clixon_debug(CLIXON_DBG_CTRL, "%s %s", tidstr, ct->ct_description);
     if (xmldb_find_create(h, "candidate", ct->ct_client_id, NULL, &candidate) < 0)
         goto done;
     switch (ct->ct_state){

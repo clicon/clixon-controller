@@ -107,53 +107,66 @@ controller_transaction_state_set(controller_transaction *ct,
                                  transaction_state       state,
                                  transaction_result      result)
 {
+    struct timeval tv_now;
+    struct timeval tv_diff;
+    double         elapsed;
+
+    gettimeofday(&tv_now, NULL);
+    timersub(&tv_now, &ct->ct_timestamp, &tv_diff);
+    elapsed = (double)tv_diff.tv_sec + (double)tv_diff.tv_usec/1000000.0;
     switch (state) {
     case TS_INIT:
         assert(ct->ct_state != TS_DONE);
         if (ct->ct_state != TS_INIT)
-            clixon_debug(CLIXON_DBG_CTRL, "%" PRIu64 " : %s -> %s",
+            clixon_debug(CLIXON_DBG_CTRL, "%" PRIu64 " : %s -> %s (%.3fs)",
                          ct->ct_id,
                          transaction_state_int2str(ct->ct_state),
-                         transaction_state_int2str(state));
+                         transaction_state_int2str(state),
+                         elapsed);
         else
-            clixon_debug(CLIXON_DBG_CTRL, "%" PRIu64 " : -> %s",
+            clixon_debug(CLIXON_DBG_CTRL, "%" PRIu64 " : -> %s (%.3fs)",
                          ct->ct_id,
-                         transaction_state_int2str(state));
+                         transaction_state_int2str(state),
+                         elapsed);
         break;
     case TS_ACTIONS:
-        clixon_debug(CLIXON_DBG_CTRL, "%" PRIu64 " : %s -> %s",
+        clixon_debug(CLIXON_DBG_CTRL, "%" PRIu64 " : %s -> %s (%.3fs)",
                      ct->ct_id,
                      transaction_state_int2str(ct->ct_state),
-                     transaction_state_int2str(state));
+                     transaction_state_int2str(state),
+                     elapsed);
         break;
     case TS_RESOLVED:
         assert(result != -1);
         assert(state != ct->ct_state);
-        clixon_debug(CLIXON_DBG_CTRL, "%" PRIu64 " : %s -> %s result: %s",
+        clixon_debug(CLIXON_DBG_CTRL, "%" PRIu64 " : %s -> %s result: %s (%.3fs)",
                      ct->ct_id,
                      transaction_state_int2str(ct->ct_state),
                      transaction_state_int2str(state),
-                     transaction_result_int2str(result));
+                     transaction_result_int2str(result),
+                     elapsed);
         break;
     case TS_DONE:
         assert(state != ct->ct_state);
         if (result != -1 && result != ct->ct_result)
-            clixon_debug(CLIXON_DBG_CTRL, "%" PRIu64 " : %s -> %s result: %s",
+            clixon_debug(CLIXON_DBG_CTRL, "%" PRIu64 " : %s -> %s result: %s (%.3fs)",
                          ct->ct_id,
                          transaction_state_int2str(ct->ct_state),
                          transaction_state_int2str(state),
-                         transaction_result_int2str(result));
+                         transaction_result_int2str(result),
+                         elapsed);
         else
-            clixon_debug(CLIXON_DBG_CTRL, "%" PRIu64 " : %s -> %s",
+            clixon_debug(CLIXON_DBG_CTRL, "%" PRIu64 " : %s -> %s (%.3fs)",
                          ct->ct_id,
                          transaction_state_int2str(ct->ct_state),
-                         transaction_state_int2str(state));
+                         transaction_state_int2str(state),
+                         elapsed);
     }
     ct->ct_state = state;
     if (result != -1 &&
         (state == TS_RESOLVED || state == TS_DONE))
         ct->ct_result = result;
-    gettimeofday(&ct->ct_timestamp, NULL);
+    ct->ct_timestamp = tv_now;
     return 0;
 }
 
@@ -446,7 +459,7 @@ controller_transaction_new(clixon_handle            h,
     db_elmnt               *de = NULL;
     char                   *db = NULL;
 
-    clixon_debug(CLIXON_DBG_CTRL, "");
+    clixon_debug(CLIXON_DBG_CTRL|CLIXON_DBG_DETAIL, "");
     if (ctp == NULL){
         clixon_err(OE_PLUGIN, EINVAL, "ctp is NULL");
         goto done;
@@ -534,6 +547,7 @@ controller_transaction_new(clixon_handle            h,
     if (transaction_new_id(h, &ct->ct_id) < 0)
         goto done;
     gettimeofday(&ct->ct_timestamp0, NULL);
+    ct->ct_timestamp = ct->ct_timestamp0; /* baseline for elapsed time in controller_transaction_state_set() */
     if (description &&
         (ct->ct_description = strdup(description)) == NULL){
         clixon_err(OE_UNIX, errno, "strdup");
@@ -549,6 +563,7 @@ controller_transaction_new(clixon_handle            h,
         if (clixon_plugin_lockdb_all(h, db, 1, lock_id) < 0)
             goto done;
     }
+    clixon_debug(CLIXON_DBG_CTRL, "%" PRIu64 " %s", ct->ct_id, ct->ct_description);
     *ctp = ct;
     ct = NULL;
     retval = 1;
@@ -578,6 +593,8 @@ controller_transaction_free1(controller_transaction *ct)
         free(ct->ct_warning);
     if (ct->ct_sourcedb)
         free(ct->ct_sourcedb);
+    if (ct->ct_cvv)
+        cvec_free(ct->ct_cvv);
     if (ct->ct_devices)
         cvec_free(ct->ct_devices);
     if (ct->ct_devices_result)

@@ -65,6 +65,11 @@ struct controller_transaction_t{
                                             and thereby action scripts */
     char              *ct_sourcedb;      /* Source datastore (candidate or running)
                                             as given by rpc controller-commit (stripped prefix) */
+    cvec              *ct_cvv;           /* Service instances (name/key) touched by this
+                                            transaction, as computed by controller_actions_diff().
+                                            Saved here so commit_push_after_actions() can re-check
+                                            the devices they reference for closed status after
+                                            action scripts have run. */
     char              *ct_description;   /* Description of transaction */
     char              *ct_origin;        /* Originator of error (if result is != SUCCESS) */
     char              *ct_reason;        /* Reason of error (if result != SUCCESS) */

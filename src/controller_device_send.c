@@ -314,7 +314,7 @@ device_send_get_schema_list(clixon_handle h,
     int   retval = -1;
     cbuf *cb = NULL;
 
-    clixon_debug(CLIXON_DBG_CTRL, "");
+    clixon_debug(CLIXON_DBG_CTRL|CLIXON_DBG_DETAIL, "");
     if ((cb = cbuf_new()) == NULL){
         clixon_err(OE_PLUGIN, errno, "cbuf_new");
         goto done;
@@ -336,6 +336,7 @@ device_send_get_schema_list(clixon_handle h,
     }
     else if (clixon_msg_send10(s, device_handle_name_get(dh), cb) < 0)
         goto done;
+    clixon_debug(CLIXON_DBG_CTRL, "get netconf-state schemas sent to %s", device_handle_name_get(dh));
     retval = 0;
  done:
     if (cb)

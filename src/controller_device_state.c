@@ -291,7 +291,7 @@ device_input_cb(int   s,
         if (clixon_debug_detail())
             clixon_debug(CLIXON_DBG_MSG | CLIXON_DBG_DETAIL, "Recv [%s]: %s", name, cbuf_get(cbmsg));
         else
-            clixon_debug(CLIXON_DBG_MSG, "Recv [%s] len: %lu", name, cbuf_len(cbmsg));
+            clixon_debug(CLIXON_DBG_MSG | CLIXON_DBG_TRUNC, "Recv [%s]: %s", name, cbuf_get(cbmsg));
         if ((ret = netconf_input_frame2(cbmsg, YB_NONE, NULL, &xtop, &xerr)) < 0)
             goto done;
         cbuf_reset(cbmsg);
@@ -1357,7 +1357,8 @@ device_capabilities2settings(clixon_handle h,
         else
             framing = NETCONF_SSH_CHUNKED;
     }
-    clixon_debug(CLIXON_DBG_CTRL, "netconf framing: %s", netconf_framing_int2str(framing));
+    clixon_debug(CLIXON_DBG_CTRL, "netconf framing: %s for %s",
+                 netconf_framing_int2str(framing), device_handle_name_get(dh));
     //    framing = 0; //NETCONF_SSH_EOM; // XXX
     device_handle_framing_type_set(dh, framing);
 

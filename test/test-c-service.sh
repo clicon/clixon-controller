@@ -852,6 +852,62 @@ expectpart "$(${clixon_cli} -m configure -1f $CFG -E $CFD commit 2>&1)" 0 "^$"
 new "Check not Sy"
 expectpart "$(${clixon_cli} -1f $CFG -E $CFD show configuration devices device ${IMG}1 config interfaces interface Sy)" 0 --not-- "interface Sy"
 
+# Check that "show transactions detail" reports $2 (FAILED/SKIPPED) for device $1
+function check_devresult()
+{
+    local res=$1
+    local dev=$2
+    local devr=$3
+    local out
+    local devblock
+
+    out=$(${clixon_cli} -1f $CFG -E $CFD show transactions detail 2>&1)
+    devblock=$(echo "$out" | grep -A 5 "<name>$dev</name>")
+    resblock=$(echo "$out" | grep "<result>$res</result>")
+    if [ -z "$resblock" ]; then
+        err1 "result=$res in transaction detail" "$out"
+    fi
+    if [ -z "$devblock" ]; then
+        err1 "$dev in transaction detail" "$out"
+    fi
+    if ! echo "$devblock" | grep -q "$devr"; then
+        err1 "$dev result $devr in transaction detail" "$out"
+    fi
+}
+
+new "Close ${IMG}2"
+expectpart "$(${clixon_cli} -1f $CFG -E $CFD connection close ${IMG}2)" 0 "^$"
+
+new "closed: apply diff"
+expectpart "$(${clixon_cli} -m configure -1f $CFG -E $CFD apply services myyang:testA foo diff 2>&1)" 0 "Device is closed" "${IMG}2"
+
+new "closed: apply diff transaction failed"
+check_devresult FAILED ${IMG}2 FAILED
+
+new "closed: apply"
+expectpart "$(${clixon_cli} -m configure -1f $CFG -E $CFD apply services myyang:testA foo  2>&1)" 0 "Device is closed" "${IMG}2"
+
+new "closed: apply transaction failed"
+check_devresult FAILED ${IMG}2 FAILED
+
+new "Disable ${IMG}2"
+expectpart "$(${clixon_cli} -m configure -1f $CFG -E $CFD set devices device ${IMG}2 enabled false)" 0 "^$"
+
+new "Commit it"
+expectpart "$(${clixon_cli} -m configure -1f $CFG -E $CFD commit local)" 0 "^$"
+
+new "disabled: apply diff"
+expectpart "$(${clixon_cli} -m configure -1f $CFG -E $CFD apply services myyang:testA foo diff 2>&1)" 0 "${IMG}2' skipped (disabled)" --not-- "Device is closed"
+
+new "disabled: apply diff transaction success"
+check_devresult SUCCESS ${IMG}2 SKIPPED
+
+new "disabled: apply"
+expectpart "$(${clixon_cli} -m configure -1f $CFG -E $CFD apply services myyang:testA foo  2>&1)" 0 "${IMG}2' skipped (disabled)" --not-- "Device is closed"
+
+new "disabled: apply transaction failed"
+check_devresult SUCCESS ${IMG}2 SKIPPED
+
 if $BE; then
     new "Kill old backend"
     stop_backend -f $CFG -E $CFD
