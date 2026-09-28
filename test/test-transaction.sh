@@ -458,9 +458,10 @@ update_device "$NAME2" "$ip2" "830" "false"  # DISABLE
 edit_device_config "$NAME2" "test" true
 
 # D1: Show devices diff disabled - shows diff of stored config vs candidate
-check_tx $NAME2 "D1 show devices diff disabled" oper "show devices $NAME2 diff" diff success success
+check_tx $NAME2 "D1 show devices diff disabled" oper "show devices $NAME2 diff" diff success skip
 
 update_device "$NAME2" "$ip2" "830" "true" # CLOSED
+
 edit_device_config "$NAME2" "test" true
 
 # D2: Show devices diff closed
@@ -602,7 +603,7 @@ expectpart "$($clixon_cli -1 -m configure -f $CFG -E $CFD commit local)" 0 "^$"
 update_device "$NAME2" "$ip2" "830" "false"  # DISABLE
 
 # Dx1: No edits show devices diff disabled
-check_tx $NAME2 "Dx1 show devices diff disabled" oper "show devices $NAME2 diff" silent success success
+check_tx $NAME2 "Dx1 show devices diff disabled" oper "show devices $NAME2 diff" silent success skip
 
 # Dx2: Show devices diff closed
 update_device "$NAME2" "$ip2" "830" "true"  # CLOSED (enabled but not connected)

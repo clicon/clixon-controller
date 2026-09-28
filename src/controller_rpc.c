@@ -807,7 +807,7 @@ rpc_config_pull(clixon_handle h,
         transient = strcmp(str, "true") == 0;
     /* A transient pull is an internal step of "show devices diff/check" */
     if ((ret = controller_transaction_new(h, ce, clicon_username_get(h),
-                                           transient ? "diff" : "pull", 1, &ct, &cberr)) < 0)
+                                           transient ? "pull transient" : "pull", 1, &ct, &cberr)) < 0)
         goto done;
     if (ret == 0){
         if (netconf_operation_failed(cbret, "application", "%s", cbuf_get(cberr))< 0)
@@ -832,15 +832,8 @@ rpc_config_pull(clixon_handle h,
             continue;
         if ((body = xml_find_body(xn, "enabled")) != NULL &&
             strcmp(body, "true") != 0){
-            if (transient){
-                /* Transient pull for diff: disabled device succeeds using cached SYNCED data */
-                if (controller_transaction_device_add(ct, devname) < 0)
-                    goto done;
-            }
-            else {
-                if (controller_transaction_device_skip(ct, devname, "disabled") < 0)
-                    goto done;
-            }
+            if (controller_transaction_device_skip(ct, devname, "disabled") < 0)
+                goto done;
             continue;
         }
         if ((dh = device_handle_find(h, devname)) == NULL ||
@@ -2347,6 +2340,13 @@ rpc_controller_commit(clixon_handle h,
             }
             continue;
         }
+        if ((ret = device_dead_socket_check(dh, devname)) < 0)
+            goto done;
+        if (ret == 1){
+            if (controller_transaction_device_skip(ct, devname, "closed") < 0)
+                goto done;
+            continue;
+        }
         /* Mark device for diff check; add to device list only if a diff is found */
         device_handle_tid_mark(dh, ct->ct_id);
     }
@@ -2690,7 +2690,7 @@ connection_change_one(clixon_handle           h,
         clixon_err(OE_NETCONF, 0, "%s is not a connection-operation", operation);
         goto done;
     }
-    clixon_debug(CLIXON_DBG_CTRL, "%s changed state to %s", devname, operation);
+    clixon_debug(CLIXON_DBG_CTRL, "%s connection op:%s", devname, operation);
     retval = 1;
  done:
     if (reason)
