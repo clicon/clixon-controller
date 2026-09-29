@@ -37,6 +37,11 @@ module clixon-controller {
     }
     description
         "Clixon controller";
+    revision 2026-10-01 {
+        description
+            "Added controller-transaction-progress notification
+             Released in 2.0.0";
+    }
     revision 2026-06-01 {
         description
             "Obsoleted transaction-common/devices/devdata and skipped
@@ -911,8 +916,50 @@ module clixon-controller {
     notification controller-transaction {
         description
             "A transaction has been completed.
+             Sent on the controller-transaction stream, together with
+             controller-transaction-progress notifications. Use xpath filter
+             'controller-transaction' to get completion only.
              See also non-config transaction container";
         uses transaction-common;
+    }
+    notification controller-transaction-progress {
+        description
+            "Progress information for an ongoing transaction, sent whenever there is new
+             progress to report: either the transaction-state changes (eg INIT -> ACTIONS),
+             or the connection state changes for a device that is part of the transaction.
+             Used to give interactive feedback while a transaction (eg connect/pull/commit/rpc)
+             is running. Superseded by a controller-transaction notification with the final
+             result once the transaction completes.
+             Sent on the controller-transaction stream.";
+        leaf tid {
+            description "Transaction id this progress belongs to";
+            type uint64;
+        }
+        leaf state {
+            description "Transaction state at time of notification";
+            type transaction-state;
+        }
+        list device {
+            description
+                "Devices that are (or were) part of the transaction, and their current
+                 connection state. May be empty if this notification only reports a
+                 transaction-state change.";
+            key name;
+            leaf name {
+                description "Device name";
+                type string;
+            }
+            leaf conn-state {
+                description "Current connection state of the device";
+                type connection-state;
+            }
+            leaf done {
+                description
+                    "Present and true if the device has reached its goal state, ie left
+                     the transaction successfully. Used to count finished devices.";
+                type boolean;
+            }
+        }
     }
     augment "/cl:stats/cl:output" {
         description

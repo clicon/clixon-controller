@@ -306,7 +306,7 @@ expectpart "$(cat $fin | $clixon_cli -f $CFG -E $CFD 2>&1)" 0 --not-- "CLI synta
 new "Test show info across mountpoint"
 expectpart "$($clixon_cli -1 -f $CFG -E $CFD show info devices device \* config system config hostname)" 0 "Symbol:     hostname
 Module:     openconfig-system
-File:       /usr/local/share/controller/mounts/default/openconfig-system@2024-09-24.yang
+File:       /usr/local/share/controller/mounts/default/openconfig-system@[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9].yang
 Namespace:  http://openconfig.net/yang/system
 Prefix:     oc-sys
 XPath:      /ctrl:devices/ctrl:device[ctrl:name='*']/ctrl:config/oc-sys:system/oc-sys:config/oc-sys:hostname

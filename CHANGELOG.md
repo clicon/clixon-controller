@@ -15,6 +15,23 @@
 ## 2.0.0
 Expected: January 2027
 
+### New features
+
+* Added transaction progress notifications
+  * CLI: progress bar showing id, time, transaction and individual device state
+  * Also possible using NETCONF/RESTCONF
+* New `clixon-controller@2026-10-01.yang` revision
+  * Added controller-transaction-progress notification
+
+### API changes on existing protocol/config features
+
+Users may have to change how they access the system
+
+* The transaction progress mechanism requires clients to filter progress from existing transaction-notification streams
+  * This is _not_ backward-compatible and requires code change for all subscribing to the transaction-notifications
+    * Patches to clixon (for restconf filtering) and clixon-pyapi have been made
+  * Use xpath filter 'controller-transaction' to get completion only.
+
 ## 1.9.0
 15 October 2026
 

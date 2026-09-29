@@ -100,7 +100,7 @@ if [ -z "$match" ]; then
 fi
 
 new "match openconfig-acl"
-expected='<module><name>openconfig-acl</name><revision>2023-02-06</revision><namespace>http://openconfig.net/yang/acl</namespace><location>NETCONF</location></module>'
+expected='<module><name>openconfig-acl</name><revision>[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]</revision><namespace>http://openconfig.net/yang/acl</namespace><location>NETCONF</location></module>'
 
 match=$(echo $ret | grep --null -Eo "$expected") || true
 if [ -z "$match" ]; then

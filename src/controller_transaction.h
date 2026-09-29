@@ -114,6 +114,7 @@ extern "C" {
 int   controller_transaction_state_set(controller_transaction *ct, transaction_state state, transaction_result result);
 int   transaction_devdata_add(clixon_handle h, controller_transaction *ct, char *name, cxobj *devdata, cbuf **cberr);
 int   controller_transaction_notify(clixon_handle h, controller_transaction *ct);
+int   controller_transaction_progress_notify(clixon_handle h, controller_transaction *ct);
 int   controller_transaction_new(clixon_handle h, client_entry *ce, char *username, char *description, int lockdb,
                                  controller_transaction **ct, cbuf **cberr);
 int   controller_transaction_free(clixon_handle h, controller_transaction *ct);
@@ -121,6 +122,7 @@ int   controller_transaction_free_all(clixon_handle h);
 int   controller_transaction_done(clixon_handle h, controller_transaction *ct, transaction_result result);
 controller_transaction *controller_transaction_find(clixon_handle h, const uint64_t id);
 controller_transaction *controller_transaction_find_bystate(clixon_handle h, int neg, transaction_state state);
+controller_transaction *controller_transaction_each(clixon_handle h, controller_transaction *ct0);
 int   controller_transaction_nr_devices(clixon_handle h, uint64_t tid);
 int   controller_transaction_device_add(controller_transaction *ct, const char *name);
 int   controller_transaction_device_skip(controller_transaction *ct, const char *name, const char *reason);

@@ -355,7 +355,7 @@ expectpart "$(curl $CURLOPTS -H "Accept: application/yang-data+json" -X GET $RCP
 
 # 4. Notification
 new "Check notification controller-transaction state monitoring"
-expectpart "$(curl $CURLOPTS -X GET $RCPROTO://localhost/restconf/data/ietf-restconf-monitoring:restconf-state)" 0 "HTTP/$HVER 200" "{\"name\":\"controller-transaction\",\"description\":\"A transaction has been completed.\",\"replay-support\":false,\"access\":\[{\"encoding\":\"xml\",\"location\":\"${RCPROTO}://localhost/streams/controller-transaction\"}\]}" '{"name":"services-commit","description":"A commit has been made that changes the services declaration"'
+expectpart "$(curl $CURLOPTS -X GET $RCPROTO://localhost/restconf/data/ietf-restconf-monitoring:restconf-state)" 0 "HTTP/$HVER 200" "{\"name\":\"controller-transaction\",\"description\":\"Transaction progress and completion. Use xpath filter controller-transaction for completion only.\",\"replay-support\":false,\"access\":\[{\"encoding\":\"xml\",\"location\":\"${RCPROTO}://localhost/streams/controller-transaction\"}\]}" '{"name":"services-commit","description":"A commit has been made that changes the services declaration"'
 
 if [ "${WITH_RESTCONF}" = "fcgi" ]; then
 new "restconf RPC connection open"
@@ -371,7 +371,7 @@ sleep 1 && curl $CURLOPTS -X POST -H "Content-Type: application/yang-data+json" 
 PID=$!
 
 new "Notification controller-transaction timeout:${TIMEOUT}s 1"
-ret=$(curl $CURLOPTS -X GET -H "Accept: text/event-stream" -H "Cache-Control: no-cache" -H "Connection: keep-alive" ${RCPROTO}://localhost/streams/controller-transaction)
+ret=$(curl $CURLOPTS -X GET -H "Accept: text/event-stream" -H "Cache-Control: no-cache" -H "Connection: keep-alive" ${RCPROTO}://localhost/streams/controller-transaction?filter=controller-transaction 2>/dev/null)
 
 #echo "ret:$ret"
 
@@ -418,8 +418,9 @@ expectpart "$(curl $CURLOPTS -X POST -H "Content-Type: application/yang-data+jso
 
 sleep 3
 
+let tid=7
 new "Poll transaction result after apply delete"
-expectpart "$(curl $CURLOPTS -X GET -H "Accept: application/yang-data+json" $RCPROTO://localhost/restconf/data/clixon-controller:transactions/transaction=7)" 0 "HTTP/$HVER 200" '{"clixon-controller:transaction":[{"tid":"[0-9.]*","username":"anonymous","result":"SUCCESS"'
+expectpart "$(curl $CURLOPTS -X GET -H "Accept: application/yang-data+json" $RCPROTO://localhost/restconf/data/clixon-controller:transactions/transaction=$tid)" 0 "HTTP/$HVER 200" '{"clixon-controller:transaction":[{"tid":"[0-9.]*","username":"anonymous","result":"SUCCESS"'
 
 new "restconf DELETE service A"
 expectpart "$(curl $CURLOPTS -X DELETE -H "Content-Type: application/yang-data+json" $RCPROTO://localhost/restconf/data/clixon-controller:services/myyang:testA=bar)" 0 "HTTP/$HVER 204"
@@ -435,7 +436,7 @@ sleep 1 && expectpart "$(curl $CURLOPTS -X POST -H "Content-Type: application/ya
 PID=$!
 
 new "Wait for notification timeout:${TIMEOUT}s"
-ret=$(curl $CURLOPTS -X GET -H "Accept: text/event-stream" -H "Cache-Control: no-cache" -H "Connection: keep-alive" $RCPROTO://localhost/streams/controller-transaction)
+ret=$(curl $CURLOPTS -X GET -H "Accept: text/event-stream" -H "Cache-Control: no-cache" -H "Connection: keep-alive" $RCPROTO://localhost/streams/controller-transaction?filter=controller-transaction 2>/dev/null)
 
 # echo "ret:$ret"
 
@@ -449,8 +450,9 @@ kill $PID 2> /dev/null
 
 fi
 
+let tid++
 new "Get rpc transaction result" # XXX hardcoded to transaction 8, may change if test ^ changes
-expectpart "$(curl $CURLOPTS -H "Accept: application/yang-data+json" -X GET $RCPROTO://localhost/restconf/data/clixon-controller:transactions/transaction=8)" 0 "HTTP/$HVER 200" '{"clixon-controller:transaction":\[{"tid":"[0-9]*",' '"result":"SUCCESS"'
+expectpart "$(curl $CURLOPTS -H "Accept: application/yang-data+json" -X GET $RCPROTO://localhost/restconf/data/clixon-controller:transactions/transaction=$tid)" 0 "HTTP/$HVER 200" '{"clixon-controller:transaction":\[{"tid":"[0-9]*",' '"result":"SUCCESS"'
 
 new "Get transaction result"
 expectpart "$(curl $CURLOPTS -X POST -H "Content-Type: application/yang-data+json" $RCPROTO://localhost/restconf/operations/clixon-controller:device-rpc-result -d '{"clixon-controller:input":{"tid":"8"}}')" 0 "HTTP/$HVER 200" 'Content-Type: application/yang-data+json' "{\"clixon-controller:output\":{\"tid\":\"8\",\"devices\":{\"devdata\":\[{\"name\":\"${IMG}1\",\"data\":{\"global\":{\"xmlnr\":"
@@ -462,7 +464,7 @@ sleep 1 && expectpart "$(curl $CURLOPTS -X POST -H "Content-Type: application/ya
 PID=$!
 
 new "Wait for notification timeout:${TIMEOUT}s"
-ret=$(curl $CURLOPTS -X GET -H "Accept: text/event-stream" -H "Cache-Control: no-cache" -H "Connection: keep-alive" $RCPROTO://localhost/streams/controller-transaction)
+ret=$(curl $CURLOPTS -X GET -H "Accept: text/event-stream" -H "Cache-Control: no-cache" -H "Connection: keep-alive" $RCPROTO://localhost/streams/controller-transaction?filter=controller-transaction 2>/dev/null)
 
 #echo "ret:$ret"
 
@@ -482,7 +484,7 @@ sleep 1 && expectpart "$(curl $CURLOPTS -X POST -H "Content-Type: application/ya
 PID=$!
 
 new "Wait for notification timeout:${TIMEOUT}s"
-ret=$(curl $CURLOPTS -X GET -H "Accept: text/event-stream" -H "Cache-Control: no-cache" -H "Connection: keep-alive" $RCPROTO://localhost/streams/controller-transaction)
+ret=$(curl $CURLOPTS -X GET -H "Accept: text/event-stream" -H "Cache-Control: no-cache" -H "Connection: keep-alive" $RCPROTO://localhost/streams/controller-transaction?filter=controller-transaction 2>/dev/null)
 
 #echo "ret:$ret"
 expect="<controller-transaction xmlns=\"http://clicon.org/controller\"><tid>[0-9:.]*</tid><username>[a-zA-Z0-9]*</username><result>SUCCESS</result>"
@@ -507,7 +509,7 @@ sleep 1 && expectpart "$(curl $CURLOPTS -X POST -H "Content-Type: application/ya
 PID=$!
 
 new "Wait for notification timeout:${TIMEOUT}s"
-ret=$(curl $CURLOPTS -X GET -H "Accept: text/event-stream" -H "Cache-Control: no-cache" -H "Connection: keep-alive" $RCPROTO://localhost/streams/controller-transaction)
+ret=$(curl $CURLOPTS -X GET -H "Accept: text/event-stream" -H "Cache-Control: no-cache" -H "Connection: keep-alive" $RCPROTO://localhost/streams/controller-transaction?filter=controller-transaction 2>/dev/null)
 #echo "ret:$ret"
 expect="data: <notification xmlns=\"urn:ietf:params:xml:ns:netconf:notification:1.0\"><eventTime>${DATE}T[0-9:.]*Z</eventTime><controller-transaction xmlns=\"http://clicon.org/controller\"><tid>[0-9:.]*</tid><username>[a-zA-Z0-9]*</username><result>SUCCESS</result></controller-transaction></notification>"
 
@@ -518,8 +520,9 @@ fi
 
 kill $PID 2> /dev/null
 
+let tid+=3
 new "poll transaction success"
-expectpart "$(curl $CURLOPTS -X GET -H "Accept: application/yang-data+json" $RCPROTO://localhost/restconf/data/clixon-controller:transactions/transaction=11)" 0 "HTTP/$HVER 200" '{"clixon-controller:transaction":[{"tid":"[0-9.]*","username":"anonymous","result":"SUCCESS"'
+expectpart "$(curl $CURLOPTS -X GET -H "Accept: application/yang-data+json" $RCPROTO://localhost/restconf/data/clixon-controller:transactions/transaction=$tid)" 0 "HTTP/$HVER 200" '{"clixon-controller:transaction":[{"tid":"[0-9.]*","username":"anonymous","result":"SUCCESS"'
 
 new "get transaction result"
 expectpart "$(curl $CURLOPTS -X POST -H "Content-Type: application/yang-data+json" $RCPROTO://localhost/restconf/operations/clixon-controller:device-rpc-result -d '{"clixon-controller:input":{"tid":"11"}}')" 0 "HTTP/$HVER 200" 'Content-Type: application/yang-data+json' "{\"clixon-controller:output\":{\"tid\":\"11\",\"devices\":{\"devdata\":\[{\"name\":\"${IMG}1\",\"data\":{\"data\":{\"system\":{\"ssh-server\":{\"state\":{\"enable\":\"true\",\"protocol-version\":\"V2\"}}"
@@ -529,7 +532,7 @@ sleep 1 && expectpart "$(curl $CURLOPTS -X POST -H "Content-Type: application/ya
 PID=$!
 
 new "Wait for notification timeout:${TIMEOUT}s"
-ret=$(curl $CURLOPTS -X GET -H "Accept: text/event-stream" -H "Cache-Control: no-cache" -H "Connection: keep-alive" $RCPROTO://localhost/streams/controller-transaction)
+ret=$(curl $CURLOPTS -X GET -H "Accept: text/event-stream" -H "Cache-Control: no-cache" -H "Connection: keep-alive" $RCPROTO://localhost/streams/controller-transaction?filter=controller-transaction 2>/dev/null)
 #echo "ret:$ret"
 expect="data: <notification xmlns=\"urn:ietf:params:xml:ns:netconf:notification:1.0\"><eventTime>${DATE}T[0-9:.]*Z</eventTime><controller-transaction xmlns=\"http://clicon.org/controller\"><tid>[0-9:.]*</tid><username>[a-zA-Z0-9]*</username><result>SUCCESS</result></controller-transaction></notification>"
 match=$(echo "$ret" | grep --null -Eo "$expect") || true
@@ -538,6 +541,27 @@ if [ -z "$match" ]; then
 fi
 
 kill $PID 2> /dev/null
+
+# 7c. No filter: unfiltered subscription also receives progress notifications
+if [ "${WITH_RESTCONF}" = "native" ]; then
+new "Send device rpc for unfiltered progress and save PID"
+sleep 1 && expectpart "$(curl $CURLOPTS -X POST -H "Content-Type: application/yang-data+xml" $RCPROTO://localhost/restconf/operations/clixon-controller:device-rpc -d '<input xmlns="http://clicon.org/controller"><device>openconfig*</device><config><ping xmlns="http://clicon.org/lib"></ping></config></input>')" 0 "HTTP/$HVER 200" 'Content-Type: application/yang-data+json' '{"clixon-controller:output":{"tid":"[0-9:.]*"}}' &
+PID=$!
+
+TIMEOUT=20
+new "Wait for progress notification (no filter) timeout:${TIMEOUT}s"
+ret=$(curl $CURLOPTS -X GET -H "Accept: text/event-stream" -H "Cache-Control: no-cache" -H "Connection: keep-alive" $RCPROTO://localhost/streams/controller-transaction 2>/dev/null)
+
+# Without a filter, progress notifications are received (filtered tests above
+# verify that an xpath filter suppresses these and leaves only completion).
+expect="<controller-transaction-progress xmlns=\"http://clicon.org/controller\"><tid>[0-9:.]*</tid><state>"
+match=$(echo "$ret" | grep --null -Eo "$expect") || true
+if [ -z "$match" ]; then
+    err "$expect" "$ret"
+fi
+
+kill $PID 2> /dev/null
+fi
 
 # PUT/POST dont work over mountpoints
 # see https://github.com/clicon/clixon-controller/issues/210

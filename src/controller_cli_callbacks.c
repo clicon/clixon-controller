@@ -32,6 +32,7 @@
 #include <unistd.h>
 #include <fnmatch.h>
 #include <signal.h> /* matching strings */
+#include <poll.h>
 #include <sys/stat.h>
 #include <sys/time.h>
 #include <sys/param.h>
@@ -631,98 +632,163 @@ send_transaction_error(clixon_handle h,
     return retval;
 }
 
-/*! Show one-line progress of an ongoing transaction on a terminal
+/*! Subscribe to transaction progress notifications
  *
- * Called periodically by transaction_notification_poll() while waiting for the
- * final transaction notification, to give interactive feedback while a push
- * commit/validate (or other transaction) is running, see issue #247.
- * Queries the per-device connection state of devices currently part of the
- * transaction and prints a single, updated status line. Errors from the state
- * query are ignored (progress display is best-effort and must not abort the
- * ongoing wait for the actual transaction result).
- * @param[in] h       Clixon handle
- * @param[in] tidstr  Transaction id (string)
- * @param[in] tv0     Transaction start time (for elapsed time display)
- * @retval    0       OK
- * @retval   -1       Error
+ * Opens a separate notification socket subscribed to the controller-transaction stream,
+ * filtered on controller-transaction-progress notifications. Only opened while waiting
+ * for a transaction, to avoid accumulating progress
+ * notifications of other transactions in idle CLI sessions.
+ * Errors are ignored since progress display is best-effort (eg older backend).
+ * @param[in]  h    Clixon handle
+ * @retval     s    Progress notification socket
+ * @retval    -1    No progress socket
  */
 static int
-transaction_progress_show(clixon_handle   h,
-                          char           *tidstr,
-                          struct timeval *tv0)
+transaction_progress_subscribe(clixon_handle h)
 {
-    int      retval = -1;
-    cvec    *nsc = NULL;
-    cxobj   *xn = NULL;
-    cxobj   *xerr;
-    cxobj  **vec = NULL;
-    size_t         veclen = 0;
-    cbuf          *cb = NULL;
-    int            i;
-    int            nstates[CS_RPC_GENERIC] = {0,};
-    int            is;
-    int            first = 1;
-    char          *state;
-    struct timeval tv1;
-    struct timeval tvdiff;
+    int s = -1;
 
-    fflush(stdout);
-    if ((nsc = xml_nsctx_init("co", CONTROLLER_NAMESPACE)) == NULL)
-        goto done;
-    if ((cb = cbuf_new()) == NULL){
-        clixon_err(OE_PLUGIN, errno, "cbuf_new");
-        goto done;
+    if (clicon_rpc_create_subscription(h, "controller-transaction", "controller-transaction-progress", &s) < 0){
+        clixon_debug(CLIXON_DBG_CTRL, "progress subscription failed, no progress shown");
+        clixon_err_reset();
+        if (s >= 0)
+            close(s);
+        s = -1;
     }
-    cprintf(cb, "co:devices/co:device/co:name | co:devices/co:device/co:conn-state");
-    if (clicon_rpc_get(h, cbuf_get(cb), nsc, CONTENT_ALL, -1, "explicit", &xn) < 0)
+    return s;
+}
+
+/*! Read transaction progress notification(s) and update progress summary
+ *
+ * Several notifications may be received in one read, the last one matching the transaction is used.
+ * Devices in stable state (OPEN/CLOSED) are already excluded by the backend.
+ * @param[in]  h       Clixon handle
+ * @param[in]  ps      Progress notification socket
+ * @param[in]  tidstr  Transaction id
+ * @param[out] cbsum   Progress summary, updated if a notification matches tidstr
+ * @retval     1       OK
+ * @retval     0       Failed: socket closed or malformed input, stop reading progress
+ * @retval    -1       Error
+ * @see controller_transaction_progress_notify  Backend sender
+ */
+static int
+transaction_progress_read(clixon_handle h,
+                          int           ps,
+                          char         *tidstr,
+                          cbuf         *cbsum)
+{
+    int     retval = -1;
+    cbuf   *cb = NULL;
+    cxobj  *xt = NULL;
+    cxobj **vec = NULL;
+    size_t  veclen = 0;
+    cxobj  *xn = NULL;
+    cxobj  *xd;
+    char   *str;
+    int     nstates[CS_RPC_GENERIC+1] = {0,};
+    int     ndone = 0;
+    int     is;
+    int     i;
+    int     ix;
+    int     first = 1;
+    int     eof = 0;
+
+    if (clixon_msg_rcv11(ps, NULL, 0, &cb, &eof) < 0 || eof)
+        goto failed;
+    if (clixon_xml_parse_string(cbuf_get(cb), YB_NONE, NULL, &xt, NULL) < 0)
+        goto failed;
+    if (xpath_vec(xt, NULL, "notification/controller-transaction-progress", &vec, &veclen) < 0)
         goto done;
-    gettimeofday(&tv1, NULL);
-    timersub(&tv1, tv0, &tvdiff);
-    if ((xerr = xpath_first(xn, NULL, "/rpc-error")) != NULL){
-        /* Ignore transient state-query errors, dont abort the transaction wait */
-        retval = 0;
-        goto done;
+    for (i=0; i<veclen; i++){
+        if ((str = xml_find_body(vec[i], "tid")) != NULL && strcmp(str, tidstr) == 0)
+            xn = vec[i];
     }
-    cbuf_reset(cb);
-    cprintf(cb, "%lds: ", tvdiff.tv_sec);
-    if (xpath_vec(xn, nsc, "devices/device", &vec, &veclen) == 0){
-        for (i = 0; i < veclen; i++){
-            state = xml_find_body(vec[i], "conn-state");
-            if ((is = device_state_str2int(state)) < 0){
-                clixon_err(OE_NETCONF, 0, "Unrecognized device state: %s", state);
-                goto done;
-            }
+    if (xn == NULL)
+        goto ok;
+    ix = 0;
+    while ((xd = xml_child_iter(xn, &ix, CX_ELMNT)) != NULL){
+        if (strcmp(xml_name(xd), "device") != 0)
+            continue;
+        if ((str = xml_find_body(xd, "conn-state")) == NULL)
+            continue;
+        if ((is = device_state_str2int(str)) < 0 || is > CS_RPC_GENERIC)
+            continue;
+        if (xml_find_body(xd, "done") != NULL)
+            ndone++;
+        else
             nstates[is]++;
-        }
-        first = 1;
-        for (is=0; is<CS_RPC_GENERIC; is++){
-            if (is == CS_CLOSED || is == CS_OPEN || nstates[is] == 0)
-                continue;
-            cprintf(cb, "%s%d %s", first?"":", ", nstates[is], device_state_int2str(is));
-            first = 0;
-        }
     }
-    cligen_output(stdout, "\r\033[2K%s", cbuf_get(cb));
-    fflush(stdout);
-    retval = 0;
+    cbuf_reset(cbsum);
+    if ((str = xml_find_body(xn, "state")) != NULL)
+        cprintf(cbsum, " %s", str);
+    if (ndone){
+        cprintf(cbsum, "%s%d OK", first?": ":", ", ndone);
+        first = 0;
+    }
+    for (is=0; is<=CS_RPC_GENERIC; is++){
+        if (is == CS_CLOSED || is == CS_OPEN || nstates[is] == 0)
+            continue;
+        cprintf(cbsum, "%s%d %s", first?": ":", ", nstates[is], device_state_int2str(is));
+        first = 0;
+    }
+ ok:
+    retval = 1;
  done:
     if (vec)
         free(vec);
+    if (xt)
+        xml_free(xt);
     if (cb)
         cbuf_free(cb);
-    if (xn)
-        xml_free(xn);
-    if (nsc)
-        cvec_free(nsc);
     return retval;
+ failed:
+    clixon_err_reset();
+    retval = 0;
+    goto done;
+}
+
+/*! Show one-line progress of an ongoing transaction on a terminal
+ *
+ * Called by transaction_notification_poll() while waiting for the final transaction
+ * notification, to give interactive feedback while a transaction is running, see issue #247.
+ * Format: Transaction <tid> [<state>] (<elapsed>s)[: <nr> <device-state>, ...]
+ * @param[in] tidstr  Transaction id
+ * @param[in] cbsum   Progress summary from latest progress notification
+ * @param[in] tv0     Transaction start time (for elapsed time display)
+ */
+static void
+transaction_progress_show(char           *tidstr,
+                          cbuf           *cbsum,
+                          struct timeval *tv0)
+{
+    struct timeval tv1;
+    struct timeval tvdiff;
+    char          *sum;
+    char          *devs;
+    int            len;
+
+    gettimeofday(&tv1, NULL);
+    timersub(&tv1, tv0, &tvdiff);
+    /* cbsum is " <state>[: <devices>]", split it to put elapsed time after state */
+    sum = cbuf_get(cbsum);
+    if ((devs = strchr(sum, ':')) != NULL)
+        len = devs - sum;
+    else{
+        len = strlen(sum);
+        devs = "";
+    }
+    /* Bypass cligen_output: the pager does not understand \r and would add --More-- */
+    fprintf(stdout, "\r\033[2KTransaction %s%.*s (%lds)%s",
+            tidstr, len, sum, tvdiff.tv_sec, devs);
+    fflush(stdout);
 }
 
 /*! SIGINT flag for transaction_notification_poll's progress-wait poll
  *
  * clixon_msg_rcv11() installs its own SIGINT handling while blocked in read(),
  * see the intr parameter. transaction_notification_poll() also blocks in
- * clixon_event_poll_timeout() while showing progress (see
- * transaction_progress_show()), so it needs its own minimal SIGINT handling to
+ * poll() on the transaction and progress notification sockets while showing
+ * progress, so it needs its own minimal SIGINT handling to
  * let ^C abort the transaction during that wait, same as during the blocking
  * read.
  */
@@ -734,8 +800,32 @@ transaction_poll_sigint_handler(int sig)
     _transaction_poll_sigint = 1;
 }
 
+/*! Discard pending SIGINT, eg a repeated ^C while aborting a transaction
+ *
+ * SIGINT is blocked in the CLI, so a pending ^C would otherwise be delivered
+ * later, interrupting an unrelated command.
+ * Setting action to SIG_IGN discards a pending signal (POSIX)
+ */
+static void
+transaction_poll_sigint_flush(void)
+{
+    sigset_t         pend;
+    struct sigaction sa0;
+    struct sigaction sa1 = {0,};
+
+    if (sigpending(&pend) == 0 && sigismember(&pend, SIGINT)){
+        sa1.sa_handler = SIG_IGN;
+        sigemptyset(&sa1.sa_mask);
+        if (sigaction(SIGINT, &sa1, &sa0) == 0)
+            sigaction(SIGINT, &sa0, NULL);
+    }
+}
+
 /*! Poll controller notification socket
  *
+ * On a terminal, also open a temporary subscription to
+ * controller-transaction-progress notifications and show device states of the
+ * transaction until the final controller-transaction notification arrives.
  * param[in]  h      Clixon handle
  * param[in]  tidstr Transaction identifier
  * param[out] result
@@ -758,6 +848,11 @@ transaction_notification_poll(clixon_handle       h,
     sigset_t         oldsigset = {{0,},};
     struct sigaction oldsigaction[32] = {{{0,},},};
     struct timeval   tv0;
+    struct pollfd    pfd[2];
+    int              ps = -1;
+    cbuf            *cbsum = NULL;
+    int              n;
+    int              ret;
 
     clixon_debug(CLIXON_DBG_CTRL, "tid:%s", tidstr);
     if (result)
@@ -787,6 +882,11 @@ transaction_notification_poll(clixon_handle       h,
          * It must be explicitly unblocked here, same as clixon_msg_rcv11(intr=1)
          * does, or the handler above is never actually delivered */
         clicon_signal_unblock(SIGINT);
+        if ((cbsum = cbuf_new()) == NULL){
+            clixon_err(OE_UNIX, errno, "cbuf_new");
+            goto done;
+        }
+        ps = transaction_progress_subscribe(h);
     }
     gettimeofday(&tv0, NULL);
     while (!match){
@@ -800,11 +900,13 @@ transaction_notification_poll(clixon_handle       h,
             /* First progress update comes quickly (100ms) for fast feedback,
              * subsequent updates are less frequent (500ms) to avoid excessive
              * screen redraws. */
-            struct timeval tv = elapsed == 0 ? (struct timeval){0, 100000} : (struct timeval){0, 500000};
-            int            n;
-
-            n = clixon_event_poll_timeout(s, &tv);
-            if (n < 0){
+            pfd[0].fd = s;
+            pfd[0].events = POLLIN;
+            pfd[0].revents = 0;
+            pfd[1].fd = ps;     /* poll ignores negative fd */
+            pfd[1].events = POLLIN;
+            pfd[1].revents = 0;
+            if ((n = poll(pfd, 2, elapsed == 0 ? 100 : 500)) < 0){
                 if (errno == EINTR){
                     if (_transaction_poll_sigint){
                         aborted = 1;
@@ -812,23 +914,26 @@ transaction_notification_poll(clixon_handle       h,
                     }
                     continue;
                 }
+                clixon_err(OE_EVENTS, errno, "poll");
                 goto done;
             }
-            if (n == 0){
-                int pret;
-
-                /* No notification yet within this interval: show progress */
-                elapsed++;
-                pret = transaction_progress_show(h, tidstr, &tv0);
-                /* Check sentinel before treating a negative return as fatal */
-                if (_transaction_poll_sigint){
-                    aborted = 1;
-                    break;
-                }
-                if (pret < 0)
+            if (pfd[1].revents){
+                if ((ret = transaction_progress_read(h, ps, tidstr, cbsum)) < 0)
                     goto done;
-                continue;
+                if (ret == 0){ /* Stop progress, continue waiting for result */
+                    close(ps);
+                    ps = -1;
+                }
+                else if (elapsed > 0)
+                    transaction_progress_show(tidstr, cbsum, &tv0);
             }
+            if (n == 0){
+                /* No notification within this interval: refresh elapsed time */
+                elapsed++;
+                transaction_progress_show(tidstr, cbsum, &tv0);
+            }
+            if (pfd[0].revents == 0)
+                continue;
         }
         if (transaction_notification_handler(h, s, tidstr, &match, result, &eof) < 0){
             if (eof)
@@ -838,9 +943,11 @@ transaction_notification_poll(clixon_handle       h,
             break;
         }
     }
-    if (istty && elapsed > 0)
+    if (istty && elapsed > 0){
         /* Clear the progress line before printing the final result */
-        cligen_output(stdout, "\r\033[2K");
+        fprintf(stdout, "\r\033[2K");
+        fflush(stdout);
+    }
     if (aborted){
         if (send_transaction_error(h, tidstr) < 0)
             goto done;
@@ -862,8 +969,14 @@ transaction_notification_poll(clixon_handle       h,
     }
     retval = 0;
  done:
-    if (istty)
+    if (ps >= 0)
+        close(ps);
+    if (cbsum)
+        cbuf_free(cbsum);
+    if (istty){
         clixon_signal_restore(&oldsigset, oldsigaction);
+        transaction_poll_sigint_flush();
+    }
     clixon_debug(CLIXON_DBG_CTRL, "%d", retval);
     return retval;
 }

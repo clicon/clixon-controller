@@ -25,13 +25,6 @@ mounts=$dir/mounts
 test -d $mounts || mkdir $mounts
 test -d $mounts/default || mkdir $mounts/default
 test -d $mounts/isolated || mkdir $mounts/isolated
-# Openconfig system revision. This may need to be updated now and then
-REVISION="2026-03-31"
-REVISION2="2025-07-08" # Old version
-
-# Use this file and modify it for the isolated case
-yangfile=openconfig-system@${REVISION}.yang
-yangfile2=openconfig-system@${REVISION2}.yang
 # Specialize controller.xml
 cat<<EOF > $CFD/diff.xml
 <?xml version="1.0" encoding="utf-8"?>
@@ -135,14 +128,15 @@ EOF
 new "Open connection to ${IMG}1"
 expectpart "$($clixon_cli -1 -f $CFG -E $CFD connection open ${IMG}1)" 0 ""
 
-new "Find original $yangfile"
-# Find openconfig-system@${REVISION}.yang
-if [ ! -f $mounts/default/$yangfile ]; then
-    if [ ! -f $mounts/default/$yangfile2 ]; then
-        err "$yangfile2" "Not found"
-    fi
-    yangfile=$yangfile2
+new "Find original openconfig-system yang in $mounts/default"
+# Discover the openconfig-system revision the device actually shipped instead
+# of hard-coding it (the revision changes whenever openconfig is updated).
+yangfile=$(basename $(ls $mounts/default/openconfig-system@*.yang 2>/dev/null | head -1))
+if [ -z "$yangfile" ]; then
+    err "openconfig-system@*.yang" "Not found in $mounts/default"
 fi
+# Extract the revision date from the filename openconfig-system@<revision>.yang
+REVISION=$(echo "$yangfile" | sed -E 's/^.*@([0-9-]+)\.yang$/\1/')
 
 new "check cli memory ${IMG}1"
 expectpart "$($clixon_cli -1f $CFG -E $CFD show mem cli -- -g 2>&1)" 0 "^top" "^default" --not-- "^isolated"

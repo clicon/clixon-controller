@@ -72,7 +72,8 @@ controller_cli_start(clixon_handle h)
     int   s;
 
     clicon_data_set(h, "session-transport", "cl:cli");
-    if (clicon_rpc_create_subscription(h, "controller-transaction", NULL, &s) < 0)
+    /* Completion only, progress is read on a separate socket while waiting */
+    if (clicon_rpc_create_subscription(h, "controller-transaction", "controller-transaction", &s) < 0)
         goto done;
     if (clicon_data_int_set(h, "controller-transaction-notify-socket", s) < 0)
         goto done;

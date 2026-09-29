@@ -1151,6 +1151,9 @@ device_state_check_ok(clixon_handle           h,
         device_handle_stable_time_set(dh, NULL);
     /* 2.2.2.1 Leave transaction */
     device_handle_tid_set(dh, 0);
+    /* Re-report progress now that this device has left the transaction, so clients count it as done. */
+    if (controller_transaction_progress_notify(h, ct) < 0)
+        goto done;
     /* 2.2.2.2 If no devices in transaction, mark as OK and close it*/
     if (controller_transaction_nr_devices(h, tid) == 0){
         resolve = (ct->ct_state != TS_RESOLVED);

@@ -665,9 +665,10 @@ device_handle_conn_state_set(device_handle dh,
                              conn_state    state)
 {
     struct controller_device_handle *cdh = devhandle(dh);
-    struct timeval t;
-    struct timeval tdiff;
-    double         elapsed;
+    struct timeval           t;
+    struct timeval           tdiff;
+    double                   elapsed;
+    controller_transaction  *ct;
 
     assert(device_state_int2str(state)!=NULL);
     gettimeofday(&t, NULL);
@@ -696,6 +697,13 @@ device_handle_conn_state_set(device_handle dh,
     device_handle_conn_time_set(dh, &t);
     if (state == CS_CLOSED)
         device_handle_stable_time_set(dh, &t);
+    /* Notify clients (eg CLI) of transaction progress if this device is part of an
+     * ongoing transaction, see controller_transaction_progress_notify() */
+    if (cdh->cdh_tid != 0 &&
+        (ct = controller_transaction_find(cdh->cdh_h, cdh->cdh_tid)) != NULL){
+        if (controller_transaction_progress_notify(cdh->cdh_h, ct) < 0)
+            return -1;
+    }
     return 0;
 }
 
