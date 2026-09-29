@@ -1115,12 +1115,10 @@ strip_service_mark_created_paths(cxobj *xc0,
                                  cxobj *xt1,
                                  int   *nmarked)
 {
-    cxobj        *xp;
-    cxobj        *xd;
-    cxobj        *xdev;
-    char         *xpath;
-    char         *devname;
-    int           ix;
+    cxobj *xp;
+    cxobj *xd;
+    char  *xpath;
+    int    ix;
 
     ix = 0;
     while ((xp = xml_child_iter(xc0, &ix, CX_ELMNT)) != NULL) {
@@ -1130,15 +1128,6 @@ strip_service_mark_created_paths(cxobj *xc0,
             continue;
         if ((xd = xpath_first(xt1, NULL, "%s", xpath)) == NULL)
             continue;
-        /* Find enclosing devices/device[name=...] element, if any, and stop
-         * if that device is closed. A disabled device is expected to be closed */
-        for (xdev = xd; xdev != NULL; xdev = xml_parent(xdev)){
-            if (strcmp(xml_name(xdev), "device") != 0)
-                continue;
-            if ((devname = xml_find_body(xdev, "name")) == NULL)
-                break;
-            break;
-        }
         /* cache-dirty just to ensure copied to new tree */
         xml_flag_set(xd, XML_FLAG_MARK|XML_FLAG_CACHE_DIRTY);
         xml_apply_ancestor(xd, (xml_applyfn_t*)xml_flag_set, (void*)XML_FLAG_CHANGE);
@@ -1275,7 +1264,10 @@ strip_service_data_from_device_config(clixon_handle  h,
  *
  * If a path resolves to config of a device which is closed, report it as failed and
  * end the transaction.
- * A disabled device is marked as skipped
+ * A disabled device is marked as skipped.
+ * An open device is added to the transaction (defaults to SUCCESS), so it is reported
+ * in eg "show transactions detail" even when the service produced no actual device
+ * diff to push (eg re-applying an already-applied/unchanged service).
  * @param[in]     h       Clixon handle
  * @param[in]     ct      Transaction
  * @param[in]     xc0     "created" node (from running) listing paths to device config
@@ -1294,12 +1286,14 @@ service_check_devstate(clixon_handle           h,
     int           retval = -1;
     cxobj        *xp;
     cxobj        *xd;
+    cxobj        *xmnt;
     cxobj        *xdev;
     char         *xpath;
     char         *devname;
     char         *enabled;
     device_handle dh;
     int           error = 0;
+    yang_stmt    *y;
     int           ix;
 
     ix = 0;
@@ -1310,18 +1304,23 @@ service_check_devstate(clixon_handle           h,
             continue;
         if ((xd = xpath_first(xt1, NULL, "%s", xpath)) == NULL)
             continue;
-        /* Find enclosing devices/device[name=...] element, if any, and stop
-         * if that device is closed. A disabled device is expected to be closed */
-        for (xdev = xd; xdev != NULL; xdev = xml_parent(xdev)){
+        /* Find enclosing config mount-point, where device is its parent */
+
+        for (xmnt = xd; xmnt != NULL; xmnt = xml_parent(xmnt)){
+            if ((y = xml_spec(xmnt)) != NULL && yang_flag_get(y, YANG_FLAG_MTPOINT) != 0)
+                break;
+        }
+        /* if found, check if the device is closed. A disabled device is expected to be closed */
+        if (xmnt != NULL && (xdev = xml_parent(xmnt)) != NULL) {
             if (strcmp(xml_name(xdev), "device") != 0)
                 continue;
             if ((devname = xml_find_body(xdev, "name")) == NULL)
-                break;
+                continue;
             enabled = xml_find_body(xdev, "enabled");
             if (enabled != NULL && strcmp(enabled, "false") == 0){
                 if (controller_transaction_device_skip(ct, devname, "disabled") < 0)
                     goto done;
-                break;
+                continue;
             }
             if ((dh = device_handle_find(h, devname)) != NULL &&
                 device_handle_conn_state_get(dh) != CS_OPEN){
@@ -1332,7 +1331,11 @@ service_check_devstate(clixon_handle           h,
                 else if (commit_push_fail_closed(h, ct, dh) < 0)
                     goto done;
             }
-            break;
+            else if (dh != NULL){
+                /* Device open: record it as part of the transaction (defaults to SUCCESS) */
+                if (controller_transaction_device_add(ct, devname) < 0)
+                    goto done;
+            }
         }
     }
     retval = error ? 0 : 1;

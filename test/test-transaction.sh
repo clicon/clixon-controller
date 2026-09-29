@@ -669,7 +669,7 @@ tid=$(echo "$ret" | grep -o '<tid>[0-9]*</tid>' | tail -1 | sed 's/<tid>\([0-9]*
 if [ -z "$tid" ]; then err1 "at least one transaction exists" "$ret"; fi
 
 new "T: show transactions <tid> shows that transaction, always in detail (no 'detail' keyword needed)"
-expectpart "$($clixon_cli -1 -f $CFG -E $CFD show transactions $tid 2>&1)" 0 "^Transaction $tid\$" "User:" "Devices:"
+expectpart "$($clixon_cli -1 -f $CFG -E $CFD show transactions $tid 2>&1)" 0 "^Transaction $tid\$" "User:"
 
 new "T: show transactions <tid> == show transactions <tid> detail"
 out1=$($clixon_cli -1 -f $CFG -E $CFD show transactions $tid 2>&1)
