@@ -186,7 +186,7 @@ if [ "$res" != "$nr1" ]; then
 fi
 
 new "Check errmsg"
-expectpart "$($clixon_cli -1 -f $CFG -E $CFD show transaction detail)" 0 "<result>FAILED</result>" "<reason>wrong@" "Permission denied (publickey,password,keyboard-interactive).</reason>" || true
+expectpart "$($clixon_cli -1 -f $CFG -E $CFD show transactions detail)" 0 "Result:.*FAILED" "wrong@" "Permission denied (publickey,password,keyboard-interactive)."
   
 new "Verify first device is framing 1.0"
 expectpart "$($clixon_cli -1 -f $CFG -E $CFD show state devices device ${IMG}1 netconf-framing)" 0 "netconf-framing 1.0"

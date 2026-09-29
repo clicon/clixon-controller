@@ -2085,7 +2085,7 @@ show_transaction_detail_one(cxobj *xc)
 /*! Show controller device states
  *
  * @param[in] h
- * @param[in] cvv  Keywords could be "detail", "all"
+ * @param[in] cvv  Keywords could be "detail", "all", "tid"
  * @param[in] argv
  * @retval    0    OK
  * @retval   -1    Error
@@ -2095,37 +2095,60 @@ cli_show_transactions(clixon_handle h,
                       cvec         *cvv,
                       cvec         *argv)
 {
-    int    retval = -1;
-    cvec  *nsc = NULL;
-    cxobj *xc;
-    cxobj *xt;
-    cxobj *xerr;
-    cxobj *xn = NULL; /* XML of transactions */
-    int    all;
-    int    detail;
-    int    nr;
-    int    i;
+    int      retval = -1;
+    cvec    *nsc = NULL;
+    cxobj   *xc;
+    cxobj   *xt;
+    cxobj   *xerr;
+    cxobj   *xn = NULL; /* XML of transactions */
+    cbuf    *cbxp = NULL;
+    cg_var  *cvtid;
+    uint64_t tid = 0;
+    int      all;
+    int      detail;
+    int      nr;
+    int      i;
 
     all = cvec_find(cvv, "all") != NULL;
     detail = cvec_find(cvv, "detail") != NULL;
+    if ((cvtid = cvec_find(cvv, "tid")) != NULL){
+        tid = cv_uint64_get(cvtid);
+        detail = 1; /* A single explicitly named transaction is always shown in detail */
+    }
     /* Get config */
     if ((nsc = xml_nsctx_init("co", CONTROLLER_NAMESPACE)) == NULL)
         goto done;
-    if (clicon_rpc_get(h, "co:transactions", nsc, CONTENT_ALL, -1, "report-all", &xn) < 0)
+    if ((cbxp = cbuf_new()) == NULL){
+        clixon_err(OE_UNIX, errno, "cbuf_new");
+        goto done;
+    }
+    if (tid)
+        cprintf(cbxp, "co:transactions/co:transaction[co:tid='%" PRIu64 "']", tid);
+    else
+        cprintf(cbxp, "co:transactions");
+    if (clicon_rpc_get(h, cbuf_get(cbxp), nsc, CONTENT_ALL, -1, "report-all", &xn) < 0)
         goto done;
     if ((xerr = xpath_first(xn, NULL, "/rpc-error")) != NULL){
         clixon_err_netconf(h, OE_XML, 0, xerr, "Get transactions");
         goto done;
     }
     /* Change top from "data" to "transactions" */
-    if ((xc = xml_find_type(xn, NULL, "transactions", CX_ELMNT)) != NULL){
+    if ((xc = xml_find_type(xn, NULL, "transactions", CX_ELMNT)) == NULL){
+        if (tid)
+            cligen_output(stderr, "No such transaction: %" PRIu64 "\n", tid);
+    }
+    else{
         if (xml_rootchild_node(xn, xc) < 0)
             goto done;
         xn = xc;
+        nr = xml_child_nr_type(xn, CX_ELMNT);
+        if (tid && nr == 0){
+            cligen_output(stderr, "No such transaction: %" PRIu64 "\n", tid);
+            goto ok;
+        }
         if (detail){
             /* Detail mode: human-readable per-transaction breakdown */
-            if (all){
-                nr = xml_child_nr_type(xn, CX_ELMNT);
+            if (all || tid){
                 for (i = nr; i > 0; i--){
                     if ((xc = xml_child_i(xn, i)) != NULL){
                         if (show_transaction_detail_one(xc) < 0)
@@ -2151,7 +2174,6 @@ cli_show_transactions(clixon_handle h,
                           "--------",
                           "------------------------------");
             if (all){
-                nr = xml_child_nr_type(xn, CX_ELMNT);
                 for (i = nr; i > 0; i--){
                     if ((xc = xml_child_i(xn, i)) != NULL){
                         if (show_transaction_one(xc) < 0)
@@ -2167,8 +2189,11 @@ cli_show_transactions(clixon_handle h,
             }
         }
     }
+ ok:
     retval = 0;
  done:
+    if (cbxp)
+        cbuf_free(cbxp);
     if (nsc)
         cvec_free(nsc);
     if (xn)

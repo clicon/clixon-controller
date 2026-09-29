@@ -265,10 +265,10 @@ new "Wait until timeout"
 sleep 10
 
 new "Verify action timeout"
-ret=$($clixon_cli -1 -f $CFG -E $CFD show transaction detail)
-match=$(echo "$ret" | grep --null -Eo "<reason>Timeout waiting for service daemon</reason>") || true
+ret=$($clixon_cli -1 -f $CFG -E $CFD show transactions detail)
+match=$(echo "$ret" | grep --null -F "Timeout waiting for service daemon") || true
 if [ -z "$match" ]; then
-    err "<Timeout>" "$ret"
+    err "Timeout waiting for service daemon" "$ret"
 fi
 
 new "restconf POST service CC" # Here is still held

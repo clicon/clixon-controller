@@ -84,7 +84,9 @@ show("Show a particular state of the system"){
          @|pipe_common, cli_show_statistics();
     }
     transactions("Show state of last transaction"){
-        [<all:string keyword:all>] [<detail:string keyword:detail>], cli_show_transactions();
+        [(<all:string keyword:all>("Show all transactions")|
+          <tid:uint64>("Show a specific transaction by id"))]
+        [<detail:string keyword:detail>], cli_show_transactions();
         @|pipe_show, cli_show_transactions();
     }
     version("Show version"), cli_controller_show_version();
