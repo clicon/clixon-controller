@@ -913,6 +913,38 @@ module clixon-controller {
              See also non-config transaction container";
         uses transaction-common;
     }
+    notification controller-transaction-progress {
+        description
+            "Progress information for an ongoing transaction, sent whenever there is new
+             progress to report: either the transaction-state changes (eg INIT -> ACTIONS),
+             or the connection state changes for a device that is part of the transaction.
+             Used to give interactive feedback while a transaction (eg connect/pull/commit/rpc)
+             is running. Superseded by a controller-transaction notification with the final
+             result once the transaction completes.";
+        leaf tid {
+            description "Transaction id this progress belongs to";
+            type uint64;
+        }
+        leaf state {
+            description "Transaction state at time of notification";
+            type transaction-state;
+        }
+        list device {
+            description
+                "Devices currently part of the transaction, and their current connection state.
+                 Devices that have reached a stable state (OPEN or CLOSED) are not included.
+                 May be empty if this notification only reports a transaction-state change.";
+            key name;
+            leaf name {
+                description "Device name";
+                type string;
+            }
+            leaf conn-state {
+                description "Current connection state of the device";
+                type connection-state;
+            }
+        }
+    }
     augment "/cl:stats/cl:output" {
         description
             "Controller-specific backend statistics";

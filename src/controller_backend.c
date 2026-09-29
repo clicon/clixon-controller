@@ -793,6 +793,11 @@ clixon_plugin_init(clixon_handle h)
                    "A transaction has been completed.",
                    0, NULL) < 0)
         goto done;
+    /* see controller_transaction_progress_notify */
+    if (stream_add(h, "controller-transaction-progress",
+                   "Progress information for an ongoing transaction.",
+                   0, NULL) < 0)
+        goto done;
     /* Register pyapi sub-process */
     if (services_daemon_init(h) < 0)
         goto done;

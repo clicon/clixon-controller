@@ -114,6 +114,7 @@ extern "C" {
 int   controller_transaction_state_set(controller_transaction *ct, transaction_state state, transaction_result result);
 int   transaction_devdata_add(clixon_handle h, controller_transaction *ct, char *name, cxobj *devdata, cbuf **cberr);
 int   controller_transaction_notify(clixon_handle h, controller_transaction *ct);
+int   controller_transaction_progress_notify(clixon_handle h, controller_transaction *ct);
 int   controller_transaction_new(clixon_handle h, client_entry *ce, char *username, char *description, int lockdb,
                                  controller_transaction **ct, cbuf **cberr);
 int   controller_transaction_free(clixon_handle h, controller_transaction *ct);

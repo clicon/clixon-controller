@@ -107,10 +107,12 @@ controller_transaction_state_set(controller_transaction *ct,
                                  transaction_state       state,
                                  transaction_result      result)
 {
-    struct timeval tv_now;
-    struct timeval tv_diff;
-    double         elapsed;
+    struct timeval    tv_now;
+    struct timeval    tv_diff;
+    double            elapsed;
+    transaction_state prevstate;
 
+    prevstate = ct->ct_state;
     gettimeofday(&tv_now, NULL);
     timersub(&tv_now, &ct->ct_timestamp, &tv_diff);
     elapsed = (double)tv_diff.tv_sec + (double)tv_diff.tv_usec/1000000.0;
@@ -167,6 +169,13 @@ controller_transaction_state_set(controller_transaction *ct,
         (state == TS_RESOLVED || state == TS_DONE))
         ct->ct_result = result;
     ct->ct_timestamp = tv_now;
+    /* Notify clients (eg CLI) of transaction-state progress, to give interactive feedback
+     * while a transaction is running. Skip TS_DONE: the final result is instead sent via
+     * controller_transaction_notify() right after this. */
+    if (state != prevstate && state != TS_DONE){
+        if (controller_transaction_progress_notify(ct->ct_h, ct) < 0)
+            return -1;
+    }
     return 0;
 }
 
@@ -298,6 +307,7 @@ transaction_devdata_add(clixon_handle           h,
 struct notify_async {
     clixon_handle na_h;
     cbuf         *na_cb;
+    const char   *na_stream;
 };
 
 /*! Send notification asynchronously
@@ -312,7 +322,7 @@ transaction_notify_async(int   fd,
     int                  retval = -1;
     struct notify_async *na = (struct notify_async *)arg;
 
-    if (stream_notify(na->na_h, "controller-transaction", "%s", cbuf_get(na->na_cb)) < 0)
+    if (stream_notify(na->na_h, na->na_stream, "%s", cbuf_get(na->na_cb)) < 0)
         goto done;
     retval = 0;
  done:
@@ -378,10 +388,79 @@ controller_transaction_notify(clixon_handle           h,
         }
         na->na_h = h;
         na->na_cb = cb;
+        na->na_stream = "controller-transaction";
         clixon_event_reg_timeout(t, transaction_notify_async, na, "transaction-notify");
         cb = NULL;
     }
     else if (stream_notify(h, "controller-transaction", "%s", cbuf_get(cb)) < 0)
+        goto done;
+    retval = 0;
+ done:
+    if (cb)
+        cbuf_free(cb);
+    return retval;
+}
+
+/*! Send transaction progress information to clients (eg CLI)
+ *
+ * Sent whenever there is new progress to report on an ongoing transaction: either the
+ * transaction-state changes (see controller_transaction_state_set()), or the connection
+ * state of a device that is part of the transaction changes (see
+ * device_handle_conn_state_set()). Used by clients to give interactive feedback while a
+ * transaction (eg connect/pull/commit/rpc) is running.
+ * Devices that have reached a stable state (OPEN or CLOSED) are not included in the
+ * device list, since they are no longer "in progress".
+ * @param[in]  h   Clixon handle
+ * @param[in]  ct  Controller transaction
+ * @retval     0   OK
+ * @retval    -1   Error
+ * @note  Extra logic to spawn notification message asynchronously
+ * @see controller_transaction_notify  for the final transaction result notification
+ */
+int
+controller_transaction_progress_notify(clixon_handle           h,
+                                       controller_transaction *ct)
+{
+    int                  retval = -1;
+    cbuf                *cb = NULL;
+    struct timeval       t;
+    struct notify_async *na = NULL;
+    device_handle        dh;
+    conn_state           cs;
+
+    if ((cb = cbuf_new()) == NULL){
+        clixon_err(OE_UNIX, errno, "cbuf_new");
+        goto done;
+    }
+    cprintf(cb, "<controller-transaction-progress xmlns=\"%s\">", CONTROLLER_NAMESPACE);
+    cprintf(cb, "<tid>%" PRIu64  "</tid>", ct->ct_id);
+    cprintf(cb, "<state>%s</state>", transaction_state_int2str(ct->ct_state));
+    dh = NULL;
+    while ((dh = device_handle_each(h, dh)) != NULL){
+        if (device_handle_tid_get(dh) != ct->ct_id)
+            continue;
+        cs = device_handle_conn_state_get(dh);
+        if (cs == CS_CLOSED || cs == CS_OPEN)
+            continue;
+        cprintf(cb, "<device><name>%s</name><conn-state>%s</conn-state></device>",
+                device_handle_name_get(dh), device_state_int2str(cs));
+    }
+    cprintf(cb, "</controller-transaction-progress>");
+    /* This is set in from-client rpc call, which means it is synchronous: defer sending
+     * until after the rpc-reply, same as controller_transaction_notify() does */
+    if (clicon_data_int_get(h, "clixon-client-rpc") == 1){
+        gettimeofday(&t, NULL);
+        if ((na = malloc(sizeof(*na))) == NULL){
+            clixon_err(OE_UNIX, errno, "malloc");
+            goto done;
+        }
+        na->na_h = h;
+        na->na_cb = cb;
+        na->na_stream = "controller-transaction-progress";
+        clixon_event_reg_timeout(t, transaction_notify_async, na, "transaction-progress-notify");
+        cb = NULL;
+    }
+    else if (stream_notify(h, "controller-transaction-progress", "%s", cbuf_get(cb)) < 0)
         goto done;
     retval = 0;
  done:
