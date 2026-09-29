@@ -651,6 +651,38 @@ connect_device $NAME2
 check_tx $NAME2 "Xc3 commit diff manual changed closed" configure "commit diff" silent success absent
 
 # ============================================================
+# T: show transactions <tid> - show a single transaction by id
+# ============================================================
+# Read the last transaction's tid from state data rather than parsing the CLI
+# table, since its Description/Reason columns can contain spaces (and, for a
+# multi-line device reason, embedded newlines).
+new "T: get id of last transaction via NETCONF"
+ret=$(${clixon_netconf} -qe0 -f $CFG -E $CFD <<EOF
+<rpc xmlns="urn:ietf:params:xml:ns:netconf:base:1.0" xmlns:nc="urn:ietf:params:xml:ns:netconf:base:1.0" message-id="42">
+  <get cl:content="all" xmlns:cl="http://clicon.org/lib">
+    <nc:filter nc:type="xpath" nc:select="co:transactions" xmlns:co="http://clicon.org/controller"/>
+  </get>
+</rpc>]]>]]>
+EOF
+   )
+tid=$(echo "$ret" | grep -o '<tid>[0-9]*</tid>' | tail -1 | sed 's/<tid>\([0-9]*\)<\/tid>/\1/')
+if [ -z "$tid" ]; then err1 "at least one transaction exists" "$ret"; fi
+
+new "T: show transactions <tid> shows that transaction, always in detail (no 'detail' keyword needed)"
+expectpart "$($clixon_cli -1 -f $CFG -E $CFD show transactions $tid 2>&1)" 0 "^Transaction $tid\$" "User:" "Devices:"
+
+new "T: show transactions <tid> == show transactions <tid> detail"
+out1=$($clixon_cli -1 -f $CFG -E $CFD show transactions $tid 2>&1)
+out2=$($clixon_cli -1 -f $CFG -E $CFD show transactions $tid detail 2>&1)
+if [ "$out1" != "$out2" ]; then
+    err1 "show transactions <tid> identical to show transactions <tid> detail" "[$out1] != [$out2]"
+fi
+
+new "T: show transactions <nonexistent tid> reports not found"
+badtid=$((tid + 1000000))
+expectpart "$($clixon_cli -1 -f $CFG -E $CFD show transactions $badtid 2>&1)" 0 "No such transaction: $badtid"
+
+# ============================================================
 # Cleanup
 # ============================================================
 if $BE; then
