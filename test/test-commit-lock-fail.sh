@@ -87,13 +87,13 @@ expectpart "$($clixon_cli -1 -f $CFG -E $CFD show transactions)" 0 "FAILED"
 
 new "show transactions detail: $DEV1 result FAILED (own lock failure)"
 out=$($clixon_cli -1 -f $CFG -E $CFD show transactions detail 2>&1)
-devblock=$(echo "$out" | grep -A 5 "<name>$DEV1</name>")
+devblock=$(echo "$out" | grep -E "^    ${DEV1}[[:space:]]")
 if ! echo "$devblock" | grep -q "FAILED"; then
     err1 "$DEV1 result FAILED in transaction detail" "$out"
 fi
 
 new "show transactions detail: $DEV2 result FAILED (aborted due to peer failure, not left as default SUCCESS)"
-devblock=$(echo "$out" | grep -A 5 "<name>$DEV2</name>")
+devblock=$(echo "$out" | grep -E "^    ${DEV2}[[:space:]]")
 if ! echo "$devblock" | grep -q "FAILED"; then
     err1 "$DEV2 result FAILED in transaction detail" "$out"
 fi

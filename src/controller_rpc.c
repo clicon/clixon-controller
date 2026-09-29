@@ -3806,6 +3806,7 @@ rpc_device_rpc_template_apply(clixon_handle h,
     cvec                   *nsc = NULL;
     controller_transaction *ct = NULL;
     cbuf                   *cberr = NULL;
+    cbuf                   *cbtr = NULL;
     int                     groups = 0;
     cvec                   *devvec = NULL;
     cg_var                 *cv;
@@ -3892,8 +3893,17 @@ rpc_device_rpc_template_apply(clixon_handle h,
         if (xml_sort_recurse(xconfig) < 0)
             goto done;
     }
-    /* Initiate new transaction */
-    if ((ret = controller_transaction_new(h, ce, clicon_username_get(h), "rpc-device template", 0, &ct, &cberr)) < 0)
+    /* Initiate new transaction
+     * Include the template name in the description so it shows up in
+     * "show transactions" / "show transactions detail" instead of just
+     * the generic "rpc-device template".
+     */
+    if ((cbtr = cbuf_new()) == NULL){
+        clixon_err(OE_UNIX, errno, "cbuf_new");
+        goto done;
+    }
+    cprintf(cbtr, "rpc-device template %s", tmplname ? tmplname : "(inline)");
+    if ((ret = controller_transaction_new(h, ce, clicon_username_get(h), cbuf_get(cbtr), 0, &ct, &cberr)) < 0)
         goto done;
     if (ret == 0){
         if (netconf_operation_failed(cbret, "application", "%s", cbuf_get(cberr))< 0)
@@ -3936,6 +3946,8 @@ rpc_device_rpc_template_apply(clixon_handle h,
  done:
     if (cberr)
         cbuf_free(cberr);
+    if (cbtr)
+        cbuf_free(cbtr);
     if (cvv)
         cvec_free(cvv);
     if (xret)

@@ -155,7 +155,7 @@ expectpart "$($clixon_cli -1 -f $CFG -E $CFD show transactions)" 0 "FAILED"
 
 new "show transactions detail: $DEV marked FAILED"
 out=$($clixon_cli -1 -f $CFG -E $CFD show transactions detail 2>&1)
-devblock=$(echo "$out" | grep -A 5 "<name>$DEV</name>")
+devblock=$(echo "$out" | grep -E "^    ${DEV}[[:space:]]")
 if [ -z "$devblock" ]; then err1 "$DEV in transaction detail" "$out"; fi
 if ! echo "$devblock" | grep -q "FAILED"; then
     err1 "$DEV result FAILED in transaction detail" "$out"

@@ -595,7 +595,7 @@ fi
 new "commit diff 4: devices in transaction"
 ret=$(${clixon_cli} -1f $CFG -E $CFD show transactions detail 2>&1)
 #echo "ret:$ret"
-match=$(echo "$ret" | grep --null -Eo "<name>${IMG}1</name>") || true
+match=$(echo "$ret" | grep --null -E "^    ${IMG}1[[:space:]]") || true
 if [ -z "$match" ]; then
     err "${IMG}1 in transaction detail" "$ret"
 fi
@@ -862,8 +862,8 @@ function check_devresult()
     local devblock
 
     out=$(${clixon_cli} -1f $CFG -E $CFD show transactions detail 2>&1)
-    devblock=$(echo "$out" | grep -A 5 "<name>$dev</name>")
-    resblock=$(echo "$out" | grep "<result>$res</result>")
+    devblock=$(echo "$out" | grep -E "^    ${dev}[[:space:]]")
+    resblock=$(echo "$out" | grep -E "^  Result:[[:space:]]*${res}$")
     if [ -z "$resblock" ]; then
         err1 "result=$res in transaction detail" "$out"
     fi
