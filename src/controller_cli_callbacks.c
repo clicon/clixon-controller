@@ -2005,6 +2005,83 @@ show_transaction_one(cxobj *xc)
     return retval;
 }
 
+/*! Show one transaction in detail, human-readable (used to be a raw XML dump)
+ *
+ * @param[in]  xc  XML transaction
+ * @retval     0   OK
+ * @retval    -1   Error
+ */
+static int
+show_transaction_detail_one(cxobj *xc)
+{
+    int            retval = -1;
+    cxobj         *xdevices;
+    cxobj         *xd;
+    char          *tid;
+    char          *username;
+    char          *state;
+    char          *result;
+    char          *reason;
+    char          *warning;
+    char          *description;
+    char          *origin;
+    char          *timestamp0;
+    char          *timestamp;
+    char          *dname;
+    char          *dresult;
+    char          *dreason;
+    struct timeval tv0;
+    struct timeval tv1;
+    struct timeval tvdiff;
+
+    tid = xml_find_body(xc, "tid");
+    username = xml_find_body(xc, "username");
+    state = xml_find_body(xc, "state");
+    result = xml_find_body(xc, "result");
+    reason = xml_find_body(xc, "reason");
+    warning = xml_find_body(xc, "warning");
+    description = xml_find_body(xc, "description");
+    origin = xml_find_body(xc, "origin");
+    timestamp0 = xml_find_body(xc, "timestamp0");
+    timestamp = xml_find_body(xc, "timestamp");
+
+    cligen_output(stdout, "Transaction %s\n", tid?tid:"-");
+    cligen_output(stdout, "  %-13s%s\n", "User:", username?username:"-");
+    cligen_output(stdout, "  %-13s%s\n", "State:", state?state:"-");
+    cligen_output(stdout, "  %-13s%s\n", "Result:", result?result:"-");
+    cligen_output(stdout, "  %-13s%s\n", "Description:", description?description:"-");
+    if (origin)
+        cligen_output(stdout, "  %-13s%s\n", "Origin:", origin);
+    cligen_output(stdout, "  %-13s%s\n", "Started:", timestamp0?timestamp0:"-");
+    cligen_output(stdout, "  %-13s%s\n", "Ended:", timestamp?timestamp:"-");
+    if (timestamp0 && timestamp &&
+        str2time(timestamp0, &tv0) == 0 && str2time(timestamp, &tv1) == 0){
+        timersub(&tv1, &tv0, &tvdiff);
+        cligen_output(stdout, "  %-13s%ld.%03lds\n", "Duration:",
+                      tvdiff.tv_sec, tvdiff.tv_usec/1000);
+    }
+    if (reason)
+        cligen_output(stdout, "  %-13s%s\n", "Reason:", reason);
+    else if (warning)
+        cligen_output(stdout, "  %-13s%s\n", "Warning:", warning);
+    if ((xdevices = xml_find_type(xc, NULL, "devices", CX_ELMNT)) != NULL){
+        cligen_output(stdout, "  Devices:\n");
+        xd = NULL;
+        while ((xd = xml_child_each(xdevices, xd, CX_ELMNT)) != NULL){
+            if (strcmp(xml_name(xd), "device") != 0)
+                continue;
+            dname = xml_find_body(xd, "name");
+            dresult = xml_find_body(xd, "result");
+            dreason = xml_find_body(xd, "reason");
+            cligen_output(stdout, "    %-12s%-10s%s\n",
+                          dname?dname:"-", dresult?dresult:"-", dreason?dreason:"");
+        }
+    }
+    cligen_output(stdout, "\n");
+    retval = 0;
+    return retval;
+}
+
 /*! Show controller device states
  *
  * @param[in] h
@@ -2046,19 +2123,19 @@ cli_show_transactions(clixon_handle h,
             goto done;
         xn = xc;
         if (detail){
-            /* Detail mode: show full XML */
+            /* Detail mode: human-readable per-transaction breakdown */
             if (all){
                 nr = xml_child_nr_type(xn, CX_ELMNT);
                 for (i = nr; i > 0; i--){
                     if ((xc = xml_child_i(xn, i)) != NULL){
-                        if (clixon_xml2file(stdout, xc, 0, 1, NULL, cligen_output, 0, 1) < 0)
+                        if (show_transaction_detail_one(xc) < 0)
                             goto done;
                     }
                 }
             }
             else{
                 if ((xc = xml_child_i(xn, xml_child_nr(xn) - 1)) != NULL){
-                    if (clixon_xml2file(stdout, xc, 0, 1, NULL, cligen_output, 0, 1) < 0)
+                    if (show_transaction_detail_one(xc) < 0)
                         goto done;
                 }
             }

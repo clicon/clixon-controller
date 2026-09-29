@@ -338,31 +338,31 @@ function check_tx(){
         out=$($clixon_cli -1 -f $CFG -E $CFD show transactions detail 2>&1)
         case "$devr" in
             absent)
-                if echo "$out" | grep -q "<name>$dev</name>"; then
+                if echo "$out" | grep -qE "^    ${dev}[[:space:]]"; then
                     err1 "$dev absent from transaction detail" "$out"
                 fi
                 ;;
             success)
-                devblock=$(echo "$out" | grep -A 5 "<name>$dev</name>")
+                devblock=$(echo "$out" | grep -E "^    ${dev}[[:space:]]")
                 if [ -z "$devblock" ]; then err1 "$dev in transaction detail" "$out"; fi
                 if echo "$devblock" | grep -q "SKIPPED\|FAILED"; then
                     err1 "$dev result SUCCESS (not SKIPPED/FAILED)" "$out"
                 fi
                 ;;
             skip)
-                devblock=$(echo "$out" | grep -A 5 "<name>$dev</name>")
+                devblock=$(echo "$out" | grep -E "^    ${dev}[[:space:]]")
                 if ! echo "$devblock" | grep -q "SKIPPED"; then
                     err1 "$dev result SKIPPED in transaction detail" "$out"
                 fi
                 ;;
             failed)
-                devblock=$(echo "$out" | grep -A 5 "<name>$dev</name>")
+                devblock=$(echo "$out" | grep -E "^    ${dev}[[:space:]]")
                 if ! echo "$devblock" | grep -q "FAILED"; then
                     err1 "$dev result FAILED in transaction detail" "$out"
                 fi
                 ;;
             error)
-                devblock=$(echo "$out" | grep -A 5 "<name>$dev</name>")
+                devblock=$(echo "$out" | grep -E "^    ${dev}[[:space:]]")
                 if ! echo "$devblock" | grep -q "ERROR"; then
                     err1 "$dev result ERROR in transaction detail" "$out"
                 fi
@@ -569,7 +569,7 @@ new "Timeout: wait past connect-timeout"
 sleep 6
 
 new "Timeout: show transactions detail: $NAME2 Timeout reason"
-expectpart "$($clixon_cli -1 -f $CFG -E $CFD show transactions detail)" 0 "<name>$NAME2</name>" "<result>ERROR</result>" "Timeout waiting for remote peer"
+expectpart "$($clixon_cli -1 -f $CFG -E $CFD show transactions detail)" 0 "$NAME2.*ERROR" "Timeout waiting for remote peer"
 
 new "Timeout: show transactions: brief table Devices column shows 1 ERROR"
 expectpart "$($clixon_cli -1 -f $CFG -E $CFD show transactions)" 0 "1 ERROR"
