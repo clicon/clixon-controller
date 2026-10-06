@@ -28,7 +28,8 @@
   * 0: NONE
   * 1: SIM
   * 2: DUP
-  * 3: TAG   tag
+  * 3: TAG                  tag
+  * 4: ALREADY_CONFIGURED
  */
 
 #include <unistd.h>
@@ -52,10 +53,10 @@
 
 enum {
     SEND_ERROR_NONE=0,
-    SEND_ERROR_SIM,   /* Simulate a c-service transaction error */
-    SEND_ERROR_DUP,   /* Simulate sending double messages */
-    SEND_ERROR_TAG    /* Wrong creator tag.
-                         See https://github.com/clicon/clixon-controller/issues/191 */
+    SEND_ERROR_SIM,               /* Simulate a c-service transaction error */
+    SEND_ERROR_DUP,               /* Simulate sending double messages */
+    SEND_ERROR_TAG,               /* Wrong creator tag */
+    SEND_ERROR_ALREADY_CONFIGURED /* Simulate existing check */
 };
 
 /*! Read services definition, write and mark an interface for each param in the service
@@ -274,6 +275,88 @@ read_devices(clixon_handle h,
     return retval;
 }
 
+/*! Check if a service-created interface is already present on the device
+ *
+ * many service modules typically read the device's current configuration before writing to it,
+ * and raise an application error if a service-created object for this param is already present.
+ * @param[in]  h       Clixon handle
+ * @param[in]  devname Device name
+ * @param[in]  db      Source datastore (eg "actions")
+ * @param[in]  xsc     XML service tree (service instance, contains <params>)
+ * @param[in]  tidstr  Transaction id (for error reporting)
+ * @retval     1       Already configured (conflict); transaction-error sent to backend
+ * @retval     0       OK, no conflict
+ * @retval    -1       Error
+ */
+static int
+check_already_configured(clixon_handle h,
+                         char         *devname,
+                         char         *db,
+                         cxobj        *xsc,
+                         char         *tidstr)
+{
+    int    retval = -1;
+    cxobj *xt = NULL;
+    cxobj *xi;
+    cxobj *x;
+    char  *p;
+    char  *name;
+    cbuf  *cb = NULL;
+    int    ix;
+
+    if ((cb = cbuf_new()) == NULL){
+        clixon_err(OE_XML, errno, "cbuf_new");
+        goto done;
+    }
+    cprintf(cb, "<rpc xmlns=\"%s\"", NETCONF_BASE_NAMESPACE);
+    cprintf(cb, " username=\"%s\"", clicon_username_get(h));
+    cprintf(cb, " xmlns:%s=\"%s\"",
+            NETCONF_BASE_PREFIX, NETCONF_BASE_NAMESPACE);
+    cprintf(cb, " %s", NETCONF_MESSAGE_ID_ATTR);
+    cprintf(cb, ">");
+    cprintf(cb, "<get-config>");
+    cprintf(cb, "<source><%s xmlns=\"%s\"/></source>", db, CONTROLLER_NAMESPACE);
+    cprintf(cb, "<filter type=\"subtree\">");
+    cprintf(cb, "<devices xmlns=\"%s\">", CONTROLLER_NAMESPACE);
+    cprintf(cb, "<device><name>%s</name><config>", devname);
+    cprintf(cb, "<interfaces xmlns=\"%s\"/>", "http://openconfig.net/yang/interfaces");
+    cprintf(cb, "</config></device></devices>");
+    cprintf(cb, "</filter>");
+    cprintf(cb, "</get-config></rpc>");
+    if (clicon_rpc_msg(h, cb, &xt) < 0)
+        goto done;
+    if (xpath_first(xt,  NULL, "rpc-reply/rpc-error") != NULL){
+        clixon_err(OE_NETCONF, 0, "rpc-error");
+        goto done;
+    }
+    /* For each param, check if an interface with that name is already present on the device */
+    ix = 0;
+    while ((x = xml_child_iter(xsc, &ix, CX_ELMNT)) != NULL) {
+        if (strcmp(xml_name(x), "params") != 0)
+            continue;
+        if ((p = xml_body(x)) == NULL)
+            continue;
+        if ((xi = xpath_first(xt, NULL,
+                              "rpc-reply/data/devices/device[name='%s']/config/interfaces/interface[name='%s']",
+                              devname, p)) != NULL){
+            name = xml_find_body(xi, "name");
+            cbuf_reset(cb);
+            cprintf(cb, "%s already configured on device %s", name?name:p, devname);
+            if (send_transaction_error(h, tidstr, cbuf_get(cb)) < 0)
+                goto done;
+            retval = 1;
+            goto done;
+        }
+    }
+    retval = 0;
+ done:
+    if (cb)
+        cbuf_free(cb);
+    if (xt)
+        xml_free(xt);
+    return retval;
+}
+
 /*! Given service+instance config, send an edit-config interface for each param in the service
  *
  * @param[in] h         Clixon handle
@@ -304,6 +387,7 @@ do_service(clixon_handle h,
     char      *p;
     static int i = 0;
     int        ix;
+    int        ret;
 
     if (i==0 && send_err == SEND_ERROR_TAG){
         tag = send_arg;
@@ -313,6 +397,12 @@ do_service(clixon_handle h,
     if (strcmp(db, "actions") != 0){
         clixon_err(OE_CFG, 0, "Unexpected datastore: %s (expected actions)", db);
         goto done;
+    }
+    if (send_err == SEND_ERROR_ALREADY_CONFIGURED){
+        if ((ret = check_already_configured(h, devname, db, xsc, tidstr)) < 0)
+            goto done;
+        if (ret == 1) /* Conflict: transaction-error already sent, abort like a real module would */
+            goto done;
     }
     /* Write and mark a interface for each param in the service */
     if ((cb = cbuf_new()) == NULL){
@@ -668,7 +758,7 @@ usage(clixon_handle h,
             "\t-f <file> \tConfig-file (mandatory)\n"
             "\t-l <s|e|o|n|f<file>> \tLog on (s)yslog, std(e)rr, std(o)ut, (n)one or (f)ile (syslog is default)\n"
             "\t-s <pattern> \tGlob pattern of services served, (default *)\n"
-            "\t-e <nr> \tSend a transaction-error instead of transaction-done(trigger error)\n"
+            "\t-e <nr> \tSend a transaction-error instead of transaction-done(trigger error): 1=SIM 2=DUP 3=TAG 4=ALREADY_CONFIGURED\n"
             "\t-E <msg> \tError argument, eg tag\n"
             "\t-d <nr>  \tDrop transaction-done for transaction <nr>\n"
             "\t-1\t\tRun once and then quit (dont wait for events)\n",

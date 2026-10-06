@@ -1096,29 +1096,71 @@ xml_add_op(cxobj *x,
     return 0;
 }
 
-/*! Mark device-config nodes referenced by a service's "created" path list
+/*! Find the YANG schema mount-point ancestor of x, and the enclosing device element
  *
- * For each <path> child of xc0 (a services/<name>/created node, normally read
- * from the read-only running datastore) find the corresponding node in xt1 and
- * mark it, and its ancestors, so it can later be collected by
- * xml_copy_marked() and turned into a delete edit.
- *
- * @param[in]     xc0     "created" node (from running) listing paths to device config
- * @param[in]     xt1     Target tree (eg actions/running db) to mark nodes in
- * @param[in,out] nmarked If non-NULL, incremented once per path marked
- * @retval        0       OK (check *closedp)
- * @retval       -1       Error
- * @see strip_service_check_devstate
+ * The mount-point XML node (the device's "config" element) always has a static YANG spec bound
+ * - only its children are YANG-less/anydata in that case.
+ * This walks up from x to find that mount-point node, and from
+ * there its parent, which is structurally guaranteed to be the enclosing devices/device element.
+ * @param[in]  x     XML node somewhere below a device's config mount-point
+ * @param[out] xmntp Mount-point node ("config"), or NULL if not found
+ * @param[out] xdevp Enclosing device element, or NULL if not found
+ * @retval     0     OK (check xmntp and xdevp)
  */
 static int
-strip_service_mark_created_paths(cxobj *xc0,
-                                 cxobj *xt1,
-                                 int   *nmarked)
+xml_find_device_mountpoint(cxobj  *x,
+                           cxobj **xmntp,
+                           cxobj **xdevp)
 {
-    cxobj *xp;
-    cxobj *xd;
-    char  *xpath;
-    int    ix;
+    cxobj     *xa;
+    yang_stmt *y;
+
+    *xmntp = NULL;
+    *xdevp = NULL;
+    for (xa = x; xa != NULL; xa = xml_parent(xa)){
+        if ((y = xml_spec(xa)) != NULL && yang_flag_get(y, YANG_FLAG_MTPOINT) != 0){
+            *xmntp = xa;
+            *xdevp = xml_parent(xa);
+            break;
+        }
+    }
+    return 0;
+}
+
+/*! Mark device-config nodes referenced by a service's "created" path list
+ *
+ * For each <path> child of xc0 - a services/<name>/created node find the corresponding
+ * node in xt1 and* mark it, and its ancestors, so it can later be collected by
+ * xml_copy_marked() and turned into a delete edit (or destructively removed)
+ * If the referenced device's YANG is not mounted, its config subtree is anydata:
+ * a nested operation="delete" inside anydata is not honored by the datastore.
+ * I.e., there are two paths, one for YANG-bound and one for anydata
+ * @param[in]     h            Clixon handle
+ * @param[in]     xc0          "created" node (from running) listing paths to device config
+ * @param[in]     xt1          Target tree (eg actions/running db) to mark/purge nodes in
+ * @param[in,out] replace_devs Device names (unique) needing a whole-subtree config replace
+ * @param[in,out] nmarked      If non-NULL, incremented once per path marked or purged
+ * @retval        0            OK
+ * @retval       -1            Error
+ * @see service_check_devstate
+ */
+static int
+strip_service_mark_created_paths(clixon_handle h,
+                                 cxobj        *xc0,
+                                 cxobj        *xt1,
+                                 cvec         *replace_devs,
+                                 int          *nmarked)
+{
+    int        retval = -1;
+    cxobj     *xp;
+    cxobj     *xd;
+    cxobj     *xmnt;
+    cxobj     *xdev;
+    char      *xpath;
+    char      *devname;
+    yang_stmt *yspec;
+    int        ret;
+    int        ix;
 
     ix = 0;
     while ((xp = xml_child_iter(xc0, &ix, CX_ELMNT)) != NULL) {
@@ -1128,13 +1170,85 @@ strip_service_mark_created_paths(cxobj *xc0,
             continue;
         if ((xd = xpath_first(xt1, NULL, "%s", xpath)) == NULL)
             continue;
-        /* cache-dirty just to ensure copied to new tree */
-        xml_flag_set(xd, XML_FLAG_MARK|XML_FLAG_CACHE_DIRTY);
-        xml_apply_ancestor(xd, (xml_applyfn_t*)xml_flag_set, (void*)XML_FLAG_CHANGE);
+        xml_find_device_mountpoint(xd, &xmnt, &xdev);
+        yspec = NULL;
+        if (xmnt != NULL && (ret = xml_yang_mount_get(h, xmnt, NULL, NULL, &yspec)) < 0)
+            goto done;
+        if (xmnt != NULL && ret == 1 && yspec != NULL){
+            /* YANG mounted: normal per-node delete-edit marking, keys resolved via YANG */
+            xml_flag_set(xd, XML_FLAG_MARK|XML_FLAG_CACHE_DIRTY);
+            xml_apply_ancestor(xd, (xml_applyfn_t*)xml_flag_set, (void*)XML_FLAG_CHANGE);
+        }
+        else{
+            /* YANG not mounted: config subtree is anydata, purge now and replace */
+            if (xml_purge(xd) < 0)
+                goto done;
+            if (xdev != NULL && (devname = xml_find_body(xdev, "name")) != NULL &&
+                cvec_find(replace_devs, devname) == NULL)
+                if (cvec_add_string(replace_devs, devname, NULL) < 0)
+                    goto done;
+        }
         if (nmarked)
             (*nmarked)++;
     }
-    return 0;
+    retval = 0;
+ done:
+    return retval;
+}
+
+/*! Replace a device's whole config subtree in xedit (for anydata/unmounted devices)
+ *
+ * Used when a device's YANG is not mounted: a nested operation="delete" inside its anydata
+ * config subtree is not honored by the datastore, so instead the stale nodes are purged
+ * in-memory from xt1 (see strip_service_mark_created_paths()) and the whole, already-reduced
+ * subtree is sent here as a single operation="replace" edit.
+ * @param[in]  xt1     Source tree (eg actions db), already purged of stale service-created nodes
+ * @param[in]  xedit   Edit tree being built, appended to
+ * @param[in]  devname Device whose config subtree should be replaced
+ * @retval     0       OK
+ * @retval    -1       Error
+ */
+static int
+strip_service_replace_device_config(cxobj      *xt1,
+                                    cxobj      *xedit,
+                                    const char *devname)
+{
+    int     retval = -1;
+    cxobj  *xdev_src;
+    cxobj  *xmnt_src;
+    cxobj  *xdevices;
+    cxobj  *xdev_new;
+    cxobj  *xname;
+    cxobj  *xconfig_new;
+
+    if ((xdev_src = xpath_first(xt1, NULL, "devices/device[name='%s']", devname)) == NULL){
+        retval = 0;
+        goto done;
+    }
+    if ((xmnt_src = xml_find_type(xdev_src, NULL, "config", CX_ELMNT)) == NULL){
+        retval = 0;
+        goto done;
+    }
+    if ((xdevices = xml_find_type(xedit, NULL, "devices", CX_ELMNT)) == NULL)
+        if ((xdevices = xml_new("devices", xedit, CX_ELMNT)) == NULL)
+            goto done;
+    if ((xdev_new = xml_new("device", xdevices, CX_ELMNT)) == NULL)
+        goto done;
+    if ((xname = xml_new("name", xdev_new, CX_ELMNT)) == NULL)
+        goto done;
+    if (xml_body_set(xname, devname) < 0)
+        goto done;
+    if ((xconfig_new = xml_new("config", xdev_new, CX_ELMNT)) == NULL)
+        goto done;
+    if (xml_copy(xmnt_src, xconfig_new) < 0)
+        goto done;
+    if (xml_add_attr(xconfig_new, NETCONF_BASE_PREFIX, NETCONF_BASE_NAMESPACE, "xmlns", NULL) == NULL)
+        goto done;
+    if (xml_add_attr(xconfig_new, "operation", xml_operation2str(OP_REPLACE), NETCONF_BASE_PREFIX, NULL) == NULL)
+        goto done;
+    retval = 0;
+ done:
+    return retval;
 }
 
 /*! Strip all service data in device config
@@ -1160,9 +1274,9 @@ strip_service_mark_created_paths(cxobj *xc0,
  * @note Differentiate between reading created from running while deleting from action-db
  */
 static int
-strip_service_data_from_device_config(clixon_handle  h,
-                                      const char    *db,
-                                      cvec          *cvv)
+strip_service_data_from_device_config(clixon_handle           h,
+                                      const char             *db,
+                                      cvec                   *cvv)
 {
     int     retval = -1;
     cxobj  *xt0 = NULL;
@@ -1177,7 +1291,12 @@ strip_service_data_from_device_config(clixon_handle  h,
     int     touch = 0;
     cxobj  *xedit = NULL;
     int     ret;
+    cvec   *replace_devs = NULL;
 
+    if ((replace_devs = cvec_new(0)) == NULL){
+        clixon_err(OE_UNIX, errno, "cvec_new");
+        goto done;
+    }
     /* Get services/created read-only from running_db for reading */
     if (xmldb_get_cache(h, "running", &xt0, NULL) < 0)
         goto done;
@@ -1196,7 +1315,7 @@ strip_service_data_from_device_config(clixon_handle  h,
             if ((xc0 = xpath_first(xt0, NULL, "services/%s/created", cv_name_get(cv))) == NULL)
                 continue;
             /* Read created from read-only running */
-            if (strip_service_mark_created_paths(xc0, xt1, NULL) < 0)
+            if (strip_service_mark_created_paths(h, xc0, xt1, replace_devs, NULL) < 0)
                 goto done;
             xc1 = xpath_first(xt1, NULL, "services/%s/created", cv_name_get(cv));
             if (xc1){
@@ -1218,7 +1337,7 @@ strip_service_data_from_device_config(clixon_handle  h,
             goto done;
         for (i=0; i<veclen; i++){
             xc0 = vec[i];
-            if (strip_service_mark_created_paths(xc0, xt1, &touch) < 0)
+            if (strip_service_mark_created_paths(h, xc0, xt1, replace_devs, &touch) < 0)
                 goto done;
         }
         if (vec)
@@ -1232,8 +1351,15 @@ strip_service_data_from_device_config(clixon_handle  h,
             touch++;
         }
     }
+    /* Devices whose YANG was not mounted: replace their whole (already purged) config subtree */
+    cv = NULL;
+    while ((cv = cvec_each(replace_devs, cv)) != NULL){
+        if (strip_service_replace_device_config(xt1, xedit, cv_name_get(cv)) < 0)
+            goto done;
+        touch++;
+    }
     if (touch){
-        if ((cbret = cbuf_new()) == NULL){ // dummy
+        if ((cbret = cbuf_new()) == NULL){
             clixon_err(OE_UNIX, errno, "cbuf_new");
             goto done;
         }
@@ -1246,6 +1372,8 @@ strip_service_data_from_device_config(clixon_handle  h,
     }
     retval = 0;
  done:
+    if (replace_devs)
+        cvec_free(replace_devs);
     if (vec)
         free(vec);
     if (cbret)

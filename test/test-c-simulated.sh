@@ -418,5 +418,117 @@ if $BE; then
     stop_backend -f $CFG -E $CFD
 fi
 
+# Service-created device config must be stripped correctly for a device whose YANG
+# is not mounted (eg never connected since a controller restart).
+cat<<EOF > $CFD/action-command.xml
+<clixon-config xmlns="http://clicon.org/config">
+  <CONTROLLER_ACTION_COMMAND xmlns="http://clicon.org/controller-config">${BINDIR}/clixon_controller_service -f $CFG -E $CFD -e 4</CONTROLLER_ACTION_COMMAND>
+</clixon-config>
+EOF
+
+sudo rm -rf $dir/startup.d
+cat <<EOF > $dir/startup_db
+<config>
+  <processes xmlns="http://clicon.org/controller">
+    <services>
+      <enabled>true</enabled>
+    </services>
+  </processes>
+  $RULES
+</config>
+EOF
+
+. ./reset-devices.sh
+
+if $BE; then
+    new "Start new backend -s startup -f $CFG -E $CFD -D $DBG"
+    start_backend -s startup -f $CFG -E $CFD -D $DBG
+fi
+
+new "Wait backend 4"
+wait_backend
+
+check_services running
+
+# Reset controller by initiating with clixon/openconfig devices and a pull
+. ./reset-controller.sh
+
+new "open connections"
+expectpart "$(${clixon_cli} -1f $CFG -E $CFD connect open async)" 0 ""
+
+new "Verify open devices"
+sleep $sleep
+
+imax=5
+for i in $(seq 1 $imax); do
+    res=$(${clixon_cli} -1f $CFG -E $CFD show connections | grep OPEN | wc -l)
+    if [ "$res" = "$nr" ]; then
+        break;
+    fi
+    echo "retry $i after sleep"
+    sleep $sleep
+done
+if [ $i -eq $imax ]; then
+    err1 "$nr open devices" "$res"
+fi
+
+new "edit testA(foo)"
+ret=$(${clixon_netconf} -0 -f $CFG -E $CFD <<EOF
+<?xml version="1.0" encoding="UTF-8"?>
+<hello xmlns="urn:ietf:params:xml:ns:netconf:base:1.0">
+   <capabilities>
+      <capability>urn:ietf:params:netconf:base:1.0</capability>
+   </capabilities>
+</hello>]]>]]>
+<rpc xmlns="urn:ietf:params:xml:ns:netconf:base:1.0"
+     xmlns:nc="urn:ietf:params:xml:ns:netconf:base:1.0"
+     message-id="42">
+  <edit-config>
+    <target><candidate/></target>
+    <default-operation>none</default-operation>
+    <config>
+       <services xmlns="http://clicon.org/controller">
+	  <testA xmlns="urn:example:test" nc:operation="replace">
+	     <a_name>foo</a_name>
+	     <params>Zstrip</params>
+	 </testA>
+      </services>
+    </config>
+  </edit-config>
+</rpc>]]>]]>
+EOF
+)
+
+match=$(echo "$ret" | grep --null -Eo "<rpc-error>") || true
+if [ -n "$match" ]; then
+    err "<ok/>" "$ret"
+fi
+
+new "commit 4 (baseline apply while devices open)"
+expectpart "$(${clixon_cli} -m configure -1f $CFG -E $CFD commit 2>&1)" 0 "^$"
+
+if $BE; then
+    new "Kill old backend"
+    stop_backend -f $CFG -E $CFD
+fi
+
+# Restart from the now-committed running db, but do NOT reconnect the devices: they are CLOSED
+if $BE; then
+    new "Start new backend -s running -f $CFG -E $CFD -D $DBG (devices not reconnected)"
+    start_backend -s running -f $CFG -E $CFD -D $DBG
+fi
+
+new "Wait backend 4b"
+wait_backend
+
+new "apply diff before devices reconnect (ANYDATA strip)"
+# Correct: strip succeeds, no already-configured error; fails later (as expected)
+expectpart "$(${clixon_cli} -m configure -1f $CFG -E $CFD apply services myyang:testA foo diff 2>&1)" 0 "Device is closed" --not-- "already configured"
+
+if $BE; then
+    new "Kill old backend"
+    stop_backend -f $CFG -E $CFD
+fi
+
 sudo rm -rf $dir
 endtest
