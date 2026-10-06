@@ -12,6 +12,30 @@ on:
     - cron: '00 3 * * 6'     # Run every Saturday morning
 
 jobs:
+  check-test-coverage:
+    name: Verify every test is assigned to a CI group
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    timeout-minutes: 5
+    steps:
+    - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
+      with:
+        persist-credentials: false
+    - name: Diff tracked test/test-*.sh files against matrix patterns in this file
+      run: |
+        set -e
+        covered=$(grep -oE 'test-[A-Za-z0-9_.-]+\.sh' .github/workflows/ci.yml | sort -u)
+        tracked=$(git ls-files 'test/test-*.sh' | xargs -n1 basename | sort -u)
+        missing=$(comm -23 <(echo "$tracked") <(echo "$covered")) || true
+        if [ -n "$missing" ]; then
+          echo "::error::The following test/test-*.sh files are not assigned to any matrix group in .github/workflows/ci.yml:"
+          echo "$missing"
+          echo "Add each one to an existing (or new) 'pattern' entry in the test-job matrix below."
+          exit 1
+        fi
+        echo "All $(echo "$tracked" | wc -l) tracked test files are covered by a CI group."
+
   test-job:
     name: Controller tests (${{ matrix.group }})
     runs-on: ubuntu-latest
@@ -25,6 +49,8 @@ jobs:
           - group: connect-cli
             pattern: >-
               test-connect.sh test-connect-local.sh
+              test-connect-timeout-error.sh test-dead-connection-fast-fail.sh
+              test-pull-timeout-revert.sh test-commit-validate-fail-local.sh
               test-cli-edit-config.sh test-cli-edit-multiple.sh
               test-cli-order.sh test-cli-show-config.sh
               test-local-commit.sh test-controller-privcand.sh
@@ -33,6 +59,7 @@ jobs:
               test-change-both.sh test-change-ctrl-push.sh
               test-change-device-diff.sh test-push-close.sh
               test-lock-devices.sh test-lock-exclusive.sh
+              test-commit-lock-fail.sh test-transaction.sh
               test-device-groups.sh test-device-state.sh
           - group: service-python
             pattern: >-
