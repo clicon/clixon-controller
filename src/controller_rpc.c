@@ -3945,6 +3945,7 @@ rpc_device_rpc_template_apply(clixon_handle h,
     char                   *tmplname;
     cxobj                  *xinline;
     cxobj                  *xconfig = NULL;
+    cxobj                  *xrpc;
     cxobj                  *xvars;
     cxobj                  *xvars0;
     cvec                   *cvv = NULL;
@@ -4028,12 +4029,23 @@ rpc_device_rpc_template_apply(clixon_handle h,
      * Include the template name in the description so it shows up in
      * "show transactions" / "show transactions detail" instead of just
      * the generic "rpc-device template".
+     * An inline template has no name, so use the name of the RPC element in
+     * its config instead, e.g. "get-bgp-neighbor-information (inline)". The
+     * RPC name comes first since "show transactions" truncates the description.
      */
     if ((cbtr = cbuf_new()) == NULL){
         clixon_err(OE_UNIX, errno, "cbuf_new");
         goto done;
     }
-    cprintf(cbtr, "rpc-device template %s", tmplname ? tmplname : "(inline)");
+    if (tmplname)
+        cprintf(cbtr, "rpc-device template %s", tmplname);
+    else {
+        ix = 0;
+        if ((xrpc = xml_child_iter(xconfig, &ix, CX_ELMNT)) != NULL)
+            cprintf(cbtr, "%s (inline)", xml_name(xrpc));
+        else
+            cprintf(cbtr, "rpc-device template (inline)");
+    }
     if ((ret = controller_transaction_new(h, ce, clicon_username_get(h), cbuf_get(cbtr), 0, &ct, &cberr)) < 0)
         goto done;
     if (ret == 0){
