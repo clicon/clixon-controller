@@ -770,6 +770,7 @@ device_config_read(clixon_handle h,
     cvec  *nsc = NULL;
     cxobj *xt = NULL;
     cxobj *xroot;
+    int    ret;
 
     if (device_db_name_check(devname, config_type) < 0)
         goto done;
@@ -779,6 +780,16 @@ device_config_read(clixon_handle h,
     }
     cprintf(cb, "device-%s-%s", devname, config_type);
     db = cbuf_get(cb);
+    if ((ret = xmldb_exists(h, db)) < 0)
+        goto done;
+    if (ret == 0){
+        if ((*cberr = cbuf_new()) == NULL){
+            clixon_err(OE_UNIX, errno, "cbuf_new");
+            goto done;
+        }
+        cprintf(*cberr, "No such datastore: %s", db);
+        goto failed;
+    }
     if (xmldb_get0(h, db, YB_MODULE, nsc, NULL, 1, WITHDEFAULTS_EXPLICIT, &xt, NULL, NULL) < 0)
         goto done;
     if ((xroot = xpath_first(xt, NULL, "devices/device/config")) == NULL){

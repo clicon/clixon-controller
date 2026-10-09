@@ -508,27 +508,29 @@ push_device_one(clixon_handle           h,
                 const char             *db,
                 cbuf                  **cberr)
 {
-    int        retval = -1;
-    cxobj     *x0 = NULL;
-    cxobj     *x1;
-    cxobj     *x1t = NULL;
-    cbuf      *cb = NULL;
-    char      *name;
-    cxobj    **dvec = NULL;
-    size_t     dlen;
-    cxobj    **avec = NULL;
-    size_t     alen;
-    cxobj    **chvec0 = NULL;
-    cxobj    **chvec1 = NULL;
-    size_t     chlen;
-    yang_stmt *yspec;
-    cbuf      *cbmsg1 = NULL;
-    cbuf      *cbmsg2 = NULL;
-    cvec      *nsc = NULL;
-    int        ret;
+    int           retval = -1;
+    cxobj        *x0 = NULL;
+    cxobj        *x1;
+    cxobj        *x1t = NULL;
+    cbuf         *cb = NULL;
+    char         *name;
+    cxobj       **dvec = NULL;
+    size_t        dlen;
+    cxobj       **avec = NULL;
+    size_t        alen;
+    cxobj       **chvec0 = NULL;
+    cxobj       **chvec1 = NULL;
+    size_t        chlen;
+    yang_stmt    *yspec;
+    cbuf         *cbmsg1 = NULL;
+    cbuf         *cbmsg2 = NULL;
+    cvec         *nsc = NULL;
+    struct timeval st;
+    struct timeval rt;
     struct timeval t0;
     struct timeval t1;
     struct timeval tdiff;
+    int            ret;
 
     /* Note x0 and x1 are directly modified in device_create_edit_config_diff, cannot do no-copy
        1) get previous device synced xml */
@@ -541,9 +543,6 @@ push_device_one(clixon_handle           h,
      * running never touches sync-time/running-time, so this never flags a
      * legitimate "commit local, then push" workflow. */
     if (strcmp(db, "running") == 0){
-        struct timeval st;
-        struct timeval rt;
-
         device_handle_sync_time_get(dh, &st);
         device_handle_running_time_get(dh, &rt);
         if (timercmp(&st, &rt, !=)){
@@ -1492,15 +1491,15 @@ commit_push_check_service_devices(clixon_handle           h,
                                   const char             *db,
                                   controller_transaction *ct)
 {
-    int           retval = -1;
-    cxobj        *xt = NULL;
-    cxobj        *xc0;
-    cxobj       **vec = NULL;
-    size_t        veclen;
-    int           i;
-    cvec         *cvv;
-    cg_var       *cv;
-    int           ret;
+    int     retval = -1;
+    cxobj  *xt = NULL;
+    cxobj  *xc0;
+    cxobj **vec = NULL;
+    size_t  veclen;
+    int     i;
+    cvec   *cvv;
+    cg_var *cv;
+    int     ret;
 
     cvv = ct->ct_cvv;
     if (xmldb_get_cache(h, db, &xt, NULL) < 0)
@@ -1539,6 +1538,10 @@ commit_push_check_service_devices(clixon_handle           h,
 
 /*! Compute diff of candidate + commit and trigger service-commit notify
  *
+ * Skip non-open devices before pushing to any device.
+ * Closed devices with a candidate diff are already failed by devices_diff(). Remaining
+ * non-open devices have no known diff and cannot be pushed to, and their SYNCED db
+ * may not exist, eg after backend restart *
  * @param[in]  h       Clixon handle
  * @param[in]  ct      Transaction
  * @param[in]  db      From where to compute diffs and push
@@ -1557,6 +1560,18 @@ controller_commit_push(clixon_handle           h,
     device_handle dh = NULL;
     int           ret;
 
+    while ((dh = device_handle_each(h, dh)) != NULL){
+        if (device_handle_tid_get(dh) != ct->ct_id)
+            continue;
+        if (device_handle_conn_state_get(dh) != CS_OPEN){
+#if 0 /* Consider explicitly register as skip devices */
+            if (controller_transaction_device_skip(ct, device_handle_name_get(dh), "closed") < 0)
+                goto done;
+#endif
+            device_handle_tid_mark(dh, 0);
+        }
+    }
+    dh = NULL;
     while ((dh = device_handle_each(h, dh)) != NULL){
         if (device_handle_tid_get(dh) != ct->ct_id)
             continue;
@@ -1690,9 +1705,6 @@ controller_commit_actions(clixon_handle           h,
            Strip service data in device config */
         if (strip_service_data_from_device_config(h, "actions", cvv) < 0)
             goto done;
-        if (td)
-            transaction_free1(td, 0);
-        td = NULL;
         if (commit_push_after_actions(h, ct, candidate) < 0)
             goto done;
     }
@@ -1711,16 +1723,11 @@ controller_commit_actions(clixon_handle           h,
             goto done;
     }
     else{ /* No services, proceed to next step */
-        if (td)
-            transaction_free1(td, 0);
-        td = NULL;
         if (commit_push_after_actions(h, ct, candidate) < 0)
             goto done;
     }
     retval = 0;
  done:
-    if (td)
-        transaction_free1(td, 0);
     if (cvv && cvv != ct->ct_cvv)
         cvec_free(cvv);
     return retval;
@@ -2121,8 +2128,6 @@ commit_push_after_actions(clixon_handle           h,
             if (devices_diff(h, ct, "actions", td, &closed) < 0)
                 goto done;
             if (closed != NULL){
-                transaction_free1(td, 0);
-                td = NULL;
                 if (commit_push_fail_closed(h, ct, closed) < 0)
                     goto done;
                 goto ok;
@@ -2142,7 +2147,8 @@ commit_push_after_actions(clixon_handle           h,
             goto done;
     }
     else{
-        /* Compute diff of candidate + commit and trigger service
+        /* For validate and commit on actual devices
+         * Compute diff of candidate + commit and trigger service
          * If some device diff is zero, then remove device from transaction
          * Closed devices are only caught by the pre-populate diff in rpc_controller_commit()
          * if the diff was already present in candidate before actions ran (eg local edits).
@@ -2157,7 +2163,7 @@ commit_push_after_actions(clixon_handle           h,
                 goto done;
             goto ok;
         }
-        if (closed == NULL && cvec_len(ct->ct_cvv) > 0){
+        if (cvec_len(ct->ct_cvv) > 0){
             /* Re-check devices referenced by services that changed while actions ran:
              * see comment on commit_push_check_service_devices() below */
             if ((ret = commit_push_check_service_devices(h, "actions", ct)) < 0)
@@ -2589,7 +2595,6 @@ rpc_controller_commit(clixon_handle h,
          * If actions setup properly, see commit_push_after_actions() after actions have run */
         if (controller_commit_actions(h, ct, actions, td, service_instance, diff, candidate) < 0)
             goto done;
-        td = NULL;
         break;
     }
     cprintf(cbret, "<rpc-reply xmlns=\"%s\">", NETCONF_BASE_NAMESPACE);
@@ -2598,9 +2603,8 @@ rpc_controller_commit(clixon_handle h,
  ok:
     retval = 0;
  done:
-    if (td){ /* Free low-level commit transaction (not controller transaction) */
+    if (td)
         transaction_free1(td, 0);
-    }
     if (sourcedb)
         free(sourcedb);
     if (cbtr)
