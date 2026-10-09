@@ -714,17 +714,14 @@ transaction_progress_read(clixon_handle h,
         nstates[is]++;
     }
     cbuf_reset(cbsum);
+    if ((str = xml_find_body(xn, "state")) != NULL)
+        cprintf(cbsum, " %s", str);
     for (is=0; is<=CS_RPC_GENERIC; is++){
         if (is == CS_CLOSED || is == CS_OPEN || nstates[is] == 0)
             continue;
-        cprintf(cbsum, "%s%d %s", first?"":", ", nstates[is], device_state_int2str(is));
+        cprintf(cbsum, "%s%d %s", first?": ":", ", nstates[is], device_state_int2str(is));
         first = 0;
     }
-    /* No devices in progress: show transaction state, eg ACTIONS while services run */
-    if (first &&
-        (str = xml_find_body(xn, "state")) != NULL &&
-        strcmp(str, "INIT") != 0)
-        cprintf(cbsum, "%s", str);
  ok:
     retval = 1;
  done:
@@ -745,19 +742,34 @@ transaction_progress_read(clixon_handle h,
  *
  * Called by transaction_notification_poll() while waiting for the final transaction
  * notification, to give interactive feedback while a transaction is running, see issue #247.
+ * Format: Transaction <tid> [<state>] (<elapsed>s)[: <nr> <device-state>, ...]
+ * @param[in] tidstr  Transaction id
  * @param[in] cbsum   Progress summary from latest progress notification
  * @param[in] tv0     Transaction start time (for elapsed time display)
  */
 static void
-transaction_progress_show(cbuf           *cbsum,
+transaction_progress_show(char           *tidstr,
+                          cbuf           *cbsum,
                           struct timeval *tv0)
 {
     struct timeval tv1;
     struct timeval tvdiff;
+    char          *sum;
+    char          *devs;
+    int            len;
 
     gettimeofday(&tv1, NULL);
     timersub(&tv1, tv0, &tvdiff);
-    cligen_output(stdout, "\r\033[2K%lds: %s", tvdiff.tv_sec, cbuf_get(cbsum));
+    /* cbsum is " <state>[: <devices>]", split it to put elapsed time after state */
+    sum = cbuf_get(cbsum);
+    if ((devs = strchr(sum, ':')) != NULL)
+        len = devs - sum;
+    else{
+        len = strlen(sum);
+        devs = "";
+    }
+    cligen_output(stdout, "\r\033[2KTransaction %s%.*s (%lds)%s",
+                  tidstr, len, sum, tvdiff.tv_sec, devs);
     fflush(stdout);
 }
 
@@ -776,6 +788,27 @@ static void
 transaction_poll_sigint_handler(int sig)
 {
     _transaction_poll_sigint = 1;
+}
+
+/*! Discard pending SIGINT, eg a repeated ^C while aborting a transaction
+ *
+ * SIGINT is blocked in the CLI, so a pending ^C would otherwise be delivered
+ * later, interrupting an unrelated command.
+ * Setting action to SIG_IGN discards a pending signal (POSIX)
+ */
+static void
+transaction_poll_sigint_flush(void)
+{
+    sigset_t         pend;
+    struct sigaction sa0;
+    struct sigaction sa1 = {0,};
+
+    if (sigpending(&pend) == 0 && sigismember(&pend, SIGINT)){
+        sa1.sa_handler = SIG_IGN;
+        sigemptyset(&sa1.sa_mask);
+        if (sigaction(SIGINT, &sa1, &sa0) == 0)
+            sigaction(SIGINT, &sa0, NULL);
+    }
 }
 
 /*! Poll controller notification socket
@@ -882,12 +915,12 @@ transaction_notification_poll(clixon_handle       h,
                     ps = -1;
                 }
                 else if (elapsed > 0)
-                    transaction_progress_show(cbsum, &tv0);
+                    transaction_progress_show(tidstr, cbsum, &tv0);
             }
             if (n == 0){
                 /* No notification within this interval: refresh elapsed time */
                 elapsed++;
-                transaction_progress_show(cbsum, &tv0);
+                transaction_progress_show(tidstr, cbsum, &tv0);
             }
             if (pfd[0].revents == 0)
                 continue;
@@ -928,8 +961,10 @@ transaction_notification_poll(clixon_handle       h,
         close(ps);
     if (cbsum)
         cbuf_free(cbsum);
-    if (istty)
+    if (istty){
         clixon_signal_restore(&oldsigset, oldsigaction);
+        transaction_poll_sigint_flush();
+    }
     clixon_debug(CLIXON_DBG_CTRL, "%d", retval);
     return retval;
 }
