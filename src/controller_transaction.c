@@ -832,6 +832,34 @@ controller_transaction_find(clixon_handle  h,
     return NULL;
 }
 
+/*! Iterate through all controller transactions
+ *
+ * @param[in]  h     Clixon handle
+ * @param[in]  ct0   Previous transaction, or NULL to get the first
+ * @retval     ct    Next transaction
+ * @retval     NULL  No more transactions
+ * @code
+ *   controller_transaction *ct = NULL;
+ *   while ((ct = controller_transaction_each(h, ct)) != NULL)
+ *      ...
+ * @endcode
+ */
+controller_transaction *
+controller_transaction_each(clixon_handle           h,
+                            controller_transaction *ct0)
+{
+    controller_transaction *ct_list = NULL;
+    controller_transaction *ct;
+
+    if (clicon_ptr_get(h, "controller-transaction-list", (void**)&ct_list) < 0 ||
+        ct_list == NULL)
+        return NULL;
+    if (ct0 == NULL)
+        return ct_list;
+    ct = NEXTQ(controller_transaction *, ct0);
+    return ct == ct_list ? NULL : ct;
+}
+
 /*! Find frst controller transaction with given state
  *
  * @param[in]  h     Clixon  handle

@@ -4420,12 +4420,63 @@ rpc_get_device_schema(clixon_handle h,
     return retval;
 }
 
+/*! Send current progress of ongoing transactions to a new progress subscriber
+ *
+ * A client (eg CLI) typically subscribes to the progress stream after a transaction
+ * has started, and would otherwise miss earlier state changes.
+ * This callback is registered before the clixon core create-subscription handler (plugins
+ * are initialized before core rpcs), and does not write a reply, so the core handler
+ * creates the subscription and replies.
+ * The notifications are deferred until after the rpc (see controller_transaction_progress_notify),
+ * when the subscription exists.
+ * @param[in]  h       Clixon handle
+ * @param[in]  xe      Request: <rpc><xn></rpc>
+ * @param[out] cbret   Return xml tree, not written
+ * @param[in]  arg     Domain specific arg, ec client-entry or FCGX_Request
+ * @param[in]  regarg  User argument given at rpc_callback_register()
+ * @retval     0       OK
+ * @retval    -1       Error
+ */
+static int
+rpc_create_subscription_progress(clixon_handle h,
+                                 cxobj        *xe,
+                                 cbuf         *cbret,
+                                 void         *arg,
+                                 void         *regarg)
+{
+    int                     retval = -1;
+    controller_transaction *ct = NULL;
+    char                   *stream;
+
+    if ((stream = xml_find_body(xe, "stream")) == NULL ||
+        strcmp(stream, "controller-transaction-progress") != 0)
+        goto ok;
+    while ((ct = controller_transaction_each(h, ct)) != NULL){
+        if (ct->ct_state == TS_DONE)
+            continue;
+        if (controller_transaction_progress_notify(h, ct) < 0)
+            goto done;
+    }
+ ok:
+    retval = 0;
+ done:
+    return retval;
+}
+
 /*! Register callback for rpc calls
  */
 int
 controller_rpc_init(clixon_handle h)
 {
     int retval = -1;
+
+    /* Must be registered before core create-subscription handler, see callback */
+    if (rpc_callback_register(h, rpc_create_subscription_progress,
+                              NULL,
+                              EVENT_RFC5277_NAMESPACE,
+                              "create-subscription"
+                              ) < 0)
+        goto done;
 
     if (rpc_callback_register(h, rpc_config_pull,
                               NULL,

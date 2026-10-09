@@ -768,8 +768,9 @@ transaction_progress_show(char           *tidstr,
         len = strlen(sum);
         devs = "";
     }
-    cligen_output(stdout, "\r\033[2KTransaction %s%.*s (%lds)%s",
-                  tidstr, len, sum, tvdiff.tv_sec, devs);
+    /* Bypass cligen_output: the pager does not understand \r and would add --More-- */
+    fprintf(stdout, "\r\033[2KTransaction %s%.*s (%lds)%s",
+            tidstr, len, sum, tvdiff.tv_sec, devs);
     fflush(stdout);
 }
 
@@ -933,9 +934,11 @@ transaction_notification_poll(clixon_handle       h,
             break;
         }
     }
-    if (istty && elapsed > 0)
+    if (istty && elapsed > 0){
         /* Clear the progress line before printing the final result */
-        cligen_output(stdout, "\r\033[2K");
+        fprintf(stdout, "\r\033[2K");
+        fflush(stdout);
+    }
     if (aborted){
         if (send_transaction_error(h, tidstr) < 0)
             goto done;
