@@ -1644,7 +1644,8 @@ services_commit_notify(clixon_handle           h,
  * @param[in]  h         Clixon handle
  * @param[in]  ct        Transaction
  * @param[in]  actions   How to trigger service-commit notifications
- * @param[in]  td        Transaction data
+ * @param[in,out] tdp     Transaction data, freed and set to NULL after use since a nested
+ *                       commit in commit_push_after_actions() may replace the cached trees
  * @param[in]  service_instance Optional service instance if actions=FORCE
  * @param[in]  diff      Diff of the services configuration
  * @param[in]  candidate Name of candidate-db
@@ -1655,7 +1656,7 @@ static int
 controller_commit_actions(clixon_handle           h,
                           controller_transaction *ct,
                           actions_type            actions,
-                          transaction_data_t     *td,
+                          transaction_data_t    **tdp,
                           const char             *service_instance,
 			  int                     diff,
                           const char             *candidate
@@ -1674,8 +1675,11 @@ controller_commit_actions(clixon_handle           h,
      * and check if there are any services at all
      * XXX may trigger if created paths are manually edited
      */
-    if (controller_actions_diff(h, ct, td, &services, cvv) < 0)
+    if (controller_actions_diff(h, ct, *tdp, &services, cvv) < 0)
         goto done;
+    /* td references running/candidate cache trees which a nested commit may free */
+    transaction_free1(*tdp, 0);
+    *tdp = NULL;
     if (actions == AT_FORCE || actions == AT_DELETE){
         cvec_reset(cvv);
         if (service_instance)
@@ -2593,7 +2597,7 @@ rpc_controller_commit(clixon_handle h,
 	    diff = 1;
         /* Compute diff of candidate, copy to actions, trigger notify
          * If actions setup properly, see commit_push_after_actions() after actions have run */
-        if (controller_commit_actions(h, ct, actions, td, service_instance, diff, candidate) < 0)
+        if (controller_commit_actions(h, ct, actions, &td, service_instance, diff, candidate) < 0)
             goto done;
         break;
     }
