@@ -663,6 +663,7 @@ module clixon-controller {
                  A connection to an unreachable device should fail quickly.
                  If not set, device-timeout is used for conecting as well.";
             type uint32;
+            default 5;
             units s;
         }
         list device-group{
