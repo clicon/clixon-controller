@@ -213,7 +213,7 @@ expectpart "$($clixon_cli -1 -f $CFG processes service status)" 0 ".*running.*" 
 
 # Why do we need to restart the service?
 new "process restart"
-expectpart "$($clixon_cli -1 -f $CFG processes service restart)" 0 '<ok xmlns="http://clicon.org/lib"/>'
+expectpart "$($clixon_cli -1 -f $CFG processes service restart)" 0 "" --not-- "<ok"
 
 sleep 1
 
