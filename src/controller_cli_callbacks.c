@@ -1765,11 +1765,12 @@ cli_show_connections(clixon_handle h,
     return retval;
 }
 
-/*! Show controller device states
+/*! Show process status in a pretty-printed format
  *
  * @param[in] h
- * @param[in] cvv  : name pattern
- * @param[in] argv : "detail"?
+ * @param[in] cvv
+ * @param[in] argv : <process name>? <operation>? Default: services process, status
+ * Only the status operation prints output; other operations are silent on success
  * @retval    0    OK
  * @retval   -1    Error
  * @see cli_process_control
@@ -1788,9 +1789,16 @@ cli_show_services_process(clixon_handle h,
     cxobj         *x;
     char          *active = "false";
     char          *status = "unknown";
+    char          *description = NULL;
+    char          *command = NULL;
+    cg_var        *cv;
 
     name = SERVICES_PROCESS;
+    if (argv != NULL && cvec_len(argv) > 0 && (cv = cvec_i(argv, 0)) != NULL)
+        name = cv_string_get(cv);
     opstr = "status";
+    if (argv != NULL && cvec_len(argv) > 1 && (cv = cvec_i(argv, 1)) != NULL)
+        opstr = cv_string_get(cv);
     if (clixon_process_op_str2int(opstr) == -1){
         clixon_err(OE_UNIX, 0, "No such process op: %s", opstr);
         goto done;
@@ -1814,13 +1822,30 @@ cli_show_services_process(clixon_handle h,
         clixon_err_netconf(h, OE_XML, 0, xerr, "Get configuration");
         goto done;
     }
+    if (strcmp(opstr, "status") != 0){
+        if (xpath_first(xret, 0, "rpc-reply/ok") == NULL)
+            clixon_err(OE_XML, 0, "Process %s %s: unexpected reply", name, opstr);
+        else
+            retval = 0;
+        goto done;
+    }
     if ((x = xpath_first(xret, 0, "rpc-reply/active")) != NULL){
         active = xml_body(x);
     }
     if ((x = xpath_first(xret, 0, "rpc-reply/status")) != NULL){
         status = xml_body(x);
     }
-    cligen_output(stdout, "Services status: %s, active: %s\n", status, active);
+    if ((x = xpath_first(xret, 0, "rpc-reply/description")) != NULL)
+        description = xml_body(x);
+    if ((x = xpath_first(xret, 0, "rpc-reply/command")) != NULL)
+        command = xml_body(x);
+    cligen_output(stdout, "Process:     %s\n", name);
+    if (description)
+        cligen_output(stdout, "Description: %s\n", description);
+    if (command)
+        cligen_output(stdout, "Command:     %s\n", command);
+    cligen_output(stdout, "Status:      %s\n", status);
+    cligen_output(stdout, "Active:      %s\n", active);
     retval = 0;
  done:
     if (xret)
