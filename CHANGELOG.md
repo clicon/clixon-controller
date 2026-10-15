@@ -1,6 +1,6 @@
 # Clixon Controller Changelog
 
-* [1.9.0](#190) Expected: September 2026
+* [1.9.0](#190) 15 October 2026
 * [1.8.0](#180) 29 May 2026
 * [1.7.0](#170) 21 February 2026
 * [1.6.0](#160) 21 November 2025
@@ -12,21 +12,25 @@
 * [1.0.0](#170) 8 March 2024
 
 ## 1.9.0
-Expected: September 2026
+15 October 2026
+
+The Controller 1.9 release focussed on improving the device transaction handling in terms of consistency, erro handling and user interface.
 
 ### New features
 
-* Improved device error handling
-  * Added a "dead socket" check to make timeout handling faster
-  * Added generation tracking of synced device datastore to avoid running containing stale device configs
 * Clarified controller transaction operations
   * Added progress bar showing device states for transaction detail commands (connect/pull/commit/rpc)
   * Added per-device error handling of closed devices
   * Add device skiplist to transaction when device is disabled or closed for pull and commit
   * CLI added "disabled" as connection state in show connections
   * CLI return silent instead of "OK" from successful transaction
-  * This is a subset of part 3 in: https://github.com/clicon/clixon-controller/issues/247
+  * See: https://clixon-controller-docs.readthedocs.io/en/latest/transactions.html#detailed-state-table
+  * See also: https://github.com/clicon/clixon-controller/issues/247
+* Improved device error handling
+  * Added a "dead socket" check to make timeout handling faster
+  * Added generation tracking of synced device datastore to avoid running containing stale device configs
 * Added a separate `connect-timeout` timer for setting up connection and syncing the config
+  * Default value: 5s
   * This is a separate timer from `device-timeout` which is expected to be longer
   * See: [Handling unrecoverable transaction errors (including timeouts)](https://github.com/clicon/clixon-controller/issues/247) (item 1).
   * See also: https://clixon-controller-docs.readthedocs.io/en/latest/cli.html#timeouts
@@ -39,7 +43,7 @@ Users may have to change how they access the system
   * Obsoleted transaction-common/devices/devdata and skipped
   * Added result and reason in transaction-common/devices/device instead and added SKIPPED as result
   * Added pattern for device names
-  * Added connect-timeout, differentiated connect state machine from device-timeout
+  * Added connect-timeout with default 5s, differentiated connect state machine from device-timeout
 
 ### Corrected Bugs
 
