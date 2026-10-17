@@ -1,5 +1,6 @@
 # Clixon Controller Changelog
 
+* [2.0.0](#200) Expected: January 2027
 * [1.9.0](#190) 15 October 2026
 * [1.8.0](#180) 29 May 2026
 * [1.7.0](#170) 21 February 2026
@@ -11,10 +12,13 @@
 * [1.1.0](#110) 3 July 2024
 * [1.0.0](#170) 8 March 2024
 
+## 2.0.0
+Expected: January 2027
+
 ## 1.9.0
 15 October 2026
 
-The Controller 1.9 release focussed on improving the device transaction handling in terms of consistency, erro handling and user interface.
+The Controller 1.9 release focuses on improving device transaction handling in terms of consistency, error handling and user interface.
 
 ### New features
 
