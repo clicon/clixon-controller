@@ -150,14 +150,14 @@ module clixon-controller {
         description
             "Services endpoint";
     }
-    augment '/nc:get-config/input/source/config-source' {
+    augment '/nc:get-config/nc:input/nc:source/nc:config-source' {
         description
             "The actions datastore is used by service actions";
         leaf actions {
             type empty;
         }
     }
-    augment '/nc:edit-config/input/target/config-target' {
+    augment '/nc:edit-config/nc:input/nc:target/nc:config-target' {
         description
             "The actions datastore is used by service actions";
         leaf actions {
@@ -1111,7 +1111,7 @@ module clixon-controller {
             leaf operation {
                 description "close, open, reconnect";
                 type connection-operation;
-                default 0;
+                default CLOSE;
             }
         }
         output {
@@ -1265,7 +1265,7 @@ module clixon-controller {
             uses device-choice {
                 description "Specify devices with either name or group pattern.";
             }
-            choice template {
+            choice template-choice {
                 leaf template {
                     description
                         "Name of device template.";
