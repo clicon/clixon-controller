@@ -32,6 +32,13 @@ Users may have to change how they access the system
     * Patches to clixon (for restconf filtering) and clixon-pyapi have been made
   * Use xpath filter 'controller-transaction' to get completion only.
 
+### Corrected Bugs
+
+* Fixed: RFC 7950 violations in `clixon-controller@2026-10-01.yang` rejected by strict YANG tools (pyang, yanger)
+  * Prefixed all nodes in the `augment` paths of `nc:get-config` and `nc:edit-config`
+  * Changed `default 0` to `default CLOSE` for `connection-change` input `operation`
+  * Renamed `choice template` to `template-choice` in `device-template-apply` input to avoid an identifier collision with `leaf template`
+
 ## 1.9.0
 15 October 2026
 
