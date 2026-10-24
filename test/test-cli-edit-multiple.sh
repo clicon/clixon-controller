@@ -61,6 +61,9 @@ delete("Delete a configuration item") {
       all("Delete whole candidate configuration"), delete_all("candidate");
 }
 quit("Quit"), cli_quit();
+commit("Run services, commit and push to devices"), cli_rpc_controller_commit("candidate", "CHANGE", "COMMIT");{
+    local("Local commit, do not push to devices"), cli_commit();
+}
 show("Show a particular state of the system"), @datamodelshow, cli_show_auto_mode("candidate", "xml", true, false);{
     @datamodelshow, cli_show_auto_devs("candidate", "xml", false, false);
     # old syntax, but left here because | display cli  does not work properly
@@ -149,6 +152,44 @@ expectpart "$($clixon_cli -1 -m configure -f $CFG -E $CFD del devices device ${I
 
 new "verify no z"
 expectpart "$($clixon_cli -1 -m configure -f $CFG -E $CFD show cli devices device ${IMG}* config interface interface z)" 0 "${IMG}1:" "${IMG}2:" --not-- "set interface z"
+
+# device-name glob config/tab-completion must still work when one glob-matched device is CLOSED (failed to connect, so it
+# has no mounted YANG).
+CLOSED=${IMG}3
+
+new "set phantom closed device $CLOSED enabled"
+expectpart "$($clixon_cli -1 -m configure -f $CFG -E $CFD set devices device $CLOSED enabled true)" 0 "^$"
+
+new "set phantom closed device $CLOSED conn-type"
+expectpart "$($clixon_cli -1 -m configure -f $CFG -E $CFD set devices device $CLOSED conn-type NETCONF_SSH)" 0 "^$"
+
+new "set phantom closed device $CLOSED user"
+expectpart "$($clixon_cli -1 -m configure -f $CFG -E $CFD set devices device $CLOSED user nouser)" 0 "^$"
+
+new "set phantom closed device $CLOSED addr"
+expectpart "$($clixon_cli -1 -m configure -f $CFG -E $CFD set devices device $CLOSED addr 127.0.0.1)" 0 "^$"
+
+new "set phantom closed device $CLOSED port (nothing listens)"
+expectpart "$($clixon_cli -1 -m configure -f $CFG -E $CFD set devices device $CLOSED port 1)" 0 "^$"
+
+new "commit local (phantom)"
+expectpart "$($clixon_cli -1 -m configure -f $CFG -E $CFD commit local)" 0 "^$"
+
+new "connection open (phantom fails, stays CLOSED)"
+$clixon_cli -1 -f $CFG -E $CFD connection open > /dev/null 2>&1 || true
+sleep $sleep
+
+new "verify $CLOSED is CLOSED"
+expectpart "$($clixon_cli -1 -f $CFG -E $CFD show connections)" 0 "$CLOSED.*CLOSED"
+
+new "issue #254: glob set with a CLOSED match still works"
+expectpart "$($clixon_cli -1 -m configure -f $CFG -E $CFD set devices device ${IMG}* config interfaces interface zz config type usb)" 0 "^$"
+
+new "issue #254: verify zz usb set on open devices"
+expectpart "$($clixon_cli -1 -m configure -f $CFG -E $CFD show cli devices device ${IMG}* config interfaces interface zz)" 0 "${IMG}1:" "${IMG}2:" "set interface zz config type usb"
+
+new "cleanup zz"
+expectpart "$($clixon_cli -1 -m configure -f $CFG -E $CFD del devices device ${IMG}* config interfaces interface zz)" 0 "^$"
 
 if $BE; then
     new "Kill old backend"

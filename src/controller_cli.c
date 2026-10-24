@@ -363,7 +363,8 @@ controller_gentree_pattern(cligen_handle ch,
             if (controller_xdev2yanglib(h, xdev, &xyanglib) < 0)
                 goto done;
             if (xyanglib == NULL){
-                if (firsttree){
+                /* Only drop firsttree if it refers to this (skipped) device */
+                if (firsttree && strcmp(firsttree, newtree) == 0){
                     free(firsttree);
                     firsttree = NULL;
                 }
@@ -384,7 +385,8 @@ controller_gentree_pattern(cligen_handle ch,
             if ((ret = yang_schema_yanglib_mount_parse(h, xmnt, xyanglib, 1, &yspec1)) < 0)
                 goto done;
             if (ret == 0 || yspec1 == NULL){ /* Skip if disabled */
-                if (firsttree){
+                /* Only drop firsttree if it refers to this (skipped) device, see issue #254 */
+                if (firsttree && strcmp(firsttree, newtree) == 0){
                     free(firsttree);
                     firsttree = NULL;
                 }
