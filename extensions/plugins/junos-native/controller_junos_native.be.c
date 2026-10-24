@@ -181,7 +181,6 @@ new_body_pos(char  *name,
 {
     int    retval = -1;
     cxobj *xn;
-    cxobj *xb;
 
     if (name == NULL){
         clixon_err(OE_XML, EINVAL, "name is NULL");
@@ -189,18 +188,14 @@ new_body_pos(char  *name,
     }
     if ((xn = xml_new(name, NULL, CX_ELMNT)) == NULL)
         goto done;
-    if ((xb = xml_new("body", xn, CX_BODY)) == NULL){
+    if (val && xml_body_set(xn, val) < 0){
         xml_free(xn);
         goto done;
     }
-    if (val && xml_value_set(xb, val) < 0){
+    if (xml_child_insert_pos(xp, xn, pos) < 0){
         xml_free(xn);
-        xml_free(xb);
         goto done;
     }
-    xml_type_set(xb, CX_BODY);
-    if (xml_child_insert_pos(xp, xn, pos) < 0)
-        goto done;
     xml_parent_set(xn, xp);
     retval = 0;
  done:
