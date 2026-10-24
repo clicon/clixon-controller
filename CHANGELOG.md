@@ -68,6 +68,7 @@ Users may have to change how they access the system
 
 ### Corrected Bugs
 
+* Fixed: [Junos native incorrect enum translation](https://github.com/clicon/clixon-controller/issues/260)
 * Fixed: [Tab expansion and configuration don't work with a device name globbing when one of the matched devices is in the CLOSED state](https://github.com/clicon/clixon-controller/issues/254)
 * Fixed: skip closed devices at commit, and double free in errhandling
 * Fixed: [Pull discarded on tail-device timeout, then silently reverts the device on the next push](https://github.com/clicon/clixon-controller/issues/253)
