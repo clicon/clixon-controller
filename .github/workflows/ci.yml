@@ -4,7 +4,7 @@ on:
   push:
     branches:
       - main
-      - test-actions
+      - release-1.9
   pull_request:
     branches:
       - main

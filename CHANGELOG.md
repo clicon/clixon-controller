@@ -1,6 +1,6 @@
 # Clixon Controller Changelog
 
-* [1.9.0](#190) 25 October 2026
+* [1.9.1](#191) 25 October 2026
 * [1.9.0](#190) 15 October 2026
 * [1.8.0](#180) 29 May 2026
 * [1.7.0](#170) 21 February 2026
@@ -15,7 +15,7 @@
 ## 1.9.1
 25 October 2026	
 
-Patch release to fix an extension using the new XML API
+Patch release to fix a JunOS-specific extension using the new XML API (only applies to JunOS non-rfc devices)
 
 ### Corrected Bugs
 
