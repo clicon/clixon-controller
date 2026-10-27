@@ -1,6 +1,7 @@
 # Clixon Controller Changelog
 
 * [2.0.0](#200) Expected: January 2027
+* [1.9.1](#191) 25 October 2026
 * [1.9.0](#190) 15 October 2026
 * [1.8.0](#180) 29 May 2026
 * [1.7.0](#170) 21 February 2026
@@ -32,6 +33,15 @@ Users may have to change how they access the system
   * This is _not_ backward-compatible and requires code change for all subscribing to the transaction-notifications
     * Patches to clixon (for restconf filtering) and clixon-pyapi have been made
   * Use xpath filter 'controller-transaction' to get completion only.
+
+## 1.9.1
+25 October 2026
+
+Patch release to fix a JunOS-specific extension using the new XML API (only applies to JunOS non-rfc devices)
+
+### Corrected Bugs
+
+* Fixed: [Junos native incorrect enum translation](https://github.com/clicon/clixon-controller/issues/260)
 
 ## 1.9.0
 15 October 2026

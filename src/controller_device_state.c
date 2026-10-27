@@ -1151,14 +1151,17 @@ device_state_check_ok(clixon_handle           h,
         device_handle_stable_time_set(dh, NULL);
     /* 2.2.2.1 Leave transaction */
     device_handle_tid_set(dh, 0);
-    /* Re-report progress now that this device has left the transaction, so clients count it as done. */
-    if (controller_transaction_progress_notify(h, ct) < 0)
-        goto done;
     /* 2.2.2.2 If no devices in transaction, mark as OK and close it*/
     if (controller_transaction_nr_devices(h, tid) == 0){
         resolve = (ct->ct_state != TS_RESOLVED);
         if (resolve){
+            /* state_set(TS_RESOLVED) emits the final progress notification itself, with RESOLVED state */
             controller_transaction_state_set(ct, TS_RESOLVED, TR_SUCCESS);
+        }
+        else {
+            /* Already resolved (eg to FAILED earlier): report this last device as done */
+            if (controller_transaction_progress_notify(h, ct) < 0)
+                goto done;
         }
         if (controller_transaction_done(h, ct, -1) < 0)
             goto done;
@@ -1167,10 +1170,14 @@ device_state_check_ok(clixon_handle           h,
          * mount-point yang (eg to commit a pull's tmpdev to running), not before.
          */
         if (resolve){
-            if (1) /* Causes SEGV when reconnect */
-                if (yang_mount_cleanup(h) < 0)
-                    goto done;
+            if (yang_mount_cleanup(h) < 0)
+                goto done;
         }
+    }
+    else {
+        /* Other devices still pending: re-report progress now that this device has left */
+        if (controller_transaction_progress_notify(h, ct) < 0)
+            goto done;
     }
     retval = 0;
  done:

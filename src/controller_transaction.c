@@ -170,9 +170,8 @@ controller_transaction_state_set(controller_transaction *ct,
         ct->ct_result = result;
     ct->ct_timestamp = tv_now;
     /* Notify clients (eg CLI) of transaction-state progress, to give interactive feedback
-     * while a transaction is running. Skip TS_DONE: the final result is instead sent via
-     * controller_transaction_notify() right after this. */
-    if (state != prevstate && state != TS_DONE){
+     * while a transaction is running.*/
+    if (state != prevstate){
         if (controller_transaction_progress_notify(ct->ct_h, ct) < 0)
             return -1;
     }

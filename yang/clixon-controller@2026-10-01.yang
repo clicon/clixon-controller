@@ -554,8 +554,8 @@ module clixon-controller {
         container devices {
             description
                 "List of data from devices as replies from a device rpc or state request.
-                 This data can be very large and has some special handling ncluding that it
-                 is not sent in notifications, a client must request it via a state request";
+                 This data can be very large and has some special handling including that it
+                 is not sent in notifications, a client must request it via the explicit device-rpc-result RPC";
             list device {
                 description
                     "List of devices involved in the transaction";
