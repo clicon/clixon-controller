@@ -1,6 +1,8 @@
+#!/usr/bin/env bash
 # Controller transaction tests focused on UX behavior across device states.
-# Based on table.xlsx which defines expected behavior for:
-#   3 device states (columns) x 6 operations (rows)
+# Seehttps://clixon-controller-docs.readthedocs.io/en/latest/transactions.html#detailed-state-table
+# which defines expected behavior for:
+#   3 device states (columns) x 7 operations (rows)
 #
 # One devices:
 # - NAME2: test object - transitions between states
@@ -457,8 +459,8 @@ update_device "$NAME2" "$ip2" "830" "false"  # DISABLE
 
 edit_device_config "$NAME2" "test" true
 
-# D1: Show devices diff disabled - shows diff of stored config vs candidate
-check_tx $NAME2 "D1 show devices diff disabled" oper "show devices $NAME2 diff" diff success skip
+# D1: Show devices diff disabled - disabled device is skipped, no diff shown (issue #261)
+check_tx $NAME2 "D1 show devices diff disabled" oper "show devices $NAME2 diff" silent success skip
 
 update_device "$NAME2" "$ip2" "830" "true" # CLOSED
 

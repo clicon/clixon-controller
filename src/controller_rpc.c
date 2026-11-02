@@ -3360,21 +3360,17 @@ datastore_diff_device(clixon_handle      h,
         dt1_use = dt1;
         dt2_use = dt2;
         /* Skip enabled-but-closed devices: they appear as SKIPPED in the transaction warning.
-         * Disabled devices are included so their config diff can still be shown.
          */
-        if (!is_disabled){
+        if (is_disabled){
+            if (dt1_use == DT_TRANSIENT || dt2_use == DT_TRANSIENT)
+                continue;
+        }
+        else {
             /* device is enabled: skip if not OPEN */
             if ((dh = device_handle_find(h, devname)) == NULL ||
                 device_handle_conn_state_get(dh) != CS_OPEN){
                 continue;
             }
-        }
-        else {
-            /* Disabled device: fall back from TRANSIENT to SYNCED */
-            if (dt1_use == DT_TRANSIENT)
-                dt1_use = DT_SYNCED;
-            if (dt2_use == DT_TRANSIENT)
-                dt2_use = DT_SYNCED;
         }
         x1 = x1m = NULL;
         switch (dt1_use){

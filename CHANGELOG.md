@@ -34,6 +34,10 @@ Users may have to change how they access the system
     * Patches to clixon (for restconf filtering) and clixon-pyapi have been made
   * Use xpath filter 'controller-transaction' to get completion only.
 
+### Corrected Bugs
+
+* Fixed: ['Pull diff' shouldn't work for disabled devices](https://github.com/clicon/clixon-controller/issues/261)
+
 ## 1.9.1
 25 October 2026
 

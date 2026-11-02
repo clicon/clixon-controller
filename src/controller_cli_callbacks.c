@@ -80,7 +80,7 @@ cli_apipath2xpath(clixon_handle h,
     if (cli_apipath(h, cvv, domain, spec, api_path_fmt, &cvvi, &api_path) < 0)
         goto done;
     if (clixon_rpc_config_path_info(h, api_path, 0, NULL, NULL,
-                                    0, 0, NULL, NULL,
+                                    0, NULL, 0, NULL, NULL,
                                     NULL, xpath, nsc,
                                     NULL, NULL, NULL, NULL, NULL) < 0)
         goto done;
