@@ -1137,6 +1137,11 @@ controller_transaction_failed_fn(clixon_handle           h,
                 goto done;
         }
     }
+    else if (dh != NULL && reason != NULL){
+        /* The device failed recoverably but stays in the transaction */
+        if (controller_transaction_device_fail(ct, device_handle_name_get(dh), reason) < 0)
+            goto done;
+    }
     if (ct->ct_state == TS_INIT || ct->ct_state == TS_ACTIONS){
         /* 1.3 The transition is not in an error state
            1.3.1 Set transition in error state */

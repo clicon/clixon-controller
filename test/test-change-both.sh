@@ -188,6 +188,22 @@ new "change devices"
 new "push validate expected fail"
 expectpart "$($clixon_cli -1f $CFG -E $CFD push validate 2>&1)" 0 "Transaction [0-9]* failed"
 
+# Out-of-sync devices fail at PUSH-CHECK; are recorded as FAILED
+new "transaction detail: failed devices recorded FAILED (issue #262)"
+ret=$($clixon_cli -1f $CFG -E $CFD show transactions detail 2>&1)
+match=$(echo "$ret" | grep -E "^    ${IMG}[12][[:space:]]+SUCCESS") || true
+if [ -n "$match" ]; then
+    err "failed device not reported SUCCESS" "$ret"
+fi
+match=$(echo "$ret" | grep -E "^    ${IMG}1[[:space:]]+FAILED") || true
+if [ -z "$match" ]; then
+    err "device ${IMG}1 FAILED in transaction detail" "$ret"
+fi
+match=$(echo "$ret" | grep -E "^    ${IMG}2[[:space:]]+FAILED") || true
+if [ -z "$match" ]; then
+    err "device ${IMG}2 FAILED in transaction detail" "$ret"
+fi
+
 NAME=${IMG}1
 new "check if in sync (should not be)"
 ret=$(${clixon_cli} -1f $CFG -E $CFD show devices $NAME check 2>&1)
