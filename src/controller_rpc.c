@@ -1722,6 +1722,31 @@ controller_commit_actions(clixon_handle           h,
          */
         if (services_commit_notify(h, ct, cvv, diff) < 0)
             goto done;
+        /* Hint which services were triggered in transaction description.
+         * Forced apply/delete already has the service instance in the description. */
+        if (actions != AT_FORCE && cvec_len(cvv) > 0){
+            cbuf   *cbd;
+            cg_var *cv = NULL;
+            char   *desc;
+
+            if ((cbd = cbuf_new()) == NULL){
+                clixon_err(OE_UNIX, errno, "cbuf_new");
+                goto done;
+            }
+            cprintf(cbd, "%s (services: ", ct->ct_description ? ct->ct_description : "commit");
+            while ((cv = cvec_each(cvv, cv)) != NULL)
+                cprintf(cbd, "%s%s", cv == cvec_i(cvv, 0) ? "" : ", ", cv_name_get(cv));
+            cprintf(cbd, ")");
+            if ((desc = strdup(cbuf_get(cbd))) == NULL){
+                clixon_err(OE_UNIX, errno, "strdup");
+                cbuf_free(cbd);
+                goto done;
+            }
+            cbuf_free(cbd);
+            if (ct->ct_description)
+                free(ct->ct_description);
+            ct->ct_description = desc;
+        }
         controller_transaction_state_set(ct, TS_ACTIONS, -1);
         if (service_timeout_register(ct) < 0)
             goto done;

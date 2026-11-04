@@ -1339,8 +1339,11 @@ controller_transaction_statedata(clixon_handle h,
                 cprintf(cb, "</devices>");
             }
             cprintf(cb, "<state>%s</state>", transaction_state_int2str(ct->ct_state));
-            if (ct->ct_description)
-                cprintf(cb, "<description>%s</description>", ct->ct_description);
+            if (ct->ct_description){
+                cprintf(cb, "<description>");
+                xml_chardata_cbuf_append(cb, 0, ct->ct_description);
+                cprintf(cb, "</description>");
+            }
             if (ct->ct_origin)
                 cprintf(cb, "<origin>%s</origin>", ct->ct_origin);
 
