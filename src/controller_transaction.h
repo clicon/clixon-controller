@@ -79,6 +79,10 @@ struct controller_transaction_t{
     cvec              *ct_devices;       /* Device name -> reason (string, may be absent/NULL) */
     cvec              *ct_devices_result;/* Device name -> result (typed int32, transaction_result enum).
                                              Presence of a device here means it is/was part of the transaction. */
+    int                ct_progress_hold; /* When set, suppress progress notifications to batch synchronous
+                                            updates into one */
+    char              *ct_progress_last; /* Body of last progress notification sent, to skip consecutive
+                                            duplicates */
     cvec              *ct_devices_synced;/* Presence of device means it successfully wrote its pulled config to
                                             tmpdev in device_recv_config(), ie its sync-time should
                                             be recorded as this device's running-time once

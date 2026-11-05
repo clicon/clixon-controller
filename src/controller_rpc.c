@@ -1572,6 +1572,7 @@ controller_commit_push(clixon_handle           h,
         }
     }
     dh = NULL;
+    ct->ct_progress_hold = 1;
     while ((dh = device_handle_each(h, dh)) != NULL){
         if (device_handle_tid_get(dh) != ct->ct_id)
             continue;
@@ -1580,8 +1581,13 @@ controller_commit_push(clixon_handle           h,
         if (ret == 0)  /* Failed but cbret set */
             goto failed;
     }
+    ct->ct_progress_hold = 0;
+    /* All push participants now added: emit one consolidated progress notification */
+    if (controller_transaction_progress_notify(h, ct) < 0)
+        goto done;
     retval = 1;
  done:
+    ct->ct_progress_hold = 0;
     return retval;
  failed:
     retval = 0;

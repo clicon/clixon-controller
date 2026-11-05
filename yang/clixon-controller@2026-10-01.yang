@@ -39,7 +39,7 @@ module clixon-controller {
         "Clixon controller";
     revision 2026-10-01 {
         description
-            "Added controller-transaction-progress notification
+            "Added controller-transaction-progress notification with per-device result
              Released in 2.0.0";
     }
     revision 2026-06-01 {
@@ -929,7 +929,9 @@ module clixon-controller {
              or the connection state changes for a device that is part of the transaction.
              Used to give interactive feedback while a transaction (eg connect/pull/commit/rpc)
              is running. Superseded by a controller-transaction notification with the final
-             result once the transaction completes.
+             result once the transaction completes. Each notification is a point-in-time snapshot:
+             a device conn-state may briefly lag a transaction-state change.
+             Treat the final controller-transaction notification as authoritative.
              Sent on the controller-transaction stream.";
         leaf tid {
             description "Transaction id this progress belongs to";
@@ -953,11 +955,13 @@ module clixon-controller {
                 description "Current connection state of the device";
                 type connection-state;
             }
-            leaf done {
+            leaf result {
                 description
-                    "Present and true if the device has reached its goal state, ie left
-                     the transaction successfully. Used to count finished devices.";
-                type boolean;
+                    "Present once the device has left the transaction (reached a terminal
+                     state); carries the device's transaction result. Absent while the
+                     device is still active in the transaction. Used to count finished
+                     devices (eg SUCCESS/FAILED/SKIPPED).";
+                type transaction-result;
             }
         }
     }

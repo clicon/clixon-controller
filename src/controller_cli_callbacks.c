@@ -689,7 +689,9 @@ transaction_progress_read(clixon_handle h,
     cxobj  *xd;
     char   *str;
     int     nstates[CS_RPC_GENERIC+1] = {0,};
-    int     ndone = 0;
+    int     nok = 0;
+    int     nfailed = 0;
+    int     nskipped = 0;
     int     is;
     int     i;
     int     ix;
@@ -716,16 +718,31 @@ transaction_progress_read(clixon_handle h,
             continue;
         if ((is = device_state_str2int(str)) < 0 || is > CS_RPC_GENERIC)
             continue;
-        if (xml_find_body(xd, "done") != NULL)
-            ndone++;
+        if ((str = xml_find_body(xd, "result")) != NULL){
+            /* Device has left the transaction: count by its final result */
+            if (strcmp(str, "SUCCESS") == 0)
+                nok++;
+            else if (strcmp(str, "SKIPPED") == 0)
+                nskipped++;
+            else
+                nfailed++;
+        }
         else
             nstates[is]++;
     }
     cbuf_reset(cbsum);
     if ((str = xml_find_body(xn, "state")) != NULL)
         cprintf(cbsum, " %s", str);
-    if (ndone){
-        cprintf(cbsum, "%s%d OK", first?": ":", ", ndone);
+    if (nok){
+        cprintf(cbsum, "%s%d OK", first?": ":", ", nok);
+        first = 0;
+    }
+    if (nfailed){
+        cprintf(cbsum, "%s%d failed", first?": ":", ", nfailed);
+        first = 0;
+    }
+    if (nskipped){
+        cprintf(cbsum, "%s%d skipped", first?": ":", ", nskipped);
         first = 0;
     }
     for (is=0; is<=CS_RPC_GENERIC; is++){

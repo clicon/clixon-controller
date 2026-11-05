@@ -36,6 +36,7 @@ Users may have to change how they access the system
 
 ### Corrected Bugs
 
+* Fixed: [Some discrepancies with controller-transaction-progress notifications](https://github.com/clicon/clixon-controller/issues/263)
 * Fixed: [Transaction's device states are mixed by "show transactions detail"](https://github.com/clicon/clixon-controller/issues/262)
 * Fixed: ['Pull diff' shouldn't work for disabled devices](https://github.com/clicon/clixon-controller/issues/261)
 

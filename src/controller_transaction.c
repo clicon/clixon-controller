@@ -408,9 +408,11 @@ controller_transaction_notify(clixon_handle           h,
  * device_handle_conn_state_set()). Used by clients to give interactive feedback while a
  * transaction (eg connect/pull/commit/rpc) is running.
  * All devices that are (or were) part of the transaction are listed with their current
- * connection state. A device that has reached its goal state (left the transaction with
- * result SUCCESS) is additionally marked with <done>true</done>, so clients can count
- * how many devices are already finished vs still in progress.
+ * connection state. A device that has left the transaction (reached a terminal state) is
+ * additionally marked with its result, so clients can count how many devices are already finished
+ * vs still in progress.
+ * Each notification is a point-in-time snapshot: a device conn-state may briefly lag a
+ * transaction-state change. This is cosmetic; the final controller-transaction notification is authoritative.
  * @param[in]  h   Clixon handle
  * @param[in]  ct  Controller transaction
  * @retval     0   OK
@@ -431,6 +433,8 @@ controller_transaction_progress_notify(clixon_handle           h,
     cg_var              *cv;
     char                *name;
 
+    if (ct->ct_progress_hold)
+        goto ok;
     if ((cb = cbuf_new()) == NULL){
         clixon_err(OE_UNIX, errno, "cbuf_new");
         goto done;
@@ -446,11 +450,23 @@ controller_transaction_progress_notify(clixon_handle           h,
         cs = device_handle_conn_state_get(dh);
         cprintf(cb, "<device><name>%s</name><conn-state>%s</conn-state>",
                 name, device_state_int2str(cs));
-        if (device_handle_tid_get(dh) != ct->ct_id && cv_int32_get(cv) == TR_SUCCESS)
-            cprintf(cb, "<done>true</done>");
+        /* If device left the transaction, report its final result */
+        if (device_handle_tid_get(dh) != ct->ct_id)
+            cprintf(cb, "<result>%s</result>", transaction_result_int2str(cv_int32_get(cv)));
         cprintf(cb, "</device>");
     }
     cprintf(cb, "</controller-transaction-progress>");
+    /* Skip if identical to the previous notification */
+    if (ct->ct_progress_last != NULL &&
+        strcmp(ct->ct_progress_last, cbuf_get(cb)) == 0){
+        goto ok;
+    }
+    if (ct->ct_progress_last != NULL)
+        free(ct->ct_progress_last);
+    if ((ct->ct_progress_last = strdup(cbuf_get(cb))) == NULL){
+        clixon_err(OE_UNIX, errno, "strdup");
+        goto done;
+    }
     /* This is set in from-client rpc call, which means it is synchronous: defer sending
      * until after the rpc-reply, same as controller_transaction_notify() does */
     if (clicon_data_int_get(h, "clixon-client-rpc") == 1){
@@ -467,6 +483,7 @@ controller_transaction_progress_notify(clixon_handle           h,
     }
     else if (stream_notify(h, "controller-transaction", "%s", cbuf_get(cb)) < 0)
         goto done;
+ ok:
     retval = 0;
  done:
     if (cb)
@@ -675,6 +692,8 @@ controller_transaction_free1(controller_transaction *ct)
         free(ct->ct_reason);
     if (ct->ct_warning)
         free(ct->ct_warning);
+    if (ct->ct_progress_last)
+        free(ct->ct_progress_last);
     if (ct->ct_sourcedb)
         free(ct->ct_sourcedb);
     if (ct->ct_cvv)

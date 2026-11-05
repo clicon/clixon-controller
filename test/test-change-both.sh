@@ -174,10 +174,77 @@ EOF
     i=$((i+1))
 done
 
-# Wanted to remove cli, but it is difficult since we have to wait for notification,
-# rpc-reply is not enough. the cli commands are more convenient
-new "push validate expected ok"
+# Capture controller-transaction progress notifications emitted
+# during a push, to check progress-notification invariants independent of
+# device timing.
+# Subscribe in the background to the controller-transaction stream, holding stdin open via a fifo.
+NFIFO=$dir/progress-in.fifo
+NOUT=$dir/progress-out.xml
+NHELLO="<?xml version=\"1.0\" encoding=\"UTF-8\"?><hello $DEFAULTONLY><capabilities><capability>urn:ietf:params:netconf:base:1.0</capability></capabilities></hello>]]>]]>"
+
+progress_capture_start()
+{
+    rm -f $NFIFO $NOUT
+    mkfifo $NFIFO
+    new "push validate expected ok (capture progress)"
+    $clixon_netconf -q0f $CFG -E $CFD < $NFIFO > $NOUT 2>/dev/null &
+    NCPID=$!
+    exec 8>$NFIFO
+    echo "$NHELLO" >&8
+    echo "<rpc $DEFAULTNS><create-subscription xmlns=\"urn:ietf:params:xml:ns:netmod:notification\"><stream>controller-transaction</stream></create-subscription></rpc>]]>]]>" >&8
+    # Wait for subscription rpc-reply to avoid losing early notifications
+    for j in $(seq 1 25); do
+        grep -q "rpc-reply" $NOUT 2>/dev/null && break
+        sleep 0.2
+    done
+}
+
+progress_capture_stop()
+{
+    sleep 2       # let trailing async notifications flush
+    exec 8>&-     # close fifo write-end -> EOF subscription session
+    wait $NCPID 2>/dev/null
+    # Normalize: one notification per line (strip EOM markers and newlines)
+    tr -d '\r\n' < $NOUT | sed 's/]]>]]>/\n/g' > $NOUT.lines
+    grep 'controller-transaction-progress' $NOUT.lines > $NOUT.progress || true
+}
+
+progress_capture_start
+
+new "Push validate"
 expectpart "$($clixon_cli -1f $CFG -E $CFD push validate 2>&1)" 0 "^$" --not-- "failed Device"
+
+progress_capture_stop
+
+new "progress: notifications received"
+if [ ! -s $NOUT.progress ]; then
+    err "controller-transaction-progress notifications" "$(cat $NOUT 2>/dev/null)"
+fi
+
+# Every progress notification that lists any device must list
+# all push participants (devices added atomically, none appears late)
+new "progress: complete device membership (issue #263)"
+viol=$(awk -v d1="<name>${IMG}1</name>" -v d2="<name>${IMG}2</name>" '
+    /<device>/ { if (index($0,d1)==0 || index($0,d2)==0) c++ }
+    END { print c+0 }' $NOUT.progress)
+if [ "$viol" != "0" ]; then
+    err "0 partial-membership progress notifications" "$viol ($(cat $NOUT.progress))"
+fi
+
+# No two consecutive progress notifications are identical
+new "progress: no consecutive duplicate notifications (issue #263)"
+sed 's/.*\(<controller-transaction-progress.*<\/controller-transaction-progress>\).*/\1/' $NOUT.progress > $NOUT.bodies
+dup=$(awk '$0==prev{c++} {prev=$0} END{print c+0}' $NOUT.bodies)
+if [ "$dup" != "0" ]; then
+    err "0 consecutive duplicate progress notifications" "$dup ($(cat $NOUT.bodies))"
+fi
+
+# Devices that finish report their result once they leave the transaction (here both succeed)
+new "progress: finished devices report result (issue #263)"
+match=$(grep -o "<result>SUCCESS</result>" $NOUT.progress | head -1) || true
+if [ -z "$match" ]; then
+    err "a progress notification with <result>SUCCESS</result>" "$(cat $NOUT.progress)"
+fi
 
 # Change device configs on devices (not controller)
 new "change devices"

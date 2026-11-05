@@ -3,7 +3,7 @@
 
 set -u
 
-echo "change-devices"
+new "change-devices"
 
 CONFIG='<interfaces xmlns="http://openconfig.net/yang/interfaces">\
           <interface nc:operation="remove">\
@@ -28,7 +28,7 @@ CONFIG='<interfaces xmlns="http://openconfig.net/yang/interfaces">\
 i=1
 for ip in $CONTAINERS; do
     NAME=$IMG$i
-    echo "Check config $NAME"
+    new "Check config $NAME"
     ret=$(ssh $ip ${SSHID} -l ${USER} -o StrictHostKeyChecking=no -o PasswordAuthentication=no -s netconf <<EOF
 <?xml version="1.0" encoding="UTF-8"?>
 <hello xmlns="urn:ietf:params:xml:ns:netconf:base:1.0">
