@@ -3764,7 +3764,8 @@ expand_device_rpc(void   *h,
         }
         cprintf(cbxp, "]/config");
         xdevc = xpath_first(xdevs, 0, "%s", cbuf_get(cbxp));
-    } else
+    }
+    else
         xdevc = NULL;
     if (xdevc != NULL){
         if (xml_yang_mount_get(h, xdevc, NULL, NULL, &yspec1) < 0)
@@ -3887,7 +3888,8 @@ cli_generic_rpc_match(clixon_handle h,
                 goto done;
             cprintf(cb, "]/config");
             xdevc = xpath_first(xdevs1, 0, "%s", cbuf_get(cb));
-        } else
+        }
+        else
             xdevc = NULL;
         if (xdevc != NULL){
             if (xml_yang_mount_get(h, xdevc, NULL, NULL, &yspec1) < 0)

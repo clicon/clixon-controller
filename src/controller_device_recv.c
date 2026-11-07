@@ -262,8 +262,15 @@ device_recv_config(clixon_handle h,
      * <data>  ietf-netconf:data (dont bother to bind this node, its just a placeholder)
      * <x>     bind to yspec1
      */
+    gettimeofday(&t0, NULL);
     if ((ret = xml_bind_yang(h, xdata, YB_MODULE, yspec1, 0, &xerr)) < 0)
         goto done;
+    gettimeofday(&t1, NULL);
+    timersub(&t1, &t0, &td);
+    clixon_debug(CLIXON_DBG_CTRL | CLIXON_DBG_TIMING, "%s %s: YANG bind: %ld.%03lds",
+                 device_handle_name_get(dh),
+                 device_state_int2str(conn_state),
+                 td.tv_sec, td.tv_usec/1000);
     if (ret == 0){
         if ((cberr = cbuf_new()) == NULL){
             clixon_err(OE_UNIX, errno, "cbuf_new");
@@ -386,7 +393,7 @@ device_recv_config(clixon_handle h,
     device_handle_sync_time_set(dh, NULL);
     gettimeofday(&t1, NULL);
     timersub(&t1, &t0, &td);
-    clixon_debug(CLIXON_DBG_CTRL, "%s %s: XML merge: %ld.%03lds",
+    clixon_debug(CLIXON_DBG_CTRL | CLIXON_DBG_TIMING, "%s %s: XML merge: %ld.%03lds",
                  device_handle_name_get(dh),
                  device_state_int2str(conn_state),
                  td.tv_sec, td.tv_usec/1000);
