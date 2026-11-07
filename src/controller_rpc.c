@@ -3055,6 +3055,9 @@ rpc_transactions_actions_done(clixon_handle h,
     cbuf                   *cberr2 = NULL;
     char                   *candidate = NULL;
     int                     ret;
+    struct timeval          tv0;
+    struct timeval          tv1;
+    struct timeval          tvdiff;
 
     if ((tidstr = xml_find_body(xe, "tid")) == NULL){
         if (netconf_operation_failed(cbret, "application", "No tid")< 0)
@@ -3074,6 +3077,10 @@ rpc_transactions_actions_done(clixon_handle h,
         goto ok;
     }
     clixon_debug(CLIXON_DBG_CTRL, "%s %s", tidstr, ct->ct_description);
+    gettimeofday(&tv0, NULL);
+    timersub(&tv0, &ct->ct_timestamp, &tvdiff);
+    clixon_debug(CLIXON_DBG_CTRL, "%" PRIu64 ": actions round-trip (notify->done): %ld.%03lds",
+                 tid, tvdiff.tv_sec, tvdiff.tv_usec/1000);
     if (xmldb_find_create(h, "candidate", ct->ct_client_id, NULL, &candidate) < 0)
         goto done;
     switch (ct->ct_state){
@@ -3095,8 +3102,13 @@ rpc_transactions_actions_done(clixon_handle h,
             clixon_err(OE_UNIX, errno, "cbuf_new");
             goto done;
         }
+        gettimeofday(&tv0, NULL);
         if ((ret = candidate_validate(h, "actions", cberr)) < 0)
             goto done;
+        gettimeofday(&tv1, NULL);
+        timersub(&tv1, &tv0, &tvdiff);
+        clixon_debug(CLIXON_DBG_CTRL, "%" PRIu64 ": actions validate: %ld.%03lds",
+                     tid, tvdiff.tv_sec, tvdiff.tv_usec/1000);
         if (ret == 0){
             if ((cberr2 = cbuf_new()) == NULL){
                 clixon_err(OE_UNIX, errno, "cbuf_new");

@@ -2008,7 +2008,7 @@ device_state_handler(clixon_handle h,
                 }
                 gettimeofday(&t1, NULL);
                 timersub(&t1, &t0, &tdiff);
-                clixon_debug(CLIXON_DBG_CTRL, "%s: config-template apply: %ld.%03lds",
+                clixon_debug(CLIXON_DBG_CTRL, "%s: local commit (candidate->running): %ld.%03lds",
                              name, tdiff.tv_sec, tdiff.tv_usec/1000);
                 if (clicon_option_bool(h, "CLICON_AUTOLOCK")) // XXX maybe also when ret = 0
                     xmldb_unlock(h, candidate);
