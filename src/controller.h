@@ -87,7 +87,6 @@
 /*! Controller debug levels
  */
 #define CLIXON_DBG_CTRL CLIXON_DBG_APP
-#define CLIXON_DBG_CTRL2 CLIXON_DBG_APP2
 
 /*! Service (action)  timeout if service-timeout config is invalid in s */
 #define CONTROLLER_SERVICE_TIMEOUT_DEFAULT 10

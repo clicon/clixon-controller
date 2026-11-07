@@ -403,13 +403,13 @@ device_schemas_mount_parse(clixon_handle h,
                            conn_state    conn_state,
                            cxobj        *xyanglib)
 {
-    int        retval = -1;
-    yang_stmt *yspec1;
-    char      *domain;
-    int        ret;
+    int            retval = -1;
+    yang_stmt     *yspec1;
+    char          *domain;
     struct timeval t0;
     struct timeval t1;
     struct timeval td;
+    int            ret;
 
     clixon_debug(CLIXON_DBG_CTRL | CLIXON_DBG_DETAIL, "");
     if (xpath_first(xyanglib, 0, "module-set/module") == NULL){
@@ -440,7 +440,7 @@ device_schemas_mount_parse(clixon_handle h,
     }
     gettimeofday(&t1, NULL);
     timersub(&t1, &t0, &td);
-    clixon_debug(CLIXON_DBG_CTRL, "%s %s: YANG parse: %ld.%03lds",
+    clixon_debug(CLIXON_DBG_CTRL | CLIXON_DBG_TIMING, "%s %s: YANG parse: %ld.%03lds",
                  device_handle_name_get(dh),
                  device_state_int2str(conn_state),
                  td.tv_sec, td.tv_usec/1000);
@@ -1059,6 +1059,87 @@ device_shared_yspec(clixon_handle h,
     return retval;
 }
 
+/*! Resolve the mounted yang-spec for a device: reuse an equivalent or create new
+ *
+ * Given a device's complete schema-list (xyanglib), find an existing equivalent
+ * yang-spec to share (via domain+digest registry hit or another device's yspec),
+ * or create a new empty yspec to be parsed by the caller. In all cases (re-)bind
+ * the device's mount-point xpath to the resolved yspec and register it.
+ * @param[in]  h         Clixon handle
+ * @param[in]  dh        Clixon device handle.
+ * @param[in]  name      Device name
+ * @param[in]  xyanglib  Yang-lib (schema-list) in XML format
+ * @param[out] newp      Set to non-zero if a new yspec was created (needs parsing)
+ * @retval     0         OK
+ * @retval    -1         Error
+ */
+static int
+device_yspec_resolve(clixon_handle h,
+                     device_handle dh,
+                     char         *name,
+                     cxobj        *xyanglib,
+                     int          *newp)
+{
+    int         retval = -1;
+    int         new = 0;
+    char       *domain;
+    char       *digest = NULL;
+    yang_stmt  *yspec1 = NULL;
+    cbuf       *cbxpath = NULL;
+    const char *sharesrc;
+    yang_stmt  *ymounts;
+    yang_stmt  *ydomain;
+
+    domain = device_handle_domain_get(dh);
+    if (xyanglib_digest(xyanglib, &digest) < 0)
+        goto done;
+    if (yang_mount_get_xpath(h, domain, digest, &yspec1, NULL) < 0)
+        goto done;
+    if (controller_mount_xpath_get(name, &cbxpath) < 0)
+        goto done;
+    if (yspec1 != NULL){
+        sharesrc = "shared: domain+digest registry hit";
+    }
+    else {
+        if ((ymounts = clixon_yang_mounts_get(h)) == NULL){
+            clixon_err(OE_YANG, ENOENT, "Top-level yang mounts not found");
+            goto done;
+        }
+        if ((ydomain = yang_find(ymounts, Y_DOMAIN, domain)) == NULL){
+            if ((ydomain = ydomain_new(h, domain)) == NULL)
+                goto done;
+        }
+        if (device_shared_yspec(h, dh, xyanglib, digest, &yspec1) < 0)
+            goto done;
+        if (yspec1 == NULL){
+            if ((yspec1 = yspec_new1(h, domain, digest)) == NULL)
+                goto done;
+            yang_flag_set(yspec1, YANG_FLAG_SPEC_MOUNT);
+            new++;
+            sharesrc = "new: parse required (no equivalent schema-list found)";
+        }
+        else
+            sharesrc = "shared: reused yspec from another device";
+    }
+    clixon_debug(CLIXON_DBG_CTRL, "%s: YANG schema-mount domain:%s digest:%s -> %s",
+                 name, domain?domain:"(null)", digest?digest:"(null)", sharesrc);
+    /* yang_mount_xpath_bind() removes any stale binding of this xpath in other
+     * yspecs and (re-)adds it to yspec1. */
+    if (yang_mount_xpath_bind(h, yspec1, cbuf_get(cbxpath)) < 0)
+        goto done;
+    if (controller_mount_yspec_set(h, name, yspec1) < 0)
+        goto done;
+    if (newp)
+        *newp = new;
+    retval = 0;
+ done:
+    if (cbxpath)
+        cbuf_free(cbxpath);
+    if (digest)
+        free(digest);
+    return retval;
+}
+
 /*! Helper device_state_handler: check if transaction has ended, if so send [discard;]lock
  *
  * If the transaction has already failed (eg because a peer device failed or
@@ -1429,7 +1510,6 @@ device_state_handler(clixon_handle h,
     conn_state  conn_state;
     yang_stmt  *yspec0;
     int         new = 0;
-    yang_stmt  *yspec1 = NULL;
     int         nr;
     uint64_t    tid;
     controller_transaction *ct = NULL;
@@ -1438,9 +1518,6 @@ device_state_handler(clixon_handle h,
     cxobj      *xyanglib;
     char       *candidate = NULL;
     db_elmnt   *de = NULL;
-    char       *digest = NULL;
-    char       *domain;
-    cbuf       *cbxpath = NULL;
     int         ret;
 
     rpcname = xml_name(xmsg);
@@ -1507,43 +1584,7 @@ device_state_handler(clixon_handle h,
             }
             /* Check if there is another equivalent xyanglib */
             new = 0;
-            yspec1 = NULL;
-            domain = device_handle_domain_get(dh);
-            if (xyanglib_digest(xyanglib, &digest) < 0)
-                goto done;
-            if (yang_mount_get_xpath(h, domain, digest, &yspec1, NULL) < 0)
-                goto done;
-            if (yspec1 != NULL){
-                if (controller_mount_xpath_get(name, &cbxpath) < 0)
-                    goto done;
-            }
-            else { /* It may already exist? */
-                yang_stmt *ymounts;
-                yang_stmt *ydomain;
-
-                if (controller_mount_xpath_get(name, &cbxpath) < 0)
-                    goto done;
-                if ((ymounts = clixon_yang_mounts_get(h)) == NULL){
-                    clixon_err(OE_YANG, ENOENT, "Top-level yang mounts not found");
-                    goto done;
-                }
-                if ((ydomain = yang_find(ymounts, Y_DOMAIN, domain)) == NULL){
-                    if ((ydomain = ydomain_new(h, domain)) == NULL)
-                        goto done;
-                }
-                if (device_shared_yspec(h, dh, xyanglib, digest, &yspec1) < 0)
-                    goto done;
-                if (yspec1 == NULL){
-                    if ((yspec1 = yspec_new1(h, domain, digest)) == NULL)
-                        goto done;
-                    new++;
-                    yang_flag_set(yspec1, YANG_FLAG_SPEC_MOUNT);
-                }
-            }
-            /* Unconditionally (re-)register this device's mount-point xpath */
-            if (yang_mount_xpath_bind(h, yspec1, cbuf_get(cbxpath)) < 0)
-                goto done;
-            if (controller_mount_yspec_set(h, name, yspec1) < 0)
+            if (device_yspec_resolve(h, dh, name, xyanglib, &new) < 0)
                 goto done;
             /* All schemas ready, parse them (may do device_close) */
             if (new){
@@ -1597,45 +1638,7 @@ device_state_handler(clixon_handle h,
         /* Check if there is another equivalent xyanglib
          */
         new = 0;
-        yspec1 = NULL;
-        domain =  device_handle_domain_get(dh);
-        if (xyanglib_digest(xyanglib, &digest) < 0)
-            goto done;
-        if (yang_mount_get_xpath(h, domain, digest, &yspec1, NULL) < 0)
-            goto done;
-        if (yspec1 != NULL){
-            if (controller_mount_xpath_get(name, &cbxpath) < 0)
-                goto done;
-        }
-        else {
-            yang_stmt *ymounts;
-            yang_stmt *ydomain;
-
-            if (controller_mount_xpath_get(name, &cbxpath) < 0)
-                goto done;
-            if ((ymounts = clixon_yang_mounts_get(h)) == NULL){
-                clixon_err(OE_YANG, ENOENT, "Top-level yang mounts not found");
-                goto done;
-            }
-            if ((ydomain = yang_find(ymounts, Y_DOMAIN, domain)) == NULL){
-                if ((ydomain = ydomain_new(h, domain)) == NULL)
-                    goto done;
-            }
-            if (device_shared_yspec(h, dh, xyanglib, digest, &yspec1) < 0)
-                goto done;
-            if (yspec1 == NULL){
-                if ((yspec1 = yspec_new1(h, domain, digest)) == NULL)
-                    goto done;
-                yang_flag_set(yspec1, YANG_FLAG_SPEC_MOUNT);
-                new++;
-            }
-        }
-        /* yang_mount_xpath_bind() removes any stale binding of this xpath in
-         * other yspecs and (re-)adds it to yspec1. See comment at the
-         * equivalent CS_CONNECTING code above. */
-        if (yang_mount_xpath_bind(h, yspec1, cbuf_get(cbxpath)) < 0)
-            goto done;
-        if (controller_mount_yspec_set(h, name, yspec1) < 0)
+        if (device_yspec_resolve(h, dh, name, xyanglib, &new) < 0)
             goto done;
         nr = 0;
         if ((ret = device_send_get_schema_next(h, dh, s, &nr)) < 0)
@@ -2008,7 +2011,7 @@ device_state_handler(clixon_handle h,
                 }
                 gettimeofday(&t1, NULL);
                 timersub(&t1, &t0, &tdiff);
-                clixon_debug(CLIXON_DBG_CTRL, "%s: config-template apply: %ld.%03lds",
+                clixon_debug(CLIXON_DBG_CTRL | CLIXON_DBG_TIMING, "%s: local commit (candidate->running): %ld.%03lds",
                              name, tdiff.tv_sec, tdiff.tv_usec/1000);
                 if (clicon_option_bool(h, "CLICON_AUTOLOCK")) // XXX maybe also when ret = 0
                     xmldb_unlock(h, candidate);
@@ -2229,10 +2232,6 @@ device_state_handler(clixon_handle h,
     retval = 0;
  done:
     clixon_debug(CLIXON_DBG_CTRL|CLIXON_DBG_DETAIL, "retval:%d", retval);
-    if (cbxpath)
-        cbuf_free(cbxpath);
-    if (digest)
-        free(digest);
     if (cberr)
         cbuf_free(cberr);
     return retval;

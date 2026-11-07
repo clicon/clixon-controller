@@ -323,7 +323,11 @@ controller_edit_config(clixon_handle h,
     cxobj     *xconfig = NULL;
     cxobj     *xserv;
     int        ret;
+    struct timeval t0;
+    struct timeval t1;
+    struct timeval tdiff;
 
+    gettimeofday(&t0, NULL);
     clixon_debug(CLIXON_DBG_CTRL, "Find and remove creator attributes and create services/../created structures");
     if ((yspec = clicon_dbspec_yang(h)) == NULL){
         clixon_err(OE_YANG, ENOENT, "No yang spec9");
@@ -339,6 +343,10 @@ controller_edit_config(clixon_handle h,
     }
     if ((ret = xml_bind_yang(h, xc, YB_MODULE, yspec, 0, NULL)) < 0)
         goto done;
+    gettimeofday(&t1, NULL);
+    timersub(&t1, &t0, &tdiff);
+    clixon_debug(CLIXON_DBG_CTRL | CLIXON_DBG_TIMING, "controller_edit_config: bind: %ld.%03lds",
+                 tdiff.tv_sec, tdiff.tv_usec/1000);
     if (ret == 0)
         goto ok;
     if ((xconfig = xml_new(NETCONF_INPUT_CONFIG, NULL, CX_ELMNT)) == NULL)
@@ -357,8 +365,13 @@ controller_edit_config(clixon_handle h,
         goto ok;
     if (xml_spec(xserv) == NULL)
         goto ok;
+    gettimeofday(&t0, NULL);
     if ((ret = xml_apply(xc, CX_ELMNT, creator_applyfn, xserv)) < 0)
         goto done;
+    gettimeofday(&t1, NULL);
+    timersub(&t1, &t0, &tdiff);
+    clixon_debug(CLIXON_DBG_CTRL | CLIXON_DBG_TIMING, "controller_edit_config: creator-walk: %ld.%03lds",
+                 tdiff.tv_sec, tdiff.tv_usec/1000);
     if (ret == 1){
         if (netconf_operation_failed(cbret, "application", "Translation for creator attributes to created tag")< 0)
             goto done;
@@ -366,12 +379,17 @@ controller_edit_config(clixon_handle h,
     }
     if (xml_child_nr_type(xserv, CX_ELMNT) == 0)
         goto ok;
-    clixon_debug_xml(CLIXON_DBG_CTRL2, xserv, "Objects created in %s-db", target);
+    clixon_debug_xml(CLIXON_DBG_CTRL | CLIXON_DBG_TIMING, xserv, "Objects created in %s-db", target);
+    gettimeofday(&t0, NULL);
     if ((ret = xmldb_put(h, target, OP_NONE, xconfig, NULL, cbret)) < 0){
         if (netconf_operation_failed(cbret, "protocol", "%s", clixon_err_reason())< 0)
             goto done;
         goto ok;
     }
+    gettimeofday(&t1, NULL);
+    timersub(&t1, &t0, &tdiff);
+    clixon_debug(CLIXON_DBG_CTRL | CLIXON_DBG_TIMING, "controller_edit_config: xmldb_put: %ld.%03lds",
+                 tdiff.tv_sec, tdiff.tv_usec/1000);
  ok:
     retval = 0;
  done:
