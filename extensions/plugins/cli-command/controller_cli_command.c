@@ -110,13 +110,22 @@ int cli_command_run(clixon_handle h, cvec *cvv, cvec *argv)
         clixon_err(OE_PLUGIN, errno, "fork");
     } else {
         /* parent process */
-        if (waitpid(pid, &status, 0) != pid ){
+        pid_t ret;
+
+        /* A signal handled by the CLI while the command runs (for example a terminal
+         * resize) interrupts waitpid with EINTR. That is not an error: keep waiting for
+         * the child, otherwise the CLI returns to the prompt while the command runs on. */
+        while ((ret = waitpid(pid, &status, 0)) == -1 && errno == EINTR)
+            ;
+        if (ret != pid) {
             clixon_err(OE_PLUGIN, errno, "waitpid error");
             goto done;
-        } else {
-            retval = WEXITSTATUS(status);
-            goto done;
         }
+        if (WIFEXITED(status))
+            retval = WEXITSTATUS(status);
+        else if (WIFSIGNALED(status))
+            retval = 128 + WTERMSIG(status);
+        goto done;
     }
 
 done:
