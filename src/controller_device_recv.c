@@ -197,6 +197,7 @@ device_recv_config(clixon_handle h,
 {
     int                     retval = -1;
     cxobj                  *xdata;
+    cxobj                  *x;
     cxobj                  *xt = NULL;
     cxobj                  *xa;
     cbuf                   *cbret = NULL;
@@ -204,7 +205,6 @@ device_recv_config(clixon_handle h,
     char                   *name;
     cvec                   *nsc = NULL;
     yang_stmt              *yspec1;
-    cxobj                  *x;
     cxobj                  *xroot;
     yang_stmt              *yroot;
     cxobj                  *xerr = NULL;
@@ -271,7 +271,7 @@ device_recv_config(clixon_handle h,
         }
         cprintf(cberr, "Device %s in state %s, mismatch between XML and YANG when reading running config from device: ", name, device_state_int2str(conn_state));
         // xpath not prefix/namespace independent
-        if (xerr && (x = xpath_first(xerr, NULL, "rpc-error/error-message")) != NULL){
+        if (xerr && xpath_first(xerr, NULL, "rpc-error/error-message") != NULL){
             if (netconf_err2cb(h,
                                xml_find_type(xerr, NULL, "rpc-error", CX_ELMNT),
                                cberr) < 0)
@@ -539,7 +539,8 @@ device_recv_schema_list(device_handle dh,
         goto done;
     if (xml_rootchild(xyanglib, 0, &xyanglib) < 0)
         goto done;
-    xml_sort_recurse(xyanglib);
+    if (xml_sort_recurse(xyanglib) < 0)
+        goto done;
     if (xyanglib_dup_rm(dh, xyanglib) < 0)
         goto done;
     /* @see controller_connect where initial yangs may be set */
@@ -593,7 +594,6 @@ device_recv_get_schema(device_handle dh,
     char         *file;
     char         *domain;
     struct stat   st0;
-    struct stat   st1;
     int           ret;
 
     clixon_debug(CLIXON_DBG_CTRL, "");
@@ -653,16 +653,17 @@ device_recv_get_schema(device_handle dh,
     }
     cprintf(cb, "%s/%s", dir, domain);
     dir = cbuf_get(cb);
-    if (stat(dir, &st1) < 0){
-        /* Create domain dir and copy mods from top-dir  */
-        if (mkdir(dir, st0.st_mode) < 0){
+    /* Create domain dir and copy mods from top-dir. Attempt mkdir directly
+     * and tolerate an existing dir, rather than stat-then-mkdir (TOCTOU). */
+    if (mkdir(dir, st0.st_mode) < 0){
+        if (errno != EEXIST){
             clixon_err(OE_UNIX, errno, "mkdir %s ", dir);
             goto done;
         }
-        if (chown(dir, st0.st_uid, st0.st_gid) < 0){
-            clixon_err(OE_UNIX, errno, "chown %s ", dir);
-            goto done;
-        }
+    }
+    else if (chown(dir, st0.st_uid, st0.st_gid) < 0){
+        clixon_err(OE_UNIX, errno, "chown %s ", dir);
+        goto done;
     }
     cprintf(cb, "/%s", modname);
     if (revision)
@@ -728,7 +729,6 @@ device_recv_check_errors(clixon_handle h,
                 if ((tid = device_handle_tid_get(dh)) != 0 &&
                     (ct = controller_transaction_find(h, tid)) != NULL &&
                     ct->ct_warning == NULL){
-                    x = xml_find_type(xerr, NULL, "error-message", CX_ELMNT);
                     if ((cb = cbuf_new()) == NULL){
                         clixon_err(OE_UNIX, errno, "cbuf_new");
                         goto done;
@@ -871,7 +871,6 @@ device_recv_generic_rpc(clixon_handle           h,
                         cbuf                  **cberr)
 {
     int   retval = -1;
-    cbuf *cb = NULL;
     int   ret;
 
     if ((ret = rpc_reply_sanity(dh, xmsg, rpcname, conn_state)) < 0)
@@ -888,8 +887,6 @@ device_recv_generic_rpc(clixon_handle           h,
         goto failed;
     retval = 2;
  done:
-    if (cb)
-        cbuf_free(cb);
     return retval;
  failed:
     retval = 0;

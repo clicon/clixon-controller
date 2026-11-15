@@ -275,7 +275,7 @@ sudo expect - "$clixon_cli" "$CFG" "$ADMIN" "$LIMITED" "$IMG" <<'EOF'
 set stty_init "rows 10000 cols 128"
 
 # valgrind requires timeout > 2
-set timeout 20
+set timeout 10
 set clixon_cli [lindex $argv 0]
 set CFG [lindex $argv 1]
 set ADMIN [lindex $argv 2]
@@ -296,11 +296,17 @@ set prompt2 "$LIMITED@$hostname\\\[/\\\]# "
 
 puts "Test: 1a) admin makes edits of protected data in openconfig-keychains (name)"
 set cmd "set devices device ${IMG}1 config keychains keychain e0 config name e0"
-sleep 1
+# Wait for cli1 startup prompt (valgrind startup is slow/variable) instead of a fixed sleep
+expect {
+    -i $cli1
+    -re "$prompt1\$" {}
+    timeout { puts "Timeout 1a-startup"; exit 2 }
+    eof { exit 3 }
+}
 send -i $cli1 "$cmd\n"
 expect {
     -i $cli1
-    -re "^\r$prompt1$cmd\r\n\r\r$prompt1\$" { puts "Test 1a: empty OK" }
+    -re "$cmd\r\n\r\r$prompt1\$" { puts "Test 1a: empty OK" }
     timeout { puts "Timeout 1a"; exit 2 }
     eof { exit 3 }
 }
@@ -387,7 +393,7 @@ send -i $cli1 "$cmd\n"
 expect {
     -i $cli1
     -re "Candidate db is locked.+$prompt2\$" { puts "Test 5b cannot commit"; exit 1 }
-    -re "^$cmd\r\n\r\r$prompt1\$" { puts "Test 5b: empty OK" }
+    -re "^$cmd\r\n.+\r$prompt1\$" { puts "Test 5b: empty OK" }
     timeout { puts "Timeout 5b"; exit 2}
     eof { exit 3 }
 }

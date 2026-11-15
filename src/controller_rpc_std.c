@@ -171,13 +171,12 @@ creator_applyfn(cxobj *x,
                 clixon_err(OE_UNIX, errno, "strdup");
                 goto done;
             }
-            if ((p = index(service, '[')) == NULL){
+            if ((key = index(service, '[')) == NULL){
                 clixon_err(OE_YANG, 0, "Creator attribute, no instance: [] in %s", creator);
                 goto done;
             }
-            *p++ = '\0';
-            key = p;
-            if ((p = index(p, '=')) == NULL){
+            *key++ = '\0';  /* terminate service name; key now points at key='...' */
+            if ((p = index(key, '=')) == NULL){
                 clixon_err(OE_YANG, 0, "Creator attribute, no instance = in %s", creator);
                 goto done;
             }
@@ -257,7 +256,7 @@ check_services_commit_subscription(clixon_handle h,
                                    void         *regarg)
 {
     int                         retval = -1;
-    char                       *stream = "NETCONF";
+    char                       *stream;
     cxobj                      *x; /* Generic xml tree */
     cvec                       *nsc = NULL;
     event_stream_t             *es;
@@ -367,7 +366,7 @@ controller_edit_config(clixon_handle h,
     if (xml_child_nr_type(xserv, CX_ELMNT) == 0)
         goto ok;
     clixon_debug_xml(CLIXON_DBG_CTRL2, xserv, "Objects created in %s-db", target);
-    if ((ret = xmldb_put(h, target, OP_NONE, xconfig, NULL, cbret)) < 0){
+    if (xmldb_put(h, target, OP_NONE, xconfig, NULL, cbret) < 0){
         if (netconf_operation_failed(cbret, "protocol", "%s", clixon_err_reason())< 0)
             goto done;
         goto ok;

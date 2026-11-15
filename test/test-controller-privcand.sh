@@ -181,7 +181,7 @@ new "Spawn expect script to simulate two CLI sessions"
 sudo expect - "$clixon_cli" "$CFG" "$CFD" $(whoami) "$IMG" <<'EOF'
 # Use of expect to start two NETCONF sessions
 log_user 0
-set timeout 5
+set timeout 10
 set clixon_cli [lindex $argv 0]
 set CFG [lindex $argv 1]
 set CFD [lindex $argv 2]

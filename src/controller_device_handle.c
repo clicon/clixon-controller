@@ -573,13 +573,17 @@ int
 device_handle_tid_set(device_handle dh,
                       uint64_t      tid)
 {
+    int                              retval = -1;
     struct controller_device_handle *cdh = devhandle(dh);
     controller_transaction *ct;
 
     if ((ct = controller_transaction_find(cdh->cdh_h, tid)) != NULL)
-        controller_transaction_device_add(ct, cdh->cdh_name);
+        if (controller_transaction_device_add(ct, cdh->cdh_name) < 0)
+            goto done;
     cdh->cdh_tid = tid;
-    return 0;
+    retval = 0;
+ done:
+    return retval;
 }
 
 /*! Associate a device with a transaction without adding to the device list

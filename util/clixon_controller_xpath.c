@@ -261,7 +261,7 @@ main(int    argc,
         len = 1024; /* any number is fine */
         if ((buf = malloc(len)) == NULL){
             perror("pt_file malloc");
-            return -1;
+            goto done;
         }
         memset(buf, 0, len);
         i = 0;
@@ -278,7 +278,7 @@ main(int    argc,
             if (len==i){
                 if ((buf = realloc(buf, 2*len)) == NULL){
                     fprintf(stderr, "%s: realloc: %s\n", __func__, strerror(errno));
-                    return -1;
+                    goto done;
                 }
                 memset(buf+len, 0, len);
                 len *= 2;
@@ -361,7 +361,7 @@ main(int    argc,
     if (xpath0){
         if ((x = xpath_first(x0, NULL, "%s", xpath0)) == NULL){
             fprintf(stderr, "Error: xpath0 returned NULL\n");
-            return -1;
+            goto done;
         }
     }
     else
@@ -374,7 +374,7 @@ main(int    argc,
     }
 #endif
     if (xpath_vec_ctx(x, nsc, xpath, 0, &xc) < 0)
-        return -1;
+        goto done;
 
     /* Check inverse, eg XML back to xpath and compare with original, only if nodes */
     if (xpath_inverse && xc->xc_type == XT_NODESET){

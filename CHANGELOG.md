@@ -18,6 +18,7 @@ Expected: January 2027
 
 ### New features
 
+* Static analysis fixes via clang analyze and Coverity scan
 * Added transaction progress notifications
   * CLI: progress bar showing id, time, transaction and individual device state
   * Also possible using NETCONF/RESTCONF

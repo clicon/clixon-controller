@@ -312,7 +312,6 @@ device_input_cb(int   s,
                 device_close_connection(dh, "%s", cbuf_get(cberr));
             goto ok;
         }
-        xmsg = xml_child_i_type(xtop, 0, CX_ELMNT);
         if ((xmsg = xml_child_i_type(xtop, 0, CX_ELMNT)) != NULL) {
             /* Main state machine for controller transactions+devices */
             if (device_state_handler(h, dh, s, xmsg) < 0)
@@ -354,7 +353,6 @@ device_state_mount_point_get(char      *devicename,
     cbuf  *cb = NULL;
     cxobj *xt = NULL;
     cxobj *xroot;
-    int    ret;
 
     if ((cb = cbuf_new()) == NULL){
         clixon_err(OE_UNIX, errno, "cbuf_new");
@@ -366,7 +364,7 @@ device_state_mount_point_get(char      *devicename,
             devicename);
     cprintf(cb, "<config/>");
     cprintf(cb, "</device></devices>");
-    if ((ret = clixon_xml_parse_string(cbuf_get(cb), YB_MODULE, yspec, &xt, NULL)) < 0)
+    if (clixon_xml_parse_string(cbuf_get(cb), YB_MODULE, yspec, &xt, NULL) < 0)
         goto done;
     if (xml_name_set(xt, "config") < 0)
         goto done;
@@ -965,7 +963,6 @@ device_config_compare(clixon_handle           h,
     cxobj  *x0 = NULL;
     cxobj  *x1 = NULL;
     cbuf   *cberr = NULL;
-    int     eq;
     int     ret;
 
     if ((ret = device_config_read_cache(h, name, "SYNCED", &x0, &cberr)) < 0)
@@ -978,7 +975,7 @@ device_config_compare(clixon_handle           h,
         goto closed;
     }
     /* 0: Equal, 1: not equal */
-    if ((eq = xml_tree_equal(x0, x1)) != 0 && cberr0){
+    if (xml_tree_equal(x0, x1) != 0 && cberr0){
         if ((*cberr0 = cbuf_new()) == NULL){
             clixon_err(OE_UNIX, errno, "cbuf_new");
             goto done;
@@ -1347,14 +1344,13 @@ device_capabilities2settings(clixon_handle h,
                              device_handle dh)
 {
     int                  retval = -1;
-    cxobj               *xcaps;
     int                  client10;
     int                  client11;
     int                  config10;
     int                  config11;
     netconf_framing_type framing;
 
-    if ((xcaps = device_handle_capabilities_get(dh)) == NULL){
+    if (device_handle_capabilities_get(dh) == NULL){
         clixon_err(OE_XML, 0, "No capabilities");
         goto done;
     }
@@ -1519,7 +1515,6 @@ device_state_handler(clixon_handle h,
             }
             else { /* It may already exist? */
                 yang_stmt *ymounts;
-                yang_stmt *ydomain;
 
                 if (controller_mount_xpath_get(name, &cbxpath) < 0)
                     goto done;
@@ -1527,8 +1522,8 @@ device_state_handler(clixon_handle h,
                     clixon_err(OE_YANG, ENOENT, "Top-level yang mounts not found");
                     goto done;
                 }
-                if ((ydomain = yang_find(ymounts, Y_DOMAIN, domain)) == NULL){
-                    if ((ydomain = ydomain_new(h, domain)) == NULL)
+                if (yang_find(ymounts, Y_DOMAIN, domain) == NULL){
+                    if (ydomain_new(h, domain) == NULL)
                         goto done;
                 }
                 if (device_shared_yspec(h, dh, xyanglib, digest, &yspec1) < 0)
@@ -1568,7 +1563,7 @@ device_state_handler(clixon_handle h,
         }
         else
             clixon_debug(CLIXON_DBG_CTRL, "Device %s: Netconf monitoring capability announced", name);
-        if ((ret = device_send_get_schema_list(h, dh, s)) < 0)
+        if (device_send_get_schema_list(h, dh, s) < 0)
             goto done;
         if (device_state_set(dh, CS_SCHEMA_LIST) < 0)
             goto done;
@@ -1609,7 +1604,6 @@ device_state_handler(clixon_handle h,
         }
         else {
             yang_stmt *ymounts;
-            yang_stmt *ydomain;
 
             if (controller_mount_xpath_get(name, &cbxpath) < 0)
                 goto done;
@@ -1617,8 +1611,8 @@ device_state_handler(clixon_handle h,
                 clixon_err(OE_YANG, ENOENT, "Top-level yang mounts not found");
                 goto done;
             }
-            if ((ydomain = yang_find(ymounts, Y_DOMAIN, domain)) == NULL){
-                if ((ydomain = ydomain_new(h, domain)) == NULL)
+            if (yang_find(ymounts, Y_DOMAIN, domain) == NULL){
+                if (ydomain_new(h, domain) == NULL)
                     goto done;
             }
             if (device_shared_yspec(h, dh, xyanglib, digest, &yspec1) < 0)
@@ -1863,7 +1857,7 @@ device_state_handler(clixon_handle h,
         /* 2.2 The transaction is OK
            Proceed to next step */
         if ((cbmsg = device_handle_outmsg_get(dh, 2)) == NULL){
-            if ((ret = device_send_validate(h, dh)) < 0)
+            if (device_send_validate(h, dh) < 0)
                 goto done;
             if (device_state_set(dh, CS_PUSH_VALIDATE) < 0)
                 goto done;
@@ -1907,7 +1901,7 @@ device_state_handler(clixon_handle h,
             break;
         /* 2.2 The transaction is OK
            Proceed to next step */
-        if ((ret = device_send_validate(h, dh)) < 0)
+        if (device_send_validate(h, dh) < 0)
             goto done;
         if (device_state_set(dh, CS_PUSH_VALIDATE) < 0)
             goto done;

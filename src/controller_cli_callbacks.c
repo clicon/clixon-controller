@@ -545,7 +545,7 @@ transaction_notification_handler(clixon_handle       h,
             goto done;
         }
         if ((result = transaction_result_str2int(resstr)) != TR_SUCCESS){
-            if((clixon_logflags_get() | CLIXON_LOG_STDERR) == 0x0)
+            if((clixon_logflags_get() & CLIXON_LOG_STDERR) == 0x0)
                 cligen_output(stderr, "%s: pid: %u Transaction %s failed in %s: %s\n",
                               __func__, getpid(), tidstr, origin?origin:"unknown", reason?reason:"no reason");
             clixon_log(h, LOG_NOTICE, "%s: pid: %u Transaction %s failed in %s: %s",
@@ -559,7 +559,7 @@ transaction_notification_handler(clixon_handle       h,
             if (xdevdata && clixon_xml2file(stdout, xdevdata, 0, 1, NULL, cligen_output, 1, 0) < 0)
                 goto done;
         }
-        if (result)
+        if (resultp)
             *resultp = result;
     }
     retval = 0;
@@ -734,7 +734,7 @@ transaction_progress_read(clixon_handle h,
     if ((str = xml_find_body(xn, "state")) != NULL)
         cprintf(cbsum, " %s", str);
     if (nok){
-        cprintf(cbsum, "%s%d OK", first?": ":", ", nok);
+        cprintf(cbsum, ": %d OK", nok);
         first = 0;
     }
     if (nfailed){
@@ -941,7 +941,8 @@ transaction_notification_poll(clixon_handle       h,
                 if ((ret = transaction_progress_read(h, ps, tidstr, cbsum)) < 0)
                     goto done;
                 if (ret == 0){ /* Stop progress, continue waiting for result */
-                    close(ps);
+                    if (ps >= 0)
+                        close(ps);
                     ps = -1;
                 }
                 else if (elapsed > 0)
@@ -2027,7 +2028,7 @@ show_transaction_devsummary(cxobj *xc,
     }
     if (n_other){
         cprintf(cb, "%s%d ?", first?"":", ", n_other);
-        first = 0;
+        //        first = 0;
     }
  ok:
     retval = 0;
@@ -2469,7 +2470,7 @@ compare_device_config_type(clixon_handle      h,
     /* Special default format handling */
     if (format == FORMAT_DEFAULT){
         formatstr = clicon_option_str(h, "CLICON_CLI_OUTPUT_FORMAT");
-        if ((int)(format = format_str2int(formatstr)) < 0){
+        if ((int)format_str2int(formatstr) < 0){
             clixon_err(OE_PLUGIN, 0, "Not valid format: %s", formatstr);
             goto done;
         }
@@ -2598,7 +2599,7 @@ compare_dbs_rpc(clixon_handle h,
     /* Special default format handling */
     if (format == FORMAT_DEFAULT){
         formatstr = clicon_option_str(h, "CLICON_CLI_OUTPUT_FORMAT");
-        if ((int)(format = format_str2int(formatstr)) < 0){
+        if ((int)format_str2int(formatstr) < 0){
             clixon_err(OE_PLUGIN, 0, "Not valid format: %s", formatstr);
             goto done;
         }
@@ -2737,18 +2738,11 @@ cli_dbxml_devs_sub(clixon_handle       h,
     int        retval = -1;
     cxobj     *xtop = NULL;     /* xpath root */
     cxobj     *xbot = NULL;     /* xpath, NULL if datastore */
-    cxobj     *xerr = NULL;
-    yang_stmt *yspec0;
     cbuf      *cb = NULL;
     cg_var    *cv;
     char      *xpath = NULL;
     cvec      *nsc = NULL;
 
-    /* Top-level yspec */
-    if ((yspec0 = clicon_dbspec_yang(h)) == NULL){
-        clixon_err(OE_FATAL, 0, "No DB_SPEC");
-        goto done;
-    }
     /* Create config top-of-tree */
     if ((xtop = xml_new(NETCONF_INPUT_CONFIG, NULL, CX_ELMNT)) == NULL)
         goto done;
@@ -2793,8 +2787,6 @@ cli_dbxml_devs_sub(clixon_handle       h,
         cbuf_free(cb);
     if (xtop)
         xml_free(xtop);
-    if (xerr)
-        xml_free(xerr);
     return retval;
 }
 
@@ -2874,7 +2866,7 @@ cli_dbxml_devs(clixon_handle       h,
     /* See if 2nd arg is mountpoint and if devices cmd tree is selected */
     if (cvec_len(argv) > 1 &&
         (cv = cvec_i(argv, 1)) != NULL &&
-        (str = cv_string_get(cv)) != NULL){
+        cv_string_get(cv) != NULL){
         if (mtpoint_decode(cv_string_get(cv), ":", &mtdomain, &mtspec) < 0)
             goto done;
         devices = 1;
@@ -3620,7 +3612,8 @@ expand_device_rpc(void   *h,
         clixon_err(OE_UNIX, errno, "cbuf_new");
         goto done;
     }
-    if (rpc_get_yanglib_mount_match(h, devname, 1, 1, &xdevs) < 0)
+    if (devname != NULL &&
+        rpc_get_yanglib_mount_match(h, devname, 1, 1, &xdevs) < 0)
         goto done;
     if (xdevs != NULL){
         if ((cbxp = cbuf_new()) == NULL){

@@ -325,11 +325,9 @@ transaction_notify_async(int   fd,
         goto done;
     retval = 0;
  done:
-    if (na){
-        if (na->na_cb)
-            cbuf_free(na->na_cb);
-        free(na);
-    }
+    if (na->na_cb)
+        cbuf_free(na->na_cb);
+    free(na);
     return retval;
 }
 
@@ -521,6 +519,8 @@ transaction_new_id(clixon_handle h,
     return retval;
 }
 
+static int controller_transaction_free1(controller_transaction *ct);
+
 /*! Create a new controller-transaction, with a new id and local candidate
  *
  * Failure to create a transaction include:
@@ -670,7 +670,7 @@ controller_transaction_new(clixon_handle            h,
     retval = 1;
  done:
     if (ct)
-        free(ct);
+        controller_transaction_free1(ct);
     return retval;
  failed:
     retval = 0;

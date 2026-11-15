@@ -280,7 +280,7 @@ device_send_get_schema_next(clixon_handle h,
         /* May be some concurrency here if several devices requests same yang simultaneously
          * To avoid that one needs to keep track if another request has been sent.
          */
-        if ((ret = device_get_schema_sendit(h, dh, s, name, revision)) < 0)
+        if (device_get_schema_sendit(h, dh, s, name, revision) < 0)
             goto done;
         device_handle_schema_name_set(dh, name);
         device_handle_schema_rev_set(dh, revision);

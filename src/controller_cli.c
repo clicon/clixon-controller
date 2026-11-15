@@ -548,7 +548,6 @@ controller_yang2cli_wrap(cligen_handle ch,
 {
     int   retval = -1;
     char *keyword = NULL;
-    int   ret;
 
     clixon_debug(CLIXON_DBG_CLI, "%s", name);
     if (namep == NULL){
@@ -556,7 +555,7 @@ controller_yang2cli_wrap(cligen_handle ch,
         goto done;
     }
     if (strcmp(name, "mountpoint") == 0){
-        if ((ret = controller_yang2cli_mount(ch, name, cvt, arg, namep)) < 0)
+        if (controller_yang2cli_mount(ch, name, cvt, arg, namep) < 0)
             goto done;
         if (namep && *namep){
             retval = 1;

@@ -2536,7 +2536,7 @@ rpc_controller_commit(clixon_handle h,
     while ((cv = cvec_each(disabled_devs, cv)) != NULL){
         devname = cv_name_get(cv);
         changed_flag = 0;
-        if ((ret = device_config_diff(td, devname, &changed_flag)) < 0)
+        if (device_config_diff(td, devname, &changed_flag) < 0)
             goto done;
         if (changed_flag){
             if (pusht == PT_NONE){
@@ -3886,8 +3886,6 @@ rpc_device_config_template_apply(clixon_handle h,
         xml_free(xroot);
     if (devvec)
         cvec_free(devvec);
-    if (nsc)
-        cvec_free(nsc);
     return retval;
 }
 
@@ -4107,8 +4105,6 @@ rpc_device_rpc_template_apply(clixon_handle h,
         xml_free(xret);
     if (devvec)
         cvec_free(devvec);
-    if (nsc)
-        cvec_free(nsc);
     return retval;
 }
 
@@ -4257,8 +4253,6 @@ rpc_device_rpc(clixon_handle h,
         xml_free(xret);
     if (devvec)
         cvec_free(devvec);
-    if (nsc)
-        cvec_free(nsc);
     return retval;
 }
 
