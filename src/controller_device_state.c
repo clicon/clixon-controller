@@ -35,22 +35,25 @@
      |       |       /           <--+
      |       v      v
      |<-- CS_DEVICE_SYNC
-     |      /
-     |     /
- CS_OPEN <+
+     |       |         ^
+     |       v          \
+     |<-- CS_SYNC_RPC    | pull
+     |      /            |
+     |     v             |
+ CS_OPEN  -------+-------+
 
 Push state-machine:
 
  PUSH-WAIT -------
      ^            \
      |             v
- PUSH-VALIDATE   PUSH-COMMIT
-     ^      \               \
-     |       v               v
- PUSH-EDIT2  PUSH-DISCARD   PUSH-COMMIT-SYNC*
-     ^            |          /
-     |            v         /
- PUSH-EDIT   PUSH-UNLOCK <--
+ PUSH-VALIDATE   PUSH-COMMIT -
+     ^      \              |  \
+     |       v             |   v
+ PUSH-EDIT2  PUSH-DISCARD  |   PUSH-SYNC-RPC
+     ^            |        |  /
+     |            v        | /
+ PUSH-EDIT   PUSH-UNLOCK <--+
      ^            |
      |            |
  PUSH-LOCK        |
@@ -1741,6 +1744,38 @@ device_state_handler(clixon_handle h,
          * this device's pulled config.
          *
          * The device is OK */
+        /* If sync-rpc: send it and store the reply for later out-of-sync checks */
+        ret = 0;
+        if (device_handle_sync_rpc_get(dh) != NULL &&
+            (ret = device_send_sync_rpc(h, dh)) < 0)
+            goto done;
+        if (ret == 1){
+            if (device_state_set(dh, CS_SYNC_RPC) < 0)
+                goto done;
+            break;
+        }
+        if (device_state_check_ok(h, dh, ct) < 0)
+            goto done;
+        break;
+    case CS_SYNC_RPC:
+        if (device_state_check_sanity(dh, tid, ct, name, conn_state, rpcname) == 0)
+            break;
+        /* Retval: 3 Unused, 2 OK, 1 Closed, 0 Failed, -1 Error */
+        if ((ret = device_recv_sync_rpc(h, dh, xmsg, rpcname, conn_state, 1, &cberr)) < 0)
+            goto done;
+        if (ret == 0){      /* The device has failed: received rpc-error */
+            if (controller_transaction_failed(h, tid, ct, dh, TR_FAILED_DEV_LEAVE, name, cbuf_get(cberr)) < 0)
+                goto done;
+            if (device_state_set(dh, CS_OPEN) < 0)
+                goto done;
+            break;
+        }
+        else if (ret == 1){ /* The device has failed and is closed */
+            if (controller_transaction_failed(h, tid, ct, dh, TR_FAILED_DEV_LEAVE, name, device_handle_logmsg_get(dh)) < 0)
+                goto done;
+            break;
+        }
+        /* The device is OK */
         if (device_state_check_ok(h, dh, ct) < 0)
             goto done;
         break;
@@ -1767,7 +1802,21 @@ device_state_handler(clixon_handle h,
             goto done;
         if (ret == 0)
             break;
-        if (device_send_get(h, dh, s, 0, NULL) < 0)
+        if (device_handle_sync_rpc_get(dh) != NULL){
+            /* Check if device is unchanged using sync-rpc instead of full config */
+            if ((ret = device_send_sync_rpc(h, dh)) < 0)
+                goto done;
+            if (ret == 0){
+                if (controller_transaction_failed(h, tid, ct, dh, TR_FAILED_DEV_IGNORE, name, "sync-rpc template not found") < 0)
+                    goto done;
+                if (device_send_lock(h, dh, 0) < 0)
+                    goto done;
+                if (device_state_set(dh, CS_PUSH_UNLOCK) < 0)
+                    goto done;
+                break;
+            }
+        }
+        else if (device_send_get(h, dh, s, 0, NULL) < 0)
             goto done;
         device_handle_tid_set(dh, ct->ct_id);
         if (device_state_set(dh, CS_PUSH_CHECK) < 0)
@@ -1777,12 +1826,24 @@ device_state_handler(clixon_handle h,
     case CS_PUSH_CHECK:
         if (device_state_check_sanity(dh, tid, ct, name, conn_state, rpcname) == 0)
             break;
-        /* Receive config data, force transient, ie do not commit */
-        if ((ret = device_recv_config(h, dh, xmsg, yspec0, rpcname, conn_state, 1, 0)) < 0)
-            goto done;
-        /* Compare transient with last sync 0: closed, 1: unequal, 2: is equal */
-        if (ret && (ret = device_config_compare(h, dh, name, ct, &cberr)) < 0)
-            goto done;
+        if (device_handle_sync_rpc_get(dh) != NULL){
+            /* Compare sync-rpc reply with last stored. 0: closed, 1: unequal, 2: is equal
+             * rpc-error is treated as unequal since the device cannot be verified */
+            if ((ret = device_recv_sync_rpc(h, dh, xmsg, rpcname, conn_state, 0, &cberr)) < 0)
+                goto done;
+            if (ret == 1)
+                ret = 0;
+            else if (ret != 2)
+                ret = 1;
+        }
+        else {
+            /* Receive config data, force transient, ie do not commit */
+            if ((ret = device_recv_config(h, dh, xmsg, yspec0, rpcname, conn_state, 1, 0)) < 0)
+                goto done;
+            /* Compare transient with last sync 0: closed, 1: unequal, 2: is equal */
+            if (ret && (ret = device_config_compare(h, dh, name, ct, &cberr)) < 0)
+                goto done;
+        }
         if (ret == 0){ /* closed */
             if (controller_transaction_failed(h, tid, ct, dh, TR_FAILED_DEV_LEAVE, name, device_handle_logmsg_get(dh)) < 0)
                 goto done;
@@ -2061,10 +2122,21 @@ device_state_handler(clixon_handle h,
         if (device_state_set(dh, CS_PUSH_COMMIT_SYNC) < 0)
             goto done;
 #else
-        if (device_send_lock(h, dh, 0) < 0)
+        /* If sync-rpc: store its reply after commit, then unlock in CS_PUSH_SYNC_RPC */
+        ret = 0;
+        if (device_handle_sync_rpc_get(dh) != NULL &&
+            (ret = device_send_sync_rpc(h, dh)) < 0)
             goto done;
-        if (device_state_set(dh, CS_PUSH_UNLOCK) < 0)
-            goto done;
+        if (ret == 1){
+            if (device_state_set(dh, CS_PUSH_SYNC_RPC) < 0)
+                goto done;
+        }
+        else {
+            if (device_send_lock(h, dh, 0) < 0)
+                goto done;
+            if (device_state_set(dh, CS_PUSH_UNLOCK) < 0)
+                goto done;
+        }
         if (conn_state == CS_PUSH_COMMIT){
             cxobj *xt = NULL;
             cbuf  *cb = NULL;
@@ -2132,6 +2204,23 @@ device_state_handler(clixon_handle h,
         if (ct->ct_state == TS_RESOLVED && ct->ct_result == TR_SUCCESS){
             clixon_err(OE_XML, 0, "Transaction unexpected SUCCESS state");
             goto done;
+        }
+        if (device_send_lock(h, dh, 0) < 0)
+            goto done;
+        if (device_state_set(dh, CS_PUSH_UNLOCK) < 0)
+            goto done;
+        break;
+    case CS_PUSH_SYNC_RPC:
+        if (device_state_check_sanity(dh, tid, ct, name, conn_state, rpcname) == 0)
+            break;
+        /* Store reply. An rpc-error is not fatal here: the lock is released regardless and
+         * the next push will detect that no valid reply is stored. */
+        if ((ret = device_recv_sync_rpc(h, dh, xmsg, rpcname, conn_state, 1, &cberr)) < 0)
+            goto done;
+        if (ret == 1){ /* closed */
+            if (controller_transaction_failed(h, tid, ct, dh, TR_FAILED_DEV_LEAVE, name, device_handle_logmsg_get(dh)) < 0)
+                goto done;
+            break;
         }
         if (device_send_lock(h, dh, 0) < 0)
             goto done;

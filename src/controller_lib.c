@@ -120,6 +120,7 @@ static const map_str2int csmap[] = {
     {"SCHEMA-LIST",      CS_SCHEMA_LIST},
     {"SCHEMA-ONE",       CS_SCHEMA_ONE}, /* substate is schema-nr */
     {"DEVICE-SYNC",      CS_DEVICE_SYNC},
+    {"SYNC-RPC",         CS_SYNC_RPC},
     /* Push state machine */
     {"PUSH-LOCK",        CS_PUSH_LOCK},
     {"PUSH-CHECK",       CS_PUSH_CHECK},
@@ -130,6 +131,7 @@ static const map_str2int csmap[] = {
     {"PUSH-COMMIT",      CS_PUSH_COMMIT},
     {"PUSH-COMMIT-SYNC", CS_PUSH_COMMIT_SYNC},
     {"PUSH-DISCARD",     CS_PUSH_DISCARD},
+    {"PUSH-SYNC-RPC",    CS_PUSH_SYNC_RPC},
     {"PUSH-UNLOCK",      CS_PUSH_UNLOCK},
     /* Generic RPC state machine */
     {"RPC-GENERIC",      CS_RPC_GENERIC},
