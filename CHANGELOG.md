@@ -18,12 +18,14 @@ Expected: January 2027
 
 ### New features
 
+* Added sync-rpc as an alternative to retrieving the full device configuration at sync check
 * Static analysis fixes via clang analyze and Coverity scan
 * Added transaction progress notifications
   * CLI: progress bar showing id, time, transaction and individual device state
   * Also possible using NETCONF/RESTCONF
   * See: https://clixon-controller-docs.readthedocs.io/en/latest/transactions.html#progress
 * New `clixon-controller@2026-10-01.yang` revision
+  * Added sync-rpc
   * Added controller-transaction-progress notification
 
 ### API changes on existing protocol/config features

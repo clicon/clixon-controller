@@ -852,6 +852,156 @@ device_recv_ok(clixon_handle h,
     goto done;
 }
 
+/*! Get file name of stored sync-rpc reply
+ *
+ * @param[in]  h     Clixon handle
+ * @param[in]  name  Device name
+ * @param[out] cb    Path, initialized cbuf
+ * @retval     0     OK
+ * @retval    -1     Error
+ */
+static int
+sync_rpc_file(clixon_handle h,
+              char         *name,
+              cbuf         *cb)
+{
+    char *dir;
+
+    if (strchr(name, '/') != NULL){
+        clixon_err(OE_XML, EINVAL, "Invalid device name: '/' not allowed");
+        return -1;
+    }
+    if ((dir = clicon_xmldb_dir(h)) == NULL){
+        clixon_err(OE_FATAL, 0, "CLICON_XMLDB_DIR not set");
+        return -1;
+    }
+    cprintf(cb, "%s/device-%s-SYNCRPC.xml", dir, name);
+    return 0;
+}
+
+/*! Receive reply of sync-rpc, either store it or compare it with the stored reply
+ *
+ * The content (children of rpc-reply) is serialized and stored as plain text in
+ * device-<name>-SYNCRPC.xml in the xmldb dir.
+ * @param[in]  h          Clixon handle.
+ * @param[in]  dh         Clixon client handle.
+ * @param[in]  xmsg       XML tree of incoming message
+ * @param[in]  rpcname    Name of RPC, only "rpc-reply" expected here
+ * @param[in]  conn_state Device connection state
+ * @param[in]  store      1: Store reply, 0: Compare with stored reply
+ * @param[out] cberr      Error, free with cbuf_free (retval = 0 or 3)
+ * @retval     3          Not equal or no stored reply (only if store=0), cberr set
+ * @retval     2          OK (stored, or equal)
+ * @retval     1          Closed
+ * @retval     0          Failed: received rpc-error
+ * @retval    -1          Error
+ * @see device_send_sync_rpc
+ * @note  Alternatively, one could store a digest in memory.
+ */
+int
+device_recv_sync_rpc(clixon_handle h,
+                     device_handle dh,
+                     cxobj        *xmsg,
+                     char         *rpcname,
+                     conn_state    conn_state,
+                     int           store,
+                     cbuf        **cberr)
+{
+    int    retval = -1;
+    char  *name = device_handle_name_get(dh);
+    cbuf  *cbnew = NULL;
+    cbuf  *cbold = NULL;
+    cbuf  *cbf = NULL;
+    cxobj *xc;
+    FILE  *f = NULL;
+    char   buf[1024];
+    size_t n;
+    int    ix;
+    int    ret;
+
+    if ((ret = rpc_reply_sanity(dh, xmsg, rpcname, conn_state)) < 0)
+        goto done;
+    if (ret == 0)
+        goto closed;
+    if ((ret = device_recv_check_errors(h, dh, xmsg, conn_state, cberr)) < 0)
+        goto done;
+    if (ret == 0)
+        goto failed;
+    if ((cbnew = cbuf_new()) == NULL ||
+        (cbf = cbuf_new()) == NULL){
+        clixon_err(OE_UNIX, errno, "cbuf_new");
+        goto done;
+    }
+    ix = 0;
+    while ((xc = xml_child_iter(xmsg, &ix, CX_ELMNT)) != NULL){
+        if (clixon_xml2cbuf(cbnew, xc, 0, 0, NULL, -1, 0) < 0)
+            goto done;
+    }
+    if (sync_rpc_file(h, name, cbf) < 0)
+        goto done;
+    if (store){
+        if ((f = fopen(cbuf_get(cbf), "w")) == NULL){
+            clixon_err(OE_UNIX, errno, "fopen %s", cbuf_get(cbf));
+            goto done;
+        }
+        if (fputs(cbuf_get(cbnew), f) == EOF){
+            clixon_err(OE_UNIX, errno, "fputs %s", cbuf_get(cbf));
+            goto done;
+        }
+        goto ok;
+    }
+    if ((*cberr = cbuf_new()) == NULL){
+        clixon_err(OE_UNIX, errno, "cbuf_new");
+        goto done;
+    }
+    if ((f = fopen(cbuf_get(cbf), "r")) == NULL){
+        if (errno != ENOENT){
+            clixon_err(OE_UNIX, errno, "fopen %s", cbuf_get(cbf));
+            goto done;
+        }
+        cprintf(*cberr, "Device %s has no stored sync-rpc reply, sync the device first", name);
+        goto notequal;
+    }
+    if ((cbold = cbuf_new()) == NULL){
+        clixon_err(OE_UNIX, errno, "cbuf_new");
+        goto done;
+    }
+    while ((n = fread(buf, 1, sizeof(buf) - 1, f)) > 0){
+        buf[n] = '\0';
+        cprintf(cbold, "%s", buf);
+    }
+    if (ferror(f)){
+        clixon_err(OE_UNIX, errno, "fread %s", cbuf_get(cbf));
+        goto done;
+    }
+    if (strcmp(cbuf_get(cbold), cbuf_get(cbnew)) != 0){
+        cprintf(*cberr, "Device %s has changed: sync-rpc reply differs from last sync. See: device-%s-SYNCRPC.xml",
+                name, name);
+        goto notequal;
+    }
+ ok:
+    retval = 2;
+ done:
+    if (f)
+        fclose(f);
+    if (cbnew)
+        cbuf_free(cbnew);
+    if (cbold)
+        cbuf_free(cbold);
+    if (cbf)
+        cbuf_free(cbf);
+    return retval;
+ failed:
+    retval = 0;
+    goto done;
+ closed:
+    retval = 1;
+    goto done;
+ notequal:
+    retval = 3;
+    goto done;
+}
+
 /*! Controller input rpc reply of generic(any) rpc
  *
  * @param[in]  h          Clixon handle.

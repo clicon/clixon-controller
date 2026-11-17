@@ -649,3 +649,55 @@ device_send_generic_rpc(clixon_handle h,
         cbuf_free(cb);
     return retval;
 }
+
+/*! Send the sync-rpc rpc-template of a device
+ *
+ * The template is sent as is, without variable substitution.
+ * @param[in]  h   Clixon handle
+ * @param[in]  dh  Device handle
+ * @retval     1   OK
+ * @retval     0   The device has no sync-rpc, or the template is not found
+ * @retval    -1   Error
+ * @see device_recv_sync_rpc
+ */
+int
+device_send_sync_rpc(clixon_handle h,
+                     device_handle dh)
+{
+    int    retval = -1;
+    char  *tmplname;
+    cxobj *xret = NULL;
+    cxobj *xconfig = NULL;
+    cbuf  *cbxp = NULL;
+
+    if ((tmplname = device_handle_sync_rpc_get(dh)) == NULL)
+        goto failed;
+    if (xmldb_get0(h, "running", YB_MODULE, NULL, "devices", 1, WITHDEFAULTS_EXPLICIT, &xret, NULL, NULL) < 0)
+        goto done;
+    if ((cbxp = cbuf_new()) == NULL){
+        clixon_err(OE_UNIX, errno, "cbuf_new");
+        goto done;
+    }
+    cprintf(cbxp, "devices/rpc-template[name=");
+    if (xpath_literal_encode(cbxp, tmplname, 1) < 0)
+        goto done;
+    cprintf(cbxp, "]/config");
+    if (xret != NULL)
+        xconfig = xpath_first(xret, NULL, "%s", cbuf_get(cbxp));
+    if (xconfig == NULL){
+        clixon_debug(CLIXON_DBG_CTRL, "sync-rpc template %s not found", tmplname);
+        goto failed;
+    }
+    if (device_send_generic_rpc(h, dh, xconfig) < 0)
+        goto done;
+    retval = 1;
+ done:
+    if (cbxp)
+        cbuf_free(cbxp);
+    if (xret)
+        xml_free(xret);
+    return retval;
+ failed:
+    retval = 0;
+    goto done;
+}

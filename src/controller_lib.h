@@ -119,6 +119,7 @@ enum conn_state_t {
     CS_SCHEMA_LIST,   /* Get ietf-netconf-monitor schema state */
     CS_SCHEMA_ONE,    /* Connection established and Hello sent to device (nr substate) */
     CS_DEVICE_SYNC,   /* Get all config (transient+merge are sub-state parameters) */
+    CS_SYNC_RPC,      /* Sent sync-rpc after sync, waiting for reply to store */
 
     /* Push state machine */
     CS_PUSH_LOCK,     /* Lock device candidate */
@@ -131,6 +132,7 @@ enum conn_state_t {
     CS_PUSH_COMMIT_SYNC, /* After remote commit, received remote config, commit it in
                      controller (only used if CONTROLLER_EXTRA_PUSH_SYNC */
     CS_PUSH_DISCARD,  /* discard sent, waiting for reply ok */
+    CS_PUSH_SYNC_RPC, /* After remote commit, sent sync-rpc, waiting for reply to store */
     CS_PUSH_UNLOCK,   /* Unlock device candidate */
 
     /* Generic RPC state machine */

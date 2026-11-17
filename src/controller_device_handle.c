@@ -106,6 +106,7 @@ struct controller_device_handle{
     char              *cdh_schema_rev;  /* Pending schema revision */
     char              *cdh_logmsg;      /* Error log message / reason of failed open */
     char              *cdh_domain;      /* YANG domain (for isolation) */
+    char              *cdh_sync_rpc;    /* Name of rpc-template used for sync check, or NULL */
     cbuf              *cdh_outmsg1;     /* Pending outgoing netconf message #1 for delayed output */
     cbuf              *cdh_outmsg2;     /* Pending outgoing netconf message #2 for delayed output */
 };
@@ -149,6 +150,8 @@ device_handle_free1(struct controller_device_handle *cdh)
         free(cdh->cdh_schema_rev);
     if (cdh->cdh_domain)
         free(cdh->cdh_domain);
+    if (cdh->cdh_sync_rpc)
+        free(cdh->cdh_sync_rpc);
     if (cdh->cdh_outmsg1)
         cbuf_free(cdh->cdh_outmsg1);
     if (cdh->cdh_outmsg2)
@@ -1284,6 +1287,44 @@ device_handle_domain_set(device_handle dh,
     return 0;
 }
 
+/*! Get name of sync-rpc rpc-template
+ *
+ * @param[in]  dh     Device handle
+ * @retval     name   Name of rpc-template
+ * @retval     NULL   No sync-rpc: use full config get/compare
+ */
+char*
+device_handle_sync_rpc_get(device_handle dh)
+{
+    struct controller_device_handle *cdh = devhandle(dh);
+
+    return cdh->cdh_sync_rpc;
+}
+
+/*! Set name of sync-rpc rpc-template
+ *
+ * @param[in]  dh        Device handle
+ * @param[in]  sync_rpc  Name of rpc-template, or NULL to reset
+ * @retval     0         OK
+ * @retval    -1         Error
+ */
+int
+device_handle_sync_rpc_set(device_handle dh,
+                           char         *sync_rpc)
+{
+    struct controller_device_handle *cdh = devhandle(dh);
+
+    if (cdh->cdh_sync_rpc){
+        free(cdh->cdh_sync_rpc);
+        cdh->cdh_sync_rpc = NULL;
+    }
+    if (sync_rpc && (cdh->cdh_sync_rpc = strdup(sync_rpc)) == NULL){
+        clixon_err(OE_UNIX, errno, "strdup");
+        return -1;
+    }
+    return 0;
+}
+
 /*! Get pending netconf outmsg
  *
  * @param[in]  dh     Device handle
@@ -1382,6 +1423,8 @@ device_handle_stats(clixon_handle  h,
                 sz += strlen(cdh->cdh_logmsg)+1;
             if (cdh->cdh_domain)
                 sz += strlen(cdh->cdh_domain)+1;
+            if (cdh->cdh_sync_rpc)
+                sz += strlen(cdh->cdh_sync_rpc)+1;
             if (cdh->cdh_outmsg1)
                 sz += cbuf_buflen(cdh->cdh_outmsg1);
             if (cdh->cdh_outmsg2)

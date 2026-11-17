@@ -40,6 +40,7 @@ module clixon-controller {
     revision 2026-10-01 {
         description
             "Added controller-transaction-progress notification with per-device result
+             Added sync-rpc
              Released in 2.0.0";
     }
     revision 2026-06-01 {
@@ -235,6 +236,11 @@ module clixon-controller {
                      is sent.
                     Transient state that timeout to CLOSED.";
             }
+            enum SYNC-RPC {
+                description
+                    "Sync-rpc sent after device sync, waiting for reply to store.
+                    Transient state that timeout to CLOSED.";
+            }
             /* From here down PUSH process. All these timeout to OPEN,
              * unless a un-recoverable error which timeouts to CLOSED
              */
@@ -255,6 +261,9 @@ module clixon-controller {
             }
             enum PUSH-DISCARD{
                 description  "Discard sent, waiting for reply";
+            }
+            enum PUSH-SYNC-RPC{
+                description  "Sync-rpc sent after commit, waiting for reply to store";
             }
         }
     }
@@ -479,6 +488,23 @@ module clixon-controller {
                  This does not effect using get-schema RPC to get schemas from the device";
             type boolean;
             default true;
+        }
+        leaf sync-rpc {
+            description
+                "If given, use this RPC to check whether a commit on a device has changed.
+                 The value should be an existing rpc-template that is defined for this device.
+                 If the reply of this RPC is equal to the value it had last time (the controller
+                 communicated with it) the device is assumed to be in-sync, ie no local config changes
+                 have been made.
+                 If the reply of this RPC has changed since last time it is assumed that the
+                 configuration on the device is out-of-sync and fail transactions such as commit.
+                 If not given, the controller wll retrieve the full device configuration to compare with
+                 a stored synced config.
+                 ";
+            type leafref {
+                require-instance true;
+                path "/devices/rpc-template/name";
+            }
         }
     }
     grouping device-template {

@@ -118,6 +118,8 @@ char  *device_handle_logmsg_get(device_handle dh);
 int    device_handle_logmsg_set(device_handle dh, char *logmsg);
 char  *device_handle_domain_get(device_handle dh);
 int    device_handle_domain_set(device_handle dh, char *domain);
+char  *device_handle_sync_rpc_get(device_handle dh);
+int    device_handle_sync_rpc_set(device_handle dh, char *sync_rpc);
 cbuf  *device_handle_outmsg_get(device_handle dh, int nr);
 int    device_handle_outmsg_set(device_handle dh, int nr, cbuf *cb);
 int    device_handle_stats(clixon_handle  h, uint64_t *nrp, size_t *szp);

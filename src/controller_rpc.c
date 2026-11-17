@@ -314,6 +314,14 @@ controller_connect(clixon_handle           h,
         else if (strcmp(str, "1.1") == 0)
             device_handle_flag_set(dh, DH_FLAG_NETCONF_BASE11);
     }
+    if ((xb = xml_find_type(xn, NULL, "sync-rpc", CX_ELMNT)) == NULL ||
+        xml_flag(xb, XML_FLAG_DEFAULT)){
+        if (xdevprofile)
+            xb = xml_find_type(xdevprofile, NULL, "sync-rpc", CX_ELMNT);
+    }
+    str = (xb != NULL) ? xml_body(xb) : NULL;
+    if (device_handle_sync_rpc_set(dh, str) < 0)
+        goto done;
     if ((xb = xml_find_type(xn, NULL, "yang-announce-latest", CX_ELMNT)) == NULL ||
         xml_flag(xb, XML_FLAG_DEFAULT)){
         if (xdevprofile)

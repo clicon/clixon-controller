@@ -810,6 +810,8 @@ clixon_plugin_init(clixon_handle h)
         goto done;
     if (xmldb_delete_pattern(h, "^device-.*-SYNCED" ) < 0)
         goto done;
+    if (xmldb_delete_pattern(h, "^device-.*-SYNCRPC" ) < 0)
+        goto done;
     return &api;
  done:
     return NULL;
