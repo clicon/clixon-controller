@@ -391,6 +391,20 @@ module clixon-controller {
             }
         }
     }
+    grouping service-xpaths {
+        description
+            "XPaths to the part of the device configuration which is touched by this service
+             The service code can use this as a hint when retreiving config.";
+        container service-xpaths {
+            leaf-list xpath {
+                type yang:xpath1.0;
+            }
+            uses cl:namespace-context{
+                description
+                    "If given, use these prefix/namespace bindings for the xpaths.";
+            }
+        }
+    }
     grouping device-common {
         description
             "Common fields for devices and device-profiles";
