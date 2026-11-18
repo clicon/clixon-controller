@@ -1672,6 +1672,10 @@ controller_commit_actions(clixon_handle           h,
     cvec     *cvv = NULL;       /* Format: <service> <instance> */
     int       services = 0;
     db_elmnt *de;
+    cbuf     *cbd = NULL;
+    cg_var   *cv = NULL;
+    char     *desc;
+    int       first = 1;
 
     if ((cvv = cvec_new(0)) == NULL){
         clixon_err(OE_UNIX, errno, "cvec_new");
@@ -1690,6 +1694,26 @@ controller_commit_actions(clixon_handle           h,
         cvec_reset(cvv);
         if (service_instance)
             cvec_add_string(cvv, service_instance, NULL);
+    }
+    /* Add triggered services to transaction description */
+    if (services && cvec_len(cvv) > 0){
+        if ((cbd = cbuf_new()) == NULL){
+            clixon_err(OE_UNIX, errno, "cbuf_new");
+            goto done;
+        }
+        cprintf(cbd, "%s (services: ", ct->ct_description ? ct->ct_description : "commit");
+        while ((cv = cvec_each(cvv, cv)) != NULL){
+            cprintf(cbd, "%s%s", first ? "" : ", ", cv_name_get(cv));
+            first = 0;
+        }
+        cprintf(cbd, ")");
+        if ((desc = strdup(cbuf_get(cbd))) == NULL){
+            clixon_err(OE_UNIX, errno, "strdup");
+            goto done;
+        }
+        if (ct->ct_description)
+            free(ct->ct_description);
+        ct->ct_description = desc;
     }
     /* Save service list so commit_push_after_actions() can re-check, after action scripts have
      * run, that the devices these services reference are still open (see
@@ -1740,6 +1764,8 @@ controller_commit_actions(clixon_handle           h,
  done:
     if (cvv && cvv != ct->ct_cvv)
         cvec_free(cvv);
+    if (cbd)
+        cbuf_free(cbd);
     return retval;
 }
 
@@ -2445,10 +2471,6 @@ rpc_controller_commit(clixon_handle h,
         cprintf(cbtr, "apply delete");
     else
         cprintf(cbtr, "controller commit");
-    /* Include which service-instance triggered this (forced reapply / delete), so the
-     * transaction log can be correlated with the CLI command that initiated it. */
-    if (service_instance != NULL)
-        cprintf(cbtr, " %s", service_instance);
     /* Initiate new transaction.
      * NB: this locks candidate, which always needs to be unlocked, eg by controller_transaction_done
      */
