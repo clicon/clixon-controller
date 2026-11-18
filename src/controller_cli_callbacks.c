@@ -1889,32 +1889,26 @@ cli_show_connections(clixon_handle h,
     return retval;
 }
 
-/*! Show controller device states
+/*! Send a clixon-lib process-control RPC to the backend
  *
- * @param[in] h
- * @param[in] cvv  : name pattern
- * @param[in] argv : "detail"?
- * @retval    0    OK
- * @retval   -1    Error
- * @see cli_process_control
+ * @param[in]  h      Clixon handle
+ * @param[in]  name   Process name
+ * @param[in]  opstr  Operation: start, stop, restart or status
+ * @param[out] xretp  RPC reply, free with xml_free
+ * @retval     0      OK
+ * @retval    -1      Error
  */
-int
-cli_show_services_process(clixon_handle h,
-                          cvec         *cvv,
-                          cvec         *argv)
+static int
+process_control_rpc(clixon_handle h,
+                    char         *name,
+                    char         *opstr,
+                    cxobj       **xretp)
 {
-    int            retval = -1;
-    char          *name;
-    char          *opstr;
-    cbuf          *cb = NULL;
-    cxobj         *xret = NULL;
-    cxobj         *xerr;
-    cxobj         *x;
-    char          *active = "false";
-    char          *status = "unknown";
+    int    retval = -1;
+    cbuf  *cb = NULL;
+    cxobj *xret = NULL;
+    cxobj *xerr;
 
-    name = SERVICES_PROCESS;
-    opstr = "status";
     if (clixon_process_op_str2int(opstr) == -1){
         clixon_err(OE_UNIX, 0, "No such process op: %s", opstr);
         goto done;
@@ -1928,16 +1922,114 @@ cli_show_services_process(clixon_handle h,
             clicon_username_get(h),
             NETCONF_MESSAGE_ID_ATTR);
     cprintf(cb, "<process-control xmlns=\"%s\">", CLIXON_LIB_NS);
-    cprintf(cb, "<name>%s</name>", name);
+    cprintf(cb, "<name>");
+    xml_chardata_cbuf_append(cb, 0, name);
+    cprintf(cb, "</name>");
     cprintf(cb, "<operation>%s</operation>", opstr);
     cprintf(cb, "</process-control>");
     cprintf(cb, "</rpc>");
     if (clicon_rpc_netconf(h, cbuf_get(cb), &xret, NULL) < 0)
         goto done;
     if ((xerr = xpath_first(xret, NULL, "//rpc-error")) != NULL){
-        clixon_err_netconf(h, OE_XML, 0, xerr, "Get configuration");
+        clixon_err_netconf(h, OE_NETCONF, 0, xerr, "Process control");
         goto done;
     }
+    *xretp = xret;
+    xret = NULL;
+    retval = 0;
+ done:
+    if (xret)
+        xml_free(xret);
+    if (cb)
+        cbuf_free(cb);
+    return retval;
+}
+
+/*! Process control with human-readable output
+ *
+ * Same as clixon's cli_process_control but pretty-prints the reply instead of
+ * dumping raw XML.
+ * @param[in] h      Clixon handle
+ * @param[in] cvv    Not used
+ * @param[in] argv   Two strings: <process name> <process operation>
+ * @retval    0      OK
+ * @retval   -1      Error
+ * @code
+ *   status, cli_process_control_pretty("Services process", "status");
+ * @endcode
+ */
+int
+cli_process_control_pretty(clixon_handle h,
+                           cvec         *cvv,
+                           cvec         *argv)
+{
+    int    retval = -1;
+    char  *name;
+    char  *opstr;
+    cxobj *xret = NULL;
+    cxobj *xr;
+    char  *v;
+
+    if (cvec_len(argv) != 2){
+        clixon_err(OE_PLUGIN, EINVAL, "Requires two elements: process name and operation");
+        goto done;
+    }
+    name = cv_string_get(cvec_i(argv, 0));
+    opstr = cv_string_get(cvec_i(argv, 1));
+    if (process_control_rpc(h, name, opstr, &xret) < 0)
+        goto done;
+    if ((xr = xpath_first(xret, NULL, "rpc-reply")) == NULL){
+        clixon_err(OE_XML, 0, "No rpc-reply in process-control reply");
+        goto done;
+    }
+    if (strcmp(opstr, "status") != 0){
+        cligen_output(stdout, "%s: %s %s\n", name, opstr,
+                      xml_find_type(xr, NULL, "ok", CX_ELMNT) ? "OK" : "done");
+        goto ok;
+    }
+    cligen_output(stdout, "%-14s%s\n", "Name:", name);
+    if ((v = xml_find_body(xr, "description")) != NULL)
+        cligen_output(stdout, "%-14s%s\n", "Description:", v);
+    v = xml_find_body(xr, "status");
+    cligen_output(stdout, "%-14s%s\n", "Status:", v?v:"unknown");
+    v = xml_find_body(xr, "active");
+    cligen_output(stdout, "%-14s%s\n", "Active:", v?v:"false");
+    if ((v = xml_find_body(xr, "pid")) != NULL && strcmp(v, "0") != 0)
+        cligen_output(stdout, "%-14s%s\n", "PID:", v);
+    if ((v = xml_find_body(xr, "starttime")) != NULL)
+        cligen_output(stdout, "%-14s%s\n", "Started:", v);
+    if ((v = xml_find_body(xr, "command")) != NULL)
+        cligen_output(stdout, "%-14s%s\n", "Command:", v);
+ ok:
+    retval = 0;
+ done:
+    if (xret)
+        xml_free(xret);
+    return retval;
+}
+
+/*! Show services process status in one line
+ *
+ * @param[in] h
+ * @param[in] cvv  Not used
+ * @param[in] argv Not used
+ * @retval    0    OK
+ * @retval   -1    Error
+ * @see cli_process_control_pretty
+ */
+int
+cli_show_services_process(clixon_handle h,
+                          cvec         *cvv,
+                          cvec         *argv)
+{
+    int    retval = -1;
+    cxobj *xret = NULL;
+    cxobj *x;
+    char  *active = "false";
+    char  *status = "unknown";
+
+    if (process_control_rpc(h, SERVICES_PROCESS, "status", &xret) < 0)
+        goto done;
     if ((x = xpath_first(xret, 0, "rpc-reply/active")) != NULL){
         active = xml_body(x);
     }
@@ -1949,8 +2041,6 @@ cli_show_services_process(clixon_handle h,
  done:
     if (xret)
         xml_free(xret);
-    if (cb)
-        cbuf_free(cb);
     return retval;
 }
 
