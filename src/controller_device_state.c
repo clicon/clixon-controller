@@ -2016,6 +2016,9 @@ device_state_handler(clixon_handle h,
             struct timeval t0;
             struct timeval t1;
             struct timeval tdiff;
+            struct timeval tc0;
+            struct timeval tc1;
+            struct timeval tcd;
             /* Check if action, skip if dryrun */
             if (ct->ct_actions_type != AT_NONE && strcmp(ct->ct_sourcedb, "candidate")==0){
                 if ((cberr = cbuf_new()) == NULL){
@@ -2033,6 +2036,10 @@ device_state_handler(clixon_handle h,
                 gettimeofday(&t0, NULL);
                 if (xmldb_copy(h, "actions", candidate) < 0)
                     goto done;
+                gettimeofday(&tc1, NULL);
+                timersub(&tc1, &t0, &tcd);
+                clixon_debug(CLIXON_DBG_CTRL | CLIXON_DBG_TIMING, "%s: local commit: copy actions->candidate: %ld.%03lds",
+                             name, tcd.tv_sec, tcd.tv_usec/1000);
                 /* Third validate,
                  * first in rpc_controller_commit,
                  * second in rpc_transactions_actions_done
@@ -2052,6 +2059,7 @@ device_state_handler(clixon_handle h,
                         break;
                     }
                 }
+                gettimeofday(&tc0, NULL);
                 if ((ret = candidate_commit(h, NULL, candidate, 0, 0, cberr)) < 0){
                     /* Handle that candidate_commit can return < 0 if transaction ongoing */
                     cprintf(cberr, "Controller commit error");
@@ -2061,9 +2069,17 @@ device_state_handler(clixon_handle h,
                         goto done;
                     break;
                 }
+                gettimeofday(&tc1, NULL);
+                timersub(&tc1, &tc0, &tcd);
+                clixon_debug(CLIXON_DBG_CTRL | CLIXON_DBG_TIMING, "%s: local commit: candidate_commit: %ld.%03lds",
+                             name, tcd.tv_sec, tcd.tv_usec/1000);
                 if (ret == 1){
                     if (xmldb_post_commit(h, ct->ct_client_id) < 0)
                         goto done;
+                    gettimeofday(&tc0, NULL);
+                    timersub(&tc0, &tc1, &tcd);
+                    clixon_debug(CLIXON_DBG_CTRL | CLIXON_DBG_TIMING, "%s: local commit: post_commit: %ld.%03lds",
+                                 name, tcd.tv_sec, tcd.tv_usec/1000);
                 }
                 gettimeofday(&t1, NULL);
                 timersub(&t1, &t0, &tdiff);

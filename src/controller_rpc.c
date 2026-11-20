@@ -2415,6 +2415,9 @@ rpc_controller_commit(clixon_handle h,
     device_handle           dh;
     int                     changed_flag;
     int                     ret;
+    struct timeval          t0;
+    struct timeval          t1;
+    struct timeval          tdiff;
 
     clixon_debug(CLIXON_DBG_CTRL, "");
     if ((xn = xml_find(xe, "device")) != NULL)
@@ -2447,8 +2450,13 @@ rpc_controller_commit(clixon_handle h,
     }
     /* Local validate if candidate */
     if (strcmp(sourcedb, "candidate") == 0){
+        gettimeofday(&t0, NULL);
         if ((ret = candidate_validate(h, candidate, cbret)) < 0)
             goto done;
+        gettimeofday(&t1, NULL);
+        timersub(&t1, &t0, &tdiff);
+        clixon_debug(CLIXON_DBG_CTRL | CLIXON_DBG_TIMING, "controller-commit: local validate: %ld.%03lds",
+                     tdiff.tv_sec, tdiff.tv_usec/1000);
         if (ret == 0)
             goto ok;
     }

@@ -669,11 +669,19 @@ device_send_sync_rpc(clixon_handle h,
     cxobj *xret = NULL;
     cxobj *xconfig = NULL;
     cbuf  *cbxp = NULL;
+    struct timeval t0;
+    struct timeval t1;
+    struct timeval tdiff;
 
     if ((tmplname = device_handle_sync_rpc_get(dh)) == NULL)
         goto failed;
+    gettimeofday(&t0, NULL);
     if (xmldb_get0(h, "running", YB_MODULE, NULL, "devices", 1, WITHDEFAULTS_EXPLICIT, &xret, NULL, NULL) < 0)
         goto done;
+    gettimeofday(&t1, NULL);
+    timersub(&t1, &t0, &tdiff);
+    clixon_debug(CLIXON_DBG_CTRL | CLIXON_DBG_TIMING, "%s: sync-rpc template lookup: %ld.%03lds",
+                 device_handle_name_get(dh), tdiff.tv_sec, tdiff.tv_usec/1000);
     if ((cbxp = cbuf_new()) == NULL){
         clixon_err(OE_UNIX, errno, "cbuf_new");
         goto done;
