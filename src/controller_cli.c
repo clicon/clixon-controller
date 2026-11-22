@@ -58,6 +58,40 @@ static int gentree_expand_all = 0;
 /* Forward */
 static int controller_gentree_pattern(cligen_handle ch, char *pattern, char **namep);
 
+/*! Drain transaction notifications arriving while the CLI is idle at the prompt
+ *
+ * Transaction completions are only read in transaction_notification_poll() while waiting
+ * for an own transaction. Without draining, notifications of other transactions fill the
+ * socket and eventually block the backend, see clixon-controller issue #269.
+ * Called from cligen gl_select() when the socket is readable.
+ * On error or EOF, unregister and close; a later transaction then fails with
+ * "controller-transaction-notify-socket is closed", as before.
+ * @param[in]  s    Notification socket
+ * @param[in]  arg  Clixon handle
+ * @retval     0    OK, never fail since that would terminate cligen input
+ */
+static int
+controller_cli_notify_drain(int   s,
+                            void *arg)
+{
+    clixon_handle h = (clixon_handle)arg;
+    cbuf         *cb = NULL;
+    int           eof = 0;
+
+    if (clixon_msg_rcv11(s, NULL, 0, &cb, &eof) < 0 || eof){
+        clixon_log(h, LOG_WARNING, "%s: transaction notification socket %s, closing",
+                   __func__, eof?"closed":"error");
+        cligen_unregfd(s);
+        close(s);
+        clicon_data_int_del(h, "controller-transaction-notify-socket");
+    }
+    else
+        clixon_debug(CLIXON_DBG_CTRL, "drained: %s", cbuf_get(cb));
+    if (cb)
+        cbuf_free(cb);
+    return 0;
+}
+
 /*! Called when application is "started", (almost) all initialization is complete
  *
  * Create a global transaction notification handler and socket
@@ -76,6 +110,8 @@ controller_cli_start(clixon_handle h)
     if (clicon_rpc_create_subscription(h, "controller-transaction", "controller-transaction", &s) < 0)
         goto done;
     if (clicon_data_int_set(h, "controller-transaction-notify-socket", s) < 0)
+        goto done;
+    if (cligen_regfd(s, controller_cli_notify_drain, h) < 0)
         goto done;
     clixon_debug(CLIXON_DBG_CTRL, "notification socket:%d", s);
     if (gentree_expand_all == 1)
@@ -121,6 +157,7 @@ controller_cli_exit(clixon_handle h)
         if (clicon_rpc_msg(h, cb, NULL) < 0)
             goto done;
         clicon_data_int_del(h, "controller-transaction-notify-socket");
+        cligen_unregfd(s);
         close(s);
     }
     if ((s = clicon_client_socket_get(h)) > 0){

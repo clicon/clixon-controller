@@ -37,6 +37,8 @@ Users may have to change how they access the system
 
 ### Corrected Bugs
 
+* Fixed: [An idle clixon_cli session (sitting at the interactive prompt) eventually blocks clixon_backend indefinitely on its internal Unix domain IPC socket](https://github.com/clicon/clixon-controller/issues/269)
+  * Client-side fix to drain notifications when idle at prompt
 * Fixed: [Some discrepancies with controller-transaction-progress notifications](https://github.com/clicon/clixon-controller/issues/263)
 * Fixed: [Transaction's device states are mixed by "show transactions detail"](https://github.com/clicon/clixon-controller/issues/262)
 * Fixed: ['Pull diff' shouldn't work for disabled devices](https://github.com/clicon/clixon-controller/issues/261)
