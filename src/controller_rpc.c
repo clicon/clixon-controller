@@ -4430,13 +4430,8 @@ rpc_get_device_schema(clixon_handle h,
 
 /*! Send current progress of ongoing transactions to a new progress subscriber
  *
- * A client (eg CLI) typically subscribes to the controller-transaction stream after a transaction
- * has started, and would otherwise miss earlier state changes.
- * This callback is registered before the clixon core create-subscription handler (plugins
- * are initialized before core rpcs), and does not write a reply, so the core handler
- * creates the subscription and replies.
- * The notifications are deferred until after the rpc (see controller_transaction_progress_notify),
- * when the subscription exists.
+ * A client can subscribe to the controller-transaction-progress stream after a transaction
+ * has started
  * @param[in]  h       Clixon handle
  * @param[in]  xe      Request: <rpc><xn></rpc>
  * @param[out] cbret   Return xml tree, not written
@@ -4457,7 +4452,7 @@ rpc_create_subscription_progress(clixon_handle h,
     char                   *stream;
 
     if ((stream = xml_find_body(xe, "stream")) == NULL ||
-        strcmp(stream, "controller-transaction") != 0)
+        strcmp(stream, "controller-transaction-progress") != 0)
         goto ok;
     while ((ct = controller_transaction_each(h, ct)) != NULL){
         if (ct->ct_state == TS_DONE)

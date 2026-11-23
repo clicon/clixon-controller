@@ -788,10 +788,14 @@ clixon_plugin_init(clixon_handle h)
                    "A commit has been made that changes the services declaration",
                    0, NULL) < 0)
         goto done;
-    /* see controller_transaction_notify and controller_transaction_progress_notify */
+    /* see controller_transaction_notify */
     if (stream_add(h, "controller-transaction",
-                   "Transaction progress and completion. Use xpath filter "
-                   "controller-transaction for completion only.",
+                   "A transaction has been completed.",
+                   0, NULL) < 0)
+        goto done;
+    /* see controller_transaction_progress_notify */
+    if (stream_add(h, "controller-transaction-progress",
+                   "Progress of ongoing transactions: transaction and device states.",
                    0, NULL) < 0)
         goto done;
     /* Register pyapi sub-process */

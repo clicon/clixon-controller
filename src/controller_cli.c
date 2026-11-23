@@ -58,43 +58,9 @@ static int gentree_expand_all = 0;
 /* Forward */
 static int controller_gentree_pattern(cligen_handle ch, char *pattern, char **namep);
 
-/*! Drain transaction notifications arriving while the CLI is idle at the prompt
- *
- * Transaction completions are only read in transaction_notification_poll() while waiting
- * for an own transaction. Without draining, notifications of other transactions fill the
- * socket and eventually block the backend, see clixon-controller issue #269.
- * Called from cligen gl_select() when the socket is readable.
- * On error or EOF, unregister and close; a later transaction then fails with
- * "controller-transaction-notify-socket is closed", as before.
- * @param[in]  s    Notification socket
- * @param[in]  arg  Clixon handle
- * @retval     0    OK, never fail since that would terminate cligen input
- */
-static int
-controller_cli_notify_drain(int   s,
-                            void *arg)
-{
-    clixon_handle h = (clixon_handle)arg;
-    cbuf         *cb = NULL;
-    int           eof = 0;
-
-    if (clixon_msg_rcv11(s, NULL, 0, &cb, &eof) < 0 || eof){
-        clixon_log(h, LOG_WARNING, "%s: transaction notification socket %s, closing",
-                   __func__, eof?"closed":"error");
-        cligen_unregfd(s);
-        close(s);
-        clicon_data_int_del(h, "controller-transaction-notify-socket");
-    }
-    else
-        clixon_debug(CLIXON_DBG_CTRL, "drained: %s", cbuf_get(cb));
-    if (cb)
-        cbuf_free(cb);
-    return 0;
-}
-
 /*! Called when application is "started", (almost) all initialization is complete
  *
- * Create a global transaction notification handler and socket
+ * Transaction notifications are subscribed on demand, see transaction_subscribe
  * @param[in] h    Clixon handle
  * @retval    0    OK
  * @retval   -1    Error
@@ -103,17 +69,8 @@ int
 controller_cli_start(clixon_handle h)
 {
     int   retval = -1;
-    int   s;
 
     clicon_data_set(h, "session-transport", "cl:cli");
-    /* Completion only, progress is read on a separate socket while waiting */
-    if (clicon_rpc_create_subscription(h, "controller-transaction", "controller-transaction", &s) < 0)
-        goto done;
-    if (clicon_data_int_set(h, "controller-transaction-notify-socket", s) < 0)
-        goto done;
-    if (cligen_regfd(s, controller_cli_notify_drain, h) < 0)
-        goto done;
-    clixon_debug(CLIXON_DBG_CTRL, "notification socket:%d", s);
     if (gentree_expand_all == 1)
         if (controller_gentree_pattern(cli_cligen(h), "*", NULL) < 0)
             goto done;
@@ -133,41 +90,12 @@ controller_cli_exit(clixon_handle h)
 {
     int      retval = -1;
     int      s;
-    cbuf    *cb = NULL;
-    char    *username;
-    uint32_t session_id = 0;
 
-    if ((s = clicon_data_int_get(h, "controller-transaction-notify-socket")) > 0){
-        /* Inline of clicon_rpc_close_session() w other socket */
-        if ((cb = cbuf_new()) == NULL){
-            clixon_err(OE_XML, errno, "cbuf_new");
-            goto done;
-        }
-        clicon_session_id_get(h, &session_id);
-        cprintf(cb, "<rpc xmlns=\"%s\"", NETCONF_BASE_NAMESPACE);
-        cprintf(cb, " xmlns:%s=\"%s\"", NETCONF_BASE_PREFIX, NETCONF_BASE_NAMESPACE);
-        if ((username = clicon_username_get(h)) != NULL){
-            cprintf(cb, " %s:username=\"%s\"", CLIXON_LIB_PREFIX, username);
-            cprintf(cb, " xmlns:%s=\"%s\"", CLIXON_LIB_PREFIX, CLIXON_LIB_NS);
-        }
-        cprintf(cb, " %s", NETCONF_MESSAGE_ID_ATTR); /* XXX: use incrementing sequence */
-        cprintf(cb, ">");
-        cprintf(cb, "<close-session/>");
-        cprintf(cb, "</rpc>");
-        if (clicon_rpc_msg(h, cb, NULL) < 0)
-            goto done;
-        clicon_data_int_del(h, "controller-transaction-notify-socket");
-        cligen_unregfd(s);
-        close(s);
-    }
     if ((s = clicon_client_socket_get(h)) > 0){
         close(s);
         clicon_client_socket_set(h, -1);
     }
     retval = 0;
- done:
-    if (cb)
-        cbuf_free(cb);
     return retval;
 }
 

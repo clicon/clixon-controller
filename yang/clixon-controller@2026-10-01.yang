@@ -916,10 +916,9 @@ module clixon-controller {
     notification controller-transaction {
         description
             "A transaction has been completed.
-             Sent on the controller-transaction stream, together with
-             controller-transaction-progress notifications. Use xpath filter
-             'controller-transaction' to get completion only.
-             See also non-config transaction container";
+             Includes status of transaction itself and its devices
+             Sent on the controller-transaction stream.
+             See also controller-transaction-progress.";
         uses transaction-common;
     }
     notification controller-transaction-progress {
@@ -927,12 +926,9 @@ module clixon-controller {
             "Progress information for an ongoing transaction, sent whenever there is new
              progress to report: either the transaction-state changes (eg INIT -> ACTIONS),
              or the connection state changes for a device that is part of the transaction.
-             Used to give interactive feedback while a transaction (eg connect/pull/commit/rpc)
-             is running. Superseded by a controller-transaction notification with the final
-             result once the transaction completes. Each notification is a point-in-time snapshot:
-             a device conn-state may briefly lag a transaction-state change.
-             Treat the final controller-transaction notification as authoritative.
-             Sent on the controller-transaction stream.";
+             For interactive feedback while a transaction (eg connect/pull/commit/rpc)
+             is running.
+             Sent on the controller-transaction-progress stream.";
         leaf tid {
             description "Transaction id this progress belongs to";
             type uint64;

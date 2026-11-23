@@ -21,24 +21,17 @@ Expected: January 2027
 * Static analysis fixes via clang analyze and Coverity scan
 * Added transaction progress notifications
   * CLI: progress bar showing id, time, transaction and individual device state
-  * Also possible using NETCONF/RESTCONF
+  * Also supported on NETCONF and RESTCONF
+  * Sent on a separate `controller-transaction-progress` stream
+    * Backward-compatible: existing `controller-transaction` subscribers are unaffected
   * See: https://clixon-controller-docs.readthedocs.io/en/latest/transactions.html#progress
 * New `clixon-controller@2026-10-01.yang` revision
   * Added controller-transaction-progress notification
 
-### API changes on existing protocol/config features
-
-Users may have to change how they access the system
-
-* The transaction progress mechanism requires clients to filter progress from existing transaction-notification streams
-  * This is _not_ backward-compatible and requires code change for all subscribing to the transaction-notifications
-    * Patches to clixon (for restconf filtering) and clixon-pyapi have been made
-  * Use xpath filter 'controller-transaction' to get completion only.
-
 ### Corrected Bugs
 
 * Fixed: [An idle clixon_cli session (sitting at the interactive prompt) eventually blocks clixon_backend indefinitely on its internal Unix domain IPC socket](https://github.com/clicon/clixon-controller/issues/269)
-  * Client-side fix to drain notifications when idle at prompt
+  * CLI subscribes to transaction notifications on demand, only while waiting for a transaction
 * Fixed: [Some discrepancies with controller-transaction-progress notifications](https://github.com/clicon/clixon-controller/issues/263)
 * Fixed: [Transaction's device states are mixed by "show transactions detail"](https://github.com/clicon/clixon-controller/issues/262)
 * Fixed: ['Pull diff' shouldn't work for disabled devices](https://github.com/clicon/clixon-controller/issues/261)

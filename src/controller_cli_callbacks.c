@@ -518,8 +518,7 @@ transaction_notification_handler(clixon_handle       h,
         goto done;
     if (*eof){
         clixon_err(OE_PROTO, ESHUTDOWN, "Socket unexpected close");
-        close(s);
-        goto done; /* Fatal, or possibly cli may reconnect */
+        goto done; /* Socket is closed by caller */
     }
     if (clixon_xml_parse_string(cbuf_get(cb), YB_NONE, NULL, &xt, NULL) < 0)
         goto done;
@@ -637,11 +636,9 @@ send_transaction_error(clixon_handle h,
 
 /*! Subscribe to transaction progress notifications
  *
- * Opens a separate notification socket subscribed to the controller-transaction stream,
- * filtered on controller-transaction-progress notifications. Only opened while waiting
- * for a transaction, to avoid accumulating progress
- * notifications of other transactions in idle CLI sessions.
- * Errors are ignored since progress display is best-effort (eg older backend).
+ * Open a separate notification socket subscribed to the controller-transaction-progress stream.
+ * Only opened while waiting for a transaction
+ * Errors are ignored
  * @param[in]  h    Clixon handle
  * @retval     s    Progress notification socket
  * @retval    -1    No progress socket
@@ -651,7 +648,7 @@ transaction_progress_subscribe(clixon_handle h)
 {
     int s = -1;
 
-    if (clicon_rpc_create_subscription(h, "controller-transaction", "controller-transaction-progress", &s) < 0){
+    if (clicon_rpc_create_subscription(h, "controller-transaction-progress", NULL, &s) < 0){
         clixon_debug(CLIXON_DBG_CTRL, "progress subscription failed, no progress shown");
         clixon_err_reset();
         if (s >= 0)
@@ -841,26 +838,51 @@ transaction_poll_sigint_flush(void)
     }
 }
 
+/*! Subscribe to transaction completion notifications
+ *
+ * Must be called before sending the rpc that starts the transaction: the completion
+ * notification may be sent directly after the rpc-reply and could otherwise be missed.
+ * @param[in]  h    Clixon handle
+ * @param[out] sp   Notification socket, -1 on error
+ * @retval     0    OK
+ * @retval    -1    Error
+ * @see transaction_notification_poll
+ */
+static int
+transaction_subscribe(clixon_handle h,
+                      int          *sp)
+{
+    *sp = -1;
+    if (clicon_rpc_create_subscription(h, "controller-transaction", NULL, sp) < 0){
+        if (*sp >= 0)
+            close(*sp);
+        *sp = -1;
+        return -1;
+    }
+    return 0;
+}
+
 /*! Poll controller notification socket
  *
  * On a terminal, also open a temporary subscription to
  * controller-transaction-progress notifications and show device states of the
  * transaction until the final controller-transaction notification arrives.
- * param[in]  h      Clixon handle
- * param[in]  tidstr Transaction identifier
- * param[out] result
- * @retval    0      OK
- * @retval   -1      Error
+ * @param[in]  h      Clixon handle
+ * @param[in]  s      Completion notification socket, see transaction_subscribe
+ * @param[in]  tidstr Transaction identifier
+ * @param[out] result
+ * @retval     0      OK
+ * @retval    -1      Error
  * @see transaction_notification_cb
  */
 static int
 transaction_notification_poll(clixon_handle       h,
+                              int                 s,
                               char               *tidstr,
                               transaction_result *result)
 {
     int              retval = -1;
     int              eof = 0;
-    int              s;
     int              match = 0;
     int              istty = 0;
     int              elapsed = 0;
@@ -877,10 +899,6 @@ transaction_notification_poll(clixon_handle       h,
     clixon_debug(CLIXON_DBG_CTRL, "tid:%s", tidstr);
     if (result)
         *result = 0;
-    if ((s = clicon_data_int_get(h, "controller-transaction-notify-socket")) < 0){
-        clixon_err(OE_EVENTS, 0, "controller-transaction-notify-socket is closed");
-        goto done;
-    }
     /* Only show progress on an interactive terminal: avoids interfering with
      * scripted/piped output (eg regression tests) and matches issue #247
      * proposal 2: give feedback while a push commit/validate is running. */
@@ -1150,6 +1168,7 @@ cli_rpc_pull(clixon_handle h,
     char              *tidstr;
     transaction_result result = 0;
     int                ret;
+    int                ts = -1; /* Transaction completion notification socket */
 
     if (argv == NULL || cvec_len(argv) != 1){
         clixon_err(OE_PLUGIN, EINVAL, "requires argument: replace/merge");
@@ -1189,6 +1208,9 @@ cli_rpc_pull(clixon_handle h,
         goto done;
     /* Skip top-level */
     xrpc = xml_child_i(xtop, 0);
+    /* Subscribe before sending the rpc, see transaction_subscribe */
+    if (transaction_subscribe(h, &ts) < 0)
+        goto done;
     /* Send to backend */
     if (clicon_rpc_netconf_xml(h, xrpc, &xret, NULL) < 0)
         goto done;
@@ -1208,13 +1230,15 @@ cli_rpc_pull(clixon_handle h,
     if ((ret = transaction_exist(h, tidstr)) < 0)
         goto done;
     if (ret == 1){
-        if (transaction_notification_poll(h, tidstr, &result) < 0)
+        if (transaction_notification_poll(h, ts, tidstr, &result) < 0)
             goto done;
         if (transaction_print_skipped(h, tidstr, 1) < 0)
             goto done;
     }
     retval = 0;
  done:
+    if (ts >= 0)
+        close(ts);
     if (cb)
         cbuf_free(cb);
     if (xret)
@@ -1413,6 +1437,7 @@ cli_rpc_controller_commit(clixon_handle h,
     yang_stmt         *yspec;
     char              *keyname = NULL;
     int                ret;
+    int                ts = -1; /* Transaction completion notification socket */
 
     if (argv == NULL || cvec_len(argv) != 3){
         clixon_err(OE_PLUGIN, EINVAL, "requires arguments: <datastore> <actions-type> <push-type>");
@@ -1494,6 +1519,9 @@ cli_rpc_controller_commit(clixon_handle h,
         goto done;
     /* Skip top-level */
     xrpc = xml_child_i(xtop, 0);
+    /* Subscribe before sending the rpc, see transaction_subscribe */
+    if (transaction_subscribe(h, &ts) < 0)
+        goto done;
     /* Send to backend */
     if (clicon_rpc_netconf_xml(h, xrpc, &xret, NULL) < 0)
         goto done;
@@ -1510,7 +1538,7 @@ cli_rpc_controller_commit(clixon_handle h,
         if ((ret = transaction_exist(h, tidstr)) < 0)
             goto done;
         if (ret == 1){
-            if (transaction_notification_poll(h, tidstr, &result) < 0)
+            if (transaction_notification_poll(h, ts, tidstr, &result) < 0)
                 goto done;
             if (result != TR_SUCCESS)
                 goto ok;
@@ -1527,6 +1555,8 @@ cli_rpc_controller_commit(clixon_handle h,
  ok:
     retval = 0;
  done:
+    if (ts >= 0)
+        close(ts);
     if (service)
         free(service);
     if (cb)
@@ -1567,6 +1597,7 @@ cli_connection_change(clixon_handle h,
     char              *tidstr;
     transaction_result result = 0;
     int                ret;
+    int                ts = -1; /* Transaction completion notification socket */
 
     if (argv == NULL || cvec_len(argv) != 1){
         clixon_err(OE_PLUGIN, EINVAL, "requires argument: <operation>");
@@ -1603,6 +1634,9 @@ cli_connection_change(clixon_handle h,
         goto done;
     /* Skip top-level */
     xrpc = xml_child_i(xtop, 0);
+    /* Subscribe before sending the rpc, see transaction_subscribe. Not needed if async */
+    if (dontwait == NULL && transaction_subscribe(h, &ts) < 0)
+        goto done;
     /* Send to backend */
     if (clicon_rpc_netconf_xml(h, xrpc, &xret, NULL) < 0)
         goto done;
@@ -1623,12 +1657,14 @@ cli_connection_change(clixon_handle h,
         if ((ret = transaction_exist(h, tidstr)) < 0)
             goto done;
         if (ret == 1){
-            if (transaction_notification_poll(h, tidstr, &result) < 0)
+            if (transaction_notification_poll(h, ts, tidstr, &result) < 0)
                 goto done;
         }
     }
     retval = 0;
  done:
+    if (ts >= 0)
+        close(ts);
     if (cb)
         cbuf_free(cb);
     if (xret)
@@ -2542,6 +2578,7 @@ compare_device_config_type(clixon_handle      h,
     size_t             veclen;
     int                i;
     int                ret;
+    int                ts = -1; /* Transaction completion notification socket */
 
     if (cvec_len(argv) > 1){
         clixon_err(OE_PLUGIN, EINVAL, "Received %d arguments. Expected: <format>]", cvec_len(argv));
@@ -2571,6 +2608,9 @@ compare_device_config_type(clixon_handle      h,
         group = cv_string_get(cv);
     /* If remote, start with requesting it asynchrously */
     if (dt1 == DT_TRANSIENT || dt2 == DT_TRANSIENT){
+        /* Subscribe before sending the rpc, see transaction_subscribe */
+        if (transaction_subscribe(h, &ts) < 0)
+            goto done;
         /* Send pull <transient> */
         if (send_pull_transient(h, group, pattern, &tidstr) < 0)
             goto done;
@@ -2578,7 +2618,7 @@ compare_device_config_type(clixon_handle      h,
             goto done;
         if (ret == 1){
             /* Wait to complete transaction try ^C here */
-            if (transaction_notification_poll(h, tidstr, &result) < 0)
+            if (transaction_notification_poll(h, ts, tidstr, &result) < 0)
                 goto done;
             if (result != TR_SUCCESS)
                 goto done;
@@ -2631,6 +2671,8 @@ compare_device_config_type(clixon_handle      h,
     }
     retval = 0;
  done:
+    if (ts >= 0)
+        close(ts);
     if (tidstr)
         free(tidstr);
     if (vec)
@@ -3555,6 +3597,7 @@ cli_device_rpc_template(clixon_handle h,
     char              *tidstr;
     transaction_result result = 0;
     int                ret;
+    int                ts = -1; /* Transaction completion notification socket */
 
     if (argv == NULL || cvec_len(argv) < 1 || cvec_len(argv) > 2){
         clixon_err(OE_PLUGIN, EINVAL, "requires arguments: <templ> [<devpattern>]");
@@ -3615,6 +3658,9 @@ cli_device_rpc_template(clixon_handle h,
         goto done;
     /* Skip top-level */
     xrpc = xml_child_i(xtop, 0);
+    /* Subscribe before sending the rpc, see transaction_subscribe */
+    if (transaction_subscribe(h, &ts) < 0)
+        goto done;
     /* Send to backend */
     if (clicon_rpc_netconf_xml(h, xrpc, &xret, NULL) < 0)
         goto done;
@@ -3634,13 +3680,15 @@ cli_device_rpc_template(clixon_handle h,
     if ((ret = transaction_exist(h, tidstr)) < 0)
         goto done;
     if (ret == 1){
-        if (transaction_notification_poll(h, tidstr, &result) < 0)
+        if (transaction_notification_poll(h, ts, tidstr, &result) < 0)
             goto done;
         if (transaction_print_skipped(h, tidstr, 0) < 0)
             goto done;
     }
     retval = 0;
  done:
+    if (ts >= 0)
+        close(ts);
     if (cb)
         cbuf_free(cb);
     if (xret)
@@ -3907,6 +3955,7 @@ cli_show_device_state(clixon_handle h,
     char              *tidstr;
     transaction_result result = 0;
     int                ret;
+    int                ts = -1; /* Transaction completion notification socket */
 
     if (argv == NULL || cvec_len(argv) < 0 || cvec_len(argv) > 1){
         clixon_err(OE_PLUGIN, EINVAL, "requires arguments: [<devpattern>]");
@@ -3950,6 +3999,9 @@ cli_show_device_state(clixon_handle h,
         goto done;
     /* Skip top-level */
     xrpc = xml_child_i(xtop, 0);
+    /* Subscribe before sending the rpc, see transaction_subscribe */
+    if (transaction_subscribe(h, &ts) < 0)
+        goto done;
     /* Send to backend */
     if (clicon_rpc_netconf_xml(h, xrpc, &xret, NULL) < 0)
         goto done;
@@ -3969,13 +4021,15 @@ cli_show_device_state(clixon_handle h,
     if ((ret = transaction_exist(h, tidstr)) < 0)
         goto done;
     if (ret == 1){
-        if (transaction_notification_poll(h, tidstr, &result) < 0)
+        if (transaction_notification_poll(h, ts, tidstr, &result) < 0)
             goto done;
         if (transaction_print_skipped(h, tidstr, 1) < 0)
                 goto done;
     }
     retval = 0;
  done:
+    if (ts >= 0)
+        close(ts);
     if (cb)
         cbuf_free(cb);
     if (xret)
