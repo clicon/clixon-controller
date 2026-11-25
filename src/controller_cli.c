@@ -60,7 +60,7 @@ static int controller_gentree_pattern(cligen_handle ch, char *pattern, char **na
 
 /*! Called when application is "started", (almost) all initialization is complete
  *
- * Create a global transaction notification handler and socket
+ * Transaction notifications are subscribed on demand, see transaction_subscribe
  * @param[in] h    Clixon handle
  * @retval    0    OK
  * @retval   -1    Error
@@ -69,15 +69,8 @@ int
 controller_cli_start(clixon_handle h)
 {
     int   retval = -1;
-    int   s;
 
     clicon_data_set(h, "session-transport", "cl:cli");
-    /* Completion only, progress is read on a separate socket while waiting */
-    if (clicon_rpc_create_subscription(h, "controller-transaction", "controller-transaction", &s) < 0)
-        goto done;
-    if (clicon_data_int_set(h, "controller-transaction-notify-socket", s) < 0)
-        goto done;
-    clixon_debug(CLIXON_DBG_CTRL, "notification socket:%d", s);
     if (gentree_expand_all == 1)
         if (controller_gentree_pattern(cli_cligen(h), "*", NULL) < 0)
             goto done;
@@ -97,40 +90,12 @@ controller_cli_exit(clixon_handle h)
 {
     int      retval = -1;
     int      s;
-    cbuf    *cb = NULL;
-    char    *username;
-    uint32_t session_id = 0;
 
-    if ((s = clicon_data_int_get(h, "controller-transaction-notify-socket")) > 0){
-        /* Inline of clicon_rpc_close_session() w other socket */
-        if ((cb = cbuf_new()) == NULL){
-            clixon_err(OE_XML, errno, "cbuf_new");
-            goto done;
-        }
-        clicon_session_id_get(h, &session_id);
-        cprintf(cb, "<rpc xmlns=\"%s\"", NETCONF_BASE_NAMESPACE);
-        cprintf(cb, " xmlns:%s=\"%s\"", NETCONF_BASE_PREFIX, NETCONF_BASE_NAMESPACE);
-        if ((username = clicon_username_get(h)) != NULL){
-            cprintf(cb, " %s:username=\"%s\"", CLIXON_LIB_PREFIX, username);
-            cprintf(cb, " xmlns:%s=\"%s\"", CLIXON_LIB_PREFIX, CLIXON_LIB_NS);
-        }
-        cprintf(cb, " %s", NETCONF_MESSAGE_ID_ATTR); /* XXX: use incrementing sequence */
-        cprintf(cb, ">");
-        cprintf(cb, "<close-session/>");
-        cprintf(cb, "</rpc>");
-        if (clicon_rpc_msg(h, cb, NULL) < 0)
-            goto done;
-        clicon_data_int_del(h, "controller-transaction-notify-socket");
-        close(s);
-    }
     if ((s = clicon_client_socket_get(h)) > 0){
         close(s);
         clicon_client_socket_set(h, -1);
     }
     retval = 0;
- done:
-    if (cb)
-        cbuf_free(cb);
     return retval;
 }
 

@@ -738,8 +738,6 @@ service_action_sig_term(int arg)
 {
     static int i=0;
 
-    clixon_log(NULL, LOG_NOTICE, "%s: %s: pid: %u Signal %d",
-               __PROGRAM__, __func__, getpid(), arg);
     if (i++ > 0)
         exit(1);
     clixon_exit_set(1); /* checked in clixon_event_loop() */

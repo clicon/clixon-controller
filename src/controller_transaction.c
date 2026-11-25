@@ -475,11 +475,11 @@ controller_transaction_progress_notify(clixon_handle           h,
         }
         na->na_h = h;
         na->na_cb = cb;
-        na->na_stream = "controller-transaction";
+        na->na_stream = "controller-transaction-progress";
         clixon_event_reg_timeout(t, transaction_notify_async, na, "transaction-progress-notify");
         cb = NULL;
     }
-    else if (stream_notify(h, "controller-transaction", "%s", cbuf_get(cb)) < 0)
+    else if (stream_notify(h, "controller-transaction-progress", "%s", cbuf_get(cb)) < 0)
         goto done;
  ok:
     retval = 0;

@@ -354,8 +354,8 @@ new "restconf GET connection CLOSED"
 expectpart "$(curl $CURLOPTS -H "Accept: application/yang-data+json" -X GET $RCPROTO://localhost/restconf/data/clixon-controller:devices/device=${IMG}1/conn-state)" 0 "HTTP/$HVER 200" '{"clixon-controller:conn-state":"CLOSED"}'
 
 # 4. Notification
-new "Check notification controller-transaction state monitoring"
-expectpart "$(curl $CURLOPTS -X GET $RCPROTO://localhost/restconf/data/ietf-restconf-monitoring:restconf-state)" 0 "HTTP/$HVER 200" "{\"name\":\"controller-transaction\",\"description\":\"Transaction progress and completion. Use xpath filter controller-transaction for completion only.\",\"replay-support\":false,\"access\":\[{\"encoding\":\"xml\",\"location\":\"${RCPROTO}://localhost/streams/controller-transaction\"}\]}" '{"name":"services-commit","description":"A commit has been made that changes the services declaration"'
+new "Check notification controller-transaction streams state monitoring"
+expectpart "$(curl $CURLOPTS -X GET $RCPROTO://localhost/restconf/data/ietf-restconf-monitoring:restconf-state)" 0 "HTTP/$HVER 200" "{\"name\":\"controller-transaction\",\"description\":\"A transaction has been completed.\",\"replay-support\":false,\"access\":\[{\"encoding\":\"xml\",\"location\":\"${RCPROTO}://localhost/streams/controller-transaction\"}\]}" "{\"name\":\"controller-transaction-progress\",\"description\":\"Progress of ongoing transactions: transaction and device states.\",\"replay-support\":false,\"access\":\[{\"encoding\":\"xml\",\"location\":\"${RCPROTO}://localhost/streams/controller-transaction-progress\"}\]}" '{"name":"services-commit","description":"A commit has been made that changes the services declaration"'
 
 if [ "${WITH_RESTCONF}" = "fcgi" ]; then
 new "restconf RPC connection open"
@@ -542,18 +542,17 @@ fi
 
 kill $PID 2> /dev/null
 
-# 7c. No filter: unfiltered subscription also receives progress notifications
+# 7c. Progress notifications are received on the controller-transaction-progress stream
 if [ "${WITH_RESTCONF}" = "native" ]; then
 new "Send device rpc for unfiltered progress and save PID"
 sleep 1 && expectpart "$(curl $CURLOPTS -X POST -H "Content-Type: application/yang-data+xml" $RCPROTO://localhost/restconf/operations/clixon-controller:device-rpc -d '<input xmlns="http://clicon.org/controller"><device>openconfig*</device><config><ping xmlns="http://clicon.org/lib"></ping></config></input>')" 0 "HTTP/$HVER 200" 'Content-Type: application/yang-data+json' '{"clixon-controller:output":{"tid":"[0-9:.]*"}}' &
 PID=$!
 
 TIMEOUT=20
-new "Wait for progress notification (no filter) timeout:${TIMEOUT}s"
-ret=$(curl $CURLOPTS -X GET -H "Accept: text/event-stream" -H "Cache-Control: no-cache" -H "Connection: keep-alive" $RCPROTO://localhost/streams/controller-transaction 2>/dev/null)
+new "Wait for progress notification on progress stream timeout:${TIMEOUT}s"
+ret=$(curl $CURLOPTS -X GET -H "Accept: text/event-stream" -H "Cache-Control: no-cache" -H "Connection: keep-alive" $RCPROTO://localhost/streams/controller-transaction-progress 2>/dev/null)
 
-# Without a filter, progress notifications are received (filtered tests above
-# verify that an xpath filter suppresses these and leaves only completion).
+# Progress is sent on a separate stream; the controller-transaction stream carries completion only
 expect="<controller-transaction-progress xmlns=\"http://clicon.org/controller\"><tid>[0-9:.]*</tid><state>"
 match=$(echo "$ret" | grep --null -Eo "$expect") || true
 if [ -z "$match" ]; then

@@ -177,7 +177,7 @@ done
 # Capture controller-transaction progress notifications emitted
 # during a push, to check progress-notification invariants independent of
 # device timing.
-# Subscribe in the background to the controller-transaction stream, holding stdin open via a fifo.
+# Subscribe in the background to the controller-transaction-progress stream, holding stdin open via a fifo.
 NFIFO=$dir/progress-in.fifo
 NOUT=$dir/progress-out.xml
 NHELLO="<?xml version=\"1.0\" encoding=\"UTF-8\"?><hello $DEFAULTONLY><capabilities><capability>urn:ietf:params:netconf:base:1.0</capability></capabilities></hello>]]>]]>"
@@ -191,7 +191,7 @@ progress_capture_start()
     NCPID=$!
     exec 8>$NFIFO
     echo "$NHELLO" >&8
-    echo "<rpc $DEFAULTNS><create-subscription xmlns=\"urn:ietf:params:xml:ns:netmod:notification\"><stream>controller-transaction</stream></create-subscription></rpc>]]>]]>" >&8
+    echo "<rpc $DEFAULTNS><create-subscription xmlns=\"urn:ietf:params:xml:ns:netmod:notification\"><stream>controller-transaction-progress</stream></create-subscription></rpc>]]>]]>" >&8
     # Wait for subscription rpc-reply to avoid losing early notifications
     for j in $(seq 1 25); do
         grep -q "rpc-reply" $NOUT 2>/dev/null && break
