@@ -52,6 +52,7 @@ int cli_rpc_controller_commit(clixon_handle h, cvec *cvv, cvec *argv);
 int cli_connection_change(clixon_handle h, cvec *cvv, cvec *argv);
 int cli_show_connections(clixon_handle h, cvec *cvv, cvec *argv);
 int cli_show_transactions(clixon_handle h, cvec *cvv, cvec *argv);
+int cli_show_sessions_detail(clixon_handle h, cvec *cvv, cvec *argv);
 int cli_show_services_process(clixon_handle h, cvec *cvv, cvec *argv);
 int cli_process_control_pretty(clixon_handle h, cvec *cvv, cvec *argv);
 int compare_device_db_sync(clixon_handle h, cvec *cvv, cvec *argv);

@@ -73,7 +73,7 @@ show("Show a particular state of the system"){
        detail("Show detailed process status"), cli_process_control_pretty("Services process", "status");
     }
     sessions("Show client sessions"), cli_show_sessions();{
-         detail("Show sessions detailed state"), cli_show_sessions("detail");
+         detail("Show sessions detailed state"), cli_show_sessions_detail();
     }
     state("Show configuration and state"), cli_show_auto_mode("running", "default", true, true);{
        @|pipe_show, cli_show_auto_mode("running", "xml", true, true);

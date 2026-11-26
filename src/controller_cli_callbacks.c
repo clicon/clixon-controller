@@ -2080,6 +2080,96 @@ cli_show_services_process(clixon_handle h,
     return retval;
 }
 
+/*! Show detailed client session state in human-readable form
+ *
+ * Replaces clixon's cli_show_sessions("detail") which dumps raw XML.
+ * Reads ietf-netconf-monitoring sessions and candidate lock owner.
+ * @param[in] h     Clixon handle
+ * @param[in] cvv   Not used
+ * @param[in] argv  Not used
+ * @retval    0     OK
+ * @retval   -1     Error
+ */
+int
+cli_show_sessions_detail(clixon_handle h,
+                         cvec         *cvv,
+                         cvec         *argv)
+{
+    int      retval = -1;
+    cvec    *nsc = NULL;
+    cxobj   *xret = NULL;
+    cxobj   *xdbs = NULL;
+    cxobj   *xerr;
+    cxobj   *x;
+    cxobj   *xsess;
+    cxobj  **vec = NULL;
+    size_t   veclen = 0;
+    size_t   i;
+    char    *sid;
+    char    *b;
+    char    *locked_by = NULL;
+    uint32_t session_id = 0;
+
+    if ((nsc = xml_nsctx_init("ncm", "urn:ietf:params:xml:ns:yang:ietf-netconf-monitoring")) == NULL)
+        goto done;
+    if (clicon_rpc_get(h, "ncm:netconf-state/ncm:sessions", nsc, CONTENT_NONCONFIG, -1, "report-all", &xret) < 0)
+        goto done;
+    if ((xerr = xpath_first(xret, NULL, "/rpc-error")) != NULL){
+        clixon_err_netconf(h, OE_XML, 0, xerr, "Get sessions");
+        goto done;
+    }
+    if (xpath_vec(xret, NULL, "netconf-state/sessions/session", &vec, &veclen) < 0)
+        goto done;
+    if (clicon_rpc_get(h, "ncm:netconf-state/ncm:datastores/ncm:datastore[ncm:name='candidate']/ncm:locks", nsc, CONTENT_NONCONFIG, -1, "report-all", &xdbs) < 0)
+        goto done;
+    if ((xerr = xpath_first(xdbs, NULL, "/rpc-error")) != NULL){
+        clixon_err_netconf(h, OE_XML, 0, xerr, "Get locks");
+        goto done;
+    }
+    if ((x = xpath_first(xdbs, NULL, "netconf-state/datastores/datastore[name='candidate']/locks/global-lock/locked-by-session")) != NULL)
+        locked_by = xml_body(x);
+    clicon_session_id_get(h, &session_id);
+    for (i=0; i<veclen; i++){
+        xsess = vec[i];
+        sid = xml_find_body(xsess, "session-id");
+        if (i > 0)
+            cligen_output(stdout, "\n");
+        cligen_output(stdout, "Session %s%s\n", sid?sid:"-",
+                      (sid && session_id == strtoul(sid, NULL, 10)) ? " (this session)" : "");
+        b = xml_find_body(xsess, "username");
+        cligen_output(stdout, "  %-15s%s\n", "User:", b?b:"-");
+        b = xml_find_body(xsess, "transport");
+        cligen_output(stdout, "  %-15s%s\n", "Transport:", b?b:"-");
+        b = xml_find_body(xsess, "source-host");
+        cligen_output(stdout, "  %-15s%s\n", "Source host:", b?b:"-");
+        b = xml_find_body(xsess, "priority");
+        cligen_output(stdout, "  %-15s%s\n", "Priority:", b?b:"-");
+        cligen_output(stdout, "  %-15s%s\n", "Locks:",
+                      (sid && locked_by && strcmp(sid, locked_by) == 0) ? "candidate" : "-");
+        b = xml_find_body(xsess, "login-time");
+        cligen_output(stdout, "  %-15s%s\n", "Login time:", b?b:"-");
+        b = xml_find_body(xsess, "in-rpcs");
+        cligen_output(stdout, "  %-15s%s\n", "RPCs in:", b?b:"0");
+        b = xml_find_body(xsess, "in-bad-rpcs");
+        cligen_output(stdout, "  %-15s%s\n", "Bad RPCs in:", b?b:"0");
+        b = xml_find_body(xsess, "out-rpc-errors");
+        cligen_output(stdout, "  %-15s%s\n", "RPC errors out:", b?b:"0");
+        b = xml_find_body(xsess, "out-notifications");
+        cligen_output(stdout, "  %-15s%s\n", "Notifications:", b?b:"0");
+    }
+    retval = 0;
+ done:
+    if (nsc)
+        cvec_free(nsc);
+    if (vec)
+        free(vec);
+    if (xret)
+        xml_free(xret);
+    if (xdbs)
+        xml_free(xdbs);
+    return retval;
+}
+
 /*! Build a compact per-device result summary for brief transaction table
  *
  * Produces eg "2 ok" if all devices in xc/devices/device succeeded, or a
