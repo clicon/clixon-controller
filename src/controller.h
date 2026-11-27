@@ -49,6 +49,16 @@
  */
 #define DATASTORE_TOP_SYMBOL "config"
 
+/*! Prefix of device name in CLI denoting a device-group reference
+ *
+ * The CLI command is applied to all devices of the device-group, recursively
+ * @code
+ *   set devices device @mygroup config ...
+ * @endcode
+ * @see device_group_ref
+ */
+#define CONTROLLER_DEVICE_GROUP_PREFIX '@'
+
 /*! Add extra sync pull state after commit
  *
  * This may be necessary if device changes from config from the one the controller has actually

@@ -98,10 +98,281 @@ cli_apipath2xpath(clixon_handle h,
     return retval;
 }
 
+/*! Get all configured device-groups from running
+ *
+ * @param[in]  h     Clixon handle
+ * @param[out] xtp   XML on the form <config><devices><device-group>... Free with xml_free
+ * @param[out] nscp  Namespace context of xpaths in xtp. Free with cvec_free
+ * @retval     0     OK
+ * @retval    -1     Error
+ */
+static int
+device_groups_get(clixon_handle h,
+                  cxobj       **xtp,
+                  cvec        **nscp)
+{
+    int    retval = -1;
+    cvec  *nsc = NULL;
+    cxobj *xt = NULL;
+    cxobj *xerr;
+
+    if ((nsc = xml_nsctx_init("co", CONTROLLER_NAMESPACE)) == NULL)
+        goto done;
+    if (clicon_rpc_get_config(h, NULL, "running", "co:devices/co:device-group", nsc,
+                              "explicit", &xt) < 0)
+        goto done;
+    if ((xerr = xpath_first(xt, NULL, "/rpc-error")) != NULL){
+        clixon_err_netconf(h, OE_NETCONF, 0, xerr, "Get device-groups");
+        goto done;
+    }
+    *xtp = xt;
+    xt = NULL;
+    *nscp = nsc;
+    nsc = NULL;
+    retval = 0;
+ done:
+    if (xt)
+        xml_free(xt);
+    if (nsc)
+        cvec_free(nsc);
+    return retval;
+}
+
+/*! Collect device name patterns of device-groups matching pattern, recursively
+ *
+ * @param[in]  pattern      Device-group name glob pattern
+ * @param[in]  vec          Vector of all configured device-groups
+ * @param[in]  veclen       Length of vec
+ * @param[out] devpatterns  Device name patterns of all matching groups and sub-groups
+ * @retval     0            OK
+ * @retval    -1            Error
+ * @note Visited groups are marked with XML_FLAG_MARK, ie duplicate and recursive groups are ignored
+ * @see iterate_device_group  Backend variant
+ */
+static int
+device_group_collect(const char *pattern,
+                     cxobj     **vec,
+                     size_t      veclen,
+                     cvec       *devpatterns)
+{
+    int    retval = -1;
+    cxobj *xg;
+    cxobj *xc;
+    char  *name;
+    char  *body;
+    int    ix;
+    int    i;
+
+    for (i=0; i<veclen; i++){
+        xg = vec[i];
+        if ((name = xml_find_body(xg, "name")) == NULL)
+            continue;
+        if (fnmatch(pattern, name, 0) != 0)
+            continue;
+        if (xml_flag(xg, XML_FLAG_MARK) != 0x0)
+            continue;
+        xml_flag_set(xg, XML_FLAG_MARK);
+        ix = 0;
+        while ((xc = xml_child_iter(xg, &ix, CX_ELMNT)) != NULL) {
+            if ((body = xml_body(xc)) == NULL)
+                continue;
+            if (strcmp(xml_name(xc), "device-name") == 0){
+                if (cvec_add_string(devpatterns, NULL, body) < 0){
+                    clixon_err(OE_UNIX, errno, "cvec_add_string");
+                    goto done;
+                }
+            }
+            else if (strcmp(xml_name(xc), "device-group") == 0){
+                if (device_group_collect(body, vec, veclen, devpatterns) < 0)
+                    goto done;
+            }
+        }
+    }
+    retval = 0;
+ done:
+    return retval;
+}
+
+/*! Check if device name pattern is a device-group reference, ie @<group-pattern>
+ *
+ * @param[in]  pattern  Device name pattern
+ * @retval     1        Yes, device-group reference
+ * @retval     0        No, device name or device name glob pattern
+ * @see CONTROLLER_DEVICE_GROUP_PREFIX
+ */
+int
+device_group_ref(const char *pattern)
+{
+    return pattern != NULL &&
+        pattern[0] == CONTROLLER_DEVICE_GROUP_PREFIX &&
+        pattern[1] != '\0';
+}
+
+/*! Resolve device-group reference to vector of device name patterns
+ *
+ * @param[in]  h             Clixon handle
+ * @param[in]  pattern       Device-group reference on the form @<group-pattern>
+ * @param[out] devpatternsp  Vector of device name patterns, may be empty. Free with cvec_free
+ * @retval     0             OK
+ * @retval    -1             Error
+ */
+static int
+device_group_resolve(clixon_handle h,
+                     const char   *pattern,
+                     cvec        **devpatternsp)
+{
+    int     retval = -1;
+    cxobj  *xt = NULL;
+    cvec   *nsc = NULL;
+    cxobj **vec = NULL;
+    size_t  veclen = 0;
+    cvec   *devpatterns = NULL;
+
+    if ((devpatterns = cvec_new(0)) == NULL){
+        clixon_err(OE_UNIX, errno, "cvec_new");
+        goto done;
+    }
+    if (device_groups_get(h, &xt, &nsc) < 0)
+        goto done;
+    if (xpath_vec(xt, nsc, "devices/device-group", &vec, &veclen) < 0)
+        goto done;
+    if (device_group_collect(pattern + 1, vec, veclen, devpatterns) < 0)
+        goto done;
+    *devpatternsp = devpatterns;
+    devpatterns = NULL;
+    retval = 0;
+ done:
+    if (devpatterns)
+        cvec_free(devpatterns);
+    if (vec)
+        free(vec);
+    if (nsc)
+        cvec_free(nsc);
+    if (xt)
+        xml_free(xt);
+    return retval;
+}
+
+/*! Match device name with device name pattern or with resolved device-group patterns
+ *
+ * @param[in]  pattern      Device name glob pattern, used if devpatterns is NULL
+ * @param[in]  devpatterns  Device name patterns of resolved device-group, or NULL
+ * @param[in]  devname      Device name
+ * @retval     1            Match
+ * @retval     0            No match
+ */
+static int
+device_match(const char *pattern,
+             cvec       *devpatterns,
+             const char *devname)
+{
+    cg_var *cv = NULL;
+
+    if (devpatterns == NULL)
+        return fnmatch(pattern, devname, 0) == 0;
+    while ((cv = cvec_each(devpatterns, cv)) != NULL)
+        if (fnmatch(cv_string_get(cv), devname, 0) == 0)
+            return 1;
+    return 0;
+}
+
+/*! Check if CLI api-path-fmt refers to devices/device, ie "name" is a device name
+ *
+ * @param[in]  mtdomain      Mount-point domain, set if path is within device config
+ * @param[in]  api_path_fmt  API-path meta-format
+ * @retval     1             Yes, "name" is device name (pattern)
+ * @retval     0             No, eg device-group or template name
+ */
+static int
+device_apipath(const char *mtdomain,
+               const char *api_path_fmt)
+{
+    const char *prefix = "/clixon-controller:devices/device=";
+
+    if (mtdomain != NULL)
+        return 1;
+    return api_path_fmt != NULL && strncmp(api_path_fmt, prefix, strlen(prefix)) == 0;
+}
+
+/*! CLI expand callback of device-group references as device names, ie @<group>
+ *
+ * Assume callback given in YANG together with the default expand callback:
+ * @code
+ *   leaf name {
+ *      autocli:expand "expand_dbvar";
+ *      autocli:expand "controller_expand_device_group";
+ * @endcode
+ * @param[in]   h          Clixon handle
+ * @param[in]   name       Name of this function
+ * @param[in]   cvv        The command so far. Eg: cvec [0]:"a 5 b"; [1]: x=5;
+ * @param[in]   argv       Arguments given at the callback, same as expand_dbvar (not used)
+ * @param[out]  commands   Vector of device-group references
+ * @param[out]  helptexts  Vector of helptexts: device-group description
+ * @retval      0          OK
+ * @retval     -1          Error
+ * @note Requires CLICON_PLUGIN_DLOPEN_GLOBAL, since expand callbacks in autocli are resolved
+ *       in the global namespace
+ * @see expand_dbvar
+ */
+int
+controller_expand_device_group(void *h,
+                               char *name,
+                               cvec *cvv,
+                               cvec *argv,
+                               cvec *commands,
+                               cvec *helptexts)
+{
+    int     retval = -1;
+    cxobj  *xt = NULL;
+    cvec   *nsc = NULL;
+    cxobj **vec = NULL;
+    size_t  veclen = 0;
+    cbuf   *cb = NULL;
+    char   *grpname;
+    char   *descr;
+    int     i;
+
+    if ((cb = cbuf_new()) == NULL){
+        clixon_err(OE_UNIX, errno, "cbuf_new");
+        goto done;
+    }
+    if (device_groups_get(h, &xt, &nsc) < 0)
+        goto done;
+    if (xpath_vec(xt, nsc, "devices/device-group", &vec, &veclen) < 0)
+        goto done;
+    for (i=0; i<veclen; i++){
+        if ((grpname = xml_find_body(vec[i], "name")) == NULL)
+            continue;
+        cbuf_reset(cb);
+        cprintf(cb, "%c%s", CONTROLLER_DEVICE_GROUP_PREFIX, grpname);
+        if (cvec_add_string(commands, NULL, cbuf_get(cb)) < 0){
+            clixon_err(OE_UNIX, errno, "cvec_add_string");
+            goto done;
+        }
+        if ((descr = xml_find_body(vec[i], "description")) == NULL)
+            descr = "Device group";
+        if (cvec_add_string(helptexts, NULL, descr) < 0){
+            clixon_err(OE_UNIX, errno, "cvec_add_string");
+            goto done;
+        }
+    }
+    retval = 0;
+ done:
+    if (cb)
+        cbuf_free(cb);
+    if (vec)
+        free(vec);
+    if (nsc)
+        cvec_free(nsc);
+    if (xt)
+        xml_free(xt);
+    return retval;
+}
+
 /*! Send get yanglib of all mountpoints to backend and return matching devices/yang-libs
  *
  * @param[in]  h         Clixon handle
- * @param[in]  pattern   Name glob pattern
+ * @param[in]  pattern   Name glob pattern, or device-group reference: @<group-pattern>
  * @param[in]  single    pattern is a single device that can be used in an xpath
  * @param[in]  yanglib   0: only device name, 1: Also include config/yang-librarylib
  * @param[out] xdevsp    XML on the form <data><devices><device><name>x</name>...</data>. Must be freed
@@ -128,10 +399,20 @@ rpc_get_yanglib_mount_match(clixon_handle h,
     cxobj     *xerr2 = NULL; /* from xml_bind_yang0, owned */
     cxobj     *xp;
     yang_stmt *yspec;
+    cvec      *devpatterns = NULL;
     int        ix;
     int        ret;
 
     clixon_debug(CLIXON_DBG_CTRL, "%s", pattern);
+    if (device_group_ref(pattern)){
+        if (device_group_resolve(h, pattern, &devpatterns) < 0)
+            goto done;
+        if (cvec_len(devpatterns) == 0){ /* Empty or non-existing group */
+            retval = 0;
+            goto done;
+        }
+        single = 0;
+    }
     if ((cb = cbuf_new()) == NULL){
         clixon_err(OE_PLUGIN, errno, "cbuf_new");
         goto done;
@@ -184,7 +465,7 @@ rpc_get_yanglib_mount_match(clixon_handle h,
         ix = 0;
         while ((xdev = xml_child_iter(xdevs, &ix, CX_ELMNT)) != NULL) {
             if ((devname = xml_find_body(xdev, "name")) == NULL ||
-                fnmatch(pattern, devname, 0) == 0){ /* Match */
+                device_match(pattern, devpatterns, devname)){ /* Match */
                 if (yanglib &&
                     (xy = xpath_first(xdev, 0, "config/yang-library")) != NULL){
                     xml_flag_set(xml_find(xdev, "name"), XML_FLAG_MARK);
@@ -214,6 +495,8 @@ rpc_get_yanglib_mount_match(clixon_handle h,
     }
     retval = 0;
  done:
+    if (devpatterns)
+        cvec_free(devpatterns);
     if (xtop)
         xml_free(xtop);
     if (xret)
@@ -336,12 +619,18 @@ cli_show_auto_devs(clixon_handle h,
         if (cli_show_option_bool(argv, argc++, &fromroot) < 0)
             goto done;
     }
-    /* Dependent on yang devices/device/<name> is selected */
-    if (devices && (cv = cvec_find(cvv, "name")) != NULL){
+    /* Dependent on yang devices/device/<name> is selected
+     * Device-group reference @<group> is only valid as device name */
+    if (devices && (cv = cvec_find(cvv, "name")) != NULL &&
+        (!device_group_ref(cv_string_get(cv)) || device_apipath(mtdomain, api_path_fmt))){
         pattern = cv_string_get(cv);
         if (rpc_get_yanglib_mount_match(h, pattern, 0, 0, &xdevs) < 0)
             goto done;
         if (xdevs == NULL){
+            if (device_group_ref(pattern)){
+                clixon_err(OE_CFG, 0, "No devices in device-group: %s", pattern+1);
+                goto done;
+            }
             if (cli_apipath2xpath(h, cvv, mtdomain, mtspec, api_path_fmt, &xpath, &nsc) < 0)
                 goto done;
             if (cli_show_common(h, dbname, format, pretty, state,
@@ -3006,11 +3295,17 @@ cli_dbxml_devs(clixon_handle       h,
     else{
         devices = strstr(api_path_fmt, "/clixon-controller:devices") != NULL;
     }
-    if (devices && (cv = cvec_find(cvv, "name")) != NULL){
+    /* Device-group reference @<group> is only valid as device name */
+    if (devices && (cv = cvec_find(cvv, "name")) != NULL &&
+        (!device_group_ref(cv_string_get(cv)) || device_apipath(mtdomain, api_path_fmt))){
         pattern = cv_string_get(cv);
         if (rpc_get_yanglib_mount_match(h, pattern, 0, 0, &xdevs) < 0)
             goto done;
         if (xdevs == NULL){
+            if (device_group_ref(pattern)){
+                clixon_err(OE_CFG, 0, "No devices in device-group: %s", pattern+1);
+                goto done;
+            }
             if (cli_apipath(h, cvv, mtdomain, mtspec, api_path_fmt, &cvvi, &api_path) < 0)
                 goto done;
             if (cli_dbxml_devs_sub(h, cvv, op, nsctx, cvvi, api_path) < 0)

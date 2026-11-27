@@ -25,8 +25,28 @@ Expected: January 2027
   * Sent on a separate `controller-transaction-progress` stream
     * Backward-compatible: existing `controller-transaction` subscribers are unaffected
   * See: https://clixon-controller-docs.readthedocs.io/en/latest/transactions.html#progress
+* CLI: device-group reference as device name in configure mode: `@<device-group>`
+  * Applies set/merge/delete/show/edit to all devices of a device-group, recursively
+  * Example: `set devices device @mygroup config interfaces interface eth0 config mtu 9000`
+  * The device-group name may be a glob pattern, eg `@group*`
+  * Device-group references are expanded (TAB/?) together with device names
+  * Device-groups are read from the running datastore
+  * See: [Applying config changes to multiple devices via device-group reference](https://github.com/clicon/clixon-controller/issues/218)
 * New `clixon-controller@2026-10-01.yang` revision
   * Added controller-transaction-progress notification
+  * Added `autocli:expand` of device-group references to device name
+
+### API changes on existing protocol/config features
+
+Users may have to change how they access the system
+
+* Configuration option `CLICON_PLUGIN_DLOPEN_GLOBAL` must be `true`
+  * Set in the installed `controller.xml`, but must be added to locally maintained configuration files
+  * Otherwise the CLI fails with: `No such function: controller_expand_device_group`
+  * Reason: the CLI expand callback referenced from YANG must be in the global namespace
+* Requires Clixon with `clixon-autocli@2026-10-01.yang` (autocli `expand` extension)
+* A device name starting with `@` in the CLI is interpreted as a device-group reference
+  * A device whose name starts with `@` can still be configured via NETCONF/RESTCONF
 
 ### Corrected Bugs
 
