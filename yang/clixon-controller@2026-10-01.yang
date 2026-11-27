@@ -40,6 +40,7 @@ module clixon-controller {
     revision 2026-10-01 {
         description
             "Added controller-transaction-progress notification with per-device result
+             Added autocli expansion of device-group references (@<group>) to device name
              Released in 2.0.0";
     }
     revision 2026-06-01 {
@@ -726,7 +727,13 @@ module clixon-controller {
         list device{
             key name;
             leaf name{
-                description "device name";
+                description
+                    "Device name.
+                     In the CLI, the name may be a glob pattern matching several devices,
+                     or a device-group reference on the form @<device-group>, in which
+                     case the command applies to all devices of the group (recursively).";
+                autocli:expand "expand_dbvar";
+                autocli:expand "controller_expand_device_group";
                 type string {
                     pattern '[^/]+' {
                         error-message

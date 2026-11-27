@@ -44,6 +44,8 @@
 extern "C" {
 #endif
 
+int device_group_ref(const char *pattern);
+int controller_expand_device_group(void *h, char *name, cvec *cvv, cvec *argv, cvec *commands, cvec *helptexts);
 int rpc_get_yanglib_mount_match(clixon_handle h, char *pattern, int single, int yanglib, cxobj **xdevsp);
 int cli_show_auto_devs(clixon_handle h, cvec *cvv, cvec *argv);
 int cli_show_config_detail(clixon_handle h, cvec *cvv, cvec *argv);

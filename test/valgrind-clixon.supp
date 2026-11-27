@@ -91,3 +91,11 @@
    ...
    fun:user2groups
 }
+{
+   supp9-dlopen-rtld-global
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   fun:*
+   fun:*
+   fun:add_to_global_resize
+}

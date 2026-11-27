@@ -335,6 +335,80 @@ if [ "$res" != "1" ]; then
     err1 "$ii open devices" "$res"
 fi
 
+# Device-group reference as device name in configure mode: @<device-group>
+# See https://github.com/clicon/clixon-controller/issues/218
+new "discard candidate"
+expectpart "$($clixon_cli -1 -f $CFG -E $CFD -m configure rollback)" 0 ""
+
+new "Expand device-group references as device names"
+expectpart "$(echo "set devices device ?" | $clixon_cli -f $CFG -E $CFD -m configure 2> /dev/null)" 0 "@mygroup0" "@mygroup1" "@mygroup3" "${IMG}1" "${IMG}2"
+
+new "Set device config via hierarchical device-group"
+expectpart "$($clixon_cli -1 -f $CFG -E $CFD -m configure set devices device @mygroup1 config system config login-banner grp1)" 0 "^$"
+
+new "Verify both devices changed"
+res=$(${clixon_cli} -1 -f $CFG -E $CFD -m configure -o CLICON_CLI_OUTPUT_FORMAT=text show compare | grep -c "^+\ *login-banner grp1;")
+if [ "$res" != "2" ]; then
+    err1 "2 changed devices" "$res"
+fi
+
+new "Show device config via device-group"
+expectpart "$($clixon_cli -1 -f $CFG -E $CFD -m configure show devices device @mygroup1 config system config login-banner)" 0 "${IMG}1:" "${IMG}2:" "grp1"
+
+new "Delete device config via base device-group"
+expectpart "$($clixon_cli -1 -f $CFG -E $CFD -m configure delete devices device @mygroup0 config system config login-banner grp1)" 0 "^$"
+
+new "Verify only ${IMG}1 changed"
+res=$(${clixon_cli} -1 -f $CFG -E $CFD -m configure -o CLICON_CLI_OUTPUT_FORMAT=text show compare | grep -c "^+\ *login-banner grp1;")
+if [ "$res" != "1" ]; then
+    err1 "1 changed device" "$res"
+fi
+
+new "discard candidate"
+expectpart "$($clixon_cli -1 -f $CFG -E $CFD -m configure rollback)" 0 ""
+
+new "Set device config via recursive device-group"
+expectpart "$($clixon_cli -1 -f $CFG -E $CFD -m configure set devices device @mygroup3 config system config login-banner grp3)" 0 "^$"
+
+new "Verify only one device changed"
+res=$(${clixon_cli} -1 -f $CFG -E $CFD -m configure -o CLICON_CLI_OUTPUT_FORMAT=text show compare | grep -c "^+\ *login-banner grp3;")
+if [ "$res" != "1" ]; then
+    err1 "1 changed device" "$res"
+fi
+
+new "Verify ${IMG}2 changed"
+expectpart "$($clixon_cli -1 -f $CFG -E $CFD -m configure show devices device ${IMG}2 config system config login-banner)" 0 "grp3"
+
+new "discard candidate"
+expectpart "$($clixon_cli -1 -f $CFG -E $CFD -m configure rollback)" 0 ""
+
+new "Edit mode via device-group"
+expectpart "$(printf "edit devices device @mygroup1\nset config system config login-banner edit1\n" | $clixon_cli -f $CFG -E $CFD -m configure 2>&1)" 0 --not-- "error"
+
+new "Verify edit mode changed both devices"
+res=$(${clixon_cli} -1 -f $CFG -E $CFD -m configure -o CLICON_CLI_OUTPUT_FORMAT=text show compare | grep -c "^+\ *login-banner edit1;")
+if [ "$res" != "2" ]; then
+    err1 "2 changed devices" "$res"
+fi
+
+new "discard candidate"
+expectpart "$($clixon_cli -1 -f $CFG -E $CFD -m configure rollback)" 0 ""
+
+new "Unknown device-group error"
+expectpart "$($clixon_cli -1 -f $CFG -E $CFD -m configure set devices device @nosuch description x 2>&1)" 255 "No devices in device-group: nosuch"
+
+new "Unknown device-group: no device config syntax, same as unknown device"
+expectpart "$($clixon_cli -1 -f $CFG -E $CFD -m configure set devices device @nosuch config system config login-banner x 2>&1)" 255 "Unknown command"
+
+new "Device-group reference only applies to device names, not device-group names"
+expectpart "$($clixon_cli -1 -f $CFG -E $CFD -m configure set devices device-group @literal description x)" 0 "^$"
+
+new "Verify literal device-group name"
+expectpart "$($clixon_cli -1 -f $CFG -E $CFD -m configure show devices device-group @literal)" 0 "description x"
+
+new "discard candidate"
+expectpart "$($clixon_cli -1 -f $CFG -E $CFD -m configure rollback)" 0 ""
+
 if $BE; then
     new "Kill old backend"
     stop_backend -f $CFG -E $CFD

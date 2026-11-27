@@ -29,7 +29,6 @@
 #include <errno.h>
 #include <syslog.h>
 #include <unistd.h>
-#include <fnmatch.h>
 #include <signal.h> /* matching strings */
 #include <sys/stat.h>
 #include <sys/time.h>
@@ -306,9 +305,8 @@ controller_gentree_pattern(cligen_handle ch,
     xdevices0 = xml_find(xdevs0, "devices");
     ix = 0;
     while ((xdev = xml_child_iter(xdevices0, &ix, CX_ELMNT)) != NULL) {
+        /* Devices are already matched by pattern, possibly a device-group reference */
         if ((devname = xml_find_body(xdev, "name")) == NULL)
-            continue;
-        if (pattern != NULL && fnmatch(pattern, devname, 0) != 0)
             continue;
         cbuf_reset(cb);
         cprintf(cb, "mountpoint-%s", devname);
